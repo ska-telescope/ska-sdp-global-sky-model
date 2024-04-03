@@ -1,0 +1,23 @@
+services:
+  fastapi:
+    image: jm222b/fast-api-gsm
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+
+  db:
+    image: jm222b/ska-gsm-db
+    restart: always
+    user: postgres
+    environment:
+      POSTGRES_PASSWORD: 'pass'
+      POSTGRES_DB:  'global_sky_model'
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./initdb-pgsphere.sh:/docker-entrypoint-initdb.d/initdb-pgsphere.sh
+      - database_volume:/var/lib/postgresql/data
+volumes:
+  database_volume:
+    name: database_volume
