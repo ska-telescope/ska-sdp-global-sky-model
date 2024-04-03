@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "gsm-demo"
+version = "0.1.0"
+description = ""
+authors = ["Jacob Maresca <jacob.maresca@akkodis.com>"]
+packages = [{include = "gsm-demo", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.110.1"
+sqlalchemy = "^2.0.29"
+uvicorn = "^0.29.0"
+sqlmodel = "^0.0.16"
+psycopg2 = "^2.9.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
