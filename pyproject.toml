@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "gsm-demo"
+name = "ska_sdp_global_sky_model"
 version = "0.1.0"
 description = ""
 authors = ["Jacob Maresca <jacob.maresca@akkodis.com>"]
-packages = [{include = "gsm-demo", from = "src" }]
+packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"

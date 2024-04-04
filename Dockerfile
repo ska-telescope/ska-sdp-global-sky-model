@@ -3,7 +3,7 @@ FROM python:3.10-slim as starter
 WORKDIR /app
 RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock ./
-COPY src/gsm-demo/kubernetes/api/app /app/src/gsm-demo/api/
+COPY src/ska_sdp_global_sky_model/kubernetes/api/app /app/src/ska_sdp_global_sky_model/api/
 RUN poetry export -o requirements.txt && poetry build
 
 
@@ -26,9 +26,9 @@ RUN pip install --no-cache-dir --no-compile -r requirements.txt && \
 
 FROM builder as dev
 
-WORKDIR /usr/src/gsm-demo
+WORKDIR /usr/src/ska_sdp_global_sky_model
 
-COPY src/gsm-demo/kubernetes/api/app/ .
+COPY src/ska_sdp_global_sky_model/kubernetes/api/app/ .
 
 EXPOSE 80
 
