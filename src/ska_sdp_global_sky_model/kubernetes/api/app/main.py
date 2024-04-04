@@ -1,10 +1,13 @@
+"""
+A simple fastAPI.
+"""
+
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-import models
-from db import engine
-from routers import point_sources
-
+from ska_sdp_global_sky_model.kubernetes.api.app import models
+from ska_sdp_global_sky_model.kubernetes.api.app.db import engine
+from ska_sdp_global_sky_model.kubernetes.api.app.routers import point_sources
 
 models.Base.metadata.create_all(bind=engine)
 

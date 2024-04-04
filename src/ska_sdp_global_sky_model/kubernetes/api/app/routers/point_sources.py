@@ -1,14 +1,22 @@
-from sqlmodel import SQLModel
-from sqlalchemy import text
-from sqlalchemy.orm import sessionmaker, scoped_session
-from db import engine
+"""
+First endpoints.
+"""
+
 from fastapi import APIRouter
+from sqlalchemy import text
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlmodel import SQLModel
+
+from ska_sdp_global_sky_model.kubernetes.api.app.db import engine
 
 router = APIRouter()
 
 
 @router.on_event("startup")
 def create_db_and_tables():
+    """
+    Called on application startup.
+    """
     SQLModel.metadata.create_all(engine)
 
 
@@ -17,8 +25,12 @@ def ping():
     """Returns {"ping": "live"} when called"""
     return {"ping": "live"}
 
+
 @router.get("/test", summary="Check we are connected to the database")
 def test():
-    Session = scoped_session(sessionmaker(bind=engine))
-    s = Session()
-    return s.execute(text('SELECT pg_sphere_version();'))
+    """
+    Requests version information from pg_sphere.
+    """
+    session = scoped_session(sessionmaker(bind=engine))
+    s = session()
+    return s.execute(text("SELECT pg_sphere_version();"))

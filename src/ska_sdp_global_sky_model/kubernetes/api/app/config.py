@@ -1,3 +1,7 @@
+"""
+Configure variables to be used.
+"""
+
 import os
 
 # DB (Postgres)
