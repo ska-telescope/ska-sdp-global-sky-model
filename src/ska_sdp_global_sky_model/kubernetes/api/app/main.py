@@ -19,6 +19,9 @@ Base = declarative_base()
 
 
 def get_db():
+    """
+    Start a session.
+    """
     try:
         db = session_local()
         yield db
@@ -38,6 +41,4 @@ app.add_middleware(
 )
 
 
-app.include_router(
-    point_sources.router
-)
+app.include_router(point_sources.router)

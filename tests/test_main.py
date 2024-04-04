@@ -20,6 +20,9 @@ TestingSessionLocal = sessionmaker(
 
 
 def override_get_db():
+    """
+    Create a local testing session.
+    """
     try:
         db = TestingSessionLocal()
         yield db
@@ -29,6 +32,9 @@ def override_get_db():
 
 @pytest.fixture()
 def test_db():
+    """
+    Database for test purposes.
+    """
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
