@@ -1,4 +1,4 @@
-# Configure a ClusterIP service that will give us internal acess to the authentication api.
+# Configure a ClusterIP service for internal api access.
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,7 +13,7 @@ spec:
 
 ---
 
-# Configure a deployment for the authentication api
+# Configure a deployment for the api
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,12 +32,12 @@ spec:
       - name: api
         image: jm222b/fastapi-demo
         env:
-          - name: AUTH_DB_USER
+          - name: DB_USER
             valueFrom:
               secretKeyRef:
                 name: db-credentials
                 key: user
-          - name: AUTH_DB_PASSWORD
+          - name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: db-credentials

@@ -1,5 +1,4 @@
-# Configure a persistent volume for postgres since we want to keep this data even if the postgres
-# pod is deleted.
+# Configure a persistent volume for postgres
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -17,9 +16,6 @@ spec:
 
 ---
 
-# I don't full understand PersistentVolumeClaims, but it seems to describe how a PersistentVolume can be
-# used, such as access mode and storage. In addition the PersistentVolumeClaim seems to work like
-# Services, which provide access to a Pod.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -37,12 +33,7 @@ spec:
 
 ---
 
-# Configure a NodePort service that will give us access to the Postgres Pod.
-#
-# We are using NodePort for development purposes, since this service exposes an external port
-# via nodePort, which will give us access to the database.
-#
-# In production we'd probably user a ClusterIP service which allows internal access only.
+# Configure a NodePort service for access to the Postgres Pod.
 apiVersion: v1
 kind: Service
 metadata:
@@ -57,8 +48,7 @@ spec:
 
 ---
 
-# Configure a deployment for our postgres database. Uses secrets to retrieve the
-# postgres user and password,
+# Configure a deployment for our postgres database
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -100,8 +90,7 @@ spec:
 
 ---
 
-# Configure a NodePort service that will give us access to the Redis Pod, which
-# will use to store sessions.
+# Configure a NodePort service for access to the Redis Pod
 apiVersion: v1
 kind: Service
 metadata:
