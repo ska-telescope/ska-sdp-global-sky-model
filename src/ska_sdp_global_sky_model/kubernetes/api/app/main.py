@@ -3,16 +3,27 @@ A simple fastAPI.
 """
 
 from fastapi import FastAPI
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.kubernetes.api.app import models
-from ska_sdp_global_sky_model.kubernetes.api.app.db import engine
 from ska_sdp_global_sky_model.kubernetes.api.app.routers import point_sources
 
-models.Base.metadata.create_all(bind=engine)
-
-
 app = FastAPI()
+
+session_local = sessionmaker(
+    autocommit=False, autoflush=False, bind=point_sources.engine
+)
+
+Base = declarative_base()
+
+
+def get_db():
+    try:
+        db = session_local()
+        yield db
+    finally:
+        db.close()
 
 
 origins = []
@@ -28,7 +39,5 @@ app.add_middleware(
 
 
 app.include_router(
-    point_sources.router,
-    prefix="/",
-    tags=["point_sources"],
+    point_sources.router
 )

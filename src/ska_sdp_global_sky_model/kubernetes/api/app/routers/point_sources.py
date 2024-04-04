@@ -5,11 +5,13 @@ First endpoints.
 from fastapi import APIRouter
 from sqlalchemy import text
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, create_engine
 
-from ska_sdp_global_sky_model.kubernetes.api.app.db import engine
+from ska_sdp_global_sky_model.kubernetes.api.app.config import DB_URL
 
 router = APIRouter()
+
+engine = create_engine(DB_URL)
 
 
 @router.on_event("startup")
