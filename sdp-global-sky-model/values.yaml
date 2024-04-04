@@ -3,12 +3,12 @@ replicaCount: 1
 image:
   repository: jm222b/fastapi-demo
   tag: "latest"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 dbimage:
   repository: jm222b/ska-gsm-db
   tag: "latest"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 nodeportservice:
   type: NodePort

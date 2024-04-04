@@ -28,8 +28,8 @@ FROM builder as dev
 
 WORKDIR /usr/src/ska_sdp_global_sky_model
 
-COPY src/ska_sdp_global_sky_model/kubernetes/api/app/ .
+COPY src/ska_sdp_global_sky_model/ .
 
 EXPOSE 80
 
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "ska_sdp_global_sky_model.kubernetes.api.app.main:app", "--reload", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]
