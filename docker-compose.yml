@@ -1,6 +1,6 @@
 services:
   fastapi:
-    image: jm222b/fast-api-gsm
+    image: jm222b/fastapi-demo
     ports:
       - "8000:80"
     depends_on:
@@ -12,7 +12,7 @@ services:
     user: postgres
     environment:
       POSTGRES_PASSWORD: 'pass'
-      POSTGRES_DB:  'global_sky_model'
+      POSTGRES_DB:  'postgres'
     ports:
       - "5432:5432"
     volumes:
