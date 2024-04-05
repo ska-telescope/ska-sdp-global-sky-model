@@ -1,0 +1,29 @@
+replicaCount: 1
+
+image:
+  repository: jm222b/fastapi-demo
+  tag: "latest"
+  pullPolicy: Always
+
+dbimage:
+  repository: jm222b/ska-gsm-db
+  tag: "latest"
+  pullPolicy: Always
+
+nodeportservice:
+  type: NodePort
+  port: 5432
+  nodePort: 30001
+
+redisnodeportservice:
+  type: NodePort
+  port: 6379
+  nodePort: 30002
+
+loadbalancerservice:
+  type: LoadBalancer
+  port: 80
+  targetPort: 80
+
+env:
+  name: dev
