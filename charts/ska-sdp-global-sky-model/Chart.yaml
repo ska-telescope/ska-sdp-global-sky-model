@@ -1,5 +1,5 @@
 apiVersion: v2
-name: sdp-global-sky-model
+name: ska-sdp-global-sky-model
 description: A Helm chart for Kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
@@ -22,7 +22,8 @@ version: 0.1.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "0.1.0"
+icon: https://www.skao.int/themes/custom/ska/favicon.svg
 
 maintainers:
-- email: jacob.maresca@akkodis.com
+- email: naledi@sarao.ac.za
   name: Team Naledi

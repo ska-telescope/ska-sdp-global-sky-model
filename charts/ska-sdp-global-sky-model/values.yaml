@@ -1,6 +1,6 @@
 replicaCount: 1
 
-image:
+api:
   repository: jm222b/fastapi-demo
   tag: "latest"
   pullPolicy: Always
@@ -24,6 +24,12 @@ loadbalancerservice:
   type: LoadBalancer
   port: 80
   targetPort: 80
+
+persistentvolume:
+  storageclassname: standard
+  size: 128M
+  accessmodes: ReadWriteOnce
+  hostpath: "/data/db-pv"
 
 env:
   name: dev

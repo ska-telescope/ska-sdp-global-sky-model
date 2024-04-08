@@ -2,12 +2,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-api
+  name: {{ .Chart.Name }}-api
   labels:
-    service: {{ .Release.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}-api
 spec:
   selector:
-    app: {{ .Release.Name }}-api
+    app.kubernetes.io/name: {{ .Chart.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
   ports:
   - port: 80
 
@@ -17,31 +19,33 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-api
+  name: {{ .Chart.Name }}-api
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-api
+      app.kubernetes.io/name: {{ .Chart.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}-api
     spec:
       containers:
       - name: {{ .Chart.Name }}-api
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: "{{ .Values.api.repository }}:{{ .Values.api.tag }}"
+        imagePullPolicy: {{ .Values.api.pullPolicy }}
         env:
           - name: DB_USER
             valueFrom:
               secretKeyRef:
-                name: {{ .Release.Name }}-db-credentials
+                name: {{ .Chart.Name }}-db-credentials
                 key: user
           - name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Release.Name }}-db-credentials
+                name: {{ .Chart.Name }}-db-credentials
                 key: password
         ports:
         - containerPort: 80

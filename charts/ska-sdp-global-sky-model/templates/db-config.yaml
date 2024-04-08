@@ -2,33 +2,33 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: db-pv
+  name: {{ .Chart.Name }}-db-pv
   labels:
     type: local
 spec:
   capacity:
-    storage: 128M
-  storageClassName: standard
+    storage: {{ .Values.persistentvolume.size }}
+  storageClassName: {{ .Values.persistentvolume.storageclassname }}
   accessModes:
-    - ReadWriteOnce
+    - {{ .Values.persistentvolume.accessmodes }}
   hostPath:
-    path: "/data/db-pv"
+    path: {{ .Values.persistentvolume.hostpath }}
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: db-pvc
+  name: {{ .Chart.Name }}-db-pvc
   labels:
     type: local
 spec:
   accessModes:
-    - ReadWriteOnce
+    - {{ .Values.persistentvolume.accessmodes }}
   resources:
     requests:
-      storage: 128M
-  volumeName: db-pv
-  storageClassName: standard
+      storage: {{ .Values.persistentvolume.size }}
+  volumeName: {{ .Chart.Name }}-db-pv
+  storageClassName: {{ .Values.persistentvolume.storageclassname }}
 
 ---
 
@@ -36,33 +36,35 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: db
+  name: {{ .Chart.Name }}-db
 spec:
   selector:
-    service: {{ .Release.Name }}-db
-  type: {{ .Values.nodeportservice.type }}
+    service: {{ .Chart.Name }}-db
   ports:
   - port: {{ .Values.nodeportservice.port }}
-    nodePort: {{ .Values.nodeportservice.nodePort }}
+    targetPort: {{ .Values.nodeportservice.nodePort }}
 
 ---
 
 # Configure a deployment for our postgres database
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-db
+  name: {{ .Chart.Name }}-db
   labels:
-    name: database
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}-db
 spec:
   replicas: 1
   selector:
     matchLabels:
-      service: {{ .Release.Name }}-db
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
+      app.kubernetes.io/name: {{ .Chart.Name }}-db
   template:
     metadata:
       labels:
-        service: {{ .Release.Name }}-db
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}-db
     spec:
       containers:
       - name: {{ .Chart.Name }}
@@ -72,12 +74,12 @@ spec:
           - name: POSTGRES_USER
             valueFrom:
               secretKeyRef:
-                name: {{ .Release.Name }}-db-credentials
+                name: {{ .Chart.Name }}-db-credentials
                 key: user
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Release.Name }}-db-credentials
+                name: {{ .Chart.Name }}-db-credentials
                 key: password
         volumeMounts:
           - name: db-volume-mount
@@ -85,7 +87,7 @@ spec:
       volumes:
       - name: db-volume-mount
         persistentVolumeClaim:
-          claimName: db-pvc
+          claimName: {{ .Chart.Name }}-db-pvc
       restartPolicy: Always
 
 ---
@@ -94,14 +96,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-session-db
+  name: {{ .Chart.Name }}-session-db
 spec:
   selector:
-    service: {{ .Release.Name }}-session-db
-  type: {{ .Values.redisnodeportservice.type}}
+    service: {{ .Chart.Name }}-session-db
   ports:
   - port: {{ .Values.redisnodeportservice.port }}
-    nodePort: {{ .Values.redisnodeportservice.nodePort }}
+    targetPort: {{ .Values.redisnodeportservice.nodePort }}
 
 ---
 
@@ -109,19 +110,21 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-session-db
+  name: {{ .Chart.Name }}-session-db
 spec:
   replicas: 1
   selector:
     matchLabels:
-      service: {{ .Release.Name }}-session-db
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
+      app.kubernetes.io/name: {{ .Chart.Name }}-session-db
   template:
     metadata:
       labels:
-        service: {{ .Release.Name }}-session-db
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}-session-db
     spec:
       containers:
-      - name: {{ .Release.Name }}-session-db
+      - name: {{ .Chart.Name }}-session-db
         image: redis:5.0-alpine
         ports:
         - containerPort: 6379
