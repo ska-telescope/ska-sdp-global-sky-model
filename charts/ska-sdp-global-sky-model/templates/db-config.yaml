@@ -36,13 +36,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Chart.Name }}-db
+  name: {{ .Chart.Name }}-db-service
 spec:
   selector:
-    service: {{ .Chart.Name }}-db
+    app.kubernetes.io/name: {{ .Chart.Name }}-db
   ports:
   - port: {{ .Values.nodeportservice.port }}
-    targetPort: {{ .Values.nodeportservice.nodePort }}
+    targetPort: {{ .Values.nodeportservice.port }}
 
 ---
 
@@ -67,7 +67,7 @@ spec:
         app.kubernetes.io/name: {{ .Chart.Name }}-db
     spec:
       containers:
-      - name: {{ .Chart.Name }}
+      - name: {{ .Chart.Name }}-db
         image: {{ .Values.dbimage.repository}}:{{ .Values.dbimage.tag }}
         imagePullPolicy: {{ .Values.dbimage.pullPolicy }}
         env:
