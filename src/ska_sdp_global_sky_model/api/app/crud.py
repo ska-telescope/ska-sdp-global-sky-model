@@ -1,8 +1,9 @@
 """
 CRUD functionality goes here.
 """
-from sqlalchemy.orm import Session
+
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
 def get_pg_sphere_version(db: Session):

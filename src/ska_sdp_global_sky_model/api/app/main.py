@@ -1,14 +1,15 @@
 """
 A simple fastAPI.
 """
-from fastapi import FastAPI, Depends
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+
+from fastapi import Depends, FastAPI
 from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.config import DB_URL
 from ska_sdp_global_sky_model.api.app import crud
+from ska_sdp_global_sky_model.api.app.config import DB_URL
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
