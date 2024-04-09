@@ -15,8 +15,6 @@ engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
 
 
@@ -41,6 +39,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def create_db_and_tables():
+    """
+    Called on application startup.
+    """
+    Base.metadata.create_all(engine)
 
 
 @app.get("/ping", summary="Ping the API")
