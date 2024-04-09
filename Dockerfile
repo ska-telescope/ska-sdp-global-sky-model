@@ -3,7 +3,7 @@ FROM python:3.10-slim as starter
 WORKDIR /app
 RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock ./
-COPY src/ska_sdp_global_sky_model/kubernetes/api/app /app/src/ska_sdp_global_sky_model/api/
+COPY src/ska_sdp_global_sky_model/api/app /app/src/ska_sdp_global_sky_model/api/
 RUN poetry export -o requirements.txt && poetry build
 
 
@@ -32,4 +32,4 @@ COPY src/ska_sdp_global_sky_model/ .
 
 EXPOSE 80
 
-CMD ["uvicorn", "ska_sdp_global_sky_model.kubernetes.api.app.main:app", "--reload", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]
+CMD ["uvicorn", "ska_sdp_global_sky_model.api.app.main:app", "--reload", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]
