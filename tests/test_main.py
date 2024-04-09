@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from ska_sdp_global_sky_model.api.app.main import Base, app, get_db
 
-SQLALCHEMY_DATABASE_URL = "postgresql:///./test.db"
+SQLALCHEMY_DATABASE_URL = "postgresql://"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = sessionmaker(
