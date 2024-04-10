@@ -14,7 +14,7 @@ config = Config(ENV_FILE)
 
 # DB (Postgres)
 DB_NAME: str = config("DB_NAME", default="postgres")
-DB_USER: str = config("DB_USER", default="user")
+DB_USER: str = config("DB_USER", default="postgres")
 DB_PASSWORD: str = config("DB_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB}:5432/{DB_NAME}"

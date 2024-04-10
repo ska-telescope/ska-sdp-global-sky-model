@@ -4,6 +4,7 @@ kind: PersistentVolume
 metadata:
   name: {{ .Chart.Name }}-db-pv
   labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
     type: local
 spec:
   capacity:
@@ -20,6 +21,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ .Chart.Name }}-db-pvc
   labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
     type: local
 spec:
   accessModes:
