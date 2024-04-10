@@ -41,8 +41,8 @@ spec:
   selector:
     app.kubernetes.io/name: {{ .Chart.Name }}-db
   ports:
-  - port: {{ .Values.nodeportservice.port }}
-    targetPort: {{ .Values.nodeportservice.port }}
+  - port: {{ .Values.dbservice.port }}
+    targetPort: {{ .Values.dbservice.port }}
 
 ---
 
@@ -101,8 +101,8 @@ spec:
   selector:
     service: {{ .Chart.Name }}-session-db
   ports:
-  - port: {{ .Values.redisnodeportservice.port }}
-    targetPort: {{ .Values.redisnodeportservice.nodePort }}
+  - port: {{ .Values.redisservice.port }}
+    targetPort: {{ .Values.redisservice.nodePort }}
 
 ---
 

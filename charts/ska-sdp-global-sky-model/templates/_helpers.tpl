@@ -6,3 +6,12 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 component: global-sky-model
 domain: science-data-processing
 {{- end }}
+
+
+{{- define "ska-sdp-global-sky-model.ingress_path_prepend" }}
+    {{- if $.Values.ingress.namespaced }}
+        {{- printf "/%s%s" .Release.Namespace $.Values.ingress.pathStart }}
+    {{- else }}
+        {{- printf "%s" $.Values.ingress.pathStart }}
+    {{- end }}
+{{- end }}

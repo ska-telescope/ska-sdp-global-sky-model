@@ -24,5 +24,11 @@ persistentvolume:
   accessmodes: ReadWriteOnce
   hostpath: "/data/db-pv"
 
+ingress:
+  enabled: true
+  pathStart: "/sdp"
+  namespaced: true
+
+
 env:
   name: dev
