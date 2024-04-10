@@ -10,13 +10,11 @@ dbimage:
   tag: "latest"
   pullPolicy: Always
 
-nodeportservice:
-  type: NodePort
+dbservice:
   port: 5432
   nodePort: 30001
 
-redisnodeportservice:
-  type: NodePort
+redisservice:
   port: 6379
   nodePort: 30002
 
