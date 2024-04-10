@@ -1,6 +1,8 @@
 services:
   fastapi:
-    image: jm222b/fastapi-demo:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:80"
     depends_on:
@@ -9,7 +11,9 @@ services:
       - redis:redis
 
   db:
-    image: jm222b/ska-gsm-db:latest
+    build:
+      context: .
+      dockerfile: Dockerfile-db
     restart: always
     user: postgres
     environment:
