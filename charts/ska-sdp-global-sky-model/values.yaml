@@ -18,11 +18,6 @@ redisservice:
   port: 6379
   nodePort: 30002
 
-loadbalancerservice:
-  type: LoadBalancer
-  port: 8000
-  targetPort: 8000
-
 persistentvolume:
   storageclassname: standard
   size: 128M
