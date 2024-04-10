@@ -216,11 +216,7 @@ epub_exclude_files = ["search.html"]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/", None),
-    "ska-sdp-config": ("https://developer.skao.int/projects/ska-sdp-config/en/latest/", None),
-    "ska-sdp-qa-display": ("https://developer.skao.int/projects/ska-sdp-qa-display/en/latest/", None),
-    "ska-sdp-qa-data-api": ("https://developer.skao.int/projects/ska-sdp-qa-data-api/en/latest/", None),
-}
+    "python": ("https://docs.python.org/", None)}
 
 
 # -- Options for todo extension ----------------------------------------------
