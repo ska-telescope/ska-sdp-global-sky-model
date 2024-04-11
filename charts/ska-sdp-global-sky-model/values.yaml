@@ -1,12 +1,12 @@
 replicaCount: 1
 
 api:
-  repository: jm222b/fastapi-demo
+  repository: artefact.skao.int/ska-sdp-global-sky-model-api
   tag: "latest"
   pullPolicy: Always
 
 dbimage:
-  repository: jm222b/ska-gsm-db
+  repository: artefact.skao.int/ska-sdp-global-sky-model-db
   tag: "latest"
   pullPolicy: Always
 
