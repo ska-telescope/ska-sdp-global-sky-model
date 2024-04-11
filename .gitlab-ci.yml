@@ -6,6 +6,7 @@ default:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  OCI_IMAGE_BUILD_CONTEXT: ../..
 
 # Enable caching for python
 cache:
