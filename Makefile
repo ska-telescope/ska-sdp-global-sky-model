@@ -1,3 +1,4 @@
+-include .make/release.mk
 # include OCI Images support
 include .make/oci.mk
 
