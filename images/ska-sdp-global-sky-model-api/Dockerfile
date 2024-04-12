@@ -33,3 +33,9 @@ COPY src/ska_sdp_global_sky_model/ .
 EXPOSE 80
 
 CMD ["uvicorn", "ska_sdp_global_sky_model.api.app.main:app", "--reload", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]
+
+FROM builder as prod
+
+ENV WORKER_COUNT 2
+
+CMD ["bash", "-c", "uvicorn ska_sdp_qa_data_api.server.main:app --workers ${WORKER_COUNT} --host 0.0.0.0 --port 80"]
