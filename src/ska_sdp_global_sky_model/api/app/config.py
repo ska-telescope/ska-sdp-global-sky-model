@@ -14,10 +14,10 @@ config = Config(ENV_FILE)
 
 # DB (Postgres)
 DB_NAME: str = config("DB_NAME", default="postgres")
-DB_USER: str = config("DB_USER", default="postgres")
-DB_PASSWORD: str = config("DB_PASSWORD", default="pass")
+POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
+POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
-DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB}:5432/{DB_NAME}"
+DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
