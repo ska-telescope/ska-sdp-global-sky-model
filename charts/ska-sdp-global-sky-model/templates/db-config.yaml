@@ -1,0 +1,134 @@
+# Configure a persistent volume for postgres
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Chart.Name }}-db-pv
+  labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    type: local
+spec:
+  capacity:
+    storage: {{ .Values.persistentvolume.size }}
+  storageClassName: {{ .Values.persistentvolume.storageclassname }}
+  accessModes:
+    - {{ .Values.persistentvolume.accessmodes }}
+  hostPath:
+    path: {{ .Values.persistentvolume.hostpath }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Chart.Name }}-db-pvc
+  labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    type: local
+spec:
+  accessModes:
+    - {{ .Values.persistentvolume.accessmodes }}
+  resources:
+    requests:
+      storage: {{ .Values.persistentvolume.size }}
+  volumeName: {{ .Chart.Name }}-db-pv
+  storageClassName: {{ .Values.persistentvolume.storageclassname }}
+
+---
+
+# Configure a NodePort service for access to the Postgres Pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}-db-service
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Chart.Name }}-db
+  ports:
+  - port: {{ .Values.dbservice.port }}
+    targetPort: {{ .Values.dbservice.port }}
+
+---
+
+# Configure a deployment for our postgres database
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Chart.Name }}-db
+  labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}-db
+  annotations:
+  {{ if ((.Values.vault).useVault) }}
+      vault.hashicorp.com/agent-inject: "true"
+      vault.hashicorp.com/agent-inject-status: "update"
+      vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.pathToSecretVault }}"
+      vault.hashicorp.com/agent-inject-template-config: |
+          {{`{{- with secret `}}"{{ .Values.vault.pathToSecretVault }}"{{` -}}`}}
+          {{`{{- range $k, $v := .Data.data }}`}}
+          {{`{{ $k }}={{ $v }}`}}
+          {{`{{- end }}`}}
+          {{`{{- end }}`}}
+      vault.hashicorp.com/role: "kube-role"
+  {{ end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
+      app.kubernetes.io/name: {{ .Chart.Name }}-db
+  template:
+    metadata:
+      labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}-db
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-db
+        image: {{ .Values.dbimage.repository}}:{{ .Values.dbimage.tag }}
+        imagePullPolicy: {{ .Values.dbimage.pullPolicy }}
+        volumeMounts:
+          - name: db-volume-mount
+            mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: db-volume-mount
+        persistentVolumeClaim:
+          claimName: {{ .Chart.Name }}-db-pvc
+      restartPolicy: Always
+
+---
+
+# Configure a NodePort service for access to the Redis Pod
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}-session-db
+spec:
+  selector:
+    service: {{ .Chart.Name }}-session-db
+  ports:
+  - port: {{ .Values.redisservice.port }}
+    targetPort: {{ .Values.redisservice.nodePort }}
+
+---
+
+# Configure a deployment for our session db (Redis)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-session-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
+      app.kubernetes.io/name: {{ .Chart.Name }}-session-db
+  template:
+    metadata:
+      labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}-session-db
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-session-db
+        image: redis:7.2.4
+        ports:
+        - containerPort: 6379

@@ -1,0 +1,58 @@
+# Configure a ClusterIP service that will give us internal acess to the api.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}-api-service
+  labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}-api
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Chart.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+
+---
+
+# Configure a deployment for the api
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}-api
+      annotations:
+      {{ if ((.Values.vault).useVault) }}
+          vault.hashicorp.com/agent-inject: "true"
+          vault.hashicorp.com/agent-inject-status: "update"
+          vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.pathToSecretVault }}"
+          vault.hashicorp.com/agent-inject-template-config: |
+              {{`{{- with secret `}}"{{ .Values.vault.pathToSecretVault }}"{{` -}}`}}
+              {{`{{- range $k, $v := .Data.data }}`}}
+              {{`{{ $k }}={{ $v }}`}}
+              {{`{{- end }}`}}
+              {{`{{- end }}`}}
+          vault.hashicorp.com/role: "kube-role"
+      {{ end }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-api
+        image: "{{ .Values.api.repository }}:{{ .Values.api.tag }}"
+        imagePullPolicy: {{ .Values.api.pullPolicy }}
+        env:
+          - name: DB
+            value: "{{ .Chart.Name }}-db-service"
+        ports:
+        - containerPort: 80

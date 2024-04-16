@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}-api
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+  name: {{ .Chart.Name }}-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: {{ .Chart.Name }}-api-service
+            port:
+              number: 80
+        path: "{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}/global-sky-model/(.*)"
+        pathType: ImplementationSpecific

@@ -1,0 +1,38 @@
+replicaCount: 1
+
+api:
+  repository: artefact.skao.int/ska-sdp-global-sky-model-api
+  tag: "latest"
+  pullPolicy: Always
+
+dbimage:
+  repository: artefact.skao.int/ska-sdp-global-sky-model-db
+  tag: "latest"
+  pullPolicy: Always
+
+dbservice:
+  port: 5432
+  nodePort: 30001
+
+redisservice:
+  port: 6379
+  nodePort: 30002
+
+persistentvolume:
+  storageclassname: standard
+  size: 128M
+  accessmodes: ReadWriteOnce
+  hostpath: "/data/db-pv-test"
+
+ingress:
+  enabled: true
+  pathStart: "/sdp"
+  namespaced: true
+
+
+env:
+  name: dev
+
+vault:
+  useVault: true
+  pathToSecretVault: kv/data/users/jm22b/ska-sdp-global-sky-model
