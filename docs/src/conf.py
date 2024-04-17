@@ -50,6 +50,7 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx_copybutton",
     "sphinx_new_tab_link",
+    "ska_ser_sphinx_theme",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
