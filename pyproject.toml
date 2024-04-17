@@ -1,7 +1,7 @@
 [tool.poetry]
 include = ["MANIFEST.skao.int"]
 name = "ska_sdp_global_sky_model"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Jacob Maresca <jacob.maresca@akkodis.com>"]
 packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
@@ -31,6 +31,7 @@ build = "^1.2.1"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7.2.6"
+sphinx-copybutton = "^0.5.2"
 
 [build-system]
 requires = ["poetry-core"]
