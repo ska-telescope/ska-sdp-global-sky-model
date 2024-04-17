@@ -1476,8 +1476,6 @@ url = "https://pypi.org/simple"
 reference = "PyPI-public"
 
 [[package]]
-<<<<<<< Updated upstream
-=======
 name = "sphinx-copybutton"
 version = "0.5.2"
 description = "Add a copy button to each of your code cells."
@@ -1525,7 +1523,6 @@ url = "https://pypi.org/simple"
 reference = "PyPI-public"
 
 [[package]]
->>>>>>> Stashed changes
 name = "sphinxcontrib-applehelp"
 version = "1.0.8"
 description = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple help books"
@@ -1919,8 +1916,4 @@ reference = "PyPI-public"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-<<<<<<< Updated upstream
-content-hash = "59a2bfbc8560079d1231aa1e35a97fa4bec6c951ba81e7acc3394f7ed37c830d"
-=======
 content-hash = "442a0e792a450b4fcc6c1008fb393aa9ced85704ceeced3aa25392bf3b3c7a1e"
->>>>>>> Stashed changes
