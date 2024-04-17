@@ -31,11 +31,8 @@ build = "^1.2.1"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7.2.6"
-<<<<<<< Updated upstream
-=======
 sphinx-copybutton = "^0.5.2"
 ska-ser-sphinx-theme = "^0.1.2"
->>>>>>> Stashed changes
 
 [build-system]
 requires = ["poetry-core"]
