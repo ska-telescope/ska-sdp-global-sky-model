@@ -40,13 +40,11 @@ ska-ser-sphinx-theme = "^0.1.2"
 [[tool.poetry.source]]
 name = "ska-nexus"
 url = "https://artefact.skao.int/repository/pypi-internal/simple"
-priority = "supplemental"
 
 
 [[tool.poetry.source]]
 name = "PyPI-public"
 url = "https://pypi.org/simple"
-priority = "primary"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
