@@ -35,16 +35,16 @@ sphinx-copybutton = "^0.5.2"
 ska-ser-sphinx-theme = "^0.1.2"
 
 
+
 [[tool.poetry.source]]
-name = "ska"
-url = "https://artefact.skao.int/repository/pypi-all/simple"
+name = "PyPI"
 priority = "primary"
 
 
 [[tool.poetry.source]]
-name = "PyPI-public"
-url = "https://pypi.org/simple"
-priority = "primary"
+name = "ska-nexus"
+url = "https://artefact.skao.int/repository/pypi-internal/simple"
+priority = "supplemental"
 
 [build-system]
 requires = ["poetry-core"]
