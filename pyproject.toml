@@ -34,6 +34,7 @@ build = "^1.2.1"
 sphinx = "^7.2.6"
 sphinx-copybutton = "^0.5.2"
 ska-ser-sphinx-theme = "^0.1.2"
+sphinx-new-tab-link = "^0.4.0"
 
 
 
