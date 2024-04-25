@@ -1,26 +1,21 @@
-.. SDP Global Sky Model documentation master file, created by
-   sphinx-quickstart on Thu Apr  4 11:58:29 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to SDP Global Sky Model's documentation!
 ================================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+  :maxdepth: 1
+  :caption: User Guide
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+  userguide/overview
 
 .. toctree::
-:maxdepth: 1
-:caption: Releases
+  :maxdepth: 1
+  :caption: Developer Guide
 
-releases/changelog
+  developerguide/Development
+  developerguide/Deployment
+
+.. toctree::
+  :maxdepth: 1
+  :caption: Releases
+
+  releases/Changelog
