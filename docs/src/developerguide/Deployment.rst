@@ -26,9 +26,10 @@ ingress addon:
     $ minikube addons enable ingress
 
 2. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
-Make any desired changes to the values files or image versions and update the Helm dependencies.
+Make any desired changes to the values files or image versions and update the Helm dependencies:
 
 .. code-block:: bash
+
     $ helm dependency update .
     $ helm dependency build .
 
@@ -37,6 +38,7 @@ Make any desired changes to the values files or image versions and update the He
 4. Install the helm chart as follows:
 
 .. code-block:: bash
+
     $ helm install [deployment-name] charts/ska-sdp-global-sky-model -n [namespace]
 
 Once the install has completed, you will have the following running:
@@ -53,4 +55,5 @@ Alternatively, the application can be built using the provided docker-compose
 file, with the single command
 
 .. code-block:: bash
+
     $ docker compose up -d
