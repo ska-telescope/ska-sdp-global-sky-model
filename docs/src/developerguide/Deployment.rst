@@ -17,7 +17,7 @@ The following steps assume that you have cloned the repo, or have a local
 copy of the chart. All given commands assume that you are at the terminal in
 your chosen environment.
 
-#. 1. Start Minikube if it is not already running, and optionally enable the 
+#. Start Minikube if it is not already running, and optionally enable the 
 ingress addon: 
 
 .. code-block:: bash
@@ -25,14 +25,14 @@ ingress addon:
     $ minikube start
     $ minikube addons enable ingress
 
-#. 2. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
+#. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
 Make any desired changes to the values files.
 
 
-#. 3. Optionally, create a new namespace: ``kubectl create namespace [namespace]``
+#. Optionally, create a new namespace: ``kubectl create namespace [namespace]``
 
 
-#. 4. Install the helm chart as follows:
+#. Install the helm chart as follows:
 
 .. code-block:: bash
 
