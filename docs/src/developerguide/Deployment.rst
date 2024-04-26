@@ -26,12 +26,7 @@ ingress addon:
     $ minikube addons enable ingress
 
 2. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
-Make any desired changes to the values files or image versions and update the Helm dependencies:
-
-.. code-block:: bash
-
-    $ helm dependency update .
-    $ helm dependency build .
+Make any desired changes to the values files.
 
 3. Optionally, create a new namespace: ``kubectl create namespace [namespace]``
 
