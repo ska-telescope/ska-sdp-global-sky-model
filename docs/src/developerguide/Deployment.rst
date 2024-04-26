@@ -27,11 +27,7 @@ ingress addon:
 
 #. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
 Make any desired changes to the values files.
-
-
 #. Optionally, create a new namespace: ``kubectl create namespace [namespace]``
-
-
 #. Install the helm chart as follows:
 
 .. code-block:: bash
