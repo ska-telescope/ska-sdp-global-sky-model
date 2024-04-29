@@ -7,7 +7,7 @@ This document complements the guidelines set out in the `SKA telescope developer
 Tooling Pre-requisites
 ======================
 
-Below are some tools that will be required to work with the data product API:
+Below are some tools that will be required to work with the SKA Global Sky Model:
 
 - Python 3.10 or later versions: Install page URL: https://www.python.org/downloads/
 - Poetry 1.8.2 or later versions: Install page URL: https://python-poetry.org/docs/#installation
@@ -26,4 +26,17 @@ Clone the repository and its submodules:
 Running the application
 =======================
 
-<To be updated>
+The API can be run as a script, provided the connection string to the PostgreSQL database 
+is updated, using the command:
+
+.. code-block:: bash
+
+    $ uvicorn ska_sdp_global_sky_model.api.app.main:app --reload --host 0.0.0.0 --port 80 --app-dir /usr/src
+
+Running the application tests
+=============================
+
+The API is tested using the pytest framework alongside FastAPI's TestClient. The tests can be run with:
+
+.. code-block:: bash
+    $ make python-test
