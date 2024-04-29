@@ -60,16 +60,3 @@ def test(db: Session = Depends(get_db)):
     """
     return crud.get_pg_sphere_version(db=db)
 
-
-@app.get("/point-source-create", summary="Create a point source for testing")
-def point_source(db: Session = Depends(get_db)):
-    c3 = SkyCoord(1 * u.deg, 1 * u.deg)
-    source = PointSource(name='TEST', point=c3)
-    db.add(source)
-    db.commit()
-
-
-@app.get("/view-sources", summary="See all the point sources")
-def get_point_sources(db: Session = Depends(get_db)):
-    sources = db.query(PointSource).all()
-    return sources
