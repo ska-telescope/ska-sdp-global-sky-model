@@ -26,7 +26,8 @@ ingress addon:
     $ minikube addons enable ingress
 
 2. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
-Make any desired changes to the values files.
+Make any desired changes to the values files. A local values file can be specified for easy
+ management of values used for dev purposes.
 
 3. Optionally, create a new namespace: ``kubectl create namespace [namespace]``.
 
@@ -34,7 +35,7 @@ Make any desired changes to the values files.
 
 .. code-block:: bash
 
-    $ helm install [deployment-name] charts/ska-sdp-global-sky-model -n [namespace]
+    $ helm install [deployment-name] charts/ska-sdp-global-sky-model -n [namespace] --values values_local_deployment.yaml
 
 Once the install has completed, you will have the following running:
 
