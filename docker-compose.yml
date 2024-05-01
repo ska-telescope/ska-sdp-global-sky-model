@@ -1,8 +1,7 @@
 services:
   fastapi:
     build:
-      context: images/ska-sdp-global-sky-model-api
-      dockerfile: Dockerfile
+      dockerfile: images/ska-sdp-global-sky-model-api/Dockerfile
     ports:
       - "8000:80"
     depends_on:
@@ -12,8 +11,7 @@ services:
 
   db:
     build:
-      context: images/ska-sdp-global-sky-model-db
-      dockerfile: Dockerfile
+      dockerfile: images/ska-sdp-global-sky-model-db/Dockerfile
     restart: always
     user: postgres
     environment:
@@ -26,7 +24,7 @@ services:
       - database_volume:/var/lib/postgresql/data
 
   redis:
-    image: redis:7.2.4
+    image: bitnami/redis:7.0.11-debian-11-r20
     ports:
       - "6379:6379"
     environment:
