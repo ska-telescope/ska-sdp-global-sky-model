@@ -4,10 +4,10 @@ Configure variables to be used.
 
 from pathlib import Path
 
-from starlette.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from starlette.config import Config
 
 ENV_FILE = Path(".env")
 if not ENV_FILE.exists():

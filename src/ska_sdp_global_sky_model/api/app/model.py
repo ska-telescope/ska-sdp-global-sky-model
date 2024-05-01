@@ -1,12 +1,19 @@
-from sqlalchemy import Column, Integer, String, Float
-from sqlalchemy.orm import relationship
+"""
+Data models for SQLAlchemy
+"""
+
+# pylint: disable=too-few-public-methods
+
 from healpix_alchemy import Point
+from sqlalchemy import Column, Float, Integer, String
+from sqlalchemy.orm import relationship
 
 from ska_sdp_global_sky_model.api.app.config import Base
 
 
 class PointSource(Base):
     """Model representing point sources and their location"""
+
     __tablename__ = "pointsources"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -20,6 +27,7 @@ class PointSource(Base):
 
 class Telescope(Base):
     """Model for Telescope which is the data source e.g. SKA Mid, SKA Low"""
+
     __tablename__ = "telescope"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -27,8 +35,10 @@ class Telescope(Base):
     frequency_min = Column(Float)
     frequency_max = Column(Float)
 
+
 class Band(Base):
     """Model the bands that the sources were observed in"""
+
     __band__ = "band"
     id = Column(Integer, primary_key=True, index=True)
     centre = Column(Float)
@@ -38,6 +48,7 @@ class Band(Base):
 
 class Spectral(Base):
     """The observed spectral information"""
+
     _tablename__ = "spectral"
     id = Column(Integer, primary_key=True, index=True)
     background = Column(Float)
@@ -49,6 +60,7 @@ class Spectral(Base):
 
 class Spectrum(Base):
     """Full Spectral band wide data"""
+
     _tablename__ = "spectrum"
     id = Column(Integer, primary_key=True, index=True)
     Bck_Wide = Column(Float)

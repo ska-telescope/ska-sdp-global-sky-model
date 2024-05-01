@@ -5,13 +5,9 @@ A simple fastAPI.
 from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 
 from ska_sdp_global_sky_model.api.app import crud
-
-from ska_sdp_global_sky_model.api.app.model import PointSource
-from ska_sdp_global_sky_model.api.app.config import session_local, engine, Base
+from ska_sdp_global_sky_model.api.app.config import Base, engine, session_local
 
 app = FastAPI()
 
