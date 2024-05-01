@@ -11,18 +11,20 @@ from sqlalchemy.orm import relationship
 from ska_sdp_global_sky_model.api.app.config import Base
 
 
-class PointSource(Base):
-    """Model representing point sources and their location"""
+class Source(Base):
+    """Model representing sources and their location"""
 
-    __tablename__ = "pointsources"
+    __tablename__ = "sources"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
-    point = Column(Point)
+    Heal_Pix_Position = Column(Point)
     A_Wide = Column(Float)
     A_Wide_Error = Column(Float)
     B_Wide = Column(Float)
     B_Wide_Error = Column(Float)
+    PA_Wide = Column(Float)
+    PA_Wide_Error = Column(Float)
 
 
 class Telescope(Base):
@@ -54,8 +56,8 @@ class Spectral(Base):
     background = Column(Float)
     rms_noise = Column(Float)
     flux = Column(Float)
-    source = relationship("PointSource", back_populates="spectral")
-    band = relationship("PointSource")
+    source = relationship("Source", back_populates="spectral")
+    band = relationship("Source")
 
 
 class Spectrum(Base):
@@ -79,4 +81,4 @@ class Spectrum(Base):
     B_PSF_Wide = Column(Float)
     PA_PSF_Wide = Column(Float)
     telescope = relationship("Telescope")
-    source = relationship("PointSource", back_populates="spectrum")
+    source = relationship("Source", back_populates="spectrum")
