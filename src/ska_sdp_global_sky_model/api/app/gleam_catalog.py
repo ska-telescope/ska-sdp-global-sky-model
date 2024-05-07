@@ -14,37 +14,48 @@ def get_full_catalog(db):
     Vizier.columns = ['**']
     catalog = Vizier.get_catalogs('VIII/100')
     source_data = catalog[1]
-    telescope = Telescope(
-        name='Murchison Widefield Array',
-        frequency_min=80,
-        frequency_max=300,
-    )
+    telescope = db.query(Telescope).filter_by(name='Murchison Widefield Array').first()
+    if not telescope:
+        telescope = Telescope(
+            name='Murchison Widefield Array',
+            frequency_min=80,
+            frequency_max=300,
+        )
+        db.add(telescope)
+        db.commit()
     bands = {}
     for band_cf in [
             76, 84, 92, 99, 107, 115, 122, 130, 143, 151, 158, 166, 174, 181,
             189, 197, 204, 212, 220, 227]:
-        band = db.query(Band).filter(centre=band_cf, telescope=telescope).one()
+        band = db.query(Band).filter_by(centre=band_cf, telescope=telescope.id).first()
         if not band:
-            band = Band(centre=band_cf, telescope=telescope)
-            db.add(Band)
+            band = Band(centre=band_cf, telescope=telescope.id)
+            db.add(band)
             db.commit()
         bands[band_cf] = band
     for source in source_data:
         name = source['GLEAM']
-        if db.query(Source).filter(name=name).one():
+        if db.query(Source).filter_by(name=name).count():
             # If we have already ingested this, skip.
             continue
         point = create_point(source['RAJ2000'], source['DEJ2000'])
-        source = Source(
+        source_catalog = Source(
             name=name,
             Heal_Pix_Position=point,
             RAJ2000=source['RAJ2000'],
             RAJ2000_Error=source['e_RAJ2000'],
-            DEJ2000=source['DEJ2000'],
-            DEJ2000_Error=source['e_DEJ2000'],
+            DECJ2000=source['DEJ2000'],
+            DECJ2000_Error=source['e_DEJ2000'],
         )
-        db.add(source)
+        db.add(source_catalog)
         db.commit()
+        source_float = {}
+        for k in source.keys():
+            if k == 'GLEAM':
+                pass
+            else:
+                source_float[k] = float(source[k])
+        source = source_float
         wide_band_data = WideBandData(
             Bck_Wide=source['bckwide'],
             Local_RMS_Wide=source['lrmswide'],
@@ -67,12 +78,13 @@ def get_full_catalog(db):
             PA_Wide_Error=source['e_pawide'],
             Flux_Wide=source['Fpwide'],
             Flux_Wide_Error=source['eabsFpct'],
-            telescope=telescope,
-            source=source,
+            telescope=telescope.id,
+            source=source_catalog.id,
         )
         db.add(wide_band_data)
         db.commit()
         for band_cf in bands.keys():
+            band_id = bands[band_cf].id
             band_cf = ('0'+str(band_cf))[-3:]
             narrow_band_data = NarrowBandData(
                 Bck_Narrow=source[f'bck{band_cf}'],
@@ -89,7 +101,7 @@ def get_full_catalog(db):
                 PA_Narrow=source[f'pa{band_cf}'],
                 Flux_Narrow=source[f'Fp{band_cf}'],
                 Flux_Narrow_Error=source[f'e_Fp{band_cf}'],
-                source=source,
-                band=bands[band_cf])
+                source=source_catalog.id,
+                band=band_id)
             db.add(narrow_band_data)
             db.commit()
