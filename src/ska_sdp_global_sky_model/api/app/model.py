@@ -42,7 +42,7 @@ class Telescope(Base):
 class Band(Base):
     """Model the bands that the sources were observed in"""
 
-    __band__ = "band"
+    __tablename__ = "band"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     centre = Column(Float)
     width = Column(Float)
@@ -52,7 +52,7 @@ class Band(Base):
 class NarrowBandData(Base):
     """The observed spectral information"""
 
-    _tablename__ = "NarrowBandData"
+    __tablename__ = "NarrowBandData"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Narrow = Column(Float)
     Local_RMS_Narrow = Column(Float)
@@ -81,7 +81,7 @@ class NarrowBandData(Base):
 class WideBandData(Base):
     """Full Spectral band wide data"""
 
-    _tablename__ = "WideBandData"
+    __tablename__ = "WideBandData"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Wide = Column(Float)
     Local_RMS_Wide = Column(Float)
