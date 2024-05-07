@@ -8,6 +8,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app import crud
 from ska_sdp_global_sky_model.api.app.config import Base, engine, session_local
+from ska_sdp_global_sky_model.api.app.model import Source
+from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog
 
 app = FastAPI()
 
@@ -55,3 +57,14 @@ def test(db: Session = Depends(get_db)):
     Requests version information from pg_sphere.
     """
     return crud.get_pg_sphere_version(db=db)
+
+
+@app.get("/point-source-create", summary="Create a point source for testing")
+def point_source(db: Session = Depends(get_db)):
+    get_full_catalog(db)
+
+
+@app.get("/view-sources", summary="See all the point sources")
+def get_point_sources(db: Session = Depends(get_db)):
+    sources = db.query(Source).all().limit(2)
+    return [source.name for source in sources]
