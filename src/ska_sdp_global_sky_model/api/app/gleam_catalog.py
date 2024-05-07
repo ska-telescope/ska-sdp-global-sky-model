@@ -12,7 +12,7 @@ def create_point(ra, dec):
 def get_full_catalog(db):
     Vizier.ROW_LIMIT = -1
     Vizier.columns = ['**']
-    catalog = Vizier.get_catalogs('VIII/100', columns=['**'])
+    catalog = Vizier.get_catalogs('VIII/100')
     source_data = catalog[1]
     telescope = Telescope(
         name='Murchison Widefield Array',
