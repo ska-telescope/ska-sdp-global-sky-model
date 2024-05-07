@@ -61,10 +61,14 @@ def test(db: Session = Depends(get_db)):
 
 @app.get("/point-source-create", summary="Create a point source for testing")
 def point_source(db: Session = Depends(get_db)):
-    get_full_catalog(db)
+    try:
+        get_full_catalog(db)
+        return "success"
+    except Exception as e:
+         return f"Error {e}"
 
 
 @app.get("/view-sources", summary="See all the point sources")
 def get_point_sources(db: Session = Depends(get_db)):
-    sources = db.query(Source).all().limit(2)
+    sources = db.query(Source).all()
     return [source.name for source in sources]
