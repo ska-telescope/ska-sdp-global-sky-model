@@ -2,6 +2,9 @@
 Configure variables to be used.
 """
 
+import logging
+import os
+import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -14,6 +17,9 @@ if not ENV_FILE.exists():
     ENV_FILE = None
 
 config = Config(ENV_FILE)
+
+log_level = os.getenv("LOG_LEVEL", "WARNING")
+logging.basicConfig(stream=sys.stdout, level=log_level.upper())
 
 # DB (Postgres)
 DB_NAME: str = config("DB_NAME", default="postgres")

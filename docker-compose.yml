@@ -8,6 +8,8 @@ services:
       - db
     links:
       - redis:redis
+    environment:
+      LOG_LEVEL: DEBUG
 
   db:
     build:
