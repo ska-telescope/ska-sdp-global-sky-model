@@ -5,7 +5,7 @@ Data models for SQLAlchemy
 # pylint: disable=too-few-public-methods
 
 from healpix_alchemy import Point
-from sqlalchemy import Column, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import mapped_column
 
 from ska_sdp_global_sky_model.api.app.config import Base
@@ -41,6 +41,7 @@ class Telescope(Base):
     name = Column(String, unique=True)
     frequency_min = Column(Float)
     frequency_max = Column(Float)
+    ingested = Column(Boolean)
 
 
 class Band(Base):
