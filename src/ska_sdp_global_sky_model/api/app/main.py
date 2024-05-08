@@ -8,8 +8,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app import crud
 from ska_sdp_global_sky_model.api.app.config import Base, engine, session_local
-from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog
+from ska_sdp_global_sky_model.api.app.model import Source
 
 app = FastAPI()
 
@@ -65,7 +65,7 @@ def point_source(db: Session = Depends(get_db)):
         get_full_catalog(db)
         return "success"
     except Exception as e:
-         return f"Error {e}"
+        return f"Error {e}"
 
 
 @app.get("/sources", summary="See all the point sources")
