@@ -16,10 +16,6 @@ def create_point(ra, dec):
 
 
 def get_full_catalog(db):
-    Vizier.ROW_LIMIT = -1
-    Vizier.columns = ["**"]
-    catalog = Vizier.get_catalogs("VIII/100")
-    source_data = catalog[1]
     telescope = (
         db.query(Telescope).filter_by(name="Murchison Widefield Array").first()
     )
@@ -28,9 +24,18 @@ def get_full_catalog(db):
             name="Murchison Widefield Array",
             frequency_min=80,
             frequency_max=300,
+            ingested=False,
         )
         db.add(telescope)
         db.commit()
+    if telescope:
+        if telescope.ingested:
+            return 0
+    Vizier.ROW_LIMIT = -1
+    Vizier.columns = ["**"]
+    catalog = Vizier.get_catalogs("VIII/100")
+    source_data = catalog[1]
+
     bands = {}
     for band_cf in [
         76,
@@ -137,3 +142,7 @@ def get_full_catalog(db):
             )
             db.add(narrow_band_data)
             db.commit()
+    telescope.ingested = True
+    db.add(telescope)
+    db.commit()
+    return True

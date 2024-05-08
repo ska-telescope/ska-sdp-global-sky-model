@@ -62,8 +62,10 @@ def test(db: Session = Depends(get_db)):
 @app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
 def point_source(db: Session = Depends(get_db)):
     try:
-        get_full_catalog(db)
-        return "success"
+        if get_full_catalog(db):
+            return "success"
+        else:
+            return "Error (catalog already ingested)"
     except Exception as e:
         return f"Error {e}"
 
