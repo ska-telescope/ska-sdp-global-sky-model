@@ -10,6 +10,7 @@ include .make/python.mk
 # include core make support
 include .make/base.mk
 
+PYTHON_LINE_LENGTH = 99
 
 build:
 	docker compose pull
