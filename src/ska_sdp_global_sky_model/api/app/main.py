@@ -68,7 +68,7 @@ def point_source(db: Session = Depends(get_db)):
          return f"Error {e}"
 
 
-@app.get("/view-sources", summary="See all the point sources")
+@app.get("/sources", summary="See all the point sources")
 def get_point_sources(db: Session = Depends(get_db)):
     sources = db.query(Source).all()
     return [source.name for source in sources]
