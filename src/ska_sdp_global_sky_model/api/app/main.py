@@ -59,7 +59,7 @@ def test(db: Session = Depends(get_db)):
     return crud.get_pg_sphere_version(db=db)
 
 
-@app.get("/point-source-create", summary="Create a point source for testing")
+@app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
 def point_source(db: Session = Depends(get_db)):
     try:
         get_full_catalog(db)
