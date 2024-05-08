@@ -1,3 +1,6 @@
+"""
+Gleam Catalog ingest
+"""
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
@@ -12,10 +15,16 @@ from ska_sdp_global_sky_model.api.app.model import (
 
 
 def create_point(ra, dec):
+    """
+    Turn ra and dec into healpix
+    """
     return SkyCoord(ra * u.deg, dec * u.deg)
 
 
 def get_full_catalog(db):
+    """
+    Writes gleam catalog into db returns 0 if unsuccessful and 1 if success
+    """
     telescope = (
         db.query(Telescope).filter_by(name="Murchison Widefield Array").first()
     )
