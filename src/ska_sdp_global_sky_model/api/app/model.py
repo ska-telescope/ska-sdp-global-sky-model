@@ -5,8 +5,8 @@ Data models for SQLAlchemy
 # pylint: disable=too-few-public-methods
 
 from healpix_alchemy import Point
-from sqlalchemy import Column, Float, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import mapped_column
 
 from ska_sdp_global_sky_model.api.app.config import Base
 
@@ -17,43 +17,52 @@ class Source(Base):
     Derived from the wide (170-231MHz) image
     """
 
-    __tablename__ = "sources"
+    __tablename__ = "Source"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     name = Column(String, unique=True)
     RAJ2000 = Column(Float)
     RAJ2000_Error = Column(Float)
-    DecJ2000 = Column(Float)
-    DecJ2000_Error = Column(Float)
+    DECJ2000 = Column(Float)
+    DECJ2000_Error = Column(Float)
     Heal_Pix_Position = Column(Point)
 
 
 class Telescope(Base):
     """Model for Telescope which is the data source e.g. SKA Mid, SKA Low"""
 
-    __tablename__ = "telescope"
+    __tablename__ = "Telescope"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     name = Column(String, unique=True)
     frequency_min = Column(Float)
     frequency_max = Column(Float)
+    ingested = Column(Boolean)
 
 
 class Band(Base):
     """Model the bands that the sources were observed in"""
 
-    __band__ = "band"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    __tablename__ = "Band"
+    id = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     centre = Column(Float)
     width = Column(Float)
-    telescope = relationship("Telescope", back_populates="band")
+    telescope = mapped_column(ForeignKey("Telescope.id"))
 
 
 class NarrowBandData(Base):
     """The observed spectral information"""
 
-    _tablename__ = "NarrowBandData"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    __tablename__ = "NarrowBandData"
+    id = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     Bck_Narrow = Column(Float)
     Local_RMS_Narrow = Column(Float)
     Int_Flux_Narrow = Column(Float)
@@ -74,15 +83,17 @@ class NarrowBandData(Base):
     Flux_Narrow = Column(Float)
     Flux_Narrow_Error = Column(Float)
 
-    source = relationship("Source", back_populates="NarrowBandData")
-    band = relationship("Source")
+    source = mapped_column(ForeignKey("Source.id"))
+    band = mapped_column(ForeignKey("Band.id"))
 
 
 class WideBandData(Base):
     """Full Spectral band wide data"""
 
-    _tablename__ = "WideBandData"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    __tablename__ = "WideBandData"
+    id = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
     Bck_Wide = Column(Float)
     Local_RMS_Wide = Column(Float)
     Int_Flux_Wide = Column(Float)
@@ -108,5 +119,5 @@ class WideBandData(Base):
     Flux_Wide = Column(Float)
     Flux_Wide_Error = Column(Float)
 
-    telescope = relationship("Telescope")
-    source = relationship("Source", back_populates="WideBandData")
+    source = mapped_column(ForeignKey("Source.id"))
+    telescope = mapped_column(ForeignKey("Telescope.id"))

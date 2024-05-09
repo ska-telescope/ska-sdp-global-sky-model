@@ -10,7 +10,12 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app import crud
 from ska_sdp_global_sky_model.api.app.config import Base, engine, session_local
+<<<<<<< HEAD
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
+=======
+from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog
+from ska_sdp_global_sky_model.api.app.model import Source
+>>>>>>> main
 
 app = FastAPI()
 
@@ -104,3 +109,19 @@ async def get_local_sky_model_endpoint(
     )
     local_model = get_local_sky_model(ra, dec, flux_wide, telescope, field_of_view)
     return local_model
+@app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
+def point_source(db: Session = Depends(get_db)):
+    """Import the Gleam catalogue"""
+    try:
+        if get_full_catalog(db):
+            return "success"
+        return "Error (catalog already ingested)"
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return f"Error {e}"
+
+
+@app.get("/sources", summary="See all the point sources")
+def get_point_sources(db: Session = Depends(get_db)):
+    """Retrieve all point sources"""
+    sources = db.query(Source).all()
+    return [source.name for source in sources]
