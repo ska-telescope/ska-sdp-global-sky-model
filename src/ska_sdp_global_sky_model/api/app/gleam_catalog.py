@@ -1,6 +1,7 @@
 """
 Gleam Catalog ingest
 """
+
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
@@ -12,6 +13,8 @@ from ska_sdp_global_sky_model.api.app.model import (
     Telescope,
     WideBandData,
 )
+
+# pylint: disable=no-member,too-many-locals
 
 
 def create_point(ra, dec):
@@ -128,8 +131,8 @@ def get_full_catalog(db):
         )
         db.add(wide_band_data)
         db.commit()
-        for band_cf in bands.keys():
-            band_id = bands[band_cf].id
+        for band_cf, band in bands.items():
+            band_id = band.id
             band_cf = ("0" + str(band_cf))[-3:]
             narrow_band_data = NarrowBandData(
                 Bck_Narrow=source[f"bck{band_cf}"],
