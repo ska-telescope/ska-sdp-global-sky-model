@@ -49,7 +49,7 @@ Request Parameters:
       - Name of the telescope being used for the observation.
       - String
       - Yes
-    * - ``field_of_view``
+    * - ``fov``
       - Field of view of the telescope in arcminutes.
       - Float
       - Yes
@@ -67,7 +67,7 @@ The endpoint returns a JSON object representing the local sky model.
     "dec": (float),  // Declination provided as input.
     "flux_wide": (float),  // Wide-field flux provided as input.
     "telescope": (string),  // Telescope name provided as input.
-    "field_of_view": (float),  // Field of view provided as input.
+    "fov": (float),  // Field of view provided as input.
     "local_data": (string),  // Placeholder for data specific to the local sky model. 
                                 // This data will be populated by the backend.
     }
@@ -85,7 +85,7 @@ Example Usage:
         "dec": -56.789,
         "flux_wide": 1.23,
         "telescope": "HST",
-        "field_of_view": 2.0
+        "fov": 2.0
     }'
 
 This example request retrieves a local sky model for an observation with the following parameters:

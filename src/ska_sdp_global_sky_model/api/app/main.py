@@ -9,13 +9,10 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app import crud
-from ska_sdp_global_sky_model.api.app.config import Base, engine, session_local
-<<<<<<< HEAD
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-=======
 from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog
 from ska_sdp_global_sky_model.api.app.model import Source
->>>>>>> main
+from ska_sdp_global_sky_model.configuration.config import Base, engine, session_local
 
 app = FastAPI()
 
@@ -69,46 +66,6 @@ def test(db: Session = Depends(get_db)):
     return crud.get_pg_sphere_version(db=db)
 
 
-@app.get("/local_sky_model")
-async def get_local_sky_model_endpoint(
-    ra: float,
-    dec: float,
-    flux_wide: float,
-    telescope: str,
-    field_of_view: float,
-):
-    """
-    Get the local sky model from a global sky model.
-
-    Args:
-        ra (float): Right ascension of the observation point in degrees.
-        dec (float): Declination of the observation point in degrees.
-        flux_wide (float): Wide-field flux of the observation in Jy.
-        telescope (str): Name of the telescope being used for the observation.
-        field_of_view (float): Field of view of the telescope in arcminutes.
-
-    Returns:
-        dict: A dictionary containing the local sky model information.
-
-        The dictionary includes the following keys:
-            - ra: The right ascension provided as input.
-            - dec: The declination provided as input.
-            - flux_wide: The wide-field flux provided as input.
-            - telescope: The telescope name provided as input.
-            - field_of_view: The field of view provided as input.
-            - local_data: ......
-    """
-    logger.info(
-        "Requesting local sky model with the following parameters: ra:%s, \
-            dec:%s, flux_wide:%s, telescope:%s, field_of_view:%s",
-        ra,
-        dec,
-        flux_wide,
-        telescope,
-        field_of_view,
-    )
-    local_model = get_local_sky_model(ra, dec, flux_wide, telescope, field_of_view)
-    return local_model
 @app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
 def point_source(db: Session = Depends(get_db)):
     """Import the Gleam catalogue"""
@@ -125,3 +82,45 @@ def get_point_sources(db: Session = Depends(get_db)):
     """Retrieve all point sources"""
     sources = db.query(Source).all()
     return [source.name for source in sources]
+
+
+@app.get("/local_sky_model")
+async def get_local_sky_model_endpoint(
+    ra: float,
+    dec: float,
+    flux_wide: float,
+    telescope: str,
+    fov: float,
+):
+    """
+    Get the local sky model from a global sky model.
+
+    Args:
+        ra (float): Right ascension of the observation point in degrees.
+        dec (float): Declination of the observation point in degrees.
+        flux_wide (float): Wide-field flux of the observation in Jy.
+        telescope (str): Name of the telescope being used for the observation.
+        fov (float): Field of view of the telescope in arcminutes.
+
+    Returns:
+        dict: A dictionary containing the local sky model information.
+
+        The dictionary includes the following keys:
+            - ra: The right ascension provided as input.
+            - dec: The declination provided as input.
+            - flux_wide: The wide-field flux provided as input.
+            - telescope: The telescope name provided as input.
+            - fov: The field of view provided as input.
+            - local_data: ......
+    """
+    logger.info(
+        "Requesting local sky model with the following parameters: ra:%s, \
+            dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+        ra,
+        dec,
+        flux_wide,
+        telescope,
+        fov,
+    )
+    local_model = get_local_sky_model(ra, dec, flux_wide, telescope, fov)
+    return local_model

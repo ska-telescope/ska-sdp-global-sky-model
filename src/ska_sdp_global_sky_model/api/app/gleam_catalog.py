@@ -2,8 +2,6 @@
 Gleam Catalog ingest
 """
 
-from astropy import units as u
-from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 
 from ska_sdp_global_sky_model.api.app.model import (
@@ -13,24 +11,16 @@ from ska_sdp_global_sky_model.api.app.model import (
     Telescope,
     WideBandData,
 )
+from ska_sdp_global_sky_model.utilities.helper_functions import convert_ra_dec_to_skycoord
 
 # pylint: disable=no-member,too-many-locals
-
-
-def create_point(ra, dec):
-    """
-    Turn ra and dec into healpix
-    """
-    return SkyCoord(ra * u.deg, dec * u.deg)
 
 
 def get_full_catalog(db):
     """
     Writes gleam catalog into db returns 0 if unsuccessful and 1 if success
     """
-    telescope = (
-        db.query(Telescope).filter_by(name="Murchison Widefield Array").first()
-    )
+    telescope = db.query(Telescope).filter_by(name="Murchison Widefield Array").first()
     if not telescope:
         telescope = Telescope(
             name="Murchison Widefield Array",
@@ -71,11 +61,7 @@ def get_full_catalog(db):
         220,
         227,
     ]:
-        band = (
-            db.query(Band)
-            .filter_by(centre=band_cf, telescope=telescope.id)
-            .first()
-        )
+        band = db.query(Band).filter_by(centre=band_cf, telescope=telescope.id).first()
         if not band:
             band = Band(centre=band_cf, telescope=telescope.id)
             db.add(band)
@@ -86,7 +72,7 @@ def get_full_catalog(db):
         if db.query(Source).filter_by(name=name).count():
             # If we have already ingested this, skip.
             continue
-        point = create_point(source["RAJ2000"], source["DEJ2000"])
+        point = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
         source_catalog = Source(
             name=name,
             Heal_Pix_Position=point,
