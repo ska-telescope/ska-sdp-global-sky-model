@@ -7,6 +7,8 @@ Data models for SQLAlchemy
 from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import mapped_column, Session
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy_json import mutable_json_type
 import json
 
 
@@ -33,20 +35,31 @@ class Source(Base):
     DECJ2000 = Column(Float)
     DECJ2000_Error = Column(Float)
     Heal_Pix_Position = Column(Point, index=True)
+    # json = Column(mutable_json_type(dbtype=JSONB, nested=True))
 
-    def to_json(self, session, telescope):
-        wideband_data = self.get_widebanddata_by_source_id(session, self.id)
-        if wideband_data.telescope == telescope:
-            narrowband_data = self.get_narrowbanddata_by_source_id(session, self.id)
-            return {
-                "name": self.name,
-                "location": (self.RAJ2000, self.DECJ2000),
-                "wideband": json.dumps(wideband_data),
-                "narrowband": json.dumps(narrowband_data),
-
-            }
-        else:
-            {}
+    def to_json(self, session):
+        source_json = {
+            "name": self.name,
+            "coords": (self.RAJ2000, self.DECJ2000),
+            "hpx": int(self.Heal_Pix_Position)
+        }
+        for telescope in session.query(Telescope).all():
+            source_json[telescope.name] = sjt = {}
+            wb_data = session.query(WideBandData).filter(
+                WideBandData.telescope == telescope.id,
+                WideBandData.source == self.id
+            )
+            if not wb_data:
+                continue
+            sjt["wideband"] = json.dumps(wb_data[0].__dict__, default=lambda o: '')
+            sjt["narrowband"] =sjtnb = {}
+            for band in session.query(Band).filter(Band.telescope == telescope.id):
+                for nb_data in session.query(NarrowBandData).filter(
+                    NarrowBandData.band == band.id,
+                    NarrowBandData.source == self.id,
+                ):
+                    sjtnb[band.centre] = json.dumps(nb_data.__dict__, default=lambda o: '')
+        return source_json
     
     def get_widebanddata_by_source_id(self, session: Session, source_id: int):
         """Retrieves a WideBandData record from the database based on source.id
@@ -58,7 +71,8 @@ class Source(Base):
         Returns:
             A WideBandData object containing the details, or None if not found
         """
-        wideband_data = session.query(WideBandData).filter(WideBandData.source == source_id).first()
+        wideband_data = session.query(WideBandData).filter(
+            WideBandData.source == f'{self.id}')
 
         if wideband_data:
             return wideband_data.__dict__
@@ -75,7 +89,7 @@ class Source(Base):
         Returns:
             A NarrowBandData object containing the details, or None if not found
         """
-        narrowband_data = session.query(NarrowBandData).filter(NarrowBandData.source == source_id).first()
+        narrowband_data = session.query(NarrowBandData).filter(NarrowBandData.source == self.id)
 
         if narrowband_data:
             return narrowband_data.__dict__

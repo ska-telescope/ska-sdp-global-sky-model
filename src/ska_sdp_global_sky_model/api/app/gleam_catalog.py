@@ -148,3 +148,7 @@ def get_full_catalog(db):
     db.add(telescope)
     db.commit()
     return True
+
+def post_process(db):
+    for source in db.query(Source).all():
+        source.json = source.to_json(db)
