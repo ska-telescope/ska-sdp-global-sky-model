@@ -20,19 +20,21 @@ def get_full_catalog(db):
     """
     Writes gleam catalog into db returns 0 if unsuccessful and 1 if success
     """
-    telescope = db.query(Telescope).filter_by(name="Murchison Widefield Array").first()
+    telescope = db.query(Telescope).filter_by(name="Murchison Widefield Array")
     if not telescope:
         telescope = Telescope(
             name="Murchison Widefield Array",
             frequency_min=80,
             frequency_max=300,
-            ingested=False,
+            # ingested=False,
         )
         db.add(telescope)
         db.commit()
-    if telescope:
-        if telescope.ingested:
-            return 0
+    else:
+        telescope = telescope[0]
+    # if telescope:
+    #     if telescope[0].ingested:
+    #         return 0
     Vizier.ROW_LIMIT = -1
     Vizier.columns = ["**"]
     catalog = Vizier.get_catalogs("VIII/100")
@@ -61,11 +63,13 @@ def get_full_catalog(db):
         220,
         227,
     ]:
-        band = db.query(Band).filter_by(centre=band_cf, telescope=telescope.id).first()
+        band = db.query(Band).filter_by(centre=band_cf, telescope=telescope.id)
         if not band:
             band = Band(centre=band_cf, telescope=telescope.id)
             db.add(band)
             db.commit()
+        else:
+            band = band[0]
         bands[band_cf] = band
     for source in source_data:
         name = source["GLEAM"]
@@ -140,7 +144,7 @@ def get_full_catalog(db):
             )
             db.add(narrow_band_data)
             db.commit()
-    telescope.ingested = True
+    # telescope.ingested = True
     db.add(telescope)
     db.commit()
     return True
