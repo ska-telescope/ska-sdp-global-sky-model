@@ -4,11 +4,16 @@ Data models for SQLAlchemy
 
 # pylint: disable=too-few-public-methods
 
-from healpix_alchemy import Point
+from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import mapped_column
 
 from ska_sdp_global_sky_model.configuration.config import Base
+
+class AOI(Base):
+    __tablename__ = "AOI"
+    id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    hpx = Column(Tile, index=True)
 
 
 class Source(Base):
@@ -25,8 +30,13 @@ class Source(Base):
     RAJ2000_Error = Column(Float)
     DECJ2000 = Column(Float)
     DECJ2000_Error = Column(Float)
-    Heal_Pix_Position = Column(Point)
+    Heal_Pix_Position = Column(Point, index=True)
 
+    def to_json(self):
+        return {
+            "name": self.name,
+            "location": (self.RAJ2000, self.DECJ2000),
+        }
 
 class Telescope(Base):
     """Model for Telescope which is the data source e.g. SKA Mid, SKA Low"""
@@ -37,7 +47,7 @@ class Telescope(Base):
     name = Column(String, unique=True)
     frequency_min = Column(Float)
     frequency_max = Column(Float)
-    ingested = Column(Boolean)
+    # ingested = Column(Boolean, default=False)
 
 
 class Band(Base):
