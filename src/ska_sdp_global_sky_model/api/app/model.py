@@ -6,7 +6,9 @@ Data models for SQLAlchemy
 
 from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import mapped_column, Session
+import json
+
 
 from ska_sdp_global_sky_model.configuration.config import Base
 
@@ -32,11 +34,67 @@ class Source(Base):
     DECJ2000_Error = Column(Float)
     Heal_Pix_Position = Column(Point, index=True)
 
-    def to_json(self):
-        return {
-            "name": self.name,
-            "location": (self.RAJ2000, self.DECJ2000),
-        }
+    def to_json(self, session, telescope):
+        wideband_data = self.get_widebanddata_by_source_id(session, self.id)
+        if wideband_data.telescope == telescope:
+            narrowband_data = self.get_narrowbanddata_by_source_id(session, self.id)
+            return {
+                "name": self.name,
+                "location": (self.RAJ2000, self.DECJ2000),
+                "wideband": json.dumps(wideband_data),
+                "narrowband": json.dumps(narrowband_data),
+
+            }
+        else:
+            {}
+    
+    def get_widebanddata_by_source_id(self, session: Session, source_id: int):
+        """Retrieves a WideBandData record from the database based on source.id
+
+        Args:
+            session: A sqlalchemy session object
+            source_id: The source.id of the WideBandData record to retrieve
+
+        Returns:
+            A WideBandData object containing the details, or None if not found
+        """
+        wideband_data = session.query(WideBandData).filter(WideBandData.source == source_id).first()
+
+        if wideband_data:
+            return wideband_data.__dict__
+        else:
+            return {}
+
+    def get_narrowbanddata_by_source_id(self, session: Session, source_id: int):
+        """Retrieves a NarrowBandData record from the database based on source.id
+
+        Args:
+            session: A sqlalchemy session object
+            source_id: The source.id of the NarrowBandData record to retrieve
+
+        Returns:
+            A NarrowBandData object containing the details, or None if not found
+        """
+        narrowband_data = session.query(NarrowBandData).filter(NarrowBandData.source == source_id).first()
+
+        if narrowband_data:
+            return narrowband_data.__dict__
+        else:
+            return {}
+        
+    def get_telescope_source_id(self, session: Session, name: str):
+        """Retrieves a ...
+        """
+        source_telescope = session.query(Telescope).filter(Telescope.name == name).first()
+
+        if source_telescope:
+        # Convert WideBandData object to dictionary
+            source_telescope_dict = source_telescope.__dict__
+
+        # Convert dictionary to JSON string
+            return source_telescope_dict
+        else:
+            return {}
 
 class Telescope(Base):
     """Model for Telescope which is the data source e.g. SKA Mid, SKA Low"""

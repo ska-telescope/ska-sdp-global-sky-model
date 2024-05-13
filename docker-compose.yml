@@ -2,14 +2,16 @@ services:
   fastapi:
     build:
       dockerfile: images/ska-sdp-global-sky-model-api/Dockerfile
+    restart: always
     ports:
       - "8000:80"
     depends_on:
       - db
     links:
       - redis:redis
-    environment:
-      LOG_LEVEL: DEBUG
+      - db:db
+    volumes:
+      - ./src/ska_sdp_global_sky_model:/usr/src/ska_sdp_global_sky_model
 
   db:
     build:
@@ -26,15 +28,9 @@ services:
       - database_volume:/var/lib/postgresql/data
 
   redis:
-    image: bitnami/redis:7.0.11-debian-11-r20
+    image: redis:7.2.4
     ports:
       - "6379:6379"
-    environment:
-      BITNAMI_DEBUG: "false"
-      REDIS_REPLICATION_MODE: master
-      ALLOW_EMPTY_PASSWORD: "yes"
-      REDIS_TLS_ENABLED: "no"
-      REDIS_PORT: 6379
 
 volumes:
   database_volume:
