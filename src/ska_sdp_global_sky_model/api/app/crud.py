@@ -4,9 +4,10 @@ CRUD functionality goes here.
 
 from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
+from healpix_alchemy import Tile
 
-from ska_sdp_global_sky_model.api.app.model import Source
-
+from ska_sdp_global_sky_model.api.app.model import Source, AOI
+from astropy.coordinates import SkyCoord
 
 def get_pg_sphere_version(db: Session):
     """
@@ -16,8 +17,9 @@ def get_pg_sphere_version(db: Session):
 
 
 def get_local_sky_model(
-    ra: float,
-    dec: float,
+    db,
+    ra: list,
+    dec: list,
     flux_wide: float,
     telescope: str,
     fov: float,
@@ -26,8 +28,7 @@ def get_local_sky_model(
     Retrieves a local sky model from a global sky model for a given celestial observation.
 
     Args:
-        ra (float): Right ascension of the observation point in degrees.
-        dec (float): Declination of the observation point in degrees.
+        paly: The bounds of the LSM
         flux_wide (float): Wide-field flux of the observation in Jy.
         telescope (str): Name of the telescope being used for the observation.
         fov (float): Field of view of the telescope in arcminutes.
@@ -43,13 +44,25 @@ def get_local_sky_model(
             - fov: The field of view provided as input.
             - local_data: ......
     """
+
+    corners = SkyCoord(ra, dec, unit='deg')
+    AOIs = [AOI(hpx=hpx) for hpx in Tile.tiles_from(corners)]
+    [db.add(aoi) for aoi in AOIs]
+    db.commit() # TODO: we need to clean these up later on again.
+    aoi_ids = [aoi.id for aoi in AOIs]
+    local_data = db.query(
+        Source
+    ).filter(
+        AOI.id.in_(aoi_ids),
+        AOI.hpx.contains(Source.Heal_Pix_Position)
+    )
     local_sky_model = {
         "ra": ra,
         "dec": dec,
         "flux_wide": flux_wide,
         "telescope": telescope,
         "fov": fov,
-        "local_data": "placeholder",  # Replace with actual data from your function
+        "local_data": [source.to_json() for source in local_data],
     }
     return local_sky_model
 
