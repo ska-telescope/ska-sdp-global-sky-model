@@ -56,3 +56,15 @@ spec:
             value: "{{ .Chart.Name }}-db-service"
         ports:
         - containerPort: 80
+        startupProbe:
+          httpGet:
+            path: /ping
+            port: 80
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 60

@@ -2,12 +2,12 @@ replicaCount: 1
 
 api:
   repository: artefact.skao.int/ska-sdp-global-sky-model-api
-  tag: "latest"
+  tag: latest
   pullPolicy: Always
 
 dbimage:
-  repository: artefact.skao.int/ska-sdp-global-sky-model-db
-  tag: "latest"
+  repository: artefact.skao.int/ska-sdp-global-sky-model-api
+  tag: latest
   pullPolicy: Always
 
 dbservice:
@@ -19,10 +19,9 @@ redisservice:
   nodePort: 30002
 
 persistentvolume:
-  storageclassname: standard
-  size: 128M
-  accessmodes: ReadWriteOnce
-  hostpath: "/data/db-pv-test"
+  storageclassname: nfss1
+  size: 2Gi
+  accessmodes: ReadWriteMany
 
 ingress:
   enabled: true
