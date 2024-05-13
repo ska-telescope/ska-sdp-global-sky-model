@@ -86,11 +86,12 @@ def get_point_sources(db: Session = Depends(get_db)):
 
 @app.get("/local_sky_model")
 async def get_local_sky_model_endpoint(
-    ra: float,
-    dec: float,
+    ra: list,
+    dec: list,
     flux_wide: float,
     telescope: str,
     fov: float,
+    db: Session = Depends(get_db),
 ):
     """
     Get the local sky model from a global sky model.
@@ -122,5 +123,5 @@ async def get_local_sky_model_endpoint(
         telescope,
         fov,
     )
-    local_model = get_local_sky_model(ra, dec, flux_wide, telescope, fov)
+    local_model = get_local_sky_model(db, ra, dec, flux_wide, telescope, fov)
     return local_model
