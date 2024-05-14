@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app import crud
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog
+from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.configuration.config import Base, engine, session_local
 
@@ -69,8 +69,20 @@ def test(db: Session = Depends(get_db)):
 @app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
 def point_source(db: Session = Depends(get_db)):
     """Import the Gleam catalogue"""
+    return get_full_catalog(db)
     try:
         if get_full_catalog(db):
+            return "success"
+        return "Error (catalog already ingested)"
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return f"Error {e}"
+
+@app.get("/optimise-json", summary="Create a point source for testing")
+def optimise_json(db: Session = Depends(get_db)):
+    """Import the Gleam catalogue"""
+    return post_process(db)
+    try:
+        if post_process(db):
             return "success"
         return "Error (catalog already ingested)"
     except Exception as e:  # pylint: disable=broad-exception-caught

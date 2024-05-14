@@ -13,6 +13,7 @@ from ska_sdp_global_sky_model.api.app.model import (
 )
 from ska_sdp_global_sky_model.utilities.helper_functions import convert_ra_dec_to_skycoord
 
+import json
 # pylint: disable=no-member,too-many-locals
 
 
@@ -21,20 +22,19 @@ def get_full_catalog(db):
     Writes gleam catalog into db returns 0 if unsuccessful and 1 if success
     """
     telescope = db.query(Telescope).filter_by(name="Murchison Widefield Array")
-    if not telescope:
+    if not telescope.count():
         telescope = Telescope(
             name="Murchison Widefield Array",
             frequency_min=80,
             frequency_max=300,
-            # ingested=False,
+            ingested=False,
         )
         db.add(telescope)
         db.commit()
     else:
-        telescope = telescope[0]
-    # if telescope:
-    #     if telescope[0].ingested:
-    #         return 0
+        telescope = telescope.first()
+        if telescope.ingested:
+            return 0
     Vizier.ROW_LIMIT = -1
     Vizier.columns = ["**"]
     catalog = Vizier.get_catalogs("VIII/100")
@@ -64,18 +64,23 @@ def get_full_catalog(db):
         227,
     ]:
         band = db.query(Band).filter_by(centre=band_cf, telescope=telescope.id)
-        if not band:
+        if not band.count():
             band = Band(centre=band_cf, telescope=telescope.id)
             db.add(band)
             db.commit()
         else:
-            band = band[0]
+            band = [b for b in band][0]
         bands[band_cf] = band
+    count_source = 0
     for source in source_data:
         name = source["GLEAM"]
         if db.query(Source).filter_by(name=name).count():
             # If we have already ingested this, skip.
             continue
+        count_source += 1
+        if count_source == 100:
+            db.commit()
+            count_source = 0
         point = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
         source_catalog = Source(
             name=name,
@@ -86,7 +91,7 @@ def get_full_catalog(db):
             DECJ2000_Error=source["e_DEJ2000"],
         )
         db.add(source_catalog)
-        db.commit()
+        # db.commit()
         source_float = {}
         for k in source.keys():
             if k == "GLEAM":
@@ -143,12 +148,19 @@ def get_full_catalog(db):
                 band=band_id,
             )
             db.add(narrow_band_data)
-            db.commit()
-    # telescope.ingested = True
+            # db.commit()
+    telescope.ingested = True
     db.add(telescope)
     db.commit()
     return True
 
 def post_process(db):
+    count = 0
     for source in db.query(Source).all():
-        source.json = source.to_json(db)
+        source.json = json.dumps(source.to_json(db))
+        db.add(source)
+        count += 1
+        if count % 100 == 0:
+            db.commit()
+    db.commit()
+    return db.query(Source).all().count()

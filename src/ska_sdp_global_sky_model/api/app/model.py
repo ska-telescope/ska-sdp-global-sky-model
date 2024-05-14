@@ -7,8 +7,7 @@ Data models for SQLAlchemy
 from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import mapped_column, Session
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy_json import mutable_json_type
+from sqlalchemy.dialects.postgresql import TEXT
 import json
 
 
@@ -35,7 +34,7 @@ class Source(Base):
     DECJ2000 = Column(Float)
     DECJ2000_Error = Column(Float)
     Heal_Pix_Position = Column(Point, index=True)
-    # json = Column(mutable_json_type(dbtype=JSONB, nested=True))
+    json = Column(TEXT)
 
     def to_json(self, session):
         source_json = {
@@ -119,7 +118,7 @@ class Telescope(Base):
     name = Column(String, unique=True)
     frequency_min = Column(Float)
     frequency_max = Column(Float)
-    # ingested = Column(Boolean, default=False)
+    ingested = Column(Boolean, default=False)
 
 
 class Band(Base):
