@@ -59,7 +59,7 @@ def get_local_sky_model(
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
         "count": sources.count(),
-        "sources": [str(s) for s in sources],
+        "sources": [s.to_json(db) for s in sources],
     }
     return local_sky_model
 
