@@ -2,6 +2,8 @@
 Gleam Catalog ingest
 """
 
+# pylint: disable=unnecessary-comprehension,too-many-branches
+# pylint: disable=missing-function-docstring,no-else-return
 import json
 
 from astroquery.vizier import Vizier

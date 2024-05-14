@@ -2,6 +2,7 @@
 CRUD functionality goes here.
 """
 
+# pylint: disable=fixme,too-many-arguments,invalid-name,expression-not-assigned,unused-argument
 from astropy.coordinates import SkyCoord
 from healpix_alchemy import Tile
 from sqlalchemy import and_, text

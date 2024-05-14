@@ -3,6 +3,8 @@ Data models for SQLAlchemy
 """
 
 # pylint: disable=too-few-public-methods
+# pylint: disable=missing-class-docstring,missing-function-docstring
+# pylint: disable=unused-argument,no-else-return
 
 import json
 

@@ -2,6 +2,7 @@
 A simple fastAPI.
 """
 
+# pylint: disable=unreachable,too-many-arguments
 import logging
 
 from fastapi import Depends, FastAPI
