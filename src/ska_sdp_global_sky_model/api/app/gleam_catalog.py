@@ -2,6 +2,8 @@
 Gleam Catalog ingest
 """
 
+import json
+
 from astroquery.vizier import Vizier
 
 from ska_sdp_global_sky_model.api.app.model import (
@@ -13,7 +15,6 @@ from ska_sdp_global_sky_model.api.app.model import (
 )
 from ska_sdp_global_sky_model.utilities.helper_functions import convert_ra_dec_to_skycoord
 
-import json
 # pylint: disable=no-member,too-many-locals
 
 
@@ -153,6 +154,7 @@ def get_full_catalog(db):
     db.add(telescope)
     db.commit()
     return True
+
 
 def post_process(db):
     count = 0

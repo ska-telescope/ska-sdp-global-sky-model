@@ -77,6 +77,7 @@ def point_source(db: Session = Depends(get_db)):
     except Exception as e:  # pylint: disable=broad-exception-caught
         return f"Error {e}"
 
+
 @app.get("/optimise-json", summary="Create a point source for testing")
 def optimise_json(db: Session = Depends(get_db)):
     """Import the Gleam catalogue"""
@@ -135,5 +136,5 @@ async def get_local_sky_model_endpoint(
         telescope,
         fov,
     )
-    local_model = get_local_sky_model(db, ra.split(','), dec.split(','), flux_wide, telescope, fov)
+    local_model = get_local_sky_model(db, ra.split(","), dec.split(","), flux_wide, telescope, fov)
     return local_model
