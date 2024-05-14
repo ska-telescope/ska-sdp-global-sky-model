@@ -52,7 +52,7 @@ def get_local_sky_model(
     [db.add(aoi) for aoi in AOIs]
     db.commit()  # TODO: we need to clean these up later on again.
     aoi_ids = [aoi.id for aoi in AOIs]
-    sources = db.query(Source.json).filter(
+    sources = db.query(Source).filter(
         AOI.id.in_(aoi_ids), AOI.hpx.contains(Source.Heal_Pix_Position)
     )
     local_sky_model = {
