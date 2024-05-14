@@ -50,7 +50,7 @@ class Source(Base):
             wb_data = session.query(WideBandData).filter(
                 WideBandData.telescope == telescope.id, WideBandData.source == self.id
             )
-            if not wb_data:
+            if not wb_data.count():
                 continue
             sjt["wideband"] = json.dumps(wb_data[0].__dict__, default=lambda o: "")
             sjt["narrowband"] = sjtnb = {}

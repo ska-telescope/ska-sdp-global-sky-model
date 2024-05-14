@@ -74,16 +74,11 @@ def get_full_catalog(db):
         else:
             band = [b for b in band][0]
         bands[band_cf] = band
-    count_source = 0
     for source in source_data:
         name = source["GLEAM"]
         if db.query(Source).filter_by(name=name).count():
             # If we have already ingested this, skip.
             continue
-        count_source += 1
-        if count_source == 100:
-            db.commit()
-            count_source = 0
         point = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
         source_catalog = Source(
             name=name,
@@ -94,7 +89,7 @@ def get_full_catalog(db):
             DECJ2000_Error=source["e_DEJ2000"],
         )
         db.add(source_catalog)
-        # db.commit()
+        db.commit()
         source_float = {}
         for k in source.keys():
             if k == "GLEAM":
@@ -151,7 +146,7 @@ def get_full_catalog(db):
                 band=band_id,
             )
             db.add(narrow_band_data)
-            # db.commit()
+            db.commit()
     telescope.ingested = True
     db.add(telescope)
     db.commit()
