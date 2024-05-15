@@ -12,6 +12,8 @@ services:
       - db:db
     volumes:
       - ./src/ska_sdp_global_sky_model:/usr/src/ska_sdp_global_sky_model
+    environment:
+      API_VERBOSE: 'true'
 
   db:
     build:

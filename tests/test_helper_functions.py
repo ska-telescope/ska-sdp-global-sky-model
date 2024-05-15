@@ -4,6 +4,7 @@ import pytest
 from astropy.coordinates import SkyCoord
 
 from ska_sdp_global_sky_model.utilities.helper_functions import (
+    calculate_percentage,
     convert_arcminutes_to_radians,
     convert_ra_dec_to_skycoord,
 )
@@ -73,3 +74,29 @@ class TestConvertArchminutesToRadians:
         for value in non_numeric_values:
             with pytest.raises(TypeError):
                 convert_arcminutes_to_radians(value)
+
+
+class TestCalculatePercentage:
+    """Tests for the calculate_percentage function"""
+
+    def test_calculate_percentage_valid_inputs(self):
+        """Tests the function with valid dividend and divisor values."""
+        assert calculate_percentage(25, 100) == 25.00
+        assert calculate_percentage(3.14, 12.56) == 25.04
+        assert calculate_percentage(1, 1) == 100.00
+
+    def test_calculate_percentage_zero_divisor(self):
+        """Tests the function with a zero divisor, expecting a swallowed error and 0.0 returned."""
+        with pytest.raises(ZeroDivisionError):
+            calculate_percentage(10, 0)
+        assert calculate_percentage(5, 0) == 0.0
+
+    def test_calculate_percentage_negative_values(self):
+        """Tests the function with negative dividend and/or divisor."""
+        assert calculate_percentage(-20, 100) == -20.00
+        assert calculate_percentage(15, -75) == -20.00
+
+    def test_calculate_percentage_rounding(self):
+        """Tests the function's rounding behavior."""
+        assert calculate_percentage(1.2345, 10) == 12.35
+        assert calculate_percentage(5.9999, 10) == 59.99

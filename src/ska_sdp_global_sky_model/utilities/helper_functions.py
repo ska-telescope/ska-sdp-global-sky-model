@@ -55,3 +55,26 @@ def convert_arcminutes_to_radians(arcminutes: float) -> float:
     # Conversion factor: pi radians = 180 degrees, 1 degree = 60 arcminutes
     conversion_factor = pi / (180 * 60)
     return arcminutes * conversion_factor
+
+
+def calculate_percentage(dividend: int | float, divisor: int | float) -> float:
+    """
+    Calculates the percentage that the `dividend` represents of the `divisor`
+    (dividend/divisor)*100. If the `divisor` is zero the ZeroDivisionError is swallowed and
+    it returns 0.0.
+
+    Args:
+        dividend (int|float): The value we want to express as a percentage of the total.
+        divisor (int|float): The total value of which the `dividend` is a part.
+
+    Returns:
+        float: The percentage value between 0 and 100, rounded to two decimal places.
+
+    Raises:
+        ZeroDivisionError: If the `divisor` is zero.
+    """
+    if divisor == 0:
+        # Handle division by zero case
+        return 0.0
+    percentage = (dividend / divisor) * 100
+    return round(percentage, 2)  # Round to two decimal places

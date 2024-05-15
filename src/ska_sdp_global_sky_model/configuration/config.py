@@ -4,11 +4,11 @@ Configure variables to be used.
 
 import logging
 import os
-import sys
 from pathlib import Path
 
+import ska_ser_logging
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
 
@@ -18,8 +18,11 @@ if not ENV_FILE.exists():
 
 config = Config(ENV_FILE)
 
-log_level = os.getenv("LOG_LEVEL", "WARNING")
-logging.basicConfig(stream=sys.stdout, level=log_level.upper())
+ska_ser_logging.configure_logging(
+    logging.DEBUG if os.environ.get("API_VERBOSE", "false") == "true" else logging.WARNING
+)
+logger = logging.getLogger(__name__)
+logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
 DB_NAME: str = config("DB_NAME", default="postgres")
@@ -38,3 +41,17 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def get_db():
+    """
+    Provides a database session.
+
+    Yields:
+        sqlalchemy.orm.session.Session: A new database session object.
+    """
+    try:
+        db = session_local()
+        yield db
+    finally:
+        db.close()

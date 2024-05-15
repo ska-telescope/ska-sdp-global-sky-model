@@ -3,8 +3,9 @@ Gleam Catalog ingest
 """
 
 # pylint: disable=unnecessary-comprehension,too-many-branches
-# pylint: disable=missing-function-docstring,no-else-return
+# pylint: disable=missing-function-docstring,no-else-return,too-many-statements
 import json
+import logging
 
 from astroquery.vizier import Vizier
 
@@ -15,19 +16,29 @@ from ska_sdp_global_sky_model.api.app.model import (
     Telescope,
     WideBandData,
 )
-from ska_sdp_global_sky_model.utilities.helper_functions import convert_ra_dec_to_skycoord
+from ska_sdp_global_sky_model.utilities.helper_functions import (
+    calculate_percentage,
+    convert_ra_dec_to_skycoord,
+)
 
 # pylint: disable=no-member,too-many-locals
+
+logger = logging.getLogger(__name__)
 
 
 def get_full_catalog(db):
     """
     Writes gleam catalog into db returns 0 if unsuccessful and 1 if success
     """
-    telescope = db.query(Telescope).filter_by(name="Murchison Widefield Array")
+    catalog_name: str = "VIII/100"
+    telescope_name: str = "Murchison Widefield Array"
+    logger.info("Loading the %s gatalog for the %s telescope...", catalog_name, telescope_name)
+
+    telescope = db.query(Telescope).filter_by(name=telescope_name)
+
     if not telescope.count():
         telescope = Telescope(
-            name="Murchison Widefield Array",
+            name=telescope_name,
             frequency_min=80,
             frequency_max=300,
             ingested=False,
@@ -37,11 +48,16 @@ def get_full_catalog(db):
     else:
         telescope = telescope.first()
         if telescope.ingested:
+            logger.info("Gleam catalog already ingested, exiting.")
             return 0
     Vizier.ROW_LIMIT = -1
     Vizier.columns = ["**"]
-    catalog = Vizier.get_catalogs("VIII/100")
+    logger.info("Loading the catalog from Vizier")
+    catalog = Vizier.get_catalogs(catalog_name)
     source_data = catalog[1]
+
+    num_source_data = len(source_data)
+    logger.debug("There are %s elements in source_data", num_source_data)
 
     bands = {}
     for band_cf in [
@@ -66,6 +82,7 @@ def get_full_catalog(db):
         220,
         227,
     ]:
+        logger.info("Loading band: %s", str(band_cf))
         band = db.query(Band).filter_by(centre=band_cf, telescope=telescope.id)
         if not band.count():
             band = Band(centre=band_cf, telescope=telescope.id)
@@ -74,8 +91,15 @@ def get_full_catalog(db):
         else:
             band = [b for b in band][0]
         bands[band_cf] = band
+    count = 0
     for source in source_data:
         name = source["GLEAM"]
+        count += 1
+        if count % 100 == 0:
+            logger.info(
+                "Loading source into database, progress: %s%%",
+                str(calculate_percentage(dividend=count, divisor=num_source_data)),
+            )
         if db.query(Source).filter_by(name=name).count():
             # If we have already ingested this, skip.
             continue
@@ -156,6 +180,7 @@ def get_full_catalog(db):
 def post_process(db):
     count = 0
     for source in db.query(Source).all():
+        logger.info("Loading source json: %s", str(count))
         source.json = json.dumps(source.to_json(db))
         db.add(source)
         count += 1

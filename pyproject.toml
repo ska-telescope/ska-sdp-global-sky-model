@@ -20,6 +20,7 @@ poetry-core = "^1.9.0"
 healpix-alchemy = "^1.1.0"
 astroquery = "^0.4.7"
 healpy = "^1.16.6"
+ska-ser-logging = "^0.4.3"
 
 
 [tool.poetry.group.dev.dependencies]
