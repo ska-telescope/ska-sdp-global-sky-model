@@ -82,13 +82,11 @@ class TestCalculatePercentage:
     def test_calculate_percentage_valid_inputs(self):
         """Tests the function with valid dividend and divisor values."""
         assert calculate_percentage(25, 100) == 25.00
-        assert calculate_percentage(3.14, 12.56) == 25.04
+        assert calculate_percentage(3.14, 12.56) == 25.00
         assert calculate_percentage(1, 1) == 100.00
 
     def test_calculate_percentage_zero_divisor(self):
         """Tests the function with a zero divisor, expecting a swallowed error and 0.0 returned."""
-        with pytest.raises(ZeroDivisionError):
-            calculate_percentage(10, 0)
         assert calculate_percentage(5, 0) == 0.0
 
     def test_calculate_percentage_negative_values(self):
@@ -98,5 +96,5 @@ class TestCalculatePercentage:
 
     def test_calculate_percentage_rounding(self):
         """Tests the function's rounding behavior."""
-        assert calculate_percentage(1.2345, 10) == 12.35
-        assert calculate_percentage(5.9999, 10) == 59.99
+        assert calculate_percentage(1.2345, 10) == 12.34
+        assert calculate_percentage(5.9999, 10) == 60.00
