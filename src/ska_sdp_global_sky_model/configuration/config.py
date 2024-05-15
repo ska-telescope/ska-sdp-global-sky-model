@@ -8,8 +8,7 @@ from pathlib import Path
 
 import ska_ser_logging
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from starlette.config import Config
 
 ENV_FILE = Path(".env")
