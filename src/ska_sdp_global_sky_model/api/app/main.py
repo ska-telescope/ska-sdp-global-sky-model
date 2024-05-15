@@ -1,5 +1,5 @@
 """
-A simple fastAPI.
+A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
 # pylint: disable=unreachable,too-many-arguments
@@ -13,26 +13,13 @@ from ska_sdp_global_sky_model.api.app import crud
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
-from ska_sdp_global_sky_model.configuration.config import Base, engine, session_local
-
-app = FastAPI()
+from ska_sdp_global_sky_model.configuration.config import Base, engine, get_db
 
 logger = logging.getLogger(__name__)
 
-
-def get_db():
-    """
-    Start a session.
-    """
-    try:
-        db = session_local()
-        yield db
-    finally:
-        db.close()
-
+app = FastAPI()
 
 origins = []
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,14 +35,14 @@ def create_db_and_tables():
     """
     Called on application startup.
     """
-    logger.info("Creating the database and tables")
+    logger.info("Creating the database and tables...")
     Base.metadata.create_all(engine)
 
 
 @app.get("/ping", summary="Ping the API")
 def ping():
     """Returns {"ping": "live"} when called"""
-    logger.info("Ping: alive")
+    logger.debug("Ping: alive")
     return {"ping": "live"}
 
 
@@ -69,11 +56,12 @@ def test(db: Session = Depends(get_db)):
 
 @app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
 def point_source(db: Session = Depends(get_db)):
-    """Import the Gleam catalogue"""
-    return get_full_catalog(db)
+    """Ingesting the Gleam catalogue"""
     try:
+        logger.info("Ingesting the Gleam catalogue...")
         if get_full_catalog(db):
             return "success"
+        logger.error("Error (catalog already ingested)")
         return "Error (catalog already ingested)"
     except Exception as e:  # pylint: disable=broad-exception-caught
         return f"Error {e}"
@@ -81,9 +69,9 @@ def point_source(db: Session = Depends(get_db)):
 
 @app.get("/optimise-json", summary="Create a point source for testing")
 def optimise_json(db: Session = Depends(get_db)):
-    """Import the Gleam catalogue"""
-    return post_process(db)
+    """Optimise the catalogue"""
     try:
+        logger.debug("Optimising the catalogue...")
         if post_process(db):
             return "success"
         return "Error (catalog already ingested)"
@@ -94,7 +82,9 @@ def optimise_json(db: Session = Depends(get_db)):
 @app.get("/sources", summary="See all the point sources")
 def get_point_sources(db: Session = Depends(get_db)):
     """Retrieve all point sources"""
+    logger.info("Retrieving all point sources...")
     sources = db.query(Source).all()
+    logger.info("Retrieved all point sources for all %s sources", str(len(sources)))
     return [source.name for source in sources]
 
 

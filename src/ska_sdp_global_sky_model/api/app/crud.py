@@ -2,6 +2,8 @@
 CRUD functionality goes here.
 """
 
+import logging
+
 # pylint: disable=fixme,too-many-arguments,invalid-name,expression-not-assigned,unused-argument
 from astropy.coordinates import SkyCoord
 from healpix_alchemy import Tile
@@ -9,6 +11,8 @@ from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import AOI, Source
+
+logger = logging.getLogger(__name__)
 
 
 def get_pg_sphere_version(db: Session):
@@ -54,6 +58,10 @@ def get_local_sky_model(
     aoi_ids = [aoi.id for aoi in AOIs]
     sources = db.query(Source).filter(
         AOI.id.in_(aoi_ids), AOI.hpx.contains(Source.Heal_Pix_Position)
+    )
+    logger.info(
+        "Retrieve all point sources for all %s sources inside the area of interest",
+        str(sources.count()),
     )
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
