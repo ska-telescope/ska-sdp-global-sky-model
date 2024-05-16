@@ -4,7 +4,6 @@ CRUD functionality goes here.
 
 import logging
 
-# pylint: disable=fixme,too-many-arguments,invalid-name,expression-not-assigned,unused-argument
 from astropy.coordinates import SkyCoord
 from healpix_alchemy import Tile
 from sqlalchemy import and_, text
@@ -26,48 +25,74 @@ def get_local_sky_model(
     db,
     ra: list,
     dec: list,
-    flux_wide: float,
-    telescope: str,
-    fov: float,
+    _flux_wide: float,
+    _telescope: str,
+    _fov: float,
 ) -> dict:
     """
-    Retrieves a local sky model from a global sky model for a given celestial observation.
+    Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
+
+    The LSM contains information about celestial sources within a designated region of the sky. \
+        This function extracts this information from a database (`db`) based on the provided \
+        right ascension (RA) and declination (Dec) coordinates.
 
     Args:
-        paly: The bounds of the LSM
-        flux_wide (float): Wide-field flux of the observation in Jy.
-        telescope (str): Name of the telescope being used for the observation.
-        fov (float): Field of view of the telescope in arcminutes.
+        db (Any): A database object containing the global sky model. The specific type of \
+            database object will depend on the implementation.
+        ra (list[float]): A list containing two right ascension values (in degrees) that define \
+            the boundaries of the desired LSM region.
+        dec (list[float]): A list containing two declination values (in degrees) that define the \
+            boundaries of the desired LSM region.
+        _flux_wide (float): Placeholder for future implementation of wide-field flux \
+            of the observation (in Jy). Currently not used.
+        _telescope (str): Placeholder for future implementation of the telescope name \
+            being used for the observation. Currently not used.
+        _fov (float): Placeholder for future implementation of the telescope's field of\
+            view (in arcminutes). Currently not used.
 
     Returns:
-        dict: A dictionary containing the local sky model information.
+        dict: A dictionary containing the LSM data. The structure of the dictionary is:
 
-        The dictionary includes the following keys:
-            - ra: The right ascension provided as input.
-            - dec: The declination provided as input.
-            - flux_wide: The wide-field flux provided as input.
-            - telescope: The telescope name provided as input.
-            - fov: The field of view provided as input.
-            - local_data: ......
+            {
+                "region": {
+                    "ra": List of RA coordinates (same as input `ra`).
+                    "dec": List of Dec coordinates (same as input `dec`).
+                },
+                "count": Number of celestial sources found within the LSM region.
+                "sources_in_area_of_interest": List of dictionaries, each representing a \
+                    celestial source within the LSM region.
+                    The structure of each source dictionary depends on the data model stored \
+                        in the database (`db`).
+            }
     """
 
     corners = SkyCoord(ra, dec, unit="deg")
-    AOIs = [AOI(hpx=hpx) for hpx in Tile.tiles_from(corners)]
-    [db.add(aoi) for aoi in AOIs]
-    db.commit()  # TODO: we need to clean these up later on again.
-    aoi_ids = [aoi.id for aoi in AOIs]
-    sources = db.query(Source).filter(
-        AOI.id.in_(aoi_ids), AOI.hpx.contains(Source.Heal_Pix_Position)
+    areas_or_interest = [AOI(hpx=hpx) for hpx in Tile.tiles_from(corners)]
+
+    # pylint: disable=expression-not-assigned
+    [db.add(aoi) for aoi in areas_or_interest]
+    db.commit()  # TODO: we need to clean these up later on again.    # pylint: disable=fixme
+
+    aoi_ids = [aoi.id for aoi in areas_or_interest]
+    sources_in_area_of_interest = (
+        db.query(Source)
+        .filter(AOI.id.in_(aoi_ids), AOI.hpx.contains(Source.Heal_Pix_Position))
+        .all()
     )
+
     logger.info(
-        "Retrieve all point sources for all %s sources inside the area of interest",
-        str(sources.count()),
+        "Retrieve %s point sources within the area of interest.",
+        str(len(sources_in_area_of_interest)),
     )
+
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
-        "count": sources.count(),
-        "sources": [s.to_json(db) for s in sources],
+        "count": len(sources_in_area_of_interest),
+        "sources_in_area_of_interest": [
+            source.to_json(db) for source in sources_in_area_of_interest
+        ],
     }
+
     return local_sky_model
 
 
