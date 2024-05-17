@@ -2,7 +2,7 @@
 A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
-# pylint: disable=unreachable,too-many-arguments
+# pylint: disable=too-many-arguments
 import logging
 
 from fastapi import Depends, FastAPI
@@ -85,7 +85,10 @@ def get_point_sources(db: Session = Depends(get_db)):
     logger.info("Retrieving all point sources...")
     sources = db.query(Source).all()
     logger.info("Retrieved all point sources for all %s sources", str(len(sources)))
-    return [source.name for source in sources]
+    source_list = []
+    for source in sources:
+        source_list.append([source.name, source.RAJ2000, source.DECJ2000])
+    return source_list
 
 
 @app.get("/local_sky_model")
@@ -120,7 +123,7 @@ async def get_local_sky_model_endpoint(
     """
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
-            dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         ra,
         dec,
         flux_wide,
