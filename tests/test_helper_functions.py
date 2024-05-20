@@ -7,6 +7,7 @@ from ska_sdp_global_sky_model.utilities.helper_functions import (
     calculate_percentage,
     convert_arcminutes_to_radians,
     convert_ra_dec_to_skycoord,
+    create_healpix_point,
 )
 
 
@@ -98,3 +99,33 @@ class TestCalculatePercentage:
         """Tests the function's rounding behavior."""
         assert calculate_percentage(1.2345, 10) == 12.34
         assert calculate_percentage(5.9999, 10) == 60.00
+
+
+class TestCreateHealpixPoint:
+    """Tests for create_healpix_point"""
+
+    def test_create_healpix_point(self):
+        """Test with valid values"""
+        ra_deg = 120.0
+        dec_deg = 45.0
+        nside = 64
+
+        point = create_healpix_point(ra_deg, dec_deg, nside)
+
+        # Assert that the returned object is of type Point (assuming from healpix_alchemy)
+        assert point == 6624
+
+    def test_create_healpix_point_invalid_types(self):
+        """Test with invalid input types (corner cases)"""
+        ra_deg = 120.0
+        dec_deg = 45.0
+        nside = 32
+
+        with pytest.raises(TypeError):
+            create_healpix_point("invalid_ra", dec_deg, nside)
+
+        with pytest.raises(TypeError):
+            create_healpix_point(ra_deg, "invalid_dec", nside)
+
+        with pytest.raises(TypeError):
+            create_healpix_point(ra_deg, dec_deg, "invalid_nside")

@@ -66,7 +66,7 @@ def get_local_sky_model(
             }
     """
 
-    corners = SkyCoord(ra, dec, unit="deg")
+    corners = SkyCoord(ra, dec, frame="icrs", unit="deg")
     areas_or_interest = [AOI(hpx=hpx) for hpx in Tile.tiles_from(corners)]
 
     # pylint: disable=expression-not-assigned

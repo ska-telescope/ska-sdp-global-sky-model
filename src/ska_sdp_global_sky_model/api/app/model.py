@@ -58,6 +58,7 @@ class Source(Base):
     DECJ2000 = Column(Float)
     DECJ2000_Error = Column(Float)
     Heal_Pix_Position = Column(Point, index=True)
+    sky_coord = Column(Point, index=True)
     json = Column(TEXT)
 
     def to_json(self, session: Session):
@@ -79,7 +80,7 @@ class Source(Base):
         """
         source_json = {
             "name": self.name,
-            "coords": (self.RAJ2000, self.DECJ2000),
+            "coords_J2000": (self.RAJ2000, self.DECJ2000),
             "hpx": int(self.Heal_Pix_Position),
             "telescopes": {},
         }

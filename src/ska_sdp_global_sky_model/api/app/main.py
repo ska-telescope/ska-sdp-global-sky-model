@@ -130,5 +130,5 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         telescope,
         fov,
     )
-    local_model = get_local_sky_model(db, ra.split(","), dec.split(","), flux_wide, telescope, fov)
+    local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
     return local_model
