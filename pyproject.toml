@@ -19,6 +19,8 @@ psycopg2-binary = "^2.9.9"
 poetry-core = "^1.9.0"
 healpix-alchemy = "^1.1.0"
 astroquery = "^0.4.7"
+healpy = "^1.16.6"
+ska-ser-logging = "^0.4.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -30,6 +32,7 @@ pylint-junit = "^0.3.4"
 pytest = "^8.1.1"
 pytest-cov = "^5.0.0"
 build = "^1.2.1"
+psycopg2-binary = "^2.9.9"
 
 
 [tool.poetry.group.docs.dependencies]
