@@ -1,6 +1,7 @@
 services:
   fastapi:
     build:
+      context: .
       dockerfile: images/ska-sdp-global-sky-model-api/Dockerfile
     restart: always
     ports:
@@ -16,8 +17,7 @@ services:
       API_VERBOSE: 'true'
 
   db:
-    build:
-      dockerfile: images/ska-sdp-global-sky-model-db/Dockerfile
+    image: postgres
     restart: always
     user: postgres
     environment:
