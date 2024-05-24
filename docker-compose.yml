@@ -17,7 +17,9 @@ services:
       API_VERBOSE: 'true'
 
   db:
-    image: postgres
+    build:
+      context: .
+      dockerfile: images/ska-sdp-global-sky-model-db/Dockerfile
     restart: always
     user: postgres
     environment:
