@@ -6,19 +6,12 @@ import logging
 
 from astropy.coordinates import SkyCoord
 from healpix_alchemy import Tile
-from sqlalchemy import and_, text
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import AOI, Source
 
 logger = logging.getLogger(__name__)
-
-
-def get_pg_sphere_version(db: Session):
-    """
-    Requests version information from pg_sphere.
-    """
-    return db.execute(text("SELECT pg_sphere_version();"))
 
 
 def get_local_sky_model(

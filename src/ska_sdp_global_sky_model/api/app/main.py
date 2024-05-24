@@ -9,7 +9,6 @@ from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app import crud
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
@@ -44,14 +43,6 @@ def ping():
     """Returns {"ping": "live"} when called"""
     logger.debug("Ping: alive")
     return {"ping": "live"}
-
-
-@app.get("/test", summary="Check we are connected to the database")
-def test(db: Session = Depends(get_db)):
-    """
-    Requests version information from pg_sphere.
-    """
-    return crud.get_pg_sphere_version(db=db)
 
 
 @app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
