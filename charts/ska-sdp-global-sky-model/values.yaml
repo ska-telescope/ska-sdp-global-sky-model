@@ -6,7 +6,7 @@ api:
   pullPolicy: Always
 
 dbimage:
-  repository: artefact.skao.int/ska-sdp-global-sky-model-api
+  repository: artefact.skao.int/ska-sdp-global-sky-model-db
   tag: latest
   pullPolicy: Always
 
