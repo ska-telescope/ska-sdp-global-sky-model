@@ -76,7 +76,7 @@ def get_catalog_data(catalog_name: str) -> Union[None, List]:
     """
 
     try:
-        Vizier.ROW_LIMIT = -1
+        Vizier.ROW_LIMIT = 100
         Vizier.columns = ["**"]  # All columns
 
         logger.info("Loading the catalog %s from Vizier", catalog_name)
