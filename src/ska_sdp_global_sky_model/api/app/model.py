@@ -7,6 +7,12 @@ Data models for SQLAlchemy
 # pylint: disable=unused-argument,no-else-return
 
 import json
+from astropy import units as u
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
+from sqlalchemy import func
+from astropy_healpix import HEALPix
+from astropy_healpix import level_to_nside
+from sqlalchemy import or_
 
 from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
@@ -14,6 +20,13 @@ from sqlalchemy.dialects.postgresql import TEXT
 from sqlalchemy.orm import Session, mapped_column
 
 from ska_sdp_global_sky_model.configuration.config import Base
+import logging
+
+LEVEL = 8
+REMAINDER = '_' * int(16-LEVEL/2)
+
+
+logger = logging.getLogger(__name__)
 
 
 class AOI(Base):
@@ -61,6 +74,34 @@ class Source(Base):
                 ):
                     sjtnb[band.centre] = json.dumps(nb_data.__dict__, default=lambda o: "")
         return source_json
+
+    @hybrid_property
+    def hpx_simple(self):
+        return func.to_hex(self.Heal_Pix_Position)
+
+    @hybrid_method
+    def within(self, other, radius):
+        """Test if this point is within a given radius of another point.
+
+        Parameters
+        ----------
+        other : Point
+            The other point.
+        radius : float
+            The match radius in degrees.
+
+        Returns
+        -------
+        bool
+
+        """
+        hp = HEALPix(nside=level_to_nside(LEVEL), order='nested', frame="icrs")
+        search_pixels = [
+            f'{hex(x)[2:]}{REMAINDER}' for x
+            in hp.cone_search_skycoord(other, radius=radius*u.deg)]
+        logger.error(other)
+        logger.error(search_pixels)
+        return or_(*[self.hpx_simple.like(px) for px in search_pixels])
 
     def get_widebanddata_by_source_id(self, session: Session, source_id: int):
         """Retrieves a WideBandData record from the database based on source.id

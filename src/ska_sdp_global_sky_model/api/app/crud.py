@@ -3,13 +3,16 @@ CRUD functionality goes here.
 """
 
 # pylint: disable=fixme,too-many-arguments,invalid-name,expression-not-assigned,unused-argument
-from astropy.coordinates import SkyCoord
-from healpix_alchemy import Tile
 from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
+from ska_sdp_global_sky_model.utilities.helper_functions import convert_ra_dec_to_skycoord
 
 from ska_sdp_global_sky_model.api.app.model import AOI, Source
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_pg_sphere_version(db: Session):
     """
@@ -20,12 +23,13 @@ def get_pg_sphere_version(db: Session):
 
 def get_local_sky_model(
     db,
-    ra: list,
-    dec: list,
+    ra: float,
+    dec: float,
+    separation: float,
     flux_wide: float,
     telescope: str,
-    fov: float,
-) -> dict:
+    fov: float,):
+# ) -> dict:
     """
     Retrieves a local sky model from a global sky model for a given celestial observation.
 
@@ -46,14 +50,9 @@ def get_local_sky_model(
             - fov: The field of view provided as input.
             - local_data: ......
     """
-
-    corners = SkyCoord(ra, dec, unit="deg")
-    AOIs = [AOI(hpx=hpx) for hpx in Tile.tiles_from(corners)]
-    [db.add(aoi) for aoi in AOIs]
-    db.commit()  # TODO: we need to clean these up later on again.
-    aoi_ids = [aoi.id for aoi in AOIs]
+    point = convert_ra_dec_to_skycoord(ra, dec)
     sources = db.query(Source).filter(
-        AOI.id.in_(aoi_ids), AOI.hpx.contains(Source.Heal_Pix_Position)
+        Source.within(point, separation)
     )
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},

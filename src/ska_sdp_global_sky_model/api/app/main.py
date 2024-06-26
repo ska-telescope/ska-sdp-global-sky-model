@@ -82,7 +82,6 @@ def point_source(db: Session = Depends(get_db)):
 @app.get("/optimise-json", summary="Create a point source for testing")
 def optimise_json(db: Session = Depends(get_db)):
     """Import the Gleam catalogue"""
-    return post_process(db)
     try:
         if post_process(db):
             return "success"
@@ -98,8 +97,8 @@ def get_point_sources(db: Session = Depends(get_db)):
     return [source.name for source in sources]
 
 
-@app.get("/local_sky_model")
-async def get_local_sky_model_endpoint(
+@app.get("/local_sky_model_v2")
+async def get_local_sky_model_endpoint_v2(
     ra: str,
     dec: str,
     flux_wide: float,
@@ -138,4 +137,60 @@ async def get_local_sky_model_endpoint(
         fov,
     )
     local_model = get_local_sky_model(db, ra.split(","), dec.split(","), flux_wide, telescope, fov)
+    return local_model
+
+@app.get("/local_sky_model")
+async def get_local_sky_model_endpoint(
+    ra: float,
+    dec: float,
+    separation: float,
+    flux_wide: float,
+    telescope: str,
+    fov: float,
+    db: Session = Depends(get_db),
+):
+    """
+    Get the local sky model from a global sky model.
+
+    Args:
+        ra (float): Right ascension of the observation point in degrees.
+        dec (float): Declination of the observation point in degrees.
+        separation(float):
+        flux_wide (float): Wide-field flux of the observation in Jy.
+        telescope (str): Name of the telescope being used for the observation.
+        fov (float): Field of view of the telescope in arcminutes.
+
+    Returns:
+        dict: A dictionary containing the local sky model information.
+
+        The dictionary includes the following keys:
+            - ra: The right ascension provided as input.
+            - dec: The declination provided as input.
+            - separation: .
+            - flux_wide: The wide-field flux provided as input.
+            - telescope: The telescope name provided as input.
+            - fov: The field of view provided as input.
+            - local_data: ......
+    """
+    logger.info(
+        "Requesting local sky model with the following parameters: ra:%s, \
+            dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+        ra,
+        dec,
+        separation,
+        flux_wide,
+        telescope,
+        fov,
+    )
+    print(
+        "Requesting local sky model with the following parameters: ra:%s, \
+            dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+        ra,
+        dec,
+        separation,
+        flux_wide,
+        telescope,
+        fov,
+    )
+    local_model = get_local_sky_model(db, ra, dec, separation, flux_wide, telescope, fov)
     return local_model
