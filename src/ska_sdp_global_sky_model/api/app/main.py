@@ -6,11 +6,11 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 # pylint: disable=too-many-arguments
 import logging
 
-from fastapi import Depends, FastAPI, BackgroundTasks
+from fastapi import BackgroundTasks, Depends, FastAPI
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model, delete_previous_tiles
+from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, get_local_sky_model
 from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.configuration.config import Base, engine, get_db
@@ -91,7 +91,7 @@ async def get_local_sky_model_endpoint(
     telescope: str,
     fov: float,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get the local sky model from a global sky model.

@@ -27,7 +27,6 @@ def delete_previous_tiles(db):
     db.commit()
 
 
-
 def get_local_sky_model(
     db,
     ra: list,

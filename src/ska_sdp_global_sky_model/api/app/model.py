@@ -20,7 +20,9 @@ class Field(Base):
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tiles = relationship(lambda: FieldTile, order_by='FieldTile.id', cascade="all, delete, delete-orphan")
+    tiles = relationship(
+        lambda: FieldTile, order_by="FieldTile.id", cascade="all, delete, delete-orphan"
+    )
 
 
 class FieldTile(Base):
@@ -28,7 +30,7 @@ class FieldTile(Base):
     A HEALPix tile that is a component of the Field being selected.
     """
 
-    id = Column(ForeignKey(Field.id, ondelete='CASCADE'), primary_key=True)
+    id = Column(ForeignKey(Field.id, ondelete="CASCADE"), primary_key=True)
     hpx = Column(Tile, index=True)
     pk = Column(Integer, primary_key=True, autoincrement=True)
 
