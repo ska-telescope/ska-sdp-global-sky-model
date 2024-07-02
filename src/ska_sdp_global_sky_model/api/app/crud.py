@@ -1,17 +1,31 @@
+# pylint: disable=no-member
 """
 CRUD functionality goes here.
 """
 
 import logging
 
-from astropy.coordinates import SkyCoord
+import astropy.units as u
+from astropy.coordinates import Latitude, Longitude
+from cdshealpix import cone_search
 from healpix_alchemy import Tile
+from mocpy import MOC
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.model import AOI, Source
+from ska_sdp_global_sky_model.api.app.model import Field, FieldTile, Source
 
 logger = logging.getLogger(__name__)
+
+
+def delete_previous_tiles(db):
+    """
+    Clears previous definitions of healpix tiles from the database.
+    """
+    previous_fields = db.query(Field).first()
+    db.delete(previous_fields)
+    db.commit()
+
 
 
 def get_local_sky_model(
@@ -20,7 +34,7 @@ def get_local_sky_model(
     dec: list,
     _flux_wide: float,
     _telescope: str,
-    _fov: float,
+    fov: float,
 ) -> dict:
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
@@ -59,31 +73,32 @@ def get_local_sky_model(
             }
     """
 
-    corners = SkyCoord(ra, dec, frame="icrs", unit="deg")
-    areas_or_interest = [AOI(hpx=hpx) for hpx in Tile.tiles_from(corners)]
+    ipix, depth, _ = cone_search(
+        lon=Longitude(float(ra[0]) * u.deg),
+        lat=Latitude(float(dec[0]) * u.deg),
+        radius=float(fov) * u.deg,
+        depth=10,
+    )
 
-    # pylint: disable=expression-not-assigned
-    [db.add(aoi) for aoi in areas_or_interest]
+    moc = MOC.from_healpix_cells(ipix, depth, max_depth=10)
+
+    tiles = [FieldTile(hpx=hpx) for hpx in Tile.tiles_from(moc)]
+
+    db.add(Field(tiles=tiles))
+
     db.commit()  # TODO: we need to clean these up later on again.    # pylint: disable=fixme
 
-    aoi_ids = [aoi.id for aoi in areas_or_interest]
-    sources_in_area_of_interest = (
-        db.query(Source)
-        .filter(AOI.id.in_(aoi_ids), AOI.hpx.contains(Source.Heal_Pix_Position))
-        .all()
-    )
+    query = db.query(Source).filter(FieldTile.hpx.contains(Source.Heal_Pix_Position)).all()
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
-        str(len(sources_in_area_of_interest)),
+        str(len(query)),
     )
 
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
-        "count": len(sources_in_area_of_interest),
-        "sources_in_area_of_interest": [
-            source.to_json(db) for source in sources_in_area_of_interest
-        ],
+        "count": len(query),
+        "sources_in_area_of_interest": [source.to_json(db) for source in query],
     }
 
     return local_sky_model
@@ -161,9 +176,9 @@ def get_sources_by_criteria(
     if ra is not None:
         filters.append(Source.RAJ2000 == ra)
     if dec is not None:
-        filters.append(Source.DecJ2000 == dec)
+        filters.append(Source.DECJ2000 == dec)
     if flux_wide is not None:
-        filters.append(Source.flux_wide == flux_wide)  # Replace with actual column name
+        filters.append(Source.Flux_Wide == flux_wide)  # Replace with actual column name
     if telescope is not None:
         filters.append(Source.telescope == telescope)
     if fov is not None:
