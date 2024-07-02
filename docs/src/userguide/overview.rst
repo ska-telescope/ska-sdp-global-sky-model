@@ -97,3 +97,36 @@ This example request retrieves a local sky model for an observation with the fol
 * Field of view: 2.0 degrees
 
 The response will be a JSON object containing the provided input parameters and a placeholder value for "local_data". The actual data for the local sky model will be populated by the backend implementation.
+
+
+How It Works:
+~~~~~~~~~~~~~
+
+Under the hood, the Global Sky Model is using HEALPix Alchemy, an extension to SQL Alchemy that adds region and image arithmetic to PostgreSQL databases.
+
+Each row in the Source table, represents a point in our catalog, represented by a HEALPix point:
+
+.. code-block:: python
+
+    class Source(Base):
+
+      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+      Heal_Pix_Position = Column(Point, index=True, nullable=False)
+
+Upon requesting a local sky model, a cone search is carried out with the given parameters. The cone is constructed from a series of multi-resolution HEALPix tiles that cover the region of interest.
+
+.. image:: ../images/cone_search.png
+   :width: 100%
+
+.. code-block:: python
+  class Field(Base):
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tiles = relationship(lambda: FieldTile, order_by='FieldTile.id', cascade="all, delete, delete-orphan")
+
+  class FieldTile(Base):
+
+    id = Column(ForeignKey(Field.id, ondelete='CASCADE'), primary_key=True)
+    hpx = Column(Tile, index=True)
+
+Each row of the Field table represents an area over which we are returning a local sky model. Each row of the FieldTile table represents a mutli-resolution HEALPix tile that is contained within the corresponding Field. There is a one-to-many mapping between Field and FieldTile.
