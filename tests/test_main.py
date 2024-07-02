@@ -1,3 +1,4 @@
+# pylint: disable=no-member
 """
 Basic testing of the API
 """
