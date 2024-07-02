@@ -6,21 +6,31 @@ Data models for SQLAlchemy
 
 import json
 
-from healpix_alchemy import Point
+from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TEXT
-from sqlalchemy.orm import Session, mapped_column
+from sqlalchemy.orm import Session, mapped_column, relationship
 
 from ska_sdp_global_sky_model.configuration.config import Base
 
 
-class AOI(Base):
-    """Model for the Area of Interest table"""
-
-    __tablename__ = "AOI"
+class Field(Base):
+    """
+    Represents a collection of FieldTiles making up the area of interest.
+    """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    hpx = Column(String, index=True)  # Assuming HPX is a string identifier
+    tiles = relationship(lambda: FieldTile, order_by='FieldTile.id', cascade="all, delete, delete-orphan")
+
+
+class FieldTile(Base):
+    """
+    A HEALPix tile that is a component of the Field being selected.
+    """
+
+    id = Column(ForeignKey(Field.id, ondelete='CASCADE'), primary_key=True)
+    hpx = Column(Tile, index=True)
+    pk = Column(Integer, primary_key=True, autoincrement=True)
 
 
 class Source(Base):
@@ -57,7 +67,7 @@ class Source(Base):
     RAJ2000_Error = Column(Float)
     DECJ2000 = Column(Float)
     DECJ2000_Error = Column(Float)
-    Heal_Pix_Position = Column(Point, index=True)
+    Heal_Pix_Position = Column(Point, index=True, nullable=False)
     sky_coord = Column(Point, index=True)
     json = Column(TEXT)
 
