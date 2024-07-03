@@ -20,7 +20,6 @@ from ska_sdp_global_sky_model.api.app.model import (
 from ska_sdp_global_sky_model.utilities.helper_functions import (
     calculate_percentage,
     convert_ra_dec_to_skycoord,
-    create_healpix_point,
 )
 
 logger = logging.getLogger(__name__)
@@ -163,9 +162,6 @@ def create_source_catalog_entry(db: Session, source: Dict[str, float]) -> Option
 
     try:
         sky_coord: SkyCoord = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
-        point = create_healpix_point(
-            ra_deg=source["RAJ2000"], dec_deg=source["DEJ2000"], nside=256
-        )
     except KeyError:
         # Required keys missing, return None
         logger.warning("Missing required keys in source data. Skipping source creation.")
@@ -173,7 +169,7 @@ def create_source_catalog_entry(db: Session, source: Dict[str, float]) -> Option
 
     source_catalog = Source(
         name=source.get("GLEAM"),
-        Heal_Pix_Position=point,
+        Heal_Pix_Position=sky_coord,
         sky_coord=sky_coord,
         RAJ2000=source["RAJ2000"],
         RAJ2000_Error=source.get("e_RAJ2000"),
