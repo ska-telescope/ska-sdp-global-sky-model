@@ -1,3 +1,4 @@
+# pylint: disable=no-member,too-few-public-methods, no-self-argument
 """
 Configure variables to be used.
 """
@@ -8,7 +9,8 @@ from pathlib import Path
 
 import ska_ser_logging
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.ext.declarative import as_declarative, declared_attr
+from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
 
 ENV_FILE = Path(".env")
@@ -39,7 +41,17 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+
+@as_declarative()
+class Base:
+    """
+    Declarative base.
+    """
+
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower()
 
 
 def get_db():
