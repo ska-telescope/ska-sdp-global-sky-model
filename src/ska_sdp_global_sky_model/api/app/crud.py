@@ -72,6 +72,7 @@ def get_local_sky_model(
             }
     """
 
+    # Get the HEALPix cells contained within a cone at a particular depth
     ipix, depth, _ = cone_search(
         lon=Longitude(float(ra[0]) * u.deg),
         lat=Latitude(float(dec[0]) * u.deg),
@@ -79,14 +80,18 @@ def get_local_sky_model(
         depth=10,
     )
 
+    # Construct the Multi Order Coverage map from the HEALPix cells
     moc = MOC.from_healpix_cells(ipix, depth, max_depth=10)
 
+    # Use healpix_alchemy's tiles_from method to extract the HEALPix tiles
     tiles = [FieldTile(hpx=hpx) for hpx in Tile.tiles_from(moc)]
 
+    # Populate the Field table with this collection of tiles
     db.add(Field(tiles=tiles))
 
     db.commit()  # TODO: we need to clean these up later on again.    # pylint: disable=fixme
 
+    # A Source is within the region of interest if a constituent FieldTile contains the Source's HEALPix index
     query = db.query(Source).filter(FieldTile.hpx.contains(Source.Heal_Pix_Position)).all()
 
     logger.info(
