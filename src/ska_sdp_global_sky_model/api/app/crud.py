@@ -91,7 +91,8 @@ def get_local_sky_model(
 
     db.commit()  # TODO: we need to clean these up later on again.    # pylint: disable=fixme
 
-    # A Source is within the region of interest if a constituent FieldTile contains the Source's HEALPix index
+    # A Source is within the region of interest if a constituent FieldTile contains
+    # the Source's HEALPix index
     query = db.query(Source).filter(FieldTile.hpx.contains(Source.Heal_Pix_Position)).all()
 
     logger.info(
