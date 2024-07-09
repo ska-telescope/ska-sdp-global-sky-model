@@ -90,7 +90,6 @@ def get_data_catalog_selector(ingest: dict):
         yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
-            print(ingest_set)
             yield SourceFile(
                 ingest_set["key"],
                 heading_alias=ingest_set["heading_alias"],
@@ -122,7 +121,8 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     else:
         telescope = telescope.first()
         if telescope.ingested:
-            logger.info("Gleam catalog already ingested, exiting.")
+            logger.info(
+                f"{catalog_config["name"]} catalog already ingested, exiting.")
             return None
     return telescope
 
@@ -171,7 +171,7 @@ def create_source_catalog_entry(
         source: A dictionary containing the source information with the following keys:
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `GLEAM` (optional): Name of the source in the GLEAM catalog.
+            * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
             * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
             * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
         name: String for the source name.
