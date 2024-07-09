@@ -1,5 +1,5 @@
 """
-Gleam Catalog ingest
+Catalog ingest
 """
 
 import json
