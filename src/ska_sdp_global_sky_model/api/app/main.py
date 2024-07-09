@@ -1,4 +1,4 @@
-# pylint: disable=no-member
+    # pylint: disable=no-member
 """
 A simple fastAPI to obtain a local sky model from a global sky model.
 """
@@ -14,6 +14,8 @@ from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, get_loc
 from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.configuration.config import Base, engine, get_db
+
+from ska_sdp_global_sky_model.configuration.config import MWA, RACS
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +48,25 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
+@app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
 def point_source(db: Session = Depends(get_db)):
     """Ingesting the Gleam catalogue"""
     try:
         logger.info("Ingesting the Gleam catalogue...")
-        if get_full_catalog(db):
+        if get_full_catalog(db, MWA):
+            return "success"
+        logger.error("Error (catalog already ingested)")
+        return "Error (catalog already ingested)"
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return f"Error {e}"
+
+
+@app.get("/ingest-racs-catalog", summary="Ingest RACS {used in development}")
+def point_source(db: Session = Depends(get_db)):
+    """Ingesting the RACS catalogue"""
+    try:
+        logger.info("Ingesting the Gleam catalogue...")
+        if get_full_catalog(db, RACS):
             return "success"
         logger.error("Error (catalog already ingested)")
         return "Error (catalog already ingested)"
