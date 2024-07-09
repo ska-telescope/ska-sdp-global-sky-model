@@ -1,12 +1,11 @@
 """
-Catalog ingest
+Gleam Catalog ingest
 """
 
-import json
 import csv
-from itertools import zip_longest
-
+import json
 import logging
+from itertools import zip_longest
 from typing import Any, Dict, List, Optional, Union
 
 from astropy.coordinates import SkyCoord
@@ -29,7 +28,12 @@ logger = logging.getLogger(__name__)
 
 
 class SourceFile:
-    def __init__(self, file_location: str, heading_alias: dict | None = None, heading_missing: list | None = None):
+    def __init__(
+        self,
+        file_location: str,
+        heading_alias: dict | None = None,
+        heading_missing: list | None = None,
+    ):
         """Source file init method
         Args:
             file_location: A path to the file to be ingested.
@@ -39,7 +43,7 @@ class SourceFile:
         self.file_location = file_location
         self.heading_missing = heading_missing or []
         self.heading_alias = heading_alias or {}
-        with open(self.file_location, newline='') as csvfile:
+        with open(self.file_location, newline="") as csvfile:
             self.len = sum(1 for row in csvfile)
 
     def header(self, header) -> None:
@@ -55,8 +59,8 @@ class SourceFile:
 
     def __iter__(self) -> iter:
         """Iterate through the sources"""
-        with open(self.file_location, newline='') as csvfile:
-            csv_file = csv.reader(csvfile, delimiter=',')
+        with open(self.file_location, newline="") as csvfile:
+            csv_file = csv.reader(csvfile, delimiter=",")
             heading = self.header(next(csv_file))
             for row in csv_file:
                 yield dict(zip_longest(heading, row, fillvalue=None))
@@ -64,6 +68,7 @@ class SourceFile:
     def __len__(self) -> int:
         """Get the file length count."""
         return self.len
+
 
 def get_data_catalog_vizier(key):
     """Get the catalog from vizier
@@ -81,16 +86,16 @@ def get_data_catalog_selector(ingest: dict):
     Args:
         ingest: The catalog ingest configurations.
     """
-    if ingest['agent'] == 'vizier':
-        yield get_data_catalog_vizier(ingest['key']), ingest['bands']
-    elif ingest['agent'] == 'file':
-        for ingest_set in ingest['file_location']:
+    if ingest["agent"] == "vizier":
+        yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
+    elif ingest["agent"] == "file":
+        for ingest_set in ingest["file_location"]:
             print(ingest_set)
             yield SourceFile(
-                ingest_set['key'],
-                heading_alias=ingest_set['heading_alias'],
-                heading_missing=ingest_set['heading_missing']
-            ), ingest_set['bands']
+                ingest_set["key"],
+                heading_alias=ingest_set["heading_alias"],
+                heading_missing=ingest_set["heading_missing"],
+            ), ingest_set["bands"]
 
 
 def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Telescope]:
@@ -104,12 +109,12 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     Returns:
         Telescope object or None if not found and not created.
     """
-    telescope = db.query(Telescope).filter_by(name=catalog_config['name'])
+    telescope = db.query(Telescope).filter_by(name=catalog_config["name"])
     if not telescope.count():
         telescope = Telescope(
-            name=catalog_config['name'],
-            frequency_min=catalog_config['frequency_min'],
-            frequency_max=catalog_config['frequency_max'],
+            name=catalog_config["name"],
+            frequency_min=catalog_config["frequency_min"],
+            frequency_max=catalog_config["frequency_max"],
             ingested=False,
         )
         db.add(telescope)
@@ -122,7 +127,9 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     return telescope
 
 
-def load_or_create_bands(db: Session, telescope_id: int, telescope_bands: list) -> Dict[float, Band]:
+def load_or_create_bands(
+    db: Session, telescope_id: int, telescope_bands: list
+) -> Dict[float, Band]:
     """Loads bands associated with the telescope from the database.
 
     If a band for a given center frequency is not found, a new Band object
@@ -151,7 +158,9 @@ def load_or_create_bands(db: Session, telescope_id: int, telescope_bands: list) 
     return bands
 
 
-def create_source_catalog_entry(db: Session, source: Dict[str, float], name: str) -> Optional[Source]:
+def create_source_catalog_entry(
+    db: Session, source: Dict[str, float], name: str
+) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
     If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
@@ -248,7 +257,11 @@ def create_wide_band_data_entry(
 
 
 def create_narrow_band_data_entry(
-    db: Session, source: Dict[str, str], source_catalog: Source, bands: Dict[float, Band], ingest_bands: list
+    db: Session,
+    source: Dict[str, str],
+    source_catalog: Source,
+    bands: Dict[float, Band],
+    ingest_bands: list,
 ) -> Optional[None]:
     """Creates NarrowBandData objects from the provided source data for each band and adds them to
     the database.
@@ -274,8 +287,7 @@ def create_narrow_band_data_entry(
             continue
         band_id = band.id
         band_cf_str = str(band_cf)
-        band_cf_str = f'0{band_cf_str}' if len(band_cf_str) < 3 else band_cf_str
-
+        band_cf_str = f"0{band_cf_str}" if len(band_cf_str) < 3 else band_cf_str
 
         source_float = {}
         for k in source.keys():
@@ -307,7 +319,12 @@ def create_narrow_band_data_entry(
 
 
 def process_source_data(
-    db: Session, source_data: List[Dict[str, float]] | SourceFile, bands: Dict[float, Band], telescope: Any, ingest_bands: list, catalog_config: dict
+    db: Session,
+    source_data: List[Dict[str, float]] | SourceFile,
+    bands: Dict[float, Band],
+    telescope: Any,
+    ingest_bands: list,
+    catalog_config: dict,
 ) -> bool:
     """Processes a list of source data entries and adds them to the database.
 
@@ -337,7 +354,7 @@ def process_source_data(
     count = 0
     num_source_data = len(source_data)
     for source in source_data:
-        name = str(source.get(catalog_config['source']))
+        name = str(source.get(catalog_config["source"]))
         if count % 100 == 0:
             logger.info(
                 "Loading source into database, progress: %s%%",
@@ -354,13 +371,12 @@ def process_source_data(
             # Error creating source catalog entry, data processing unsuccessful
             return False
 
-        if catalog_config['wideband']:
+        if catalog_config["wideband"]:
             if not create_wide_band_data_entry(db, source, source_catalog, telescope):
                 # Error creating wide band entry, data processing unsuccessful
                 return False
 
-        create_narrow_band_data_entry(
-            db, source, source_catalog, bands, ingest_bands)
+        create_narrow_band_data_entry(db, source, source_catalog, bands, ingest_bands)
 
     return True
 
@@ -385,8 +401,8 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     Returns:
         True if the catalog data is downloaded and processed successfully, False otherwise.
     """
-    telescope_name = catalog_config['name']
-    catalog_name = catalog_config['catalog_name']
+    telescope_name = catalog_config["name"]
+    catalog_name = catalog_config["catalog_name"]
     logger.info(f"Loading the {catalog_name} catalog for the {telescope_name} telescope...")
 
     # 1. Load or create telescope
@@ -395,9 +411,9 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
         return False
 
     # 2. Get catalog data
-    source_data = get_data_catalog_selector(catalog_config['ingest'])
+    source_data = get_data_catalog_selector(catalog_config["ingest"])
 
-    bands = load_or_create_bands(db, telescope.id, catalog_config['bands'])
+    bands = load_or_create_bands(db, telescope.id, catalog_config["bands"])
 
     # 3. Load or create bands
     if not bands:
