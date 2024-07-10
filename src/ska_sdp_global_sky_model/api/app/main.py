@@ -10,13 +10,10 @@ from fastapi import BackgroundTasks, Depends, FastAPI
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, \
-    get_local_sky_model
-from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, \
-    post_process
+from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, get_local_sky_model
+from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
-from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, \
-    engine, get_db
+from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, engine, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +89,7 @@ def get_point_sources(db: Session = Depends(get_db)):
     """Retrieve all point sources"""
     logger.info("Retrieving all point sources...")
     sources = db.query(Source).all()
-    logger.info("Retrieved all point sources for all %s sources",
-                str(len(sources)))
+    logger.info("Retrieved all point sources for all %s sources", str(len(sources)))
     source_list = []
     for source in sources:
         source_list.append([source.name, source.RAJ2000, source.DECJ2000])
@@ -102,13 +98,13 @@ def get_point_sources(db: Session = Depends(get_db)):
 
 @app.get("/local_sky_model")
 async def get_local_sky_model_endpoint(
-        ra: str,
-        dec: str,
-        flux_wide: float,
-        telescope: str,
-        fov: float,
-        background_tasks: BackgroundTasks,
-        db: Session = Depends(get_db),
+    ra: str,
+    dec: str,
+    flux_wide: float,
+    telescope: str,
+    fov: float,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ):
     """
     Get the local sky model from a global sky model.
@@ -140,7 +136,6 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         telescope,
         fov,
     )
-    local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"),
-                                      flux_wide, telescope, fov)
+    local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
     background_tasks.add_task(delete_previous_tiles, db)
     return local_model

@@ -108,10 +108,11 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     Returns:
         Telescope object or None if not found and not created.
     """
-    telescope = db.query(Telescope).filter_by(name=catalog_config["name"])
+    catalog_name = catalog_config["name"]
+    telescope = db.query(Telescope).filter_by(name=catalog_name)
     if not telescope.count():
         telescope = Telescope(
-            name=catalog_config["name"],
+            name=catalog_name,
             frequency_min=catalog_config["frequency_min"],
             frequency_max=catalog_config["frequency_max"],
             ingested=False,
@@ -121,8 +122,7 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     else:
         telescope = telescope.first()
         if telescope.ingested:
-            logger.info(
-                f"{catalog_config["name"]} catalog already ingested, exiting.")
+            logger.info(f"{catalog_name} catalog already ingested, exiting.")
             return None
     return telescope
 
