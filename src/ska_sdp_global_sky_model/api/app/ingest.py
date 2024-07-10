@@ -2,6 +2,10 @@
 Gleam Catalog ingest
 """
 
+# pylint: disable=R1708(stop-iteration-return)
+# pylint: disable=E1101(no-member)
+# pylint: disable=R0913(too-many-arguments)
+
 import csv
 import json
 import logging
@@ -28,6 +32,8 @@ logger = logging.getLogger(__name__)
 
 
 class SourceFile:
+    """SourceFile cerates an iterator object which yields source dicts."""
+
     def __init__(
         self,
         file_location: str,
@@ -43,10 +49,10 @@ class SourceFile:
         self.file_location = file_location
         self.heading_missing = heading_missing or []
         self.heading_alias = heading_alias or {}
-        with open(self.file_location, newline="") as csvfile:
+        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
             self.len = sum(1 for row in csvfile)
 
-    def header(self, header) -> None:
+    def header(self, header) -> list:
         """Apply header aliasing
         Args:
             header: The header to be processed.
@@ -59,7 +65,7 @@ class SourceFile:
 
     def __iter__(self) -> iter:
         """Iterate through the sources"""
-        with open(self.file_location, newline="") as csvfile:
+        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
             csv_file = csv.reader(csvfile, delimiter=",")
             heading = self.header(next(csv_file))
             for row in csv_file:
@@ -122,7 +128,7 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     else:
         telescope = telescope.first()
         if telescope.ingested:
-            logger.info(f"{catalog_name} catalog already ingested, exiting.")
+            logger.info("%s catalog already ingested, exiting.", catalog_name)
             return None
     return telescope
 
@@ -283,7 +289,7 @@ def create_narrow_band_data_entry(
     """
     for band_cf, band in bands.items():
         if band_cf not in ingest_bands:
-            """Not processing this band from the current catalog source."""
+            # Not processing this band from the current catalog source.
             continue
         band_id = band.id
         band_cf_str = str(band_cf)
@@ -403,7 +409,7 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     """
     telescope_name = catalog_config["name"]
     catalog_name = catalog_config["catalog_name"]
-    logger.info(f"Loading the {catalog_name} catalog for the {telescope_name} telescope...")
+    logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
     # 1. Load or create telescope
     telescope = load_or_create_telescope(db, catalog_config)
