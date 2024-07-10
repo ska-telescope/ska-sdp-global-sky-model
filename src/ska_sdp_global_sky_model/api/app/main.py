@@ -47,7 +47,7 @@ def ping():
 
 
 @app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
-def point_source(db: Session = Depends(get_db)):
+def ingest_gleam(db: Session = Depends(get_db)):
     """Ingesting the Gleam catalogue"""
     try:
         logger.info("Ingesting the Gleam catalogue...")
@@ -60,7 +60,7 @@ def point_source(db: Session = Depends(get_db)):
 
 
 @app.get("/ingest-racs-catalog", summary="Ingest RACS {used in development}")
-def point_source(db: Session = Depends(get_db)):
+def ingest_racs(db: Session = Depends(get_db)):
     """Ingesting the RACS catalogue"""
     try:
         logger.info("Ingesting the Gleam catalogue...")

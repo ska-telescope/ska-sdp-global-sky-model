@@ -6,7 +6,7 @@ import csv
 import json
 import logging
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
