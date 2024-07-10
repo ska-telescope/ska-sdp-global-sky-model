@@ -46,30 +46,29 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
-def ingest_gleam(db: Session = Depends(get_db)):
-    """Ingesting the Gleam catalogue"""
+def ingest(db: Session, catalog_config: dict):
+    """Ingest catalog"""
     try:
-        logger.info("Ingesting the Gleam catalogue...")
-        if get_full_catalog(db, MWA):
+        if get_full_catalog(db, catalog_config):
             return "success"
         logger.error("Error (catalog already ingested)")
         return "Error (catalog already ingested)"
     except Exception as e:  # pylint: disable=broad-exception-caught
         return f"Error {e}"
+
+
+@app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
+def ingest_gleam(db: Session = Depends(get_db)):
+    """Ingesting the Gleam catalogue"""
+    logger.info("Ingesting the Gleam catalogue...")
+    return ingest(db, MWA)
 
 
 @app.get("/ingest-racs-catalog", summary="Ingest RACS {used in development}")
 def ingest_racs(db: Session = Depends(get_db)):
     """Ingesting the RACS catalogue"""
-    try:
-        logger.info("Ingesting the Gleam catalogue...")
-        if get_full_catalog(db, RACS):
-            return "success"
-        logger.error("Error (catalog already ingested)")
-        return "Error (catalog already ingested)"
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        return f"Error {e}"
+    logger.info("Ingesting the RACS catalogue...")
+    return ingest(db, RACS)
 
 
 @app.get("/optimise-json", summary="Create a point source for testing")
