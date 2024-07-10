@@ -132,8 +132,7 @@ RACS = {
         "agent": "file",
         "file_location": [
             {
-                "key": "./datasets/AS110_Derived_Catalogue_racs_mid_components"
-                       "_v01_15373.csv",
+                "key": "./datasets/AS110_Derived_Catalogue_racs_mid_components" "_v01_15373.csv",
                 "bands": [1367],
                 "heading_alias": {
                     "ra": "RAJ2000",
@@ -157,7 +156,7 @@ RACS = {
             },
             {
                 "key": "./datasets/AS110_Derived_Catalogue_racs_dr1_gaussians"
-                       "_galacticcut_v2021_08_v02_5723.csv",
+                "_galacticcut_v2021_08_v02_5723.csv",
                 "bands": [887],
                 "heading_alias": {
                     "ra": "RAJ2000",
