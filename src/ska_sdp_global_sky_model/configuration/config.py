@@ -132,7 +132,7 @@ RACS = {
         "agent": "file",
         "file_location": [
             {
-                "key": "./datasets/AS110_Derived_Catalogue_racs_mid_components" "_v01_15373.csv",
+                "key": "./datasets/AS110_Derived_Catalogue_racs_mid_components_v01_15373.csv",
                 "bands": [1367],
                 "heading_alias": {
                     "ra": "RAJ2000",
