@@ -2,9 +2,15 @@
 Gleam Catalog ingest
 """
 
+# pylint: disable=R1708(stop-iteration-return)
+# pylint: disable=E1101(no-member)
+# pylint: disable=R0913(too-many-arguments)
+
+import csv
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from itertools import zip_longest
+from typing import Any, Dict, List, Optional
 
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
@@ -25,74 +31,111 @@ from ska_sdp_global_sky_model.utilities.helper_functions import (
 logger = logging.getLogger(__name__)
 
 
-def load_or_create_telescope(db: Session, telescope_name: str) -> Optional[Telescope]:
+class SourceFile:
+    """SourceFile cerates an iterator object which yields source dicts."""
+
+    def __init__(
+        self,
+        file_location: str,
+        heading_alias: dict | None = None,
+        heading_missing: list | None = None,
+    ):
+        """Source file init method
+        Args:
+            file_location: A path to the file to be ingested.
+            heading_alias: Alter headers to match our expected input.
+            heading_missing: A list of headings to be padded onto the dataset
+        """
+        self.file_location = file_location
+        self.heading_missing = heading_missing or []
+        self.heading_alias = heading_alias or {}
+        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+            self.len = sum(1 for row in csvfile)
+
+    def header(self, header) -> list:
+        """Apply header aliasing
+        Args:
+            header: The header to be processed.
+        """
+        for item in self.heading_alias.items():
+            for i, n in enumerate(header):
+                if n == item[0]:
+                    header[i] = item[1]
+        return header + self.heading_missing
+
+    def __iter__(self) -> iter:
+        """Iterate through the sources"""
+        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+            csv_file = csv.reader(csvfile, delimiter=",")
+            heading = self.header(next(csv_file))
+            for row in csv_file:
+                yield dict(zip_longest(heading, row, fillvalue=None))
+
+    def __len__(self) -> int:
+        """Get the file length count."""
+        return self.len
+
+
+def get_data_catalog_vizier(key):
+    """Get the catalog from vizier
+    Args:
+        key: The catalog key as per vizier.
+    """
+    Vizier.ROW_LIMIT = -1
+    Vizier.columns = ["**"]
+    catalog = Vizier.get_catalogs(key)
+    return catalog[1]
+
+
+def get_data_catalog_selector(ingest: dict):
+    """Factory function to select the vizier vs file ingestor.
+    Args:
+        ingest: The catalog ingest configurations.
+    """
+    if ingest["agent"] == "vizier":
+        yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
+    elif ingest["agent"] == "file":
+        for ingest_set in ingest["file_location"]:
+            yield SourceFile(
+                ingest_set["key"],
+                heading_alias=ingest_set["heading_alias"],
+                heading_missing=ingest_set["heading_missing"],
+            ), ingest_set["bands"]
+
+
+def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Telescope]:
     """
     Loads a telescope by name from the database. If not found, creates a new one.
 
     Args:
         db: SQLAlchemy database object
-        telescope_name: Name of the telescope to load
+        catalog_config: Dictionary of telescope configuration.
 
     Returns:
         Telescope object or None if not found and not created.
     """
-
-    telescope = db.query(Telescope).filter_by(name=telescope_name).first()
-    if not telescope:
+    catalog_name = catalog_config["name"]
+    telescope = db.query(Telescope).filter_by(name=catalog_name)
+    if not telescope.count():
         telescope = Telescope(
-            name=telescope_name,
-            frequency_min=80,
-            frequency_max=300,
+            name=catalog_name,
+            frequency_min=catalog_config["frequency_min"],
+            frequency_max=catalog_config["frequency_max"],
             ingested=False,
         )
         db.add(telescope)
         db.commit()
     else:
+        telescope = telescope.first()
         if telescope.ingested:
-            logger.info("Gleam catalog already ingested, exiting.")
+            logger.info("%s catalog already ingested, exiting.", catalog_name)
             return None
     return telescope
 
 
-def get_catalog_data(catalog_name: str) -> Union[None, List]:
-    """
-    Fetches the catalog data from Vizier for the given catalog name.
-
-    This function retrieves catalog data from the Vizier service, respecting
-    a maximum row limit.
-
-    Args:
-        catalog_name (str): Name of the catalog to fetch.
-
-    Returns:
-        Union[None, List]: The downloaded catalog data as a list of rows,
-                           or None if the catalog is not found.
-
-    Raises:
-        AttributeError: If the `vizier` library is not installed or does
-                        not have the expected attributes (e.g., `ROW_LIMIT`,
-                        `columns`).
-    """
-
-    try:
-        Vizier.ROW_LIMIT = -1
-        Vizier.columns = ["**"]  # All columns
-
-        logger.info("Loading the catalog %s from Vizier", catalog_name)
-
-        catalog = Vizier.get_catalogs(catalog_name)
-
-        if catalog:
-            return catalog[1]
-        logger.warning("Catalog %s not found on Vizier", catalog_name)
-        return None
-
-    except AttributeError as exception:
-        logger.error("Error fetching catalog data: %s", exception)
-        return None
-
-
-def load_or_create_bands(db: Session, telescope_id: int) -> Dict[float, Band]:
+def load_or_create_bands(
+    db: Session, telescope_id: int, telescope_bands: list
+) -> Dict[float, Band]:
     """Loads bands associated with the telescope from the database.
 
     If a band for a given center frequency is not found, a new Band object
@@ -101,47 +144,29 @@ def load_or_create_bands(db: Session, telescope_id: int) -> Dict[float, Band]:
     Args:
         db: An SQLAlchemy database session object.
         telescope_id: The ID of the telescope to retrieve bands for.
+        telescope_bands: List of bands the data is registered over.
 
     Returns:
         A dictionary mapping center frequency (float) to Band objects.
     """
-
     logger.info("Loading bands associated with the telescope from the database...")
-    band_frequencies = [
-        76,
-        84,
-        92,
-        99,
-        107,
-        115,
-        122,
-        130,
-        143,
-        151,
-        158,
-        166,
-        174,
-        181,
-        189,
-        197,
-        204,
-        212,
-        220,
-        227,
-    ]
     bands = {}
-    for band_cf in band_frequencies:
+    for band_cf in telescope_bands:
         logger.info("Loading band: %s", band_cf)
         band = db.query(Band).filter_by(centre=band_cf, telescope=telescope_id).first()
         if not band:
             band = Band(centre=band_cf, telescope=telescope_id)
             db.add(band)
             bands[band_cf] = band
+        else:
+            bands[band_cf] = band
     db.commit()
     return bands
 
 
-def create_source_catalog_entry(db: Session, source: Dict[str, float]) -> Optional[Source]:
+def create_source_catalog_entry(
+    db: Session, source: Dict[str, float], name: str
+) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
     If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
@@ -152,9 +177,10 @@ def create_source_catalog_entry(db: Session, source: Dict[str, float]) -> Option
         source: A dictionary containing the source information with the following keys:
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `GLEAM` (optional): Name of the source in the GLEAM catalog.
+            * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
             * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
             * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
+        name: String for the source name.
 
     Returns:
         The created Source object, or None if required keys are missing from the data.
@@ -168,7 +194,7 @@ def create_source_catalog_entry(db: Session, source: Dict[str, float]) -> Option
         return None
 
     source_catalog = Source(
-        name=source.get("GLEAM"),
+        name=name,
         Heal_Pix_Position=sky_coord,
         sky_coord=sky_coord,
         RAJ2000=source["RAJ2000"],
@@ -182,7 +208,7 @@ def create_source_catalog_entry(db: Session, source: Dict[str, float]) -> Option
 
 
 def create_wide_band_data_entry(
-    db: Session, source: Dict[str, str], source_catalog: Source, telescope: Any
+    db: Session, source: Dict[str, str] | SourceFile, source_catalog: Source, telescope: Telescope
 ) -> Optional[WideBandData]:
     """Creates a WideBandData object from the provided source data and adds it to the database.
 
@@ -201,10 +227,10 @@ def create_wide_band_data_entry(
     """
     source_float = {}
     for k in source.keys():
-        if k == "GLEAM":
-            pass
-        else:
+        try:
             source_float[k] = float(source[k])
+        except ValueError:
+            source_float[k] = source[k]
 
     wide_band_data = WideBandData(
         Bck_Wide=source_float["bckwide"],
@@ -237,7 +263,11 @@ def create_wide_band_data_entry(
 
 
 def create_narrow_band_data_entry(
-    db: Session, source: Dict[str, str], source_catalog: Source, bands: Dict[float, Band]
+    db: Session,
+    source: Dict[str, str],
+    source_catalog: Source,
+    bands: Dict[float, Band],
+    ingest_bands: list,
 ) -> Optional[None]:
     """Creates NarrowBandData objects from the provided source data for each band and adds them to
     the database.
@@ -251,21 +281,26 @@ def create_narrow_band_data_entry(
         source: A dictionary containing the narrow-band source information with string values.
         source_catalog: The corresponding Source object in the database.
         bands: A dictionary mapping center frequencies (floats) to Band objects.
+        ingest_bands: The list of bands to be ingested this run.
 
     Returns:
         None (the function does not return a meaningful value). If data conversion fails
         for any band, the loop terminates and None is returned.
     """
     for band_cf, band in bands.items():
+        if band_cf not in ingest_bands:
+            # Not processing this band from the current catalog source.
+            continue
         band_id = band.id
-        band_cf_str = ("0" + str(band_cf))[-3:]
+        band_cf_str = str(band_cf)
+        band_cf_str = f"0{band_cf_str}" if len(band_cf_str) < 3 else band_cf_str
 
         source_float = {}
         for k in source.keys():
-            if k == "GLEAM":
-                pass
-            else:
+            try:
                 source_float[k] = float(source[k])
+            except ValueError:
+                source_float[k] = source[k]
 
         narrow_band_data = NarrowBandData(
             Bck_Narrow=source_float[f"bck{band_cf_str}"],
@@ -290,7 +325,12 @@ def create_narrow_band_data_entry(
 
 
 def process_source_data(
-    db: Session, source_data: List[Dict[str, float]], bands: Dict[float, Band], telescope: Any
+    db: Session,
+    source_data: List[Dict[str, float]] | SourceFile,
+    bands: Dict[float, Band],
+    telescope: Any,
+    ingest_bands: list,
+    catalog_config: dict,
 ) -> bool:
     """Processes a list of source data entries and adds them to the database.
 
@@ -308,6 +348,8 @@ def process_source_data(
         source_data: A list of dictionaries containing source information with float values.
         bands: A dictionary mapping center frequencies (floats) to Band objects.
         telescope: The telescope object (type can vary depending on your implementation).
+        ingest_bands: List of bands to ingest
+        catalog_config: The catalog configuration.
 
     Returns:
         True if all source data entries are processed successfully, False otherwise.
@@ -318,7 +360,7 @@ def process_source_data(
     count = 0
     num_source_data = len(source_data)
     for source in source_data:
-        name = source["GLEAM"]
+        name = str(source.get(catalog_config["source"]))
         if count % 100 == 0:
             logger.info(
                 "Loading source into database, progress: %s%%",
@@ -330,21 +372,22 @@ def process_source_data(
             # Skip existing source
             continue
 
-        source_catalog = create_source_catalog_entry(db, source)
+        source_catalog = create_source_catalog_entry(db, source, name)
         if not source_catalog:
             # Error creating source catalog entry, data processing unsuccessful
             return False
 
-        if not create_wide_band_data_entry(db, source, source_catalog, telescope):
-            # Error creating wide band entry, data processing unsuccessful
-            return False
+        if catalog_config["wideband"]:
+            if not create_wide_band_data_entry(db, source, source_catalog, telescope):
+                # Error creating wide band entry, data processing unsuccessful
+                return False
 
-        create_narrow_band_data_entry(db, source, source_catalog, bands)
+        create_narrow_band_data_entry(db, source, source_catalog, bands, ingest_bands)
 
     return True
 
 
-def get_full_catalog(db: Session) -> bool:
+def get_full_catalog(db: Session, catalog_config) -> bool:
     """
     Downloads and processes a source catalog for a specified telescope.
 
@@ -364,31 +407,33 @@ def get_full_catalog(db: Session) -> bool:
     Returns:
         True if the catalog data is downloaded and processed successfully, False otherwise.
     """
-
-    catalog_name = "VIII/100"
-    telescope_name = "Murchison Widefield Array"
+    telescope_name = catalog_config["name"]
+    catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
     # 1. Load or create telescope
-    telescope = load_or_create_telescope(db, telescope_name)
+    telescope = load_or_create_telescope(db, catalog_config)
     if not telescope:
         return False
 
     # 2. Get catalog data
-    source_data = get_catalog_data(catalog_name)
-    if not source_data:
-        return False
+    source_data = get_data_catalog_selector(catalog_config["ingest"])
+
+    bands = load_or_create_bands(db, telescope.id, catalog_config["bands"])
 
     # 3. Load or create bands
-    bands = load_or_create_bands(db, telescope.id)
     if not bands:
         return False
 
-    # 4. Process source data
-    if not process_source_data(db, source_data, bands, telescope):
-        return False
+    for sources, ingest_bands in source_data:
+        if not sources:
+            return False
 
-    # 5. Mark telescope as ingested
+        # 4. Process source data
+        if not process_source_data(db, sources, bands, telescope, ingest_bands, catalog_config):
+            return False
+
+        # 5. Mark telescope as ingested
     telescope.ingested = True
     db.add(telescope)
     db.commit()

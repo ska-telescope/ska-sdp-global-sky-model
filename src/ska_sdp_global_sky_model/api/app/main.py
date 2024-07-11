@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, get_local_sky_model
-from ska_sdp_global_sky_model.api.app.gleam_catalog import get_full_catalog, post_process
+from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
-from ska_sdp_global_sky_model.configuration.config import Base, engine, get_db
+from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, engine, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -46,17 +46,29 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/ingest-gleam-catalog", summary="Create a point source for testing")
-def point_source(db: Session = Depends(get_db)):
-    """Ingesting the Gleam catalogue"""
+def ingest(db: Session, catalog_config: dict):
+    """Ingest catalog"""
     try:
-        logger.info("Ingesting the Gleam catalogue...")
-        if get_full_catalog(db):
+        if get_full_catalog(db, catalog_config):
             return "success"
         logger.error("Error (catalog already ingested)")
         return "Error (catalog already ingested)"
     except Exception as e:  # pylint: disable=broad-exception-caught
         return f"Error {e}"
+
+
+@app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
+def ingest_gleam(db: Session = Depends(get_db)):
+    """Ingesting the Gleam catalogue"""
+    logger.info("Ingesting the Gleam catalogue...")
+    return ingest(db, MWA)
+
+
+@app.get("/ingest-racs-catalog", summary="Ingest RACS {used in development}")
+def ingest_racs(db: Session = Depends(get_db)):
+    """Ingesting the RACS catalogue"""
+    logger.info("Ingesting the RACS catalogue...")
+    return ingest(db, RACS)
 
 
 @app.get("/optimise-json", summary="Create a point source for testing")
