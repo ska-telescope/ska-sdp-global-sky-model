@@ -208,7 +208,7 @@ def create_source_catalog_entry(
 
 
 def create_wide_band_data_entry(
-    db: Session, source: Dict[str, str] | SourceFile, source_catalog: Source, telescope: Any
+    db: Session, source: Dict[str, str] | SourceFile, source_catalog: Source, telescope: Telescope
 ) -> Optional[WideBandData]:
     """Creates a WideBandData object from the provided source data and adds it to the database.
 
