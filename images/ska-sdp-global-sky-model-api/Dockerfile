@@ -1,5 +1,5 @@
 # Using multi stage build to update the requirements.txt from the project.toml.
-FROM python:3.10-slim as starter
+FROM python:3.10-slim AS starter
 WORKDIR /app
 RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock ./
@@ -7,11 +7,11 @@ COPY src/ska_sdp_global_sky_model/api/app /app/src/ska_sdp_global_sky_model/api/
 RUN poetry export -o requirements.txt && poetry build
 
 
-FROM python:3.10-slim as builder
+FROM python:3.10-slim AS builder
 # dont write pyc files
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONDONTWRITEBYTECODE=1
 # dont buffer to stdout/stderr
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 
 WORKDIR /
@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --no-compile -r requirements.txt && \
     rm -rf /app/*
 
 
-FROM builder as dev
+FROM builder AS dev
 
 WORKDIR /usr/src/ska_sdp_global_sky_model
 
