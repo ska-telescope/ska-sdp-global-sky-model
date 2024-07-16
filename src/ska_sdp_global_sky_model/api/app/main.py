@@ -3,10 +3,12 @@
 A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments, broad-exception-caught
 import logging
+import time
 
 from fastapi import BackgroundTasks, Depends, FastAPI
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
@@ -28,6 +30,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def wait_for_db():
+    """Await DB connection."""
+    while True:
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            logger.info("Database is up and running!")
+            break
+        except Exception as e:
+            logger.info("Database connection failed: %s", e)
+            time.sleep(5)  # Wait before retrying
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Await for DB startup on app start"""
+    wait_for_db()
 
 
 @app.on_event("startup")
