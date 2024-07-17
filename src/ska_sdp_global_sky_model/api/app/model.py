@@ -4,14 +4,17 @@ Data models for SQLAlchemy
 
 # pylint: disable=too-few-public-methods
 
-import json
+import logging
 
+import orjson
 from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TEXT
 from sqlalchemy.orm import Session, mapped_column, relationship
 
 from ska_sdp_global_sky_model.configuration.config import Base
+
+logger = logging.getLogger(__name__)
 
 
 class Field(Base):
@@ -75,55 +78,29 @@ class Source(Base):
 
     def to_json(self, session: Session):
         """Serializes the source object and its associated telescope data to a JSON string.
+        -
+        -        This method converts the current source object and its related telescope data
+        -        into a JSON format. It includes basic source information like name, coordinates,
+        -        and HealPix position. Additionally, it retrieves wideband and narrowband data
+        -        associated with telescopes in the provided session.
+        -
+        -        Args:
+        -            session: A SQLAlchemy session object used to query the database.
+        -
+        -        Returns:
+        -            A JSON string representing the source object and its telescope data.
+        -
+        -        Raises:
+        -            No exception is raised by this method.
+        -"""
 
-        This method converts the current source object and its related telescope data
-        into a JSON format. It includes basic source information like name, coordinates,
-        and HealPix position. Additionally, it retrieves wideband and narrowband data
-        associated with telescopes in the provided session.
-
-        Args:
-            session: A SQLAlchemy session object used to query the database.
-
-        Returns:
-            A JSON string representing the source object and its telescope data.
-
-        Raises:
-            No exception is raised by this method.
-        """
-        source_json = {
+        return {
             "name": self.name,
             "coords_J2000": (self.RAJ2000, self.DECJ2000),
             "hpx": int(self.Heal_Pix_Position),
-            "telescopes": {},
+            "narrow": self.get_narrowbanddata_by_source_id(session),
+            "wide": self.get_widebanddata_by_source_id(session),
         }
-        for telescope in session.query(Telescope).all():
-            telescope_data = {
-                "wideband": None,
-                "narrowband": {},
-            }
-
-            wb_data = (
-                session.query(WideBandData)
-                .filter_by(telescope=telescope.id, source=self.id)
-                .first()
-            )
-
-            if wb_data:
-                telescope_data["wideband"] = json.dumps(wb_data.__dict__, default=lambda o: "")
-
-            for band in session.query(Band).filter_by(telescope=telescope.id):
-                nb_data = (
-                    session.query(NarrowBandData).filter_by(band=band.id, source=self.id).first()
-                )
-                if nb_data:
-                    telescope_data["narrowband"][band.centre] = json.dumps(
-                        nb_data.__dict__, default=lambda o: ""
-                    )
-
-            if telescope_data["wideband"] or telescope_data["narrowband"]:
-                source_json["telescopes"][telescope.name] = telescope_data
-
-        return source_json
 
     def get_widebanddata_by_source_id(self, session: Session):
         """Retrieves a WideBandData record from the database based on source.id
@@ -135,10 +112,10 @@ class Source(Base):
         Returns:
             A WideBandData object containing the details, or None if not found
         """
-        wideband_data = session.query(WideBandData).filter(WideBandData.source == f"{self.id}")
+        wideband_data = session.query(WideBandData).filter_by(source=self.id).all()
 
         if wideband_data:
-            return wideband_data.__dict__
+            return [orjson.dumps(wb.__dict__, default=lambda o: "") for wb in wideband_data]
         return {}
 
     def get_narrowbanddata_by_source_id(self, session: Session):
@@ -151,10 +128,10 @@ class Source(Base):
         Returns:
             A NarrowBandData object containing the details, or None if not found
         """
-        narrowband_data = session.query(NarrowBandData).filter(NarrowBandData.source == self.id)
+        narrowband_data = session.query(NarrowBandData).filter_by(source=self.id).all()
 
         if narrowband_data:
-            return narrowband_data.__dict__
+            return [orjson.dumps(nb.__dict__, default=lambda o: "") for nb in narrowband_data]
         return {}
 
     def get_telescope_source_id(self, session: Session, name: str):
