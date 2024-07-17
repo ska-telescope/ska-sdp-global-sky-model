@@ -22,6 +22,7 @@ astroquery = "^0.4.7"
 ska-ser-logging = "^0.4.3"
 mocpy = "^0.15.0"
 cdshealpix = "^0.6.5"
+orjson = "^3.10.6"
 
 
 [tool.poetry.group.dev.dependencies]
