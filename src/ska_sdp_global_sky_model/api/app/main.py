@@ -8,6 +8,7 @@ import logging
 import time
 
 from fastapi import BackgroundTasks, Depends, FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -20,6 +21,7 @@ from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, engin
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []
 
