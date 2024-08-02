@@ -377,10 +377,11 @@ def process_source_data(
             # Error creating source catalog entry, data processing unsuccessful
             return False
 
-        if catalog_config["wideband"]:
-            if not create_wide_band_data_entry(db, source, source_catalog, telescope):
-                # Error creating wide band entry, data processing unsuccessful
-                return False
+        if wideband := catalog_config.get("ingest",{}).get("wideband"):
+            if wideband == True:
+                if not create_wide_band_data_entry(db, source, source_catalog, telescope):
+                    # Error creating wide band entry, data processing unsuccessful
+                    return False
 
         create_narrow_band_data_entry(db, source, source_catalog, bands, ingest_bands)
 
