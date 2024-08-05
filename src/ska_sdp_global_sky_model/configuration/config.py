@@ -41,20 +41,6 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 engine = create_engine(DB_URL)
 
-
-@event.listens_for(engine, "connect", insert=True)
-def set_search_path(dbapi_connection):
-    """
-    Set alternate search path on connect.
-    """
-    existing_autocommit = dbapi_connection.autocommit
-    dbapi_connection.autocommit = True
-    cursor = dbapi_connection.cursor()
-    cursor.execute("SET SESSION search_path='%s'" % "sdp_sdp_global_sky_model_integration")
-    cursor.close()
-    dbapi_connection.autocommit = existing_autocommit
-
-
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
