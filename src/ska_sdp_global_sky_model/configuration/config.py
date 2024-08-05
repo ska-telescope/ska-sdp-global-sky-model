@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 import ska_ser_logging
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
