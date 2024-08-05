@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
-DB_NAME: str = config("DB_NAME", default="postgres")
-POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
-POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
-DB: str = config("DB", default="db")
+DB_NAME: str = config("sdp_sdp_global_sky_model_staging_database", default="postgres")
+POSTGRES_USER: str = config("sdp_sdp_global_sky_model_staging_username", default="postgres")
+POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_staging_password", default="pass")
+DB: str = config("DB", default="10.100.10.46")
 DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 
 # Session DB (Redis)
