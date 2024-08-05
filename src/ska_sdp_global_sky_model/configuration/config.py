@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 import ska_ser_logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
@@ -39,10 +39,22 @@ SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
 SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 
-engine = create_engine(
-    DB_URL,
-    connect_args={"options": "-csearch_path={}".format("sdp_sdp_global_sky_model_integration")},
-)
+engine = create_engine(DB_URL)
+
+
+@event.listens_for(engine, "connect", insert=True)
+def set_search_path(dbapi_connection):
+    """
+    Set alternate search path on connect.
+    """
+    existing_autocommit = dbapi_connection.autocommit
+    dbapi_connection.autocommit = True
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET SESSION search_path='%s'" % "sdp_sdp_global_sky_model_integration")
+    cursor.close()
+    dbapi_connection.autocommit = existing_autocommit
+
+
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
