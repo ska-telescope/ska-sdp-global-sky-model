@@ -20,6 +20,8 @@ from ska_sdp_global_sky_model.configuration.config import DB_URL, MWA, RACS, Bas
 
 logger = logging.getLogger(__name__)
 
+logger.info(DB_URL)
+
 app = FastAPI()
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
