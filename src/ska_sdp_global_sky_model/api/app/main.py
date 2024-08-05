@@ -16,7 +16,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
-from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, engine, get_db, DB_URL
+from ska_sdp_global_sky_model.configuration.config import DB_URL, MWA, RACS, Base, engine, get_db
 
 logger = logging.getLogger(__name__)
 
