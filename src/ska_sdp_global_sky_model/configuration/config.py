@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
-DB_NAME: str = config("sdp_sdp_global_sky_model_staging_database", default="postgres")
-POSTGRES_USER: str = config("sdp_sdp_global_sky_model_staging_username", default="postgres")
-POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_staging_password", default="pass")
+DB_NAME: str = config("sdp_sdp_global_sky_model_integration_database", default="postgres")
+POSTGRES_USER: str = config("sdp_sdp_global_sky_model_integration_username", default="postgres")
+POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_integration_password", default="pass")
 DB: str = config("DB", default="10.100.10.46")
 DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 logger.info(DB_URL)
@@ -40,7 +40,7 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 
 engine = create_engine(
-    DB_URL, connect_args={"options": f"-csearch_path={'sdp_sdp_global_sky_model_staging'}"}
+    DB_URL, connect_args={"options": f"-csearch_path={'sdp_sdp_global_sky_model_integration'}"}
 )
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
