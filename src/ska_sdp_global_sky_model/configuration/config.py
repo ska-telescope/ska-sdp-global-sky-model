@@ -39,7 +39,7 @@ SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
 SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 
-engine = create_engine(DB_URL)
+engine = create_engine(DB_URL, connect_args={'options': '-csearch_path={}'.format('sdp_sdp_global_sky_model_staging')})
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
