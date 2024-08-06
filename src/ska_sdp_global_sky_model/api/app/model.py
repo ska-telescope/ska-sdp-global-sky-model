@@ -22,6 +22,8 @@ class Field(Base):
     Represents a collection of FieldTiles making up the area of interest.
     """
 
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     tiles = relationship(
         lambda: FieldTile, order_by="FieldTile.id", cascade="all, delete, delete-orphan"
@@ -32,6 +34,8 @@ class FieldTile(Base):
     """
     A HEALPix tile that is a component of the Field being selected.
     """
+
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
 
     id = Column(ForeignKey(Field.id, ondelete="CASCADE"), primary_key=True)
     hpx = Column(Tile, index=True)
@@ -65,6 +69,8 @@ class Source(Base):
     """
 
     __tablename__ = "Source"
+
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
 
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, unique=True)
@@ -152,6 +158,8 @@ class Telescope(Base):
 
     __tablename__ = "Telescope"
 
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
+
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, unique=True)
     frequency_min = Column(Float)
@@ -163,6 +171,7 @@ class Band(Base):
     """Model the bands that the sources were observed in"""
 
     __tablename__ = "Band"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     centre = Column(Float)
     width = Column(Float)
@@ -173,6 +182,7 @@ class NarrowBandData(Base):
     """The observed spectral information"""
 
     __tablename__ = "NarrowBandData"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Narrow = Column(Float)
     Local_RMS_Narrow = Column(Float)
@@ -202,6 +212,7 @@ class WideBandData(Base):
     """Full Spectral band wide data"""
 
     __tablename__ = "WideBandData"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Wide = Column(Float)
     Local_RMS_Wide = Column(Float)
