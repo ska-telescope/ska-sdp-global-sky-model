@@ -175,7 +175,7 @@ class Band(Base):
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     centre = Column(Float)
     width = Column(Float)
-    telescope = mapped_column(ForeignKey("Telescope.id"))
+    telescope = mapped_column(ForeignKey(Telescope.id))
 
 
 class NarrowBandData(Base):
@@ -204,8 +204,8 @@ class NarrowBandData(Base):
     Flux_Narrow = Column(Float)
     Flux_Narrow_Error = Column(Float)
 
-    source = mapped_column(ForeignKey("Source.id"))
-    band = mapped_column(ForeignKey("Band.id"))
+    source = mapped_column(ForeignKey(Source.id))
+    band = mapped_column(ForeignKey(Band.id))
 
 
 class WideBandData(Base):
@@ -239,5 +239,5 @@ class WideBandData(Base):
     Flux_Wide = Column(Float)
     Flux_Wide_Error = Column(Float)
 
-    source = mapped_column(ForeignKey("Source.id"))
-    telescope = mapped_column(ForeignKey("Telescope.id"))
+    source = mapped_column(ForeignKey(Source.id))
+    telescope = mapped_column(ForeignKey(Telescope.id))
