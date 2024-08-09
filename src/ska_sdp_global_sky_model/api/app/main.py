@@ -9,11 +9,16 @@ import time
 
 from fastapi import BackgroundTasks, Depends, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import ORJSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.crud import delete_previous_tiles, get_local_sky_model
+from ska_sdp_global_sky_model.api.app.crud import (
+    alternate_local_sky_model,
+    delete_previous_tiles,
+    get_local_sky_model,
+)
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, engine, get_db
@@ -118,7 +123,7 @@ def get_point_sources(db: Session = Depends(get_db)):
     return source_list
 
 
-@app.get("/local_sky_model")
+@app.get("/local_sky_model", response_class=ORJSONResponse)
 async def get_local_sky_model_endpoint(
     ra: str,
     dec: str,
@@ -160,4 +165,49 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
     )
     local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
     background_tasks.add_task(delete_previous_tiles, db)
-    return local_model
+    return ORJSONResponse(local_model)
+
+
+@app.get("/alternate_local_sky_model", response_class=ORJSONResponse)
+async def get_alternate_local_sky_model_endpoint(
+    ra: str,
+    dec: str,
+    flux_wide: float,
+    telescope: str,
+    fov: float,
+    db: Session = Depends(get_db),
+):
+    """
+    Get the local sky model from a global sky model.
+
+    Args:
+        ra (float): Right ascension of the observation point in degrees.
+        dec (float): Declination of the observation point in degrees.
+        flux_wide (float): Wide-field flux of the observation in Jy.
+        telescope (str): Name of the telescope being used for the observation.
+        fov (float): Field of view of the telescope in arcminutes.
+
+    Returns:
+        dict: A dictionary containing the local sky model information.
+
+        The dictionary includes the following keys:
+            - ra: The right ascension provided as input.
+            - dec: The declination provided as input.
+            - flux_wide: The wide-field flux provided as input.
+            - telescope: The telescope name provided as input.
+            - fov: The field of view provided as input.
+            - local_data: ......
+    """
+    logger.info(
+        "Requesting local sky model with the following parameters: ra:%s, \
+dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+        ra,
+        dec,
+        flux_wide,
+        telescope,
+        fov,
+    )
+    local_model = alternate_local_sky_model(
+        db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov
+    )
+    return ORJSONResponse(local_model)
