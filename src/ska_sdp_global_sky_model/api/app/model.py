@@ -3,10 +3,10 @@ Data models for SQLAlchemy
 """
 
 # pylint: disable=too-few-public-methods
+# pylint: disable=no-member
 
 import logging
 
-import orjson
 from healpix_alchemy import Point, Tile
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TEXT
@@ -39,7 +39,7 @@ class SkyTile(Base):
 
     id = Column(ForeignKey(WholeSky.id, ondelete="CASCADE"), primary_key=True)
     hpx = Column(Tile, index=True)
-    pk = Column(Integer, primary_key=True, autoincrement=True, unique=True)
+    pk = Column(Integer, primary_key=True, autoincrement=False, unique=True)
     sources = relationship("Source", back_populates="tile")
 
 
@@ -148,7 +148,7 @@ class Source(Base):
         wideband_data = session.query(WideBandData).filter_by(source=self.id).all()
 
         if wideband_data:
-            return [orjson.dumps(wb.__dict__, default=lambda o: "") for wb in wideband_data]
+            return [wb.columns_to_dict() for wb in wideband_data]
         return {}
 
     def get_narrowbanddata_by_source_id(self, session: Session):
@@ -164,7 +164,7 @@ class Source(Base):
         narrowband_data = session.query(NarrowBandData).filter_by(source=self.id).all()
 
         if narrowband_data:
-            return [orjson.dumps(nb.__dict__, default=lambda o: "") for nb in narrowband_data]
+            return [nb.columns_to_dict() for nb in narrowband_data]
         return {}
 
     def get_telescope_source_id(self, session: Session, name: str):
@@ -173,7 +173,7 @@ class Source(Base):
 
         if source_telescope:
             # Convert WideBandData object to dictionary
-            source_telescope_dict = source_telescope.__dict__
+            source_telescope_dict = source_telescope.columns_to_dict()
 
             # Convert dictionary to JSON string
             return source_telescope_dict
@@ -183,7 +183,7 @@ class Source(Base):
 class Telescope(Base):
     """Model for Telescope which is the data source e.g. SKA Mid, SKA Low"""
 
-    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
+    __table_args__ = {"schema": DB_SCHEMA}
 
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, unique=True)
@@ -191,11 +191,20 @@ class Telescope(Base):
     frequency_max = Column(Float)
     ingested = Column(Boolean, default=False)
 
+    def columns_to_dict(self):
+        """
+        Return a dictionary representation of a row.
+        """
+        dict_ = {}
+        for key in self.__mapper__.c.keys():
+            dict_[key] = getattr(self, key)
+        return dict_
+
 
 class Band(Base):
     """Model the bands that the sources were observed in"""
 
-    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
+    __table_args__ = {"schema": DB_SCHEMA}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     centre = Column(Float)
     width = Column(Float)
@@ -205,7 +214,7 @@ class Band(Base):
 class NarrowBandData(Base):
     """The observed spectral information"""
 
-    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
+    __table_args__ = {"schema": DB_SCHEMA}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Narrow = Column(Float)
     Local_RMS_Narrow = Column(Float)
@@ -230,11 +239,20 @@ class NarrowBandData(Base):
     source = mapped_column(ForeignKey(Source.id))
     band = mapped_column(ForeignKey(Band.id))
 
+    def columns_to_dict(self):
+        """
+        Return a dictionary representation of a row.
+        """
+        dict_ = {}
+        for key in self.__mapper__.c.keys():
+            dict_[key] = getattr(self, key)
+        return dict_
+
 
 class WideBandData(Base):
     """Full Spectral band wide data"""
 
-    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
+    __table_args__ = {"schema": DB_SCHEMA}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Wide = Column(Float)
     Local_RMS_Wide = Column(Float)
@@ -263,3 +281,12 @@ class WideBandData(Base):
 
     source = mapped_column(ForeignKey(Source.id))
     telescope = mapped_column(ForeignKey(Telescope.id))
+
+    def columns_to_dict(self):
+        """
+        Return a dictionary representation of a row.
+        """
+        dict_ = {}
+        for key in self.__mapper__.c.keys():
+            dict_[key] = getattr(self, key)
+        return dict_
