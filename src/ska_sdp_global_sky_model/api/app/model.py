@@ -24,7 +24,7 @@ class WholeSky(Base):
 
     __table_args__ = {"schema": DB_SCHEMA}
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=False)
     tiles = relationship(
         lambda: SkyTile, order_by="SkyTile.id", cascade="all, delete, delete-orphan"
     )
@@ -39,7 +39,7 @@ class SkyTile(Base):
 
     id = Column(ForeignKey(WholeSky.id, ondelete="CASCADE"), primary_key=True)
     hpx = Column(Tile, index=True)
-    pk = Column(Integer, primary_key=True, autoincrement=True)
+    pk = Column(Integer, primary_key=True, autoincrement=True, unique=True)
     sources = relationship("Source", back_populates="tile")
 
 
