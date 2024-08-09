@@ -12,15 +12,43 @@ from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TEXT
 from sqlalchemy.orm import Session, mapped_column, relationship
 
-from ska_sdp_global_sky_model.configuration.config import Base
+from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 
 logger = logging.getLogger(__name__)
+
+
+class WholeSky(Base):
+    """
+    Represents a collection of SkyTiles making up the whole sky.
+    """
+
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tiles = relationship(
+        lambda: SkyTile, order_by="SkyTile.id", cascade="all, delete, delete-orphan"
+    )
+
+
+class SkyTile(Base):
+    """
+    A HEALPix tile that is a component of the whole sky.
+    """
+
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(ForeignKey(WholeSky.id, ondelete="CASCADE"), primary_key=True)
+    hpx = Column(Tile, index=True)
+    pk = Column(Integer, primary_key=True, autoincrement=True)
+    sources = relationship("Source", back_populates="tile")
 
 
 class Field(Base):
     """
     Represents a collection of FieldTiles making up the area of interest.
     """
+
+    __table_args__ = {"schema": DB_SCHEMA}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tiles = relationship(
@@ -32,6 +60,8 @@ class FieldTile(Base):
     """
     A HEALPix tile that is a component of the Field being selected.
     """
+
+    __table_args__ = {"schema": DB_SCHEMA}
 
     id = Column(ForeignKey(Field.id, ondelete="CASCADE"), primary_key=True)
     hpx = Column(Tile, index=True)
@@ -64,7 +94,7 @@ class Source(Base):
         data from associated telescopes.
     """
 
-    __tablename__ = "Source"
+    __table_args__ = {"schema": DB_SCHEMA}
 
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, unique=True)
@@ -75,6 +105,9 @@ class Source(Base):
     Heal_Pix_Position = Column(Point, index=True, nullable=False)
     sky_coord = Column(Point, index=True)
     json = Column(TEXT)
+
+    tile_id = Column(Integer, ForeignKey(SkyTile.pk), nullable=False)
+    tile = relationship(SkyTile, back_populates="sources")
 
     def to_json(self, session: Session):
         """Serializes the source object and its associated telescope data to a JSON string.
@@ -150,7 +183,7 @@ class Source(Base):
 class Telescope(Base):
     """Model for Telescope which is the data source e.g. SKA Mid, SKA Low"""
 
-    __tablename__ = "Telescope"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
 
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, unique=True)
@@ -162,17 +195,17 @@ class Telescope(Base):
 class Band(Base):
     """Model the bands that the sources were observed in"""
 
-    __tablename__ = "Band"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     centre = Column(Float)
     width = Column(Float)
-    telescope = mapped_column(ForeignKey("Telescope.id"))
+    telescope = mapped_column(ForeignKey(Telescope.id))
 
 
 class NarrowBandData(Base):
     """The observed spectral information"""
 
-    __tablename__ = "NarrowBandData"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Narrow = Column(Float)
     Local_RMS_Narrow = Column(Float)
@@ -194,14 +227,14 @@ class NarrowBandData(Base):
     Flux_Narrow = Column(Float)
     Flux_Narrow_Error = Column(Float)
 
-    source = mapped_column(ForeignKey("Source.id"))
-    band = mapped_column(ForeignKey("Band.id"))
+    source = mapped_column(ForeignKey(Source.id))
+    band = mapped_column(ForeignKey(Band.id))
 
 
 class WideBandData(Base):
     """Full Spectral band wide data"""
 
-    __tablename__ = "WideBandData"
+    __table_args__ = {"schema": "sdp_sdp_global_sky_model_integration"}
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     Bck_Wide = Column(Float)
     Local_RMS_Wide = Column(Float)
@@ -228,5 +261,5 @@ class WideBandData(Base):
     Flux_Wide = Column(Float)
     Flux_Wide_Error = Column(Float)
 
-    source = mapped_column(ForeignKey("Source.id"))
-    telescope = mapped_column(ForeignKey("Telescope.id"))
+    source = mapped_column(ForeignKey(Source.id))
+    telescope = mapped_column(ForeignKey(Telescope.id))

@@ -31,7 +31,7 @@ POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
 DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-
+DB_SCHEMA: str = config("DB_SCHEMA", default="public")
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
 SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
