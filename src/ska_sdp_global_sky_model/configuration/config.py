@@ -29,7 +29,7 @@ logger.info("Logging started for ska-sdp-global-sky-model-api")
 DB_NAME: str = config("sdp_sdp_global_sky_model_integration_database", default="postgres")
 POSTGRES_USER: str = config("sdp_sdp_global_sky_model_integration_username", default="postgres")
 POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_integration_password", default="pass")
-DB: str = config("10.100.10.46", default="db")
+DB: str = config("DB", default="db")
 DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 DB_SCHEMA: str = config("sdp_sdp_global_sky_model_integration_schema", default="public")
 # Session DB (Redis)
