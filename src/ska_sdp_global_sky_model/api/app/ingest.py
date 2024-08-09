@@ -12,9 +12,11 @@ import logging
 from itertools import zip_longest
 from typing import Any, Dict, List, Optional
 
+from astropy_healpix import HEALPix
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
+from sqlalchemy import exc
 
 from ska_sdp_global_sky_model.api.app.model import (
     Band,
@@ -22,11 +24,14 @@ from ska_sdp_global_sky_model.api.app.model import (
     Source,
     Telescope,
     WideBandData,
+    WholeSky,
+    SkyTile
 )
 from ska_sdp_global_sky_model.utilities.helper_functions import (
     calculate_percentage,
     convert_ra_dec_to_skycoord,
 )
+from ska_sdp_global_sky_model.configuration.config import NSIDE
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +170,7 @@ def load_or_create_bands(
 
 
 def create_source_catalog_entry(
-    db: Session, source: Dict[str, float], name: str
+    db: Session, source: Dict[str, float], name: str, healpix: HEALPix, sky_map: WholeSky | None
 ) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
@@ -192,6 +197,25 @@ def create_source_catalog_entry(
         # Required keys missing, return None
         logger.warning("Missing required keys in source data. Skipping source creation.")
         return None
+    
+    # get the HEALPix index of the coarse sky tile that would house it in the UNIQ pixel encoding
+    ipix = healpix.skycoord_to_healpix(sky_coord)
+    hpx = ipix + 4*NSIDE**2
+    
+    # check if tile housing source exists yet
+    try:
+        tile = db.query(SkyTile).filter(SkyTile.pk==hpx).one()
+    except exc.NoResultFound:
+        tile = SkyTile(hpx=hpx, pk=hpx)
+
+    if not sky_map:
+        db.add(WholeSky(id=1, tiles=[tile]))
+
+    else:
+        sky_map.tiles.append(tile)
+        db.add_all([tile])
+
+    db.commit()
 
     source_catalog = Source(
         name=name,
@@ -201,6 +225,7 @@ def create_source_catalog_entry(
         RAJ2000_Error=source.get("e_RAJ2000"),
         DECJ2000=source["DEJ2000"],
         DECJ2000_Error=source.get("e_DEJ2000"),
+        tile_id=hpx
     )
     db.add(source_catalog)
     db.commit()
@@ -357,6 +382,14 @@ def process_source_data(
 
     logger.info("Processing source data...")
 
+    hp = HEALPix(nside=NSIDE, order='nested', frame='icrs')
+
+        # check if sky map exists yet
+    try:
+        sky_map = db.query(WholeSky).filter_by(id=1).one()
+    except exc.NoResultFound:
+        sky_map = None
+
     count = 0
     num_source_data = len(source_data)
     for source in source_data:
@@ -372,7 +405,7 @@ def process_source_data(
             # Skip existing source
             continue
 
-        source_catalog = create_source_catalog_entry(db, source, name)
+        source_catalog = create_source_catalog_entry(db, source, name, hp, sky_map)
         if not source_catalog:
             # Error creating source catalog entry, data processing unsuccessful
             return False
