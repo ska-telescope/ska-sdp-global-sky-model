@@ -38,6 +38,9 @@ SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
 SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
 SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
+# HEALPix
+NSIDE: int = config("NSIDE", default=64)
+
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
