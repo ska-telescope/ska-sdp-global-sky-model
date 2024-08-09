@@ -30,8 +30,8 @@ DB_NAME: str = config("sdp_sdp_global_sky_model_integration_database", default="
 POSTGRES_USER: str = config("sdp_sdp_global_sky_model_integration_username", default="postgres")
 POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_integration_password", default="pass")
 DB: str = config("DB", default="db")
-DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 DB_SCHEMA: str = config("sdp_sdp_global_sky_model_integration_schema", default="public")
+DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
 SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
