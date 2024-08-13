@@ -77,3 +77,11 @@ def calculate_percentage(dividend: int | float, divisor: int | float) -> float:
         return 0.0
     percentage = (dividend / divisor) * 100
     return round(percentage, 2)  # Round to two decimal places
+
+
+def sa_vars(row):
+    """Convert SA rows to dicts."""
+    return {
+        column.name: column.type.python_type(getattr(row, column.name))
+        for column in row.__table__.columns
+    }

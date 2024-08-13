@@ -12,7 +12,7 @@ from cdshealpix import cone_search
 from healpix_alchemy import Tile
 from mocpy import MOC
 from sqlalchemy import and_
-from sqlalchemy.orm import Session, to_dict
+from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import (
     Field,
@@ -23,6 +23,7 @@ from ska_sdp_global_sky_model.api.app.model import (
     WideBandData,
 )
 from ska_sdp_global_sky_model.configuration.config import NSIDE
+from ska_sdp_global_sky_model.utilities.helper_functions import sa_vars
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +258,7 @@ def third_local_sky_model(
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
         "count": len(query),
-        "sources_in_area_of_interest": [to_dict(row) for row in query],
+        "sources_in_area_of_interest": [sa_vars(row) for row in query],
     }
 
     return local_sky_model
