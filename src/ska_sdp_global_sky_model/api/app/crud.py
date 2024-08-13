@@ -257,7 +257,7 @@ def third_local_sky_model(
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
         "count": len(query),
-        "sources_in_area_of_interest": list(query),
+        "sources_in_area_of_interest": [row.__dict__ for row in query],
     }
 
     return local_sky_model
