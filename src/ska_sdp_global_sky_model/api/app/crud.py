@@ -238,7 +238,7 @@ def third_local_sky_model(
 
     sources = []
     for sky_tile in query:
-        sources.append(sky_tile.galaxies)
+        sources.append(sky_tile.sources)
 
     sources = chain.from_iterable(sources)
 
