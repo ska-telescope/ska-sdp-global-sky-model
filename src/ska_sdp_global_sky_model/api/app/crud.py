@@ -4,7 +4,6 @@ CRUD functionality goes here.
 """
 
 import logging
-from itertools import chain
 
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
@@ -15,7 +14,14 @@ from mocpy import MOC
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.model import Field, FieldTile, SkyTile, Source
+from ska_sdp_global_sky_model.api.app.model import (
+    Field,
+    FieldTile,
+    NarrowBandData,
+    SkyTile,
+    Source,
+    WideBandData,
+)
 from ska_sdp_global_sky_model.configuration.config import NSIDE
 
 logger = logging.getLogger(__name__)
@@ -234,13 +240,14 @@ def third_local_sky_model(
     tiles += 4 * NSIDE**2
     tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
-    query = db.query(SkyTile).filter(SkyTile.pk.in_(tiles_int)).all()
-
-    sources = []
-    for sky_tile in query:
-        sources.append(sky_tile.sources)
-
-    sources = chain.from_iterable(sources)
+    query = (
+        db.query(SkyTile)
+        .join(Source, SkyTile.pk == Source.tile_id)
+        .join(WideBandData, Source.id == WideBandData.source)
+        .join(NarrowBandData, Source.id == NarrowBandData.source)
+        .filter(SkyTile.pk.in_(tiles_int))
+        .all()
+    )
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
@@ -250,7 +257,7 @@ def third_local_sky_model(
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
         "count": len(query),
-        "sources_in_area_of_interest": [source.to_json(db) for source in sources],
+        "sources_in_area_of_interest": list(query),
     }
 
     return local_sky_model
