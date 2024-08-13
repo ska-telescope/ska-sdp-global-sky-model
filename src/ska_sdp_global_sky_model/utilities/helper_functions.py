@@ -6,7 +6,6 @@ from astropy.coordinates import SkyCoord
 from sqlalchemy.orm import class_mapper
 
 
-
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
     """
     Creates a SkyCoord object representing a celestial point in the ICRS frame.
