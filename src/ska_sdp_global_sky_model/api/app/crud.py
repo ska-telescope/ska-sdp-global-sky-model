@@ -267,8 +267,8 @@ def third_local_sky_model(
 
     for sky_tile, source, narrowband, wideband in query:
         source_data = results[sky_tile.pk]["sources"][source.id]
-        source_data["ra"] = source.raj2000
-        source_data["dec"] = source.decj2000
+        source_data["ra"] = source.RAJ2000
+        source_data["dec"] = source.DECJ2000
         if narrowband:
             source_data["narrowband"].append(narrowband.columns_to_dict())
         if wideband:
