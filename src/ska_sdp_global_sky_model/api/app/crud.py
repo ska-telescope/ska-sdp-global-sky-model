@@ -13,9 +13,16 @@ from cdshealpix import cone_search
 from healpix_alchemy import Tile
 from mocpy import MOC
 from sqlalchemy import and_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, contains_eager
 
-from ska_sdp_global_sky_model.api.app.model import Field, FieldTile, SkyTile, Source
+from ska_sdp_global_sky_model.api.app.model import (
+    Field,
+    FieldTile,
+    NarrowBandData,
+    SkyTile,
+    Source,
+    WideBandData,
+)
 from ska_sdp_global_sky_model.configuration.config import NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import model_to_dict
 
@@ -238,8 +245,14 @@ def third_local_sky_model(
     query = (
         db.query(SkyTile)
         .filter(SkyTile.pk.in_(tiles_int))
-        .options(joinedload(SkyTile.sources).joinedload(Source.narrowbanddata))
-        .options(joinedload(SkyTile.sources).joinedload(Source.widebanddata))
+        .join(SkyTile.sources)
+        .outerjoin(NarrowBandData, Source.id == NarrowBandData.source)
+        .outerjoin(WideBandData, Source.id == WideBandData.source)
+        .options(
+            contains_eager(SkyTile.sources),
+            contains_eager(SkyTile.sources, NarrowBandData),
+            contains_eager(SkyTile.sources, WideBandData),
+        )
         .all()
     )
 
