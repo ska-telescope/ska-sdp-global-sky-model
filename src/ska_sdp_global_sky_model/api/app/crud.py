@@ -1,10 +1,11 @@
 # pylint: disable=no-member
+# pylint: disable=too-many-locals
 """
 CRUD functionality goes here.
 """
 
 import logging
-from itertools import chain
+from collections import defaultdict
 
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
@@ -13,7 +14,7 @@ from cdshealpix import cone_search
 from healpix_alchemy import Tile
 from mocpy import MOC
 from sqlalchemy import and_
-from sqlalchemy.orm import Session, contains_eager
+from sqlalchemy.orm import Session, aliased
 
 from ska_sdp_global_sky_model.api.app.model import (
     Field,
@@ -24,7 +25,6 @@ from ska_sdp_global_sky_model.api.app.model import (
     WideBandData,
 )
 from ska_sdp_global_sky_model.configuration.config import NSIDE
-from ska_sdp_global_sky_model.utilities.helper_functions import model_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -242,40 +242,38 @@ def third_local_sky_model(
     tiles += 4 * NSIDE**2
     tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
+    # Aliases for narrowband and wideband data
+    narrowband_data = aliased(NarrowBandData)
+    wideband_data = aliased(WideBandData)
+
+    # Modify the query to join the necessary tables
     query = (
-        db.query(SkyTile)
+        db.query(SkyTile, Source, narrowband_data, wideband_data)
         .filter(SkyTile.pk.in_(tiles_int))
         .join(SkyTile.sources)
-        .outerjoin(NarrowBandData, Source.id == NarrowBandData.source)
-        .outerjoin(WideBandData, Source.id == WideBandData.source)
-        .options(
-            contains_eager(SkyTile.sources),
-            contains_eager(SkyTile.sources, NarrowBandData),
-            contains_eager(SkyTile.sources, WideBandData),
-        )
+        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
+        .outerjoin(wideband_data, Source.id == wideband_data.source)
         .all()
     )
 
-    # Extract the sources from the tiles
-    sources = []
-    for sky_tile in query:
-        sources.append(sky_tile.sources)
+    # Process the results into a structure
+    results = defaultdict(
+        lambda: {"sources": defaultdict(lambda: {"narrowband": [], "wideband": []})}
+    )
 
-    # Flatten the list of sources
-    sources = chain.from_iterable(sources)
+    for sky_tile, source, narrowband, wideband in query:
+        source_data = results[sky_tile.id]["sources"][source.id]
+        if narrowband:
+            source_data["narrowband"].append(narrowband)
+        if wideband:
+            source_data["wideband"].append(wideband)
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
         str(len(query)),
     )
 
-    local_sky_model = {
-        "region": {"ra": ra, "dec": dec},
-        "count": len(query),
-        "sources_in_area_of_interest": [model_to_dict(source) for source in sources],
-    }
-
-    return local_sky_model
+    return results
 
 
 def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float, float, float]:
