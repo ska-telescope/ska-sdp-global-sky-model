@@ -72,9 +72,11 @@ def get_local_sky_model(
     tiles += 4 * NSIDE**2
     tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
+    # Aliases for narrowband and wideband data
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
 
+    # Modify the query to join the necessary tables
     query = (
         db.query(SkyTile, Source, narrowband_data, wideband_data)
         .filter(SkyTile.pk.in_(tiles_int))
@@ -84,6 +86,7 @@ def get_local_sky_model(
         .all()
     )
 
+    # Process the results into a structure
     results = defaultdict(
         lambda: {
             "sources": defaultdict(
@@ -92,8 +95,8 @@ def get_local_sky_model(
         }
     )
 
-    for _, source, narrowband, wideband in query:
-        source_data = results["sources"][source.id]
+    for sky_tile, source, narrowband, wideband in query:
+        source_data = results[sky_tile.pk]["sources"][source.id]
         source_data["ra"] = source.RAJ2000
         source_data["dec"] = source.DECJ2000
         if narrowband:
@@ -103,7 +106,7 @@ def get_local_sky_model(
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
-        str(len(results)),
+        str(len(query)),
     )
 
     return results
