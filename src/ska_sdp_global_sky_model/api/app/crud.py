@@ -264,9 +264,9 @@ def third_local_sky_model(
     for sky_tile, source, narrowband, wideband in query:
         source_data = results[sky_tile.id]["sources"][source.id]
         if narrowband:
-            source_data["narrowband"].append(narrowband)
+            source_data["narrowband"].append(narrowband.columns_to_dict())
         if wideband:
-            source_data["wideband"].append(wideband)
+            source_data["wideband"].append(wideband.columns_to_dict())
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
