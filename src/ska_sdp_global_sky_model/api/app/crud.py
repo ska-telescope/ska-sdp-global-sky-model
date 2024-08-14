@@ -4,25 +4,18 @@ CRUD functionality goes here.
 """
 
 import logging
+from itertools import chain
 
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
 from cdshealpix import cone_search
 from healpix_alchemy import Tile
-from itertools import chain
 from mocpy import MOC
 from sqlalchemy import and_
 from sqlalchemy.orm import Session, joinedload
 
-from ska_sdp_global_sky_model.api.app.model import (
-    Field,
-    FieldTile,
-    NarrowBandData,
-    SkyTile,
-    Source,
-    WideBandData,
-)
+from ska_sdp_global_sky_model.api.app.model import Field, FieldTile, SkyTile, Source
 from ska_sdp_global_sky_model.configuration.config import NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import model_to_dict
 
@@ -242,18 +235,11 @@ def third_local_sky_model(
     tiles += 4 * NSIDE**2
     tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
-    
     query = (
         db.query(SkyTile)
         .filter(SkyTile.pk.in_(tiles_int))
-        .options(
-            joinedload(SkyTile.sources)
-            .joinedload(Source.narrowbanddata)
-        )
-        .options(
-            joinedload(SkyTile.sources)
-            .joinedload(Source.widebanddata)
-        )
+        .options(joinedload(SkyTile.sources).joinedload(Source.narrowbanddata))
+        .options(joinedload(SkyTile.sources).joinedload(Source.widebanddata))
         .all()
     )
 
