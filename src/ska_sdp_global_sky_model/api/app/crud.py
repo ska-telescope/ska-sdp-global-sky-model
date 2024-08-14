@@ -10,9 +10,10 @@ from astropy.coordinates import Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
 from cdshealpix import cone_search
 from healpix_alchemy import Tile
+from itertools import chain
 from mocpy import MOC
 from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ska_sdp_global_sky_model.api.app.model import (
     Field,
@@ -241,14 +242,28 @@ def third_local_sky_model(
     tiles += 4 * NSIDE**2
     tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
+    
     query = (
         db.query(SkyTile)
-        .join(Source, SkyTile.pk == Source.tile_id)
-        .join(WideBandData, Source.id == WideBandData.source)
-        .join(NarrowBandData, Source.id == NarrowBandData.source)
         .filter(SkyTile.pk.in_(tiles_int))
+        .options(
+            joinedload(SkyTile.sources)
+            .joinedload(Source.narrowbanddata)
+        )
+        .options(
+            joinedload(SkyTile.sources)
+            .joinedload(Source.widebanddata)
+        )
         .all()
     )
+
+    # Extract the sources from the tiles
+    sources = []
+    for sky_tile in query:
+        sources.append(sky_tile.sources)
+
+    # Flatten the list of sources
+    sources = chain.from_iterable(sources)
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
@@ -258,7 +273,7 @@ def third_local_sky_model(
     local_sky_model = {
         "region": {"ra": ra, "dec": dec},
         "count": len(query),
-        "sources_in_area_of_interest": [model_to_dict(row) for row in query],
+        "sources_in_area_of_interest": [model_to_dict(source) for source in sources],
     }
 
     return local_sky_model
