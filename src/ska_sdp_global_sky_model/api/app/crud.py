@@ -258,11 +258,17 @@ def third_local_sky_model(
 
     # Process the results into a structure
     results = defaultdict(
-        lambda: {"sources": defaultdict(lambda: {"narrowband": [], "wideband": []})}
+        lambda: {
+            "sources": defaultdict(
+                lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
+            )
+        }
     )
 
     for sky_tile, source, narrowband, wideband in query:
-        source_data = results[sky_tile.id]["sources"][source.id]
+        source_data = results[sky_tile.pk]["sources"][source.id]
+        source_data["ra"] = source.raj2000
+        source_data["dec"] = source.decj2000
         if narrowband:
             source_data["narrowband"].append(narrowband.columns_to_dict())
         if wideband:

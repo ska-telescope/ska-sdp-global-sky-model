@@ -42,7 +42,7 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 NSIDE: int = config("NSIDE", default=64)
 
 
-engine = create_engine(DB_URL, echo=True)
+engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
