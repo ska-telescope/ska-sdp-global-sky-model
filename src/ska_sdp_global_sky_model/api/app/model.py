@@ -43,31 +43,6 @@ class SkyTile(Base):
     sources = relationship("Source", back_populates="tile")
 
 
-class Field(Base):
-    """
-    Represents a collection of FieldTiles making up the area of interest.
-    """
-
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tiles = relationship(
-        lambda: FieldTile, order_by="FieldTile.id", cascade="all, delete, delete-orphan"
-    )
-
-
-class FieldTile(Base):
-    """
-    A HEALPix tile that is a component of the Field being selected.
-    """
-
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id = Column(ForeignKey(Field.id, ondelete="CASCADE"), primary_key=True)
-    hpx = Column(Tile, index=True)
-    pk = Column(Integer, primary_key=True, autoincrement=True)
-
-
 class Source(Base):
     """
     Represents a source of astronomical data and its location.
