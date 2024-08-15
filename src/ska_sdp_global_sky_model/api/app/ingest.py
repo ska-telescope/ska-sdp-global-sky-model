@@ -141,7 +141,6 @@ def load_or_create_telescope(
             db.commit()
         else:
             logger.info("Telescope already exists, checking if catalog is ingested...")
-            telescope = telescope.first()
             if telescope.ingested:
                 logger.info("%s catalog already ingested, exiting.", catalog_name)
                 return None
