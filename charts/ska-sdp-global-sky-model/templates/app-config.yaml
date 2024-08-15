@@ -37,9 +37,9 @@ spec:
       {{ if ((.Values.vault).useVault) }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/agent-inject-status: "update"
-        vault.hashicorp.com/agent-inject-secret-config: "kv/groups/ska-dev/naledi"
+        vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.pathToSecretVault }}"
         vault.hashicorp.com/agent-inject-template-config: |
-            {{`{{- with secret `}}"kv/groups/ska-dev/naledi"{{` -}}`}}
+            {{`{{- with secret `}}"{{ .Values.vault.pathToSecretVault }}"{{` -}}`}}
             {{`{{- range $k, $v := .Data.data }}`}}
             {{`export {{ $k }}={{ $v }}`}}
             {{`{{- end }}`}}
