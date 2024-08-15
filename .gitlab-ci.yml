@@ -10,7 +10,7 @@ variables:
   CI_POETRY_VERSION: 1.8.2
   DB_NAME: postgres
   POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: "pass"
+  POSTGRES_PASSWORD: pass
   DB: postgres
 
 # Enable caching for python
@@ -30,6 +30,9 @@ stages:
 services:
   - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1
     alias: postgres, db
+  - name: redis:7.2.4
+    alias: redis
+    
 
  
 
