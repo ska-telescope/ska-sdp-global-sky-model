@@ -13,7 +13,7 @@ from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
 
-ENV_FILE = Path(".env")
+ENV_FILE = Path("/vault/secrets/config")
 if not ENV_FILE.exists():
     ENV_FILE = None
 
