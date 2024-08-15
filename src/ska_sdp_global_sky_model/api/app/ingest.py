@@ -13,16 +13,21 @@ from itertools import zip_longest
 from typing import Any, Dict, List, Optional
 
 from astropy.coordinates import SkyCoord
+from astropy_healpix import HEALPix
 from astroquery.vizier import Vizier
+from sqlalchemy import exc
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import (
     Band,
     NarrowBandData,
+    SkyTile,
     Source,
     Telescope,
+    WholeSky,
     WideBandData,
 )
+from ska_sdp_global_sky_model.configuration.config import NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import (
     calculate_percentage,
     convert_ra_dec_to_skycoord,
@@ -165,7 +170,7 @@ def load_or_create_bands(
 
 
 def create_source_catalog_entry(
-    db: Session, source: Dict[str, float], name: str
+    db: Session, source: Dict[str, float], name: str, healpix: HEALPix, sky_map: WholeSky
 ) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
@@ -193,6 +198,21 @@ def create_source_catalog_entry(
         logger.warning("Missing required keys in source data. Skipping source creation.")
         return None
 
+    # get the HEALPix index of the coarse sky tile that would house it in the UNIQ pixel encoding
+    ipix = int(healpix.skycoord_to_healpix(sky_coord))
+    hpx = ipix + 4 * NSIDE**2
+
+    # check if tile housing source exists yet
+    try:
+        tile = db.query(SkyTile).filter(SkyTile.pk == hpx).one()
+    except exc.NoResultFound:
+        tile = SkyTile(hpx=hpx, pk=hpx)
+
+    sky_map.tiles.append(tile)
+    db.add_all([tile])
+
+    db.commit()
+
     source_catalog = Source(
         name=name,
         Heal_Pix_Position=sky_coord,
@@ -201,6 +221,7 @@ def create_source_catalog_entry(
         RAJ2000_Error=source.get("e_RAJ2000"),
         DECJ2000=source["DEJ2000"],
         DECJ2000_Error=source.get("e_DEJ2000"),
+        tile_id=hpx,
     )
     db.add(source_catalog)
     db.commit()
@@ -331,6 +352,8 @@ def process_source_data(
     telescope: Any,
     ingest_bands: list,
     catalog_config: dict,
+    heal_pix: HEALPix,
+    sky_map: WholeSky | None,
 ) -> bool:
     """Processes a list of source data entries and adds them to the database.
 
@@ -372,7 +395,7 @@ def process_source_data(
             # Skip existing source
             continue
 
-        source_catalog = create_source_catalog_entry(db, source, name)
+        source_catalog = create_source_catalog_entry(db, source, name, heal_pix, sky_map)
         if not source_catalog:
             # Error creating source catalog entry, data processing unsuccessful
             return False
@@ -412,6 +435,18 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
+    hp = HEALPix(nside=NSIDE, order="nested", frame="icrs")
+
+    # check if sky map exists yet
+    try:
+        sky_map = db.query(WholeSky).filter_by(id=1).one()
+        logger.info("SKY MAP EXISTS")
+    except exc.NoResultFound:
+        sky_map = WholeSky(id=1, tiles=[])
+        db.add(sky_map)
+        db.commit()
+        logger.info("SKY MAP DOES NOT EXIST")
+
     # 1. Load or create telescope
     telescope = load_or_create_telescope(db, catalog_config)
     if not telescope:
@@ -431,7 +466,9 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
             return False
 
         # 4. Process source data
-        if not process_source_data(db, sources, bands, telescope, ingest_bands, catalog_config):
+        if not process_source_data(
+            db, sources, bands, telescope, ingest_bands, catalog_config, hp, sky_map
+        ):
             return False
 
         # 5. Mark telescope as ingested

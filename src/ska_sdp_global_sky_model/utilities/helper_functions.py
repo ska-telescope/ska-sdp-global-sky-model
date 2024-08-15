@@ -3,6 +3,7 @@
 import numpy
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from sqlalchemy.orm import class_mapper
 
 
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
@@ -77,3 +78,9 @@ def calculate_percentage(dividend: int | float, divisor: int | float) -> float:
         return 0.0
     percentage = (dividend / divisor) * 100
     return round(percentage, 2)  # Round to two decimal places
+
+
+def model_to_dict(model):
+    """Convert a SA row to dict."""
+    columns = class_mapper(model.__class__).columns
+    return {col.name: getattr(model, col.name) for col in columns}
