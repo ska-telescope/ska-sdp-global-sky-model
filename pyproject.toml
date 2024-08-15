@@ -23,6 +23,7 @@ ska-ser-logging = "^0.4.3"
 mocpy = "^0.15.0"
 cdshealpix = "^0.6.5"
 orjson = "^3.10.6"
+python-multipart = "^0.0.9"
 
 
 [tool.poetry.group.dev.dependencies]

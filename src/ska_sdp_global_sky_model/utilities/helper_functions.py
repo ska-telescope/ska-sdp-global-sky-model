@@ -24,16 +24,16 @@ def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
 
     """
     # Validate input values
-    if not 0 <= ra <= 360:
+    if not (0.0 <= float(ra) and float(ra) <= 360.0):
         raise ValueError("RA must be between 0 and 360 degrees.")
-    if not -90 <= dec <= 90:
+    if not (-90.0 <= float(dec) and float(dec) <= 90.0):
         raise ValueError("Dec must be between -90 and 90 degrees.")
 
     # Create SkyCoord object in the specified frame (defaults to ICRS)
-
+    
     # pylint: disable=no-member
-    return SkyCoord(ra=ra * u.degree, dec=dec * u.degree, frame=frame)
-
+    return SkyCoord(ra, dec, unit="deg", frame=frame)
+   
 
 def convert_arcminutes_to_radians(arcminutes: float) -> float:
     """Converts arcminutes to radians.

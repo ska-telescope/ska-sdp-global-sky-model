@@ -48,3 +48,18 @@ def test_read_main():
     response = client.get("/ping")
     assert response.status_code == 200
     assert response.json() == {"ping": "live"}
+
+def test_upload_rcal():
+    """Unit test for the /upload_rcal path"""
+    file_path="tests/data/rcal.csv"
+    # Open the file in binary mode
+    with open(file_path, "rb") as file:
+    # Create a dictionary with the file
+        files = {"file": file}
+    
+    # Send a POST request to the FastAPI endpoint
+        response = client.post("/upload-rcal/", files=files)
+    
+    assert response.status_code == 200
+    assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
+    
