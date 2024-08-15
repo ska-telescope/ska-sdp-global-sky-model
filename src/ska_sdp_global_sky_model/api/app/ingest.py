@@ -387,8 +387,7 @@ def process_source_data(
             )
         count += 1
 
-        source = db.query(Source).filter_by(name=name)
-        if source is not None:  # Skip existing source
+        if db.query(Source).filter_by(name=name).count():
             continue
 
         source_catalog = create_source_catalog_entry(db, source, name)
