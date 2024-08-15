@@ -8,13 +8,16 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   OCI_IMAGE_BUILD_CONTEXT: $(PWD)
   CI_POETRY_VERSION: 1.8.2
+  DB_NAME: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: "pass"
+  DB: postgres
 
 # Enable caching for python
 cache:
   key: $CI_COMMIT_REF_SLUG
   paths:
     - .cache/pip
-
 
 stages:
   - lint
@@ -24,6 +27,11 @@ stages:
   - pages
   - scan
 
+services:
+  - name: postgres:latest
+    alias: postgres, db
+
+ 
 
 include:
   # Python
