@@ -5,10 +5,8 @@ api:
   tag: latest
   pullPolicy: Always
 
-dbimage:
-  repository: artefact.skao.int/ska-sdp-global-sky-model-db
-  tag: latest
-  pullPolicy: Always
+db:
+  ipAddress: "10.100.10.46"
 
 dbservice:
   port: 5432
@@ -18,10 +16,6 @@ redisservice:
   port: 6379
   nodePort: 30002
 
-persistentvolume:
-  storageclassname: nfss1
-  size: 2Gi
-  accessmodes: ReadWriteMany
 
 ingress:
   enabled: true
@@ -34,4 +28,4 @@ env:
 
 vault:
   useVault: true
-  pathToSecretVault: kv/data/users/jm22b/ska-sdp-global-sky-model
+  pathToSecretVault: kv/groups/ska-dev/naledi
