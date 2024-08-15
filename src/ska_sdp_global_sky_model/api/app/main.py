@@ -172,7 +172,7 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
 
 
 @app.post("/upload-rcal", summary="Ingest RCAL from a CSV {used in development}")
-async def upload_rcal(file: UploadFile = File(...)):
+async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Uploads and processes an RCAL catalog file. This is a development endpoint.
     The file is expected to be a CSV file as exported from the GLEAM catalog.
@@ -198,49 +198,47 @@ async def upload_rcal(file: UploadFile = File(...)):
     # in the function so I have added the following context manager to
     # hopefully acheive the same thing
 
-    with get_db() as db:
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
-        try:
-            db.execute(text("SELECT 1"))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e)) from e
+    # Check if there is sufficient disk space to write the file
+    statvfs = os.statvfs("/")
+    free_space = statvfs.f_frsize * statvfs.f_bavail
 
-        # Check if there is sufficient disk space to write the file
-        statvfs = os.statvfs("/")
-        free_space = statvfs.f_frsize * statvfs.f_bavail
+    try:
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
+            temp_file_path = temp_file.name
 
-        try:
-            # Create a temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
-                temp_file_path = temp_file.name
+            # Write the uploaded file to the temporary file
+            contents = await file.read()
+            file_size = len(contents)
+            if file_size > free_space:
+                raise HTTPException(status_code=400, detail="Insufficient disk space.")
 
-                # Write the uploaded file to the temporary file
-                contents = await file.read()
-                file_size = len(contents)
-                if file_size > free_space:
-                    raise HTTPException(status_code=400, detail="Insufficient disk space.")
+            temp_file.write(contents)
 
-                temp_file.write(contents)
+        # Process the CSV data (example: print the path of the temporary file)
+        print(f"Temporary file created at: {temp_file_path}")
 
-            # Process the CSV data (example: print the path of the temporary file)
-            print(f"Temporary file created at: {temp_file_path}")
+        # Return a success message
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred while processing the file: {str(e)}"
+        ) from e
 
-            # Return a success message
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"An error occurred while processing the file: {str(e)}"
-            ) from e
+    rcal_config = RCAL.copy()
+    rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
+    logger.info("Ingesting the catalogue...")
+    try:
+        if ingest(db, rcal_config, overwrite=True):
+            return JSONResponse(
+                content={"message": "RCAL uploaded and ingested successfully"}, status_code=200
+            )
 
-        rcal_config = RCAL.copy()
-        rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
-        logger.info("Ingesting the catalogue...")
-        try:
-            if ingest(db, rcal_config, overwrite=True):
-                return JSONResponse(
-                    content={"message": "RCAL uploaded and ingested successfully"}, status_code=200
-                )
-
-        except Exception:  # pylint: disable=broad-except
-            return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400)
-
+    except Exception:  # pylint: disable=broad-except
         return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400)
+
+    return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400)
