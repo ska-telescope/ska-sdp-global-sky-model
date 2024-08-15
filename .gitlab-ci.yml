@@ -11,7 +11,7 @@ variables:
   DB_NAME: postgres
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: pass
-  DB: postgres
+  DB: db
 
 # Enable caching for python
 cache:
@@ -29,7 +29,7 @@ stages:
 
 services:
   - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1
-    alias: postgres, db
+    alias: db
   - name: redis:7.2.4
     alias: redis
     
