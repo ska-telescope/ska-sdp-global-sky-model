@@ -28,7 +28,7 @@ stages:
   - scan
 
 services:
-  - name: postgres:latest
+  - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1
     alias: postgres, db
 
  
