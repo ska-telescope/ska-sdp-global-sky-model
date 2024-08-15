@@ -9,8 +9,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from ska_sdp_global_sky_model.api.app.main import Base, app, get_db
+from ska_sdp_global_sky_model.configuration.config import DB_URL
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:pass@db:5432/postgres"
+SQLALCHEMY_DATABASE_URL = DB_URL
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
@@ -38,7 +39,7 @@ def test_db():
     Base.metadata.drop_all(bind=engine)
 
 
-# app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
 
@@ -64,4 +65,4 @@ def test_upload_rcal():
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
 
-    #response = client.get("/sources")
+    # response = client.get("/sources")
