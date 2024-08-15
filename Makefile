@@ -10,6 +10,9 @@ include .make/python.mk
 # include core make support
 include .make/base.mk
 
+# include tmdata support
+include .make/tmdata.mk
+
 PYTHON_LINE_LENGTH = 99
 
 build:
