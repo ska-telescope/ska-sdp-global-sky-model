@@ -35,31 +35,33 @@ spec:
         app.kubernetes.io/name: {{ .Chart.Name }}-api
       annotations:
       {{ if ((.Values.vault).useVault) }}
-          vault.hashicorp.com/agent-inject: "true"
-          vault.hashicorp.com/agent-inject-status: "update"
-          vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.pathToSecretVault }}"
-          vault.hashicorp.com/agent-inject-template-config: |
-              {{`{{- with secret `}}"{{ .Values.vault.pathToSecretVault }}"{{` -}}`}}
-              {{`{{- range $k, $v := .Data.data }}`}}
-              {{`{{ $k }}={{ $v }}`}}
-              {{`{{- end }}`}}
-              {{`{{- end }}`}}
-          vault.hashicorp.com/role: "kube-role"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.pathToSecretVault }}"
+        vault.hashicorp.com/agent-inject-template-config: |
+            {{`{{- with secret `}}"{{ .Values.vault.pathToSecretVault }}"{{` -}}`}}
+            {{`{{- range $k, $v := .Data.data }}`}}
+            {{`export {{ $k }}={{ $v }}`}}
+            {{`{{- end }}`}}
+            {{`{{- end }}`}}
+        vault.hashicorp.com/role: "kube-role"
       {{ end }}
     spec:
       containers:
       - name: {{ .Chart.Name }}-api
         image: "{{ .Values.api.repository }}:{{ .Values.api.tag }}"
         imagePullPolicy: {{ .Values.api.pullPolicy }}
-        env:
-          - name: DB
-            value: "{{ .Chart.Name }}-db-service"
+        command: ["/bin/sh", "-c", ". /vault/secrets/config && exec uvicorn ska_sdp_global_sky_model.api.app.main:app --host 0.0.0.0 --port 80 --app-dir /usr/src"]
         ports:
         - containerPort: 80
+        env:
+        - name: DB
+          value: "{{ .Values.db.host }}"
         startupProbe:
           httpGet:
             path: /ping
             port: 80
+          initialDelaySeconds: 5
           failureThreshold: 30
           periodSeconds: 5
         livenessProbe:
