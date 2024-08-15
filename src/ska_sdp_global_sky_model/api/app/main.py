@@ -5,9 +5,12 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 
 # pylint: disable=too-many-arguments, broad-exception-caught
 import logging
+import os
+import tempfile
 import time
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, UploadFile, HTTPException, File
+from fastapi.responses import JSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 from sqlalchemy import text
@@ -17,7 +20,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
-from ska_sdp_global_sky_model.configuration.config import MWA, RACS, Base, engine, get_db
+from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, Base, engine, get_db, session_local
 
 logger = logging.getLogger(__name__)
 
@@ -70,15 +73,16 @@ def ping():
     return {"ping": "live"}
 
 
-def ingest(db: Session, catalog_config: dict):
+def ingest(db: Session, catalog_config: dict, overwrite: bool = False):
     """Ingest catalog"""
     try:
-        if get_full_catalog(db, catalog_config):
-            return "success"
-        logger.error("Error (catalog already ingested)")
-        return "Error (catalog already ingested)"
+        if get_full_catalog(db, catalog_config, overwrite):
+            return True
+        logger.error("Error ingesting the catalogue")
+        return False
     except Exception as e:  # pylint: disable=broad-exception-caught
-        return f"Error {e}"
+        raise e
+  
 
 
 @app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
@@ -93,7 +97,6 @@ def ingest_racs(db: Session = Depends(get_db)):
     """Ingesting the RACS catalogue"""
     logger.info("Ingesting the RACS catalogue...")
     return ingest(db, RACS)
-
 
 @app.get("/optimise-json", summary="Create a point source for testing")
 def optimise_json(db: Session = Depends(get_db)):
@@ -160,3 +163,54 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
     )
     local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
     return ORJSONResponse(local_model)
+
+@app.post("/upload-rcal", summary="Ingest RCAL from a CSV {used in development}")
+async def upload_rcal(
+    file: UploadFile = File(...)):
+    
+    if file.content_type != 'text/csv':
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a CSV file.")
+   
+     # Check if the database session is okay
+    
+    with get_db() as db: 
+        
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database connection error") 
+    
+        # Check if there is sufficient disk space
+        statvfs = os.statvfs('/')
+        free_space = statvfs.f_frsize * statvfs.f_bavail
+    
+        try:
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as temp_file:
+                temp_file_path = temp_file.name
+
+            # Write the uploaded file to the temporary file
+                contents = await file.read()
+                file_size = len(contents)
+                if file_size > free_space:
+                    raise HTTPException(status_code=400, detail="Insufficient disk space.")
+            
+                temp_file.write(contents)
+
+            # Process the CSV data (example: print the path of the temporary file)
+            print(f"Temporary file created at: {temp_file_path}")
+
+            # Return a success message
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"An error occurred while processing the file: {str(e)}")
+
+        rcal_config = RCAL.copy()   
+        rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
+        logger.info("Ingesting the catalogue...")
+        try:
+            if (ingest(db, rcal_config, overwrite=True)):
+                return JSONResponse(content={"message": "RCAL uploaded and ingested successfully"}, status_code=200)
+            else:
+                return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400)
+        except:
+            return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400) 
