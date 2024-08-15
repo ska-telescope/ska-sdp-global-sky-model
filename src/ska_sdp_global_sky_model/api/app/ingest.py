@@ -129,10 +129,10 @@ def load_or_create_telescope(
     catalog_name = catalog_config["name"]
     logger.info("Creating new telescope: %s", catalog_name)
     try:
-        telescope = db.query(Telescope).filter_by(name=catalog_name)
-        if telescope.first():
+        telescope = db.query(Telescope).filter_by(name=catalog_name).first()
+        if telescope:
             if overwrite:
-                telescope.first().ingested = False
+                telescope.ingested = False
                 db.commit()
         if not telescope:
             logger.info("Telescope does not exist ..")
