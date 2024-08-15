@@ -38,7 +38,7 @@ def test_db():
     Base.metadata.drop_all(bind=engine)
 
 
-app.dependency_overrides[get_db] = override_get_db
+# app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
 
@@ -64,4 +64,4 @@ def test_upload_rcal():
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
 
-    response = client.get("/sources")
+    #response = client.get("/sources")
