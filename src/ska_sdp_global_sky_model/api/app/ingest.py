@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional
 
 from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
-from sqlalchemy import exc, inspect
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import (
@@ -123,15 +122,8 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     catalog_name = catalog_config["name"]
     logger.info("Creating new telescope: %s", catalog_name)
     try:
-        telescope = None
-        try:
-            if inspect(db.bind).has_table(Telescope.__tablename__):
-                telescope = db.query(Telescope).filter_by(name=catalog_name).first()
-        except exc.SQLAlchemyError as e:
-            # CI throws an exeption if the table does not exist
-            logger.error("Database error %s", e)
-            telescope = None
-            db.rollback()
+
+        telescope = db.query(Telescope).filter_by(name=catalog_name).first()
 
         if not telescope:
             logger.info("Telescope does not exist ..")
