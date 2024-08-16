@@ -4,9 +4,18 @@
 
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Setting up development environment
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Set up containers
+```
+make build
+make run
+```
+
+Import the development db 
+```
+make make-dev-db
+```
 
 ## Add your files
 
