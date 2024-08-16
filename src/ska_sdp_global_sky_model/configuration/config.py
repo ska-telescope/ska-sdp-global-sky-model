@@ -26,17 +26,20 @@ logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
-DB_NAME: str = config("DB_NAME", default="postgres")
-POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
-POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
-DB: str = config("DB", default="127.0.0.1")
-DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-
+DB_NAME: str = config("sdp_sdp_global_sky_model_integration_database", default="postgres")
+POSTGRES_USER: str = config("sdp_sdp_global_sky_model_integration_username", default="postgres")
+POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_integration_password", default="pass")
+DB: str = config("DB", default="db")
+DB_SCHEMA: str = config("sdp_sdp_global_sky_model_integration_schema", default="public")
+DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
 SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
 SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
 SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
+
+# HEALPix
+NSIDE: int = config("NSIDE", default=64)
 
 
 engine = create_engine(DB_URL)

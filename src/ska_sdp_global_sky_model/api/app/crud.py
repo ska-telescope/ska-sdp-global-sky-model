@@ -1,30 +1,22 @@
 # pylint: disable=no-member
+# pylint: disable=too-many-locals
 """
 CRUD functionality goes here.
 """
 
 import logging
+from collections import defaultdict
 
 import astropy.units as u
-from astropy.coordinates import Latitude, Longitude
-from cdshealpix import cone_search
-from healpix_alchemy import Tile
-from mocpy import MOC
+from astropy.coordinates import Latitude, Longitude, SkyCoord
+from astropy_healpix import HEALPix
 from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
-from ska_sdp_global_sky_model.api.app.model import Field, FieldTile, Source
+from ska_sdp_global_sky_model.api.app.model import NarrowBandData, SkyTile, Source, WideBandData
+from ska_sdp_global_sky_model.configuration.config import NSIDE
 
 logger = logging.getLogger(__name__)
-
-
-def delete_previous_tiles(db):
-    """
-    Clears previous definitions of healpix tiles from the database.
-    """
-    previous_fields = db.query(Field).first()
-    db.delete(previous_fields)
-    db.commit()
 
 
 def get_local_sky_model(
@@ -72,41 +64,52 @@ def get_local_sky_model(
             }
     """
 
-    # Get the HEALPix cells contained within a cone at a particular depth
-    ipix, depth, _ = cone_search(
-        lon=Longitude(float(ra[0]) * u.deg),
-        lat=Latitude(float(dec[0]) * u.deg),
-        radius=float(fov) * u.deg,
-        depth=10,
+    hp = HEALPix(nside=NSIDE, order="nested", frame="icrs")
+    coord = SkyCoord(
+        Longitude(float(ra[0]) * u.deg), Latitude(float(dec[0]) * u.deg), frame="icrs"
+    )
+    tiles = hp.cone_search_skycoord(coord, radius=float(fov) * u.deg)
+    tiles += 4 * NSIDE**2
+    tiles_int = getattr(tiles, "tolist", lambda: tiles)()
+
+    # Aliases for narrowband and wideband data
+    narrowband_data = aliased(NarrowBandData)
+    wideband_data = aliased(WideBandData)
+
+    # Modify the query to join the necessary tables
+    query = (
+        db.query(SkyTile, Source, narrowband_data, wideband_data)
+        .filter(SkyTile.pk.in_(tiles_int))
+        .join(SkyTile.sources)
+        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
+        .outerjoin(wideband_data, Source.id == wideband_data.source)
+        .all()
     )
 
-    # Construct the Multi Order Coverage map from the HEALPix cells
-    moc = MOC.from_healpix_cells(ipix, depth, max_depth=10)
+    # Process the results into a structure
+    results = defaultdict(
+        lambda: {
+            "sources": defaultdict(
+                lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
+            )
+        }
+    )
 
-    # Use healpix_alchemy's tiles_from method to extract the HEALPix tiles
-    tiles = [FieldTile(hpx=hpx) for hpx in Tile.tiles_from(moc)]
-
-    # Populate the Field table with this collection of tiles
-    db.add(Field(tiles=tiles))
-
-    db.commit()  # TODO: we need to clean these up later on again.    # pylint: disable=fixme
-
-    # A Source is within the region of interest if a constituent FieldTile contains
-    # the Source's HEALPix index
-    query = db.query(Source).filter(FieldTile.hpx.contains(Source.Heal_Pix_Position)).all()
+    for sky_tile, source, narrowband, wideband in query:
+        source_data = results[sky_tile.pk]["sources"][source.id]
+        source_data["ra"] = source.RAJ2000
+        source_data["dec"] = source.DECJ2000
+        if narrowband:
+            source_data["narrowband"].append(narrowband.columns_to_dict())
+        if wideband:
+            source_data["wideband"].append(wideband.columns_to_dict())
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
         str(len(query)),
     )
 
-    local_sky_model = {
-        "region": {"ra": ra, "dec": dec},
-        "count": len(query),
-        "sources_in_area_of_interest": [source.to_json(db) for source in query],
-    }
-
-    return local_sky_model
+    return results
 
 
 def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float, float, float]:
