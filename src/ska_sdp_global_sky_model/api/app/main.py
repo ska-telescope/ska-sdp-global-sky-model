@@ -209,7 +209,7 @@ async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db
 
     try:
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as temp_file:
             temp_file_path = temp_file.name
 
             # Write the uploaded file to the temporary file
@@ -220,25 +220,20 @@ async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db
 
             temp_file.write(contents)
 
-        # Process the CSV data (example: print the path of the temporary file)
-        print(f"Temporary file created at: {temp_file_path}")
+            # Process the CSV data (example: print the path of the temporary file)
+            print(f"Temporary file created at: {temp_file_path}")
 
-        # Return a success message
+            rcal_config = RCAL.copy()
+            rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
+            logger.info("Ingesting the catalogue...")
+            
+            if ingest(db, rcal_config, overwrite=True):
+                return JSONResponse(
+                    content={"message": "RCAL uploaded and ingested successfully"},
+                    status_code=200,
+                )
+
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred while processing the file: {str(e)}"
-        ) from e
-
-    rcal_config = RCAL.copy()
-    rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
-    logger.info("Ingesting the catalogue...")
-    try:
-        if ingest(db, rcal_config, overwrite=True):
-            return JSONResponse(
-                content={"message": "RCAL uploaded and ingested successfully"}, status_code=200
-            )
-
-    except Exception:  # pylint: disable=broad-except
-        return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400)
-
-    return JSONResponse(content={"message": "Error on catalog ingest"}, status_code=400)
+        logger.error("Error on catalog ingest: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e 
+       
