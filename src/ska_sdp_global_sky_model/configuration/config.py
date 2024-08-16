@@ -5,7 +5,6 @@ Configure variables to be used.
 
 import logging
 import os
-from contextlib import contextmanager
 from pathlib import Path
 
 import ska_ser_logging
@@ -64,7 +63,6 @@ class Base:
         return cls.__name__.lower()
 
 
-@contextmanager
 def get_db():
     """
     Provides a database session.
