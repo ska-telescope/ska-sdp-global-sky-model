@@ -79,10 +79,10 @@ def ping():
     return {"ping": "live"}
 
 
-def ingest(db: Session, catalog_config: dict, overwrite: bool = False):
+def ingest(db: Session, catalog_config: dict):
     """Ingest catalog"""
     try:
-        if get_full_catalog(db, catalog_config, overwrite):
+        if get_full_catalog(db, catalog_config):
             return True
         logger.error("Error ingesting the catalogue")
         return False
@@ -189,25 +189,22 @@ async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db
         JSONResponse: A success message if the RCAL file is uploaded and ingested successfully,
         or an error message if there is an issue with the catalog ingest.
     """
-
-    if file.content_type != "text/csv":
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a CSV file.")
-
-    # Check if the database session is okay
-    # Steve Ord: I found the the Depends(get_db) was not working
-    # in the function so I have added the following context manager to
-    # hopefully acheive the same thing
-
     try:
-        db.execute(text("SELECT 1"))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
-    # Check if there is sufficient disk space to write the file
-    statvfs = os.statvfs("/")
-    free_space = statvfs.f_frsize * statvfs.f_bavail
+        if file.content_type != "text/csv":
+            raise HTTPException(
+                status_code=400, detail="Invalid file type. Please upload a CSV file."
+            )
 
-    try:
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Unable to access database") from e
+
+        # Check if there is sufficient disk space to write the file
+        statvfs = os.statvfs("/")
+        free_space = statvfs.f_frsize * statvfs.f_bavail
+
         # Create a temporary file
         with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as temp_file:
             temp_file_path = temp_file.name
@@ -227,12 +224,16 @@ async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db
             rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
             logger.info("Ingesting the catalogue...")
 
-            if ingest(db, rcal_config, overwrite=True):
+            if ingest(db, rcal_config):
                 return JSONResponse(
                     content={"message": "RCAL uploaded and ingested successfully"},
                     status_code=200,
                 )
 
+            return JSONResponse(
+                content={"message": "Error ingesting the catalogue (already present?)"},
+                status_code=500,
+            )
     except Exception as e:
-        logger.error("Error on catalog ingest: %s", e)
+        logger.error("Error on RCAL catalog ingest: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e

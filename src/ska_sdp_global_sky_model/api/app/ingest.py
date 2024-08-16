@@ -114,9 +114,7 @@ def get_data_catalog_selector(ingest: dict):
             )
 
 
-def load_or_create_telescope(
-    db: Session, catalog_config: dict, overwrite: bool = False
-) -> Optional[Telescope]:
+def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Telescope]:
     """
     Loads a telescope by name from the database. If not found, creates a new one.
 
@@ -138,10 +136,6 @@ def load_or_create_telescope(
             telescope = None
             db.rollback()
 
-        if telescope:
-            if overwrite:
-                telescope.ingested = False
-                db.commit()
         if not telescope:
             logger.info("Telescope does not exist ..")
             telescope = Telescope(
@@ -160,7 +154,7 @@ def load_or_create_telescope(
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error loading telescope: %s", e)
         db.rollback()
-        return None
+        raise e
 
     return telescope
 
@@ -437,7 +431,7 @@ def process_source_data(
     return True
 
 
-def get_full_catalog(db: Session, catalog_config, overwrite: bool = False) -> bool:
+def get_full_catalog(db: Session, catalog_config) -> bool:
     """
     Downloads and processes a source catalog for a specified telescope.
 
@@ -474,8 +468,7 @@ def get_full_catalog(db: Session, catalog_config, overwrite: bool = False) -> bo
         logger.info("SKY MAP DOES NOT EXIST")
 
     # 1. Load or create telescope
-    telescope = load_or_create_telescope(db, catalog_config, overwrite)
-    logger.info("Telescope loaded: %s", str(telescope))
+    telescope = load_or_create_telescope(db, catalog_config)
 
     if not telescope:
         return False
