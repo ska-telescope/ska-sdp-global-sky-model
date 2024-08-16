@@ -226,7 +226,7 @@ async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db
             rcal_config = RCAL.copy()
             rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
             logger.info("Ingesting the catalogue...")
-            
+
             if ingest(db, rcal_config, overwrite=True):
                 return JSONResponse(
                     content={"message": "RCAL uploaded and ingested successfully"},
@@ -235,5 +235,4 @@ async def upload_rcal(file: UploadFile = File(...), db: Session = Depends(get_db
 
     except Exception as e:
         logger.error("Error on catalog ingest: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e 
-       
+        raise HTTPException(status_code=500, detail=str(e)) from e
