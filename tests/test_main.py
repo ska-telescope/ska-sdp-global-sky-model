@@ -41,17 +41,26 @@ def test_db():
 
 app.dependency_overrides[get_db] = override_get_db
 
-client = TestClient(app)
+
+@pytest.fixture(scope="module", name="myclient")
+def fixture_client():
+    """Trigger the on_startup events - GitLab CI tests
+    are not starting the FastAPI app correctly"""
+    with TestClient(app) as client:
+        # Manually trigger the startup events
+
+        app.router.startup()
+        yield client
 
 
-def test_read_main():
+def test_read_main(myclient):
     """Unit test for the root path "/" """
-    response = client.get("/ping")
+    response = myclient.get("/ping")
     assert response.status_code == 200
     assert response.json() == {"ping": "live"}
 
 
-def test_upload_rcal():
+def test_upload_rcal(myclient):
     """Unit test for the /upload_rcal path"""
     file_path = "tests/data/rcal.csv"
     # Open the file in binary mode
@@ -60,7 +69,7 @@ def test_upload_rcal():
         files = {"file": file}
 
         # Send a POST request to the FastAPI endpoint
-        response = client.post("/upload-rcal/", files=files)
+        response = myclient.post("/upload-rcal/", files=files)
 
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}

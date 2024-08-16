@@ -127,7 +127,6 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
         try:
             if inspect(db.bind).has_table(Telescope.__tablename__):
                 telescope = db.query(Telescope).filter_by(name=catalog_name).first()
-                raise ValueError("Table does exist")
         except exc.SQLAlchemyError as e:
             # CI throws an exeption if the table does not exist
             logger.error("Database error %s", e)
