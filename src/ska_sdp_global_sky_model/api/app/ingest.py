@@ -130,13 +130,14 @@ def load_or_create_telescope(
     catalog_name = catalog_config["name"]
     logger.info("Creating new telescope: %s", catalog_name)
     try:
-        telescope = db.query(Telescope).filter_by(name=catalog_name).first()
-    except ProgrammingError as e:
-        # CI throws an exeption if the table does not exist
-        logger.error("Database error: %s", e)
-        telescope = None
+        try:
+            telescope = db.query(Telescope).filter_by(name=catalog_name).first()
+        except ProgrammingError as e:
+            # CI throws an exeption if the table does not exist
+            logger.error("Database error: %s", e)
+            telescope = None
+            db.rollback()
 
-    try:
         if telescope:
             if overwrite:
                 telescope.ingested = False
