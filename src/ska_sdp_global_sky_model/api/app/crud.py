@@ -1,5 +1,6 @@
 # pylint: disable=no-member
 # pylint: disable=too-many-locals
+# pylint: disable=invalid-name
 """
 CRUD functionality goes here.
 """
@@ -24,7 +25,7 @@ def get_local_sky_model(
     ra: list,
     dec: list,
     flux_wide: float,
-    telescope: str,
+    _telescope: str,
     fov: float,
 ) -> dict:
     """
@@ -43,7 +44,7 @@ def get_local_sky_model(
             boundaries of the desired LSM region.
         flux_wide (float): Placeholder for future implementation of wide-field flux \
             of the observation (in Jy). Currently not used.
-        telescope (str): Placeholder for future implementation of the telescope name \
+        _telescope (str): Placeholder for future implementation of the telescope name \
             being used for the observation. Currently not used.
         fov (float): Placeholder for future implementation of the telescope's field of\
             view (in arcminutes). Currently not used.
