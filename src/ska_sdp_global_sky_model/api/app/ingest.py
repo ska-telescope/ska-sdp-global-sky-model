@@ -5,7 +5,7 @@ Gleam Catalog ingest
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
-
+import os
 import csv
 import json
 import logging
@@ -52,12 +52,33 @@ class SourceFile:
             heading_alias: Alter headers to match our expected input.
             heading_missing: A list of headings to be padded onto the dataset
         """
+        logger.info("Creating SourceFile object")
         self.file_location = file_location
         self.heading_missing = heading_missing or []
         self.heading_alias = heading_alias or {}
-        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
-            self.len = sum(1 for row in csvfile)
-
+        
+        # Get the file size in bytes
+        file_size = os.path.getsize(self.file_location)
+        
+        # Print the file size
+        logger.info("File size: %d bytes", file_size)
+        try:
+            with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+                logger.info("Opened file: %s", self.file_location)
+                self.len = sum(1 for row in csvfile)
+                logger.info("File length (rows): %s", self.len)
+                
+        except FileNotFoundError as f:
+            logger.error("File not found: %s", self.file_location)
+            self.len = 0
+            raise RuntimeError from f
+        except Exception as e:
+            logger.error("Error opening file: %s", e)
+            self.len = 0
+            raise RuntimeError from e
+        
+        logger.info("SourceFile object created")
+        
     def header(self, header) -> list:
         """Apply header aliasing
         Args:
@@ -104,6 +125,7 @@ def get_data_catalog_selector(ingest: dict):
         yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
+            logger.info("Opening file: %s", ingest_set["key"])
             yield (
                 SourceFile(
                     ingest_set["key"],
