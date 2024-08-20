@@ -211,6 +211,21 @@ class NarrowBandData(Base):
     Flux_Narrow = Column(Float)
     Flux_Narrow_Error = Column(Float)
 
+    Polarised = Column(Boolean)
+    Stokes = Column(String)
+    Rotational_Measure = Column(Float)
+    Rotational_Measure_Error = Column(Float)
+    Fractional_Polarisation = Column(Float)
+    Fractional_Polarisation_Error = Column(Float)
+    Faraday_Complex = Column(Boolean)
+
+    Spectral_Index = Column(Float)
+    Spectral_Index_Error = Column(Float)
+
+    Variable = Column(Boolean)
+    Modulation_Index = Column(Float)
+    Debiased_Modulation_Index = Column(Float)
+
     source = mapped_column(ForeignKey(Source.id))
     band = mapped_column(ForeignKey(Band.id))
 
@@ -253,6 +268,24 @@ class WideBandData(Base):
     PA_Wide_Error = Column(Float)
     Flux_Wide = Column(Float)
     Flux_Wide_Error = Column(Float)
+
+    Polarised = Column(Boolean)
+    Stokes = Column(String)
+    Rotational_Measure = Column(Float)
+    Rotational_Measure_Error = Column(Float)
+    Fractional_Polarisation = Column(Float)
+    Fractional_Polarisation_Error = Column(Float)
+    Faraday_Complex = Column(Boolean)
+
+    Spectral_Index = Column(Float)
+    Spectral_Index_Error = Column(Float)
+
+    Spectral_Curvature = Column(Float)
+    Spectral_Curvature_Error = Column(Float)
+
+    Variable = Column(Boolean)
+    Modulation_Index = Column(Float)
+    Debiased_Modulation_Index = Column(Float)
 
     source = mapped_column(ForeignKey(Source.id))
     telescope = mapped_column(ForeignKey(Telescope.id))
