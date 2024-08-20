@@ -209,7 +209,7 @@ async def upload_rcal(
         free_space = statvfs.f_frsize * statvfs.f_bavail
 
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(delete=True, suffix=".csv") as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
             temp_file_path = temp_file.name
 
             # Write the uploaded file to the temporary file
@@ -235,6 +235,8 @@ async def upload_rcal(
                     content={"message": "RCAL uploaded and ingested successfully"},
                     status_code=200,
                 )
+
+            os.remove(temp_file_path)
 
             return JSONResponse(
                 content={"message": "Error ingesting the catalogue (already present?)"},
