@@ -2,13 +2,14 @@
 Gleam Catalog ingest
 """
 
+import csv
+import json
+import logging
+
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
 import os
-import csv
-import json
-import logging
 from itertools import zip_longest
 from typing import Any, Dict, List, Optional
 
@@ -56,10 +57,10 @@ class SourceFile:
         self.file_location = file_location
         self.heading_missing = heading_missing or []
         self.heading_alias = heading_alias or {}
-        
+
         # Get the file size in bytes
         file_size = os.path.getsize(self.file_location)
-        
+
         # Print the file size
         logger.info("File size: %d bytes", file_size)
         try:
@@ -67,7 +68,7 @@ class SourceFile:
                 logger.info("Opened file: %s", self.file_location)
                 self.len = sum(1 for row in csvfile)
                 logger.info("File length (rows): %s", self.len)
-                
+
         except FileNotFoundError as f:
             logger.error("File not found: %s", self.file_location)
             self.len = 0
@@ -76,9 +77,9 @@ class SourceFile:
             logger.error("Error opening file: %s", e)
             self.len = 0
             raise RuntimeError from e
-        
+
         logger.info("SourceFile object created")
-        
+
     def header(self, header) -> list:
         """Apply header aliasing
         Args:

@@ -8,6 +8,7 @@ import logging
 import os
 import tempfile
 import time
+from typing import Optional
 
 <<<<<<< HEAD
 from fastapi import Depends, FastAPI, UploadFile, HTTPException, File
@@ -16,7 +17,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 =======
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from typing import Optional
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 >>>>>>> 1526961 (YAN-1801 ready for a test)
@@ -173,9 +173,9 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
 
 
 @app.post("/upload-rcal", summary="Ingest RCAL from a CSV {used in development}")
-async def upload_rcal(file: UploadFile = File(...), 
-                      db: Session = Depends(get_db),
-                      config: Optional[dict] = RCAL):
+async def upload_rcal(
+    file: UploadFile = File(...), db: Session = Depends(get_db), config: Optional[dict] = None
+):
     """
     Uploads and processes an RCAL catalog file. This is a development endpoint.
     The file is expected to be a CSV file as exported from the GLEAM catalog.
@@ -223,8 +223,10 @@ async def upload_rcal(file: UploadFile = File(...),
             temp_file.close()
             # Process the CSV data (example: print the path of the temporary file)
             logger.info("Temporary file created at: %s, size: %d", temp_file_path, file_size)
-            
-            rcal_config = config.copy()
+            rcal_config = config
+            if not rcal_config:
+                rcal_config = RCAL.copy()
+
             rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
             logger.info("Ingesting the catalogue...")
 
