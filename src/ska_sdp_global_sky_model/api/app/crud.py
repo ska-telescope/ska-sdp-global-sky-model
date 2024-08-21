@@ -1,5 +1,6 @@
 # pylint: disable=no-member
 # pylint: disable=too-many-locals
+# pylint: disable=invalid-name
 """
 CRUD functionality goes here.
 """
@@ -23,7 +24,7 @@ def get_local_sky_model(
     db,
     ra: list,
     dec: list,
-    _flux_wide: float,
+    flux_wide: float,
     _telescope: str,
     fov: float,
 ) -> dict:
@@ -41,11 +42,11 @@ def get_local_sky_model(
             the boundaries of the desired LSM region.
         dec (list[float]): A list containing two declination values (in degrees) that define the \
             boundaries of the desired LSM region.
-        _flux_wide (float): Placeholder for future implementation of wide-field flux \
+        flux_wide (float): Placeholder for future implementation of wide-field flux \
             of the observation (in Jy). Currently not used.
         _telescope (str): Placeholder for future implementation of the telescope name \
             being used for the observation. Currently not used.
-        _fov (float): Placeholder for future implementation of the telescope's field of\
+        fov (float): Placeholder for future implementation of the telescope's field of\
             view (in arcminutes). Currently not used.
 
     Returns:
@@ -80,6 +81,7 @@ def get_local_sky_model(
     query = (
         db.query(SkyTile, Source, narrowband_data, wideband_data)
         .filter(SkyTile.pk.in_(tiles_int))
+        .filter(wideband_data.Flux_Wide > flux_wide)
         .join(SkyTile.sources)
         .outerjoin(narrowband_data, Source.id == narrowband_data.source)
         .outerjoin(wideband_data, Source.id == wideband_data.source)
