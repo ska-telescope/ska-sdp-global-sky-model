@@ -6,7 +6,6 @@
 ### project specific dir ###
 log
 media
-alembic
 migrations
 
 ### Database ###
