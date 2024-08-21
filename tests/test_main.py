@@ -89,6 +89,9 @@ def test_local_sky_model(myclient):
         # Send a POST request to the FastAPI endpoint
         myclient.post("/upload-rcal/", files=files)
 
-    local_sky_model = myclient.get("/local_sky_model/", params={"ra": 357, "dec": -89, "Telescope": "MWA", "flux_wide": 1, "fov": 1})
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": 357, "dec": -89, "Telescope": "MWA", "flux_wide": 1, "fov": 1},
+    )
 
     assert local_sky_model.status_code == 200
