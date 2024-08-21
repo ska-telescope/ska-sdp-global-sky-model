@@ -5,13 +5,13 @@ Configure variables to be used.
 
 import logging
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import ska_ser_logging
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
-from contextlib import contextmanager
 from starlette.config import Config
 
 ENV_FILE = Path(".env")
@@ -30,9 +30,15 @@ logger.info("Logging started for ska-sdp-global-sky-model-api")
 DB_NAME: str = config("DB_NAME", default="postgres")
 POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
+<<<<<<< HEAD
 DB: str = config("DB", default="db")
 DB_SCHEMA: str = config("DB_SCHEMA", default="public")
 DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
+=======
+DB: str = config("DB", default="127.0.0.1")
+DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
+
+>>>>>>> 1526961 (YAN-1801 ready for a test)
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
 SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
@@ -56,6 +62,7 @@ class Base:
     @declared_attr
     def __tablename__(cls):
         return cls.__name__.lower()
+
 
 @contextmanager
 def get_db():
@@ -197,31 +204,31 @@ RCAL = {
         "agent": "file",
         "file_location": [
             {
-            "key": "unset",
-            "heading_alias": {},
-            "heading_missing": [],
-            "bands": [
-                76,
-                84,
-                92,
-                99,
-                107,
-                115,
-                122,
-                130,
-                143,
-                151,
-                158,
-                166,
-                174,
-                181,
-                189,
-                197,
-                204,
-                212,
-                220,
-                227,
-            ]
+                "key": "unset",
+                "heading_alias": {},
+                "heading_missing": [],
+                "bands": [
+                    76,
+                    84,
+                    92,
+                    99,
+                    107,
+                    115,
+                    122,
+                    130,
+                    143,
+                    151,
+                    158,
+                    166,
+                    174,
+                    181,
+                    189,
+                    197,
+                    204,
+                    212,
+                    220,
+                    227,
+                ],
             }
         ],
     },

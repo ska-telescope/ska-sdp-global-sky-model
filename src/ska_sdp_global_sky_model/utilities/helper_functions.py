@@ -1,9 +1,11 @@
 """ This module contains helper functions for the ska_sdp_global_sky_model """
 
-import numpy
-from astropy import units as u
 from astropy.coordinates import SkyCoord
+<<<<<<< HEAD
 from sqlalchemy.orm import class_mapper
+=======
+from numpy import pi
+>>>>>>> 1526961 (YAN-1801 ready for a test)
 
 
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
@@ -31,10 +33,10 @@ def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
         raise ValueError("Dec must be between -90 and 90 degrees.")
 
     # Create SkyCoord object in the specified frame (defaults to ICRS)
-    
+
     # pylint: disable=no-member
     return SkyCoord(ra, dec, unit="deg", frame=frame)
-   
+
 
 def convert_arcminutes_to_radians(arcminutes: float) -> float:
     """Converts arcminutes to radians.
@@ -53,7 +55,7 @@ def convert_arcminutes_to_radians(arcminutes: float) -> float:
         raise TypeError("Input must be a numeric value (float).")
 
     # Conversion factor: pi radians = 180 degrees, 1 degree = 60 arcminutes
-    conversion_factor = numpy.pi / (180 * 60)
+    conversion_factor = pi / (180 * 60)
     return arcminutes * conversion_factor
 
 

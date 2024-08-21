@@ -103,14 +103,19 @@ def get_data_catalog_selector(ingest: dict):
         yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
-            yield (SourceFile(
-                ingest_set["key"],
-                heading_alias = ingest_set["heading_alias"],
-                heading_missing = ingest_set["heading_missing"],
-            ), ingest_set["bands"])
+            yield (
+                SourceFile(
+                    ingest_set["key"],
+                    heading_alias=ingest_set["heading_alias"],
+                    heading_missing=ingest_set["heading_missing"],
+                ),
+                ingest_set["bands"],
+            )
 
 
-def load_or_create_telescope(db: Session, catalog_config: dict, overwrite: bool = False) -> Optional[Telescope]:
+def load_or_create_telescope(
+    db: Session, catalog_config: dict, overwrite: bool = False
+) -> Optional[Telescope]:
     """
     Loads a telescope by name from the database. If not found, creates a new one.
 
@@ -127,8 +132,8 @@ def load_or_create_telescope(db: Session, catalog_config: dict, overwrite: bool 
         telescope = db.query(Telescope).filter_by(name=catalog_name)
         if telescope.first():
             if overwrite:
-               telescope.first().ingested = False
-               db.commit()
+                telescope.first().ingested = False
+                db.commit()
         if not telescope:
             logger.info("Telescope does not exist ..")
             telescope = Telescope(
@@ -145,11 +150,11 @@ def load_or_create_telescope(db: Session, catalog_config: dict, overwrite: bool 
             if telescope.ingested:
                 logger.info("%s catalog already ingested, exiting.", catalog_name)
                 return None
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error("Error loading telescope: %s", e)
         db.rollback()
         return None
-    
+
     return telescope
 
 
@@ -407,7 +412,7 @@ def process_source_data(
         count += 1
 
         source = db.query(Source).filter_by(name=name)
-        if source is not None:    # Skip existing source
+        if source is not None:  # Skip existing source
             continue
 
         source_catalog = create_source_catalog_entry(db, source, name, heal_pix, sky_map)
@@ -465,13 +470,13 @@ def get_full_catalog(db: Session, catalog_config, overwrite: bool = False) -> bo
     # 1. Load or create telescope
     telescope = load_or_create_telescope(db, catalog_config, overwrite)
     logger.info("Telescope loaded: %s", str(telescope))
-    
+
     if not telescope:
         return False
 
     # 2. Get catalog data
     source_data = get_data_catalog_selector(catalog_config["ingest"])
-  
+
     # 3. Load or create bands
     bands = load_or_create_bands(db, telescope.id, catalog_config["bands"])
     if not bands:
