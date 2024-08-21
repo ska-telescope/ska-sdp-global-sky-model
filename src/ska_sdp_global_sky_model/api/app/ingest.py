@@ -130,9 +130,9 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
     try:
         try:
             telescope = db.query(Telescope).filter_by(name=catalog_name).first()
-        except ProgrammingError as e:
+        except exc.SQLAlchemyError as e:
             # CI throws an exeption if the table does not exist
-            logger.error("Database error: %s", e)
+            logger.error("Database error %s", e)
             telescope = None
             db.rollback()
 
