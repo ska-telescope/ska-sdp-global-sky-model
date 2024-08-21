@@ -73,5 +73,6 @@ def test_upload_rcal(myclient):
 
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
-
-    # response = client.get("/sources")
+    # have the sources actually been ingested
+    response = myclient.get("/sources")
+    assert response.json()[0][0] == "J235613-743047"

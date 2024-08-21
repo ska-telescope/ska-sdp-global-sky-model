@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import ORJSONResponse
 =======
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 >>>>>>> 1526961 (YAN-1801 ready for a test)
