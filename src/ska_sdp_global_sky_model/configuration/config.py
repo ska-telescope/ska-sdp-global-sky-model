@@ -29,15 +29,9 @@ logger.info("Logging started for ska-sdp-global-sky-model-api")
 DB_NAME: str = config("DB_NAME", default="postgres")
 POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
-<<<<<<< HEAD
 DB: str = config("DB", default="db")
 DB_SCHEMA: str = config("DB_SCHEMA", default="public")
 DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-=======
-DB: str = config("DB", default="127.0.0.1")
-DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-
->>>>>>> 1526961 (YAN-1801 ready for a test)
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
 SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")

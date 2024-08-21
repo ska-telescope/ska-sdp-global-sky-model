@@ -10,16 +10,9 @@ import tempfile
 import time
 from typing import Optional
 
-<<<<<<< HEAD
-from fastapi import Depends, FastAPI, UploadFile, HTTPException, File
-from fastapi.responses import JSONResponse
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import ORJSONResponse
-=======
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
->>>>>>> 1526961 (YAN-1801 ready for a test)
+from fastapi.responses import JSONResponse, ORJSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware

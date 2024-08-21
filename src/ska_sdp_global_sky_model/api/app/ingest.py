@@ -16,8 +16,7 @@ from typing import Any, Dict, List, Optional
 from astropy.coordinates import SkyCoord
 from astropy_healpix import HEALPix
 from astroquery.vizier import Vizier
-from sqlalchemy import exc, inspect
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy import exc
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import (

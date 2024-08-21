@@ -1,11 +1,8 @@
 """ This module contains helper functions for the ska_sdp_global_sky_model """
 
 from astropy.coordinates import SkyCoord
-<<<<<<< HEAD
-from sqlalchemy.orm import class_mapper
-=======
 from numpy import pi
->>>>>>> 1526961 (YAN-1801 ready for a test)
+from sqlalchemy.orm import class_mapper
 
 
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
