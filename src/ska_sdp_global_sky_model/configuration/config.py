@@ -26,11 +26,11 @@ logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
-DB_NAME: str = config("sdp_sdp_global_sky_model_integration_database", default="postgres")
-POSTGRES_USER: str = config("sdp_sdp_global_sky_model_integration_username", default="postgres")
-POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_integration_password", default="pass")
+DB_NAME: str = config("DB_NAME", default="postgres")
+POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
+POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
-DB_SCHEMA: str = config("sdp_sdp_global_sky_model_integration_schema", default="public")
+DB_SCHEMA: str = config("DB_SCHEMA", default="public")
 DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
@@ -189,4 +189,66 @@ RACS = {
     "frequency_max": 1800,
     "source": "RACS",
     "bands": [887, 1367, 1632],
+}
+RCAL = {
+    "ingest": {
+        "wideband": True,
+        "agent": "file",
+        "file_location": [
+            {
+                "key": "unset",
+                "heading_alias": {},
+                "heading_missing": [],
+                "bands": [
+                    76,
+                    84,
+                    92,
+                    99,
+                    107,
+                    115,
+                    122,
+                    130,
+                    143,
+                    151,
+                    158,
+                    166,
+                    174,
+                    181,
+                    189,
+                    197,
+                    204,
+                    212,
+                    220,
+                    227,
+                ],
+            }
+        ],
+    },
+    "name": "Realtime Calibration test data",
+    "catalog_name": "RCAL",
+    "frequency_min": 80,
+    "frequency_max": 300,
+    "source": "GLEAM",
+    "bands": [
+        76,
+        84,
+        92,
+        99,
+        107,
+        115,
+        122,
+        130,
+        143,
+        151,
+        158,
+        166,
+        174,
+        181,
+        189,
+        197,
+        204,
+        212,
+        220,
+        227,
+    ],
 }
