@@ -2,13 +2,14 @@
 Gleam Catalog ingest
 """
 
-# pylint: disable=R1708(stop-iteration-return)
-# pylint: disable=E1101(no-member)
-# pylint: disable=R0913(too-many-arguments)
-
 import csv
 import json
 import logging
+
+# pylint: disable=R1708(stop-iteration-return)
+# pylint: disable=E1101(no-member)
+# pylint: disable=R0913(too-many-arguments)
+import os
 from itertools import zip_longest
 from typing import Any, Dict, List, Optional
 
@@ -51,11 +52,32 @@ class SourceFile:
             heading_alias: Alter headers to match our expected input.
             heading_missing: A list of headings to be padded onto the dataset
         """
+        logger.info("Creating SourceFile object")
         self.file_location = file_location
         self.heading_missing = heading_missing or []
         self.heading_alias = heading_alias or {}
-        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
-            self.len = sum(1 for row in csvfile)
+
+        # Get the file size in bytes
+        file_size = os.path.getsize(self.file_location)
+
+        # Print the file size
+        logger.info("File size: %d bytes", file_size)
+        try:
+            with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+                logger.info("Opened file: %s", self.file_location)
+                self.len = sum(1 for row in csvfile)
+                logger.info("File length (rows): %s", self.len)
+
+        except FileNotFoundError as f:
+            logger.error("File not found: %s", self.file_location)
+            self.len = 0
+            raise RuntimeError from f
+        except Exception as e:
+            logger.error("Error opening file: %s", e)
+            self.len = 0
+            raise RuntimeError from e
+
+        logger.info("SourceFile object created")
 
     def header(self, header) -> list:
         """Apply header aliasing
@@ -70,7 +92,9 @@ class SourceFile:
 
     def __iter__(self) -> iter:
         """Iterate through the sources"""
+        logger.info("In the iterator opening %s", self.file_location)
         with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+            logger.info("opened")
             csv_file = csv.reader(csvfile, delimiter=",")
             heading = self.header(next(csv_file))
             for row in csv_file:
@@ -101,11 +125,15 @@ def get_data_catalog_selector(ingest: dict):
         yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
-            yield SourceFile(
-                ingest_set["key"],
-                heading_alias=ingest_set["heading_alias"],
-                heading_missing=ingest_set["heading_missing"],
-            ), ingest_set["bands"]
+            logger.info("Opening file: %s", ingest_set["key"])
+            yield (
+                SourceFile(
+                    ingest_set["key"],
+                    heading_alias=ingest_set["heading_alias"],
+                    heading_missing=ingest_set["heading_missing"],
+                ),
+                ingest_set["bands"],
+            )
 
 
 def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Telescope]:
@@ -120,21 +148,31 @@ def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Tele
         Telescope object or None if not found and not created.
     """
     catalog_name = catalog_config["name"]
-    telescope = db.query(Telescope).filter_by(name=catalog_name)
-    if not telescope.count():
-        telescope = Telescope(
-            name=catalog_name,
-            frequency_min=catalog_config["frequency_min"],
-            frequency_max=catalog_config["frequency_max"],
-            ingested=False,
-        )
-        db.add(telescope)
-        db.commit()
-    else:
-        telescope = telescope.first()
-        if telescope.ingested:
-            logger.info("%s catalog already ingested, exiting.", catalog_name)
-            return None
+    logger.info("Creating new telescope: %s", catalog_name)
+    try:
+
+        telescope = db.query(Telescope).filter_by(name=catalog_name).first()
+
+        if not telescope:
+            logger.info("Telescope does not exist ..")
+            telescope = Telescope(
+                name=catalog_name,
+                frequency_min=catalog_config["frequency_min"],
+                frequency_max=catalog_config["frequency_max"],
+                ingested=False,
+            )
+            db.add(telescope)
+            db.commit()
+        else:
+            logger.info("Telescope already exists, checking if catalog is ingested...")
+            if telescope.ingested:
+                logger.info("%s catalog already ingested, exiting.", catalog_name)
+                return None
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("Error loading telescope: %s", e)
+        db.rollback()
+        raise e
+
     return telescope
 
 
@@ -392,7 +430,6 @@ def process_source_data(
         count += 1
 
         if db.query(Source).filter_by(name=name).count():
-            # Skip existing source
             continue
 
         source_catalog = create_source_catalog_entry(db, source, name, heal_pix, sky_map)
@@ -449,29 +486,30 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
 
     # 1. Load or create telescope
     telescope = load_or_create_telescope(db, catalog_config)
+
     if not telescope:
         return False
 
     # 2. Get catalog data
     source_data = get_data_catalog_selector(catalog_config["ingest"])
 
-    bands = load_or_create_bands(db, telescope.id, catalog_config["bands"])
-
     # 3. Load or create bands
+    bands = load_or_create_bands(db, telescope.id, catalog_config["bands"])
     if not bands:
         return False
 
     for sources, ingest_bands in source_data:
         if not sources:
+            logger.error("No data-sources found for %s", catalog_name)
             return False
-
+        logger.info("Processing %s sources", str(len(sources)))
         # 4. Process source data
         if not process_source_data(
             db, sources, bands, telescope, ingest_bands, catalog_config, hp, sky_map
         ):
             return False
 
-        # 5. Mark telescope as ingested
+    # 5. Mark telescope as ingested
     telescope.ingested = True
     db.add(telescope)
     db.commit()
