@@ -73,6 +73,38 @@ def test_upload_rcal(myclient):
 
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
-    # have the sources actually been ingested
+
+
+def test_sources(myclient):
+    """Unit test for the /local_sky_model path"""
+    file_path = "tests/data/rcal.csv"
+    # Open the file in binary mode
+    with open(file_path, "rb") as file:
+        # Create a dictionary with the file
+        files = {"file": file}
+
+        # Send a POST request to the FastAPI endpoint
+        myclient.post("/upload-rcal/", files=files)
     response = myclient.get("/sources")
+    assert response.status_code == 200
     assert response.json()[0][0] == "J235613-743047"
+
+
+def test_local_sky_model(myclient):
+    """Unit test for the /local_sky_model path"""
+    file_path = "tests/data/rcal.csv"
+    # Open the file in binary mode
+    with open(file_path, "rb") as file:
+        # Create a dictionary with the file
+        files = {"file": file}
+
+        # Send a POST request to the FastAPI endpoint
+        myclient.post("/upload-rcal/", files=files)
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": 359, "dec": -74, "telescope": "MWA", "flux_wide": 0, "fov": 1},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert len(local_sky_model.json()) >= 1
