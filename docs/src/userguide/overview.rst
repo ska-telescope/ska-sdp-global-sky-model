@@ -9,6 +9,59 @@ For detailed documentation of the API, see the FastAPI Swagger UI documentation.
 Basic Usage
 -----------
 
+Ping
+~~~~
+
+This API endpoint is provided to ensure that the API is up and running.
+
+URI:
+~~~~
+
+.. code-block:: bash
+
+    GET /ping
+
+
+Response:
+~~~~~~~~~
+
+The endpoint returns a JSON object reflecting the liveness of the API.
+
+
+.. code-block:: javascript
+
+    {
+    "ping": "live"
+    }
+
+
+Get Sources API Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+This API endpoint retrieves a complete list of sources contained in the Sources table of the Postgres database.
+
+URI:
+~~~~
+
+.. code-block:: bash
+
+    GET /sources
+
+
+Response:
+~~~~~~~~~
+
+The endpoint returns a JSON object representing the complete list of sources.
+
+
+.. code-block:: javascript
+
+    {
+    "source 1": {"ra": 123, "dec": -12.3},
+    "source 2": {"ra": 321, "dec": 32.1}
+    }
+
+
 Get Local Sky Model API Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
