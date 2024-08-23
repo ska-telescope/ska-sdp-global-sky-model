@@ -103,7 +103,7 @@ def test_local_sky_model(myclient):
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": 357, "dec": -74, "telescope": "MWA", "flux_wide": 1, "fov": 1},
+        params={"ra": 359, "dec": -74, "telescope": "MWA", "flux_wide": 0, "fov": 1},
     )
 
     assert local_sky_model.status_code == 200
