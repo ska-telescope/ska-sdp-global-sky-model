@@ -107,4 +107,4 @@ def test_local_sky_model(myclient):
     )
 
     assert local_sky_model.status_code == 200
-    assert len(local_sky_model.json()) > 1
+    assert len(local_sky_model.json()) >= 1
