@@ -28,4 +28,4 @@ env:
 
 vault:
   useVault: true
-  pathToSecretVault: kv/groups/ska-dev/naledi
+  pathToSecretVault: kv/users/jm22b/ska_sdp_gsm
