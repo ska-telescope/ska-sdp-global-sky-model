@@ -11,6 +11,8 @@ from collections import defaultdict
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
+from healpix_alchemy import Tile
+from mocpy import MOC
 from sqlalchemy import and_
 from sqlalchemy.orm import Session, aliased
 
@@ -18,6 +20,57 @@ from ska_sdp_global_sky_model.api.app.model import NarrowBandData, SkyTile, Sour
 from ska_sdp_global_sky_model.configuration.config import NSIDE
 
 logger = logging.getLogger(__name__)
+
+
+def get_precise_local_sky_model(db, ra, dec, fov):
+    """
+    Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
+    """
+    moc = MOC.from_cone(
+        lon=Longitude(ra * u.deg),
+        lat=Latitude(dec * u.deg),
+        radius=float(fov * u.deg),
+        max_depth=10,
+    )
+
+    healpix_tiles = list(Tile.tiles_from(moc))
+
+    narrowband_data = aliased(NarrowBandData)
+    wideband_data = aliased(WideBandData)
+
+    sources = (
+        db.query(Source)
+        .join(SkyTile, Source.tile_id == SkyTile.pk)  # Join Source to SkyTile
+        .filter(SkyTile.hpx.in_(healpix_tiles))  # Filter SkyTile by hpx values in the MOC list
+        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
+        .outerjoin(wideband_data, Source.id == wideband_data.source)
+        .all()
+    )
+
+    # Process the results into a structure
+    results = defaultdict(
+        lambda: {
+            "sources": defaultdict(
+                lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
+            )
+        }
+    )
+
+    for sky_tile, source, narrowband, wideband in sources:
+        source_data = results[sky_tile.pk]["sources"][source.id]
+        source_data["ra"] = source.RAJ2000
+        source_data["dec"] = source.DECJ2000
+        if narrowband:
+            source_data["narrowband"].append(narrowband.columns_to_dict())
+        if wideband:
+            source_data["wideband"].append(wideband.columns_to_dict())
+
+    logger.info(
+        "Retrieve %s point sources within the area of interest.",
+        str(len(sources)),
+    )
+
+    return results
 
 
 def get_local_sky_model(
