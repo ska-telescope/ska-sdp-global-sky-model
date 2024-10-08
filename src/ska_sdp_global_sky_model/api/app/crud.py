@@ -47,8 +47,6 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         .all()
     )
 
-    logger.info(sources)
-
     # Process the results into a structure
     results = defaultdict(
         lambda: {
@@ -72,7 +70,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         str(len(sources)),
     )
 
-    return results
+    return sources
 
 
 def get_local_sky_model(
