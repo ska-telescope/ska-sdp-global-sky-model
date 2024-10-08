@@ -27,9 +27,9 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
     """
     moc = MOC.from_cone(
-        lon=Longitude(ra * u.deg),
-        lat=Latitude(dec * u.deg),
-        radius=float(fov * u.deg),
+        lon=Longitude(float(ra[0]) * u.deg),
+        lat=Latitude(float(dec[0]) * u.deg),
+        radius=float(float(fov) * u.deg),
         max_depth=10,
     )
 
