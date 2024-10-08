@@ -16,10 +16,26 @@ from mocpy import MOC
 from sqlalchemy import and_
 from sqlalchemy.orm import Session, aliased
 
-from ska_sdp_global_sky_model.api.app.model import NarrowBandData, SkyTile, Source, WideBandData
+from ska_sdp_global_sky_model.api.app.model import (
+    Field,
+    FieldTile,
+    NarrowBandData,
+    SkyTile,
+    Source,
+    WideBandData,
+)
 from ska_sdp_global_sky_model.configuration.config import NSIDE
 
 logger = logging.getLogger(__name__)
+
+
+def delete_previous_tiles(db):
+    """
+    Clear previous definitions of healpix tiles from the DB.
+    """
+    previous_fields = db.query(Field).first()
+    db.delete(previous_fields)
+    db.commit()
 
 
 def get_precise_local_sky_model(db, ra, dec, fov):
@@ -33,7 +49,9 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         max_depth=10,
     )
 
-    healpix_tiles = list(Tile.tiles_from(moc))
+    healpix_tiles = [FieldTile(hpx=hpx) for hpx in Tile.tiles_from(moc)]
+
+    db.add(Field(tiles=healpix_tiles))
 
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
@@ -41,7 +59,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     sources = (
         db.query(Source)
         .filter(
-            Source.Heal_Pix_Position.in_(healpix_tiles)
+            FieldTile.hpx.contains(Source.Heal_Pix_Position)
         )  # Filter SkyTile by hpx values in the MOC list
         .outerjoin(narrowband_data, Source.id == narrowband_data.source)
         .outerjoin(wideband_data, Source.id == wideband_data.source)

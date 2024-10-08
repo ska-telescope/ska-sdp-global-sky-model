@@ -17,6 +17,27 @@ from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 logger = logging.getLogger(__name__)
 
 
+class Field(Base):
+    """
+    Represents a collection of FieldTiles making up the area of interest.
+    """
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tiles = relationship(
+        lambda: FieldTile, order_by="FieldTile.id", cascade="all, delete, delete-orphan"
+    )
+
+
+class FieldTile(Base):
+    """
+    A HEALPix tile that is a component of the field being selected.
+    """
+
+    id = Column(ForeignKey(Field.id, ondelete="CASCADE"), primary_key=True)
+    hpx = Column(Tile, index=True)
+    pk = Column(Integer, primary_key=True, autoincrement=True)
+
+
 class WholeSky(Base):
     """
     Represents a collection of SkyTiles making up the whole sky.
