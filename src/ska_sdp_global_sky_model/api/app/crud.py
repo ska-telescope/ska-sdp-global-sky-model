@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 
 import astropy.units as u
-from astropy.coordinates import Latitude, Longitude, SkyCoord, Angle
+from astropy.coordinates import Angle, Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
 from healpix_alchemy import Tile
 from mocpy import MOC
