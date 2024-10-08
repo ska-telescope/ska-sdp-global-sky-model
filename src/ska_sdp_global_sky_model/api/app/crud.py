@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 
 import astropy.units as u
-from astropy.coordinates import Latitude, Longitude, SkyCoord
+from astropy.coordinates import Latitude, Longitude, SkyCoord, Angle
 from astropy_healpix import HEALPix
 from healpix_alchemy import Tile
 from mocpy import MOC
@@ -29,7 +29,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     moc = MOC.from_cone(
         lon=Longitude(float(ra[0]) * u.deg),
         lat=Latitude(float(dec[0]) * u.deg),
-        radius=float(float(fov) * u.deg),
+        radius=Angle(float(fov), u.deg),
         max_depth=10,
     )
 
