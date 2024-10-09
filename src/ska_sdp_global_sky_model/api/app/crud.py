@@ -68,27 +68,29 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     )
 
     # Process the results into a structure
-    # results = defaultdict(
-    #     lambda: {
-    #         "sources": defaultdict(
-    #             lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
-    #         )
-    #     }
-    # )
+    results = defaultdict(
+        lambda: {
+            "sources": defaultdict(
+                lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
+            )
+        }
+    )
 
-    # for source, narrowband, wideband in sources:
-    #     source_data = results["sources"][source.id]
-    #     source_data["ra"] = source.RAJ2000
-    #     source_data["dec"] = source.DECJ2000
-    #     if narrowband:
-    #         source_data["narrowband"].append(narrowband.columns_to_dict())
-    #     if wideband:
-    #         source_data["wideband"].append(wideband.columns_to_dict())
+    logger.info(sources)
 
-    # logger.info(
-    #     "Retrieve %s point sources within the area of interest.",
-    #     str(len(sources)),
-    # )
+    for source, narrowband, wideband in sources:
+        source_data = results["sources"][source.id]
+        source_data["ra"] = source.RAJ2000
+        source_data["dec"] = source.DECJ2000
+        if narrowband:
+            source_data["narrowband"].append(narrowband.columns_to_dict())
+        if wideband:
+            source_data["wideband"].append(wideband.columns_to_dict())
+
+    logger.info(
+        "Retrieve %s point sources within the area of interest.",
+        str(len(sources)),
+    )
 
     return sources
 
