@@ -57,7 +57,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
 
-    sources = (
+    query = (
         db.query(Source)
         .filter(
             FieldTile.hpx.contains(Source.Heal_Pix_Position)
@@ -76,8 +76,8 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         }
     )
 
-    for source in sources:
-        source_data = results["sources"][source.id]
+    for source in query:
+        source_data = results["sources"][source.Source.id]
         source_data["ra"] = source.RAJ2000
         source_data["dec"] = source.DECJ2000
         try:
@@ -91,10 +91,10 @@ def get_precise_local_sky_model(db, ra, dec, fov):
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
-        str(len(sources)),
+        str(len(query)),
     )
 
-    return sources
+    return results
 
 
 def get_local_sky_model(
