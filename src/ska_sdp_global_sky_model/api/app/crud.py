@@ -72,7 +72,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     for source in query:
 
         source_dict = {
-            "sky_coord": source["sky_coord"],
+            "sky_coord": source.sky_coord,
         }
 
         try:
@@ -84,7 +84,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         finally:
             pass
 
-        results["sources"][source["id"]] = source_dict
+        results["sources"][source.id] = source_dict
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
