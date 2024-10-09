@@ -58,7 +58,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     wideband_data = aliased(WideBandData)
 
     query = (
-        db.query(Source)
+        db.query(Source, narrowband_data, wideband_data)
         .filter(
             FieldTile.hpx.contains(Source.Heal_Pix_Position)
         )  # Filter SkyTile by hpx values in the MOC list
