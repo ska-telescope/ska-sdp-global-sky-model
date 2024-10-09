@@ -76,16 +76,18 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         }
     )
 
-    logger.info(sources)
-
-    for source, narrowband, wideband in sources:
+    for source in sources:
         source_data = results["sources"][source.id]
         source_data["ra"] = source.RAJ2000
         source_data["dec"] = source.DECJ2000
-        if narrowband:
-            source_data["narrowband"].append(narrowband.columns_to_dict())
-        if wideband:
-            source_data["wideband"].append(wideband.columns_to_dict())
+        try:
+            source_data["narrowband"].append(source.narrowband_data.columns_to_dict())
+        except:
+            pass
+        try:
+            source_data["wideband"].append(source.wideband_data.columns_to_dict())
+        except:
+            pass
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
