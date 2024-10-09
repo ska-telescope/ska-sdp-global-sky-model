@@ -82,11 +82,11 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         source_data["dec"] = source.DECJ2000
         try:
             source_data["narrowband"].append(source.narrowband_data.columns_to_dict())
-        except:
+        finally:
             pass
         try:
             source_data["wideband"].append(source.wideband_data.columns_to_dict())
-        except:
+        finally:
             pass
 
     logger.info(
