@@ -52,6 +52,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     healpix_tiles = [FieldTile(hpx=hpx) for hpx in Tile.tiles_from(moc)]
 
     db.add(Field(tiles=healpix_tiles))
+    db.commit()
 
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
