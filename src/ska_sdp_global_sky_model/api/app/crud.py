@@ -57,15 +57,12 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
 
-    field_tile_subquery = select(FieldTile.hpx).subquery()
-
-    # Step 2: Query for sources where Heal_Pix_Position falls within the range
     sources_in_field = (
         db.query(Source, narrowband_data, wideband_data)
         .filter(
             or_(
-                Source.Heal_Pix_Position.between(tile_range.lower_bound, tile_range.upper_bound)
-                for tile_range in field_tile_subquery
+                Source.Heal_Pix_Position.between(tile_range.hpx.lower_bound, tile_range.hpx.upper_bound)
+                for tile_range in healpix_tiles
             )
             .outerjoin(narrowband_data, Source.id == narrowband_data.source)
             .outerjoin(wideband_data, Source.id == wideband_data.source)
