@@ -62,7 +62,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
         .filter(
             or_(
                 Source.Heal_Pix_Position.between(
-                    tile_range.hpx.lower_bound, tile_range.hpx.upper_bound
+                    tile_range.hpx.lower, tile_range.hpx.upper
                 )
                 for tile_range in healpix_tiles
             )
