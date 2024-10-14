@@ -64,9 +64,9 @@ def get_precise_local_sky_model(db, ra, dec, fov):
                 Source.Heal_Pix_Position.between(tile_range.hpx.lower, tile_range.hpx.upper)
                 for tile_range in healpix_tiles
             )
-            .outerjoin(narrowband_data, Source.id == narrowband_data.source)
-            .outerjoin(wideband_data, Source.id == wideband_data.source)
         )
+        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
+        .outerjoin(wideband_data, Source.id == wideband_data.source)
         .all()
     )
 
