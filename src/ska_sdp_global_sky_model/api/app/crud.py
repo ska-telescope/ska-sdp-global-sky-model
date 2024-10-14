@@ -72,17 +72,15 @@ def get_precise_local_sky_model(db, ra, dec, fov):
 
     results = {"sources": {}}
 
-    for source in sources_in_field:
+    for source, narrowband, wideband in sources_in_field:
 
-        source_dict = {
-            "sky_coord": source.sky_coord,
-        }
+        source_dict = {"RA": source.RAJ2000, "DEC": source.DECJ2000}
 
-        if source.narrowband_data:
-            source_dict["narrowband"] = source.narrowband_data.columns_to_dict()
+        if narrowband:
+            source_dict["narrowband"] = narrowband.columns_to_dict()
 
-        if source.wideband_data:
-            source_dict["wideband"] = source.wideband_data.columns_to_dict()
+        if wideband:
+            source_dict["wideband"] = wideband.columns_to_dict()
 
         results["sources"][source.id] = source_dict
 
