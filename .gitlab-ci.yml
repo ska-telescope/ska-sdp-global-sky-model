@@ -25,6 +25,7 @@ stages:
 - test
 - publish
 - integration
+- integration-deploy
 - pages
 - scan
 
@@ -61,7 +62,7 @@ include:
 
 
 deploy-integration-to:
-  stage: integration
+  stage: integration-deploy
   extends: deploy-integration
   when: manual
   tags:
@@ -71,7 +72,7 @@ deploy-integration-to:
     KUBE_NAMESPACE: 'sdp-global-sky-model-integration'
 
 info-integration-to:
-  stage: integration
+  stage: integration-deploy
   extends: info-integration
   tags:
   - ska-default
@@ -79,7 +80,7 @@ info-integration-to:
   - *info_script
 
 redeploy-integration-to:
-  stage: integration
+  stage: integration-deploy
   extends: redeploy-integration
   tags:
   - ska-default
@@ -88,7 +89,7 @@ redeploy-integration-to:
     KUBE_NAMESPACE: 'sdp-global-sky-model-integration'
 
 stop-integration-to:
-  stage: integration
+  stage: integration-deploy
   extends: stop-integration
   tags:
   - ska-default
