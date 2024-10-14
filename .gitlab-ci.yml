@@ -24,6 +24,7 @@ stages:
 - build
 - test
 - publish
+- deploy-integration
 - pages
 - scan
 
