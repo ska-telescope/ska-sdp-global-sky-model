@@ -13,7 +13,7 @@ from astropy.coordinates import Angle, Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
 from healpix_alchemy import Tile
 from mocpy import MOC
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from ska_sdp_global_sky_model.api.app.model import (
@@ -57,19 +57,25 @@ def get_precise_local_sky_model(db, ra, dec, fov):
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
 
-    query = (
+    field_tile_subquery = select(FieldTile.hpx).subquery()
+
+    # Step 2: Query for sources where Heal_Pix_Position falls within the range
+    sources_in_field = (
         db.query(Source, narrowband_data, wideband_data)
         .filter(
-            FieldTile.hpx.contains(Source.Heal_Pix_Position)
-        )  # Filter SkyTile by hpx values in the MOC list
-        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
-        .outerjoin(wideband_data, Source.id == wideband_data.source)
+            or_(
+                Source.Heal_Pix_Position.between(tile_range.lower_bound, tile_range.upper_bound)
+                for tile_range in field_tile_subquery
+            )
+            .outerjoin(narrowband_data, Source.id == narrowband_data.source)
+            .outerjoin(wideband_data, Source.id == wideband_data.source)
+        )
         .all()
     )
 
     results = {"sources": {}}
 
-    for source in query:
+    for source in sources_in_field:
 
         source_dict = {
             "sky_coord": source.sky_coord,
@@ -85,7 +91,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
-        str(len(query)),
+        str(len(sources_in_field)),
     )
 
     return results
