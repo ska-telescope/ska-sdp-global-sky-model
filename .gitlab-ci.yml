@@ -23,7 +23,6 @@ stages:
 - lint
 - build
 - test
-- integration
 - publish
 - pages
 - scan
