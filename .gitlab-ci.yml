@@ -47,7 +47,3 @@ include:
   file: 'gitlab-ci/includes/docs.gitlab-ci.yml'
 - project: 'ska-telescope/templates-repository'
   file: 'gitlab-ci/includes/tmdata.gitlab-ci.yml'
-# Deployment
-- project: 'ska-telescope/templates-repository'
-  file: 'gitlab-ci/includes/deploy.gitlab-ci.yml'
-
