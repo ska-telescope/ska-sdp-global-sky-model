@@ -38,7 +38,7 @@ def delete_previous_tiles(db):
     db.commit()
 
 
-def get_precise_local_sky_model(db, ra, dec, fov):
+def get_precise_local_sky_model(db, ra, dec, flux_wide, fov):
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
     """
@@ -59,6 +59,7 @@ def get_precise_local_sky_model(db, ra, dec, fov):
 
     sources_in_field = (
         db.query(Source, narrowband_data, wideband_data)
+        .filter(wideband_data.Flux_Wide > flux_wide)
         .filter(
             or_(
                 Source.Heal_Pix_Position.between(tile_range.hpx.lower, tile_range.hpx.upper)

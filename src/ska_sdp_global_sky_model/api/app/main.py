@@ -130,6 +130,7 @@ def get_point_sources(db: Session = Depends(get_db)):
 async def get_precise_local_sky_model_endpoint(
     ra: str,
     dec: str,
+    flux_wide: float,
     telescope: str,
     fov: float,
     background_tasks: BackgroundTasks,
@@ -158,13 +159,14 @@ async def get_precise_local_sky_model_endpoint(
     """
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, telescope:%s, fov:%s",
+dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         ra,
         dec,
+        flux_wide,
         telescope,
         fov,
     )
-    local_model = get_precise_local_sky_model(db, ra.split(";"), dec.split(";"), fov)
+    local_model = get_precise_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, fov)
     background_tasks.add_task(delete_previous_tiles, db)
     return ORJSONResponse(local_model)
 
