@@ -66,8 +66,6 @@ deploy-integration-to:
   extends: deploy-integration
   allow_failure: true
   when: manual
-  tags:
-  - ska-default
   variables:
     K8S_CHART_PARAMS: '--set api.vault.useVault=true --set api.vault.pathToSecretVault=kv/data/users/jm22b/ska_sdp_gsm --set api.postgresql.host=pgdev-lb.cnpgdev.svc.cluster.local'
     KUBE_NAMESPACE: 'sdp-global-sky-model-integration'
@@ -75,16 +73,12 @@ deploy-integration-to:
 info-integration-to:
   stage: integration-deploy
   extends: info-integration
-  tags:
-  - ska-default
   script:
   - *info_script
 
 redeploy-integration-to:
   stage: integration-deploy
   extends: redeploy-integration
-  tags:
-  - ska-default
   variables:
     K8S_CHART_PARAMS: '--set api.vault.useVault=true --set api.vault.pathToSecretVault=kv/data/users/jm22b/ska_sdp_gsm --set api.postgresql.host=pgdev-lb.cnpgdev.svc.cluster.local'
     KUBE_NAMESPACE: 'sdp-global-sky-model-integration'
@@ -92,8 +86,6 @@ redeploy-integration-to:
 stop-integration-to:
   stage: integration-deploy
   extends: stop-integration
-  tags:
-  - ska-default
   needs:
   - deploy-integration
 
