@@ -64,6 +64,7 @@ include:
 deploy-integration-to:
   stage: integration-deploy
   extends: deploy-integration
+  allow_failure: true
   when: manual
   tags:
   - ska-default
