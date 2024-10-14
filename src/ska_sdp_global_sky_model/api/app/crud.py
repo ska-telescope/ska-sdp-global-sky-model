@@ -13,7 +13,7 @@ from astropy.coordinates import Angle, Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
 from healpix_alchemy import Tile
 from mocpy import MOC
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, aliased
 
 from ska_sdp_global_sky_model.api.app.model import (
