@@ -214,3 +214,43 @@ set out in the request for a local sky model are returned by the following query
         .outerjoin(wideband_data, Source.id == wideband_data.source)
         .all()
     )
+
+
+Precise Local Sky Model:
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Alternatively, we provide the `precise_local_sky_model` endpoint that behaves similarly to the above endpoint, but does not suffer from the aliasing effects due to the pre-pixelisation of the sky that occurs in the above scenario.
+
+
+
+How It Works:
+~~~~~~~~~~~~~
+
+Under the hood, the Global Sky Model is using HEALPix Alchemy, an extension to SQL Alchemy that adds region and image arithmetic to PostgreSQL databases.
+
+Each row in the Source table, represents a point in our catalog, represented by a HEALPix point:
+
+.. code-block:: python
+
+    class Source(Base):
+
+      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+      Heal_Pix_Position = Column(Point, index=True, nullable=False)
+
+Upon requesting a local sky model, a cone search is carried out with the given parameters. The cone is constructed from a series of multi-resolution HEALPix tiles that cover the region of interest.
+
+.. image:: ../images/cone_search.png
+   :width: 100%
+
+.. code-block:: python
+  class Field(Base):
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tiles = relationship(lambda: FieldTile, order_by='FieldTile.id', cascade="all, delete, delete-orphan")
+
+  class FieldTile(Base):
+
+    id = Column(ForeignKey(Field.id, ondelete='CASCADE'), primary_key=True)
+    hpx = Column(Tile, index=True)
+
+Each row of the Field table represents an area over which we are returning a local sky model. Each row of the FieldTile table represents a mutli-resolution HEALPix tile that is contained within the corresponding Field. There is a one-to-many mapping between Field and FieldTile.
