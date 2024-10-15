@@ -64,7 +64,6 @@ include:
 deploy-integration-to:
   stage: integration-deploy
   extends: deploy-integration
-  when: manual
   tags:
   - ska-default
   variables:
