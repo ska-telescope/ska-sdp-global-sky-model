@@ -53,6 +53,8 @@ deploy:
   stage: deploy
   script:
   - helm upgrade --install my-release ./charts/ska-sdp-global-sky-model --namespace sdp-global-sky-model-integration --create-namespace
+  tags:
+  - ska-k8s
 
 
 services:
