@@ -58,7 +58,7 @@ deploy:
   tags:
   - ska-k8s
 
-deploy:
+delete:
   stage: delete
   when: manual
   script:
