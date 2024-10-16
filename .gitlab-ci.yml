@@ -58,6 +58,14 @@ deploy:
   tags:
   - ska-k8s
 
+deploy:
+  stage: deploy
+  when: manual
+  script:
+  - helm upgrade --install my-release ./charts/ska-sdp-global-sky-model --namespace sdp-global-sky-model-integration --create-namespace --set api.repository=registry.gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/ska-sdp-global-sky-model-api --set api.tag=0.1.4-dev.c18311aa2
+  tags:
+  - ska-k8s
+
 delete:
   stage: delete
   when: manual
@@ -65,7 +73,6 @@ delete:
   - helm delete my-release --namespace sdp-global-sky-model-integration
   tags:
   - ska-k8s
-
 
 services:
 - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1

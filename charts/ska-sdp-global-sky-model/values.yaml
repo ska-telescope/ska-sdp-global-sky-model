@@ -1,8 +1,8 @@
 replicaCount: 1
 
 api:
-  repository: registry.gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/ska-sdp-global-sky-model-api
-  tag: 0.1.4-dev.c18311aa2
+  repository: artefact.skao.int/ska-sdp-global-sky-model-api
+  tag: latest
   pullPolicy: Always
 
 db:
