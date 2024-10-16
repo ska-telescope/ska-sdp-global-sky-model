@@ -51,6 +51,7 @@ include:
 
 deploy:
   stage: deploy
+  when: manual
   script:
   - helm upgrade --install my-release ./charts/ska-sdp-global-sky-model --namespace sdp-global-sky-model-integration --create-namespace --set api.repository=registry.gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/ska-sdp-global-sky-model-api --set api.tag=0.1.4-dev.c18311aa2
   tags:
