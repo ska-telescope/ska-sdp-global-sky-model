@@ -62,7 +62,7 @@ delete:
   stage: delete
   when: manual
   script:
-  - helm delete my-release
+  - helm delete my-release --namespace sdp-global-sky-model-integration
   tags:
   - ska-k8s
 
