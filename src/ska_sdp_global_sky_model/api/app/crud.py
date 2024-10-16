@@ -15,19 +15,19 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session, aliased
 
 from ska_sdp_global_sky_model.api.app.model import NarrowBandData, SkyTile, Source, WideBandData
-from ska_sdp_global_sky_model.configuration.config import NSIDE
+from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
 
 logger = logging.getLogger(__name__)
 
 
 def get_local_sky_model(
-    db,
+    ds,
     ra: list,
     dec: list,
     flux_wide: float,
-    _telescope: str,
+    telescope: str,
     fov: float,
-) -> dict:
+):
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
 
@@ -36,15 +36,14 @@ def get_local_sky_model(
         right ascension (RA) and declination (Dec) coordinates.
 
     Args:
-        db (Any): A database object containing the global sky model. The specific type of \
-            database object will depend on the implementation.
+        ds (Any): A datastore object containing the global sky model.
         ra (list[float]): A list containing two right ascension values (in degrees) that define \
             the boundaries of the desired LSM region.
         dec (list[float]): A list containing two declination values (in degrees) that define the \
             boundaries of the desired LSM region.
         flux_wide (float): Placeholder for future implementation of wide-field flux \
             of the observation (in Jy). Currently not used.
-        _telescope (str): Placeholder for future implementation of the telescope name \
+        telescope (str): Placeholder for future implementation of the telescope name \
             being used for the observation. Currently not used.
         fov (float): Placeholder for future implementation of the telescope's field of\
             view (in arcminutes). Currently not used.
@@ -64,54 +63,23 @@ def get_local_sky_model(
                         in the database (`db`).
             }
     """
-
-    hp = HEALPix(nside=NSIDE, order="nested", frame="icrs")
     coord = SkyCoord(
         Longitude(float(ra[0]) * u.deg), Latitude(float(dec[0]) * u.deg), frame="icrs"
     )
-    tiles = hp.cone_search_skycoord(coord, radius=float(fov) * u.deg)
-    tiles += 4 * NSIDE**2
-    tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
-    # Aliases for narrowband and wideband data
-    narrowband_data = aliased(NarrowBandData)
-    wideband_data = aliased(WideBandData)
+    hp_f = HEALPix(nside=NSIDE, order="nested", frame="icrs")
+    hp_pixel_fine = hp_f.cone_search_skycoord(coord, radius=float(fov) * u.deg)
+    hp_c = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
+    hp_pixel_course = hp_c.cone_search_skycoord(coord, radius=float(fov) * u.deg)
 
     # Modify the query to join the necessary tables
-    query = (
-        db.query(SkyTile, Source, narrowband_data, wideband_data)
-        .filter(SkyTile.pk.in_(tiles_int))
-        .filter(wideband_data.Flux_Wide > flux_wide)
-        .join(SkyTile.sources)
-        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
-        .outerjoin(wideband_data, Source.id == wideband_data.source)
-        .all()
-    )
-
-    # Process the results into a structure
-    results = defaultdict(
-        lambda: {
-            "sources": defaultdict(
-                lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
-            )
-        }
-    )
-
-    for sky_tile, source, narrowband, wideband in query:
-        source_data = results[sky_tile.pk]["sources"][source.id]
-        source_data["ra"] = source.RAJ2000
-        source_data["dec"] = source.DECJ2000
-        if narrowband:
-            source_data["narrowband"].append(narrowband.columns_to_dict())
-        if wideband:
-            source_data["wideband"].append(wideband.columns_to_dict())
-
-    logger.info(
-        "Retrieve %s point sources within the area of interest.",
-        str(len(query)),
-    )
-
-    return results
+    result = ds.query_pxiels(
+        {   "healpix_pixel_rough": hp_pixel_course,
+            "hp_pixel_fine": hp_pixel_fine,
+            "flux_wide": flux_wide,
+            "telescope": telescope.split(',')
+        })
+    return result
 
 
 def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float, float, float]:
