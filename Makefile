@@ -13,6 +13,8 @@ include .make/base.mk
 # include tmdata support
 include .make/tmdata.mk
 
+include .make/k8s.mk
+
 PYTHON_LINE_LENGTH = 99
 
 build:
