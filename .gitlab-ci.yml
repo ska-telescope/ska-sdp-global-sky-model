@@ -12,7 +12,7 @@ variables:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: pass
   DB: db
-  RELEASE_NAME: my-release
+  RELEASE_NAME: ska-sdp-gsm
   TECHOPS_DB_IP: 10.100.26.107
 
 # Enable caching for python
