@@ -57,6 +57,10 @@ deploy-dev-environment:
   rules:
   - when: never
 
+test-dev-environment:
+  rules:
+  - when: never
+
 deploy:
   extends: deploy-dev-environment
   when: manual
