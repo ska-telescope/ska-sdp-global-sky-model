@@ -53,6 +53,8 @@ include:
 - project: 'ska-telescope/templates-repository'
   file: 'gitlab-ci/includes/deploy.dev.gitlab-ci.yml'
 
+deploy-dev-environment:
+  when: never
 
 deploy:
   extends: deploy-dev-environment
