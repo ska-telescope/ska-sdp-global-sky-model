@@ -27,7 +27,6 @@ stages:
 - test
 - publish
 - deploy
-- stop-dev-environment
 - pages
 - scan
 
