@@ -55,7 +55,6 @@ include:
 
 
 deploy:
-  stage: deploy
   extends: deploy-dev-environment
   when: manual
   variables:
