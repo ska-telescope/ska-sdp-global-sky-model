@@ -51,23 +51,16 @@ include:
   file: 'gitlab-ci/includes/docs.gitlab-ci.yml'
 - project: 'ska-telescope/templates-repository'
   file: 'gitlab-ci/includes/tmdata.gitlab-ci.yml'
+- project: 'ska-telescope/templates-repository'
+  file: 'gitlab-ci/includes/deploy.dev.gitlab-ci.yml'
 
 
 deploy:
   stage: deploy
+  extends: deploy-dev-environment
   when: manual
-  script:
-  - helm upgrade --install $RELEASE_NAME ./charts/ska-sdp-global-sky-model --namespace sdp-global-sky-model-integration --create-namespace --set vault.pathToSecretVault=kv/users/jm22b/techops --set db.host=$TECHOPS_DB_IP
-  tags:
-  - ska-k8s
-
-delete:
-  stage: delete
-  when: manual
-  script:
-  - helm delete $RELEASE_NAME --namespace sdp-global-sky-model-integration
-  tags:
-  - ska-k8s
+  variables:
+    K8S_CHART_PARAMS: --set vault.pathToSecretVault=kv/users/jm22b/techops --set db.host=$TECHOPS_DB_IP
 
 services:
 - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1
