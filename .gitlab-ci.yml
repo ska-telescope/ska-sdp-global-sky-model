@@ -53,6 +53,12 @@ include:
 - project: 'ska-telescope/templates-repository'
   file: 'gitlab-ci/includes/deploy.dev.gitlab-ci.yml'
 
+deploy:
+  extends: deploy-dev-environment
+  when: manual
+  variables:
+    K8S_CHART_PARAMS: --set vault.pathToSecretVault=kv/users/jm22b/techops --set db.host=$TECHOPS_DB_IP
+
 deploy-dev-environment:
   rules:
   - when: never
@@ -61,11 +67,6 @@ test-dev-environment:
   rules:
   - when: never
 
-deploy:
-  extends: deploy-dev-environment
-  when: manual
-  variables:
-    K8S_CHART_PARAMS: --set vault.pathToSecretVault=kv/users/jm22b/techops --set db.host=$TECHOPS_DB_IP
 
 services:
 - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1
