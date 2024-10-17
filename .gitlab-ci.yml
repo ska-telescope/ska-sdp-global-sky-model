@@ -54,7 +54,8 @@ include:
   file: 'gitlab-ci/includes/deploy.dev.gitlab-ci.yml'
 
 deploy-dev-environment:
-  when: never
+  rules:
+  - when: never
 
 deploy:
   extends: deploy-dev-environment
