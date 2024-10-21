@@ -6,7 +6,6 @@ CRUD functionality goes here.
 """
 
 import logging
-from collections import defaultdict
 
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
@@ -77,7 +76,7 @@ def get_local_sky_model(
         {   "healpix_pixel_rough": hp_pixel_course,
             "hp_pixel_fine": hp_pixel_fine,
             "flux_wide": flux_wide,
-            "telescope": telescope.split(',')
+            "telescopes": telescope.split(',')
         })
     return result
 

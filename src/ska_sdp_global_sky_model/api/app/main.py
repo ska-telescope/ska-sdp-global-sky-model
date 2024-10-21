@@ -13,6 +13,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -147,7 +148,7 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         fov,
     )
     local_model = get_local_sky_model(ds, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
-    return local_model.to_dicts()
+    return StreamingResponse(local_model.stream(), media_type='application/json')
 
 
 @app.post("/upload-rcal", summary="Ingest RCAL from a CSV {used in development}")

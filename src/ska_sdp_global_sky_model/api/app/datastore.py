@@ -19,7 +19,11 @@ class SourcePixel:
         return join(self.dataset_root, self.telescope, str(self.pixel))
     def read(self):
         if not isfile(self.source_root):
-            return pl.DataFrame([], schema={'name': str, 'Heal_Pix_Position': pl.Int64})
+            return pl.DataFrame([], schema={
+                'name': str,
+                'Heal_Pix_Position': pl.Int64,
+                'Flux_Wide': pl.Float64
+            })
         return pl.read_csv(self.source_root)
     def add(self, source_new):
         if self.dataset.is_empty():
@@ -69,15 +73,37 @@ class PixelHandler:
     def __getitem__(self, index):
         return self.pixels[index]
 
+class Search:
+
+    def __init__(self, dataset_root, search_query):
+        self.pixel_handler = PixelHandler(dataset_root)
+        self.search_query = search_query
+    def stream(self):
+        telescopes = self.search_query.get('telescopes')
+        if not telescopes:
+            return "No telescope was found"
+        pixels = self.search_query.get("healpix_pixel_rough", None)
+        flux_wide = self.search_query.get("flux_wide", None)
+        if not pixels.any():
+            return "Empty search"
+        fine_pixels = self.search_query.get("hp_pixel_fine",)
+        for telescope in telescopes:
+            for pixel in pixels:
+                source_pixel =self.pixel_handler.get_or_create_pixel(telescope, pixel)
+                if fine_pixels.any():
+                    all_sources = source_pixel.all().filter(pl.col("Heal_Pix_Position").is_in(fine_pixels))
+                else:
+                    all_sources = source_pixel.all()
+                if flux_wide:
+                     all_sources = all_sources.filter(pl.col("Flux_Wide") > flux_wide)
+                yield all_sources.write_json()
+
 class DataStore:
     def __init__(self, dataset_root, telescopes='*'):
         self.dataset_root = dataset_root
         self.pixel_handler = PixelHandler(self.dataset_root)
         self.telescopes = self._telescope_args(telescopes)
         self._load_datasets()
-    # def select(self, tiles, flux):
-    #    for source in self.sources:
-    #         self.sources[source.name] = source.get_data()
     def add_source(self, source, telescope, pixel):
         source_pixel = self.pixel_handler.get_or_create_pixel(telescope, pixel)
         source_pixel.add(source)
@@ -87,24 +113,8 @@ class DataStore:
     def save(self):
         self.pixel_handler.save()
     def query_pxiels(self, search_query):
-        telescopes = search_query.get("telescope", self.telescopes)
-        pixels = search_query.get("healpix_pixel_rough", None)
-        fine_pixels = search_query.get("hp_pixel_fine", None) # Possibly only
-        flux_wide = search_query.get("flux_wide", None)
-        search_ph = PixelHandler(self.dataset_root)
-        for telescope in telescopes:
-            for pixel in pixels:
-                search_ph.get_or_create_pixel(telescope, pixel)
-        all_sources = self.all(search_ph)
-        try:
-            if fine_pixels.any():
-                all_sources.filter(pl.col("Heal_Pix_Position").is_in(fine_pixels))
-        except pl.exceptions.ColumnNotFoundError:
-            return all_sources
-        # if flux_wide:
-        #     all_sources.filter(pl.col("Flux_Wide") > flux_wide)
-        return all_sources
-
+        search_query["telescopes"] = search_query.get("telescopes", self.telescopes)
+        return Search(self.dataset_root, search_query)
     def _telescope_args(self, telescopes):
         available_names = []
         tel_available = next(walk(self.dataset_root))[1]
