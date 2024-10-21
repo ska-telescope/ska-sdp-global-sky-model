@@ -24,6 +24,7 @@ mocpy = "^0.15.0"
 cdshealpix = "^0.6.5"
 orjson = "^3.10.6"
 python-multipart = "^0.0.9"
+polars = "^1.9.0"
 
 
 [tool.poetry.group.dev.dependencies]
