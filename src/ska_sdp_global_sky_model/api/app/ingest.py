@@ -107,7 +107,14 @@ def get_data_catalog_vizier(key):
     Vizier.ROW_LIMIT = -1
     Vizier.columns = ["**"]
     catalog = Vizier.get_catalogs(key)
-    return catalog[1]
+    healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
+    healpix_tile = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
+    tb = catalog[1]
+    sc = SkyCoord(tb['RAJ2000'], tb['DEJ2000'], frame='icrs')
+    hp_source = healpix.skycoord_to_healpix(sc)
+    hp_tile = healpix_tile.skycoord_to_healpix(sc)
+    return DataFrame(dict(tb.items())).with_columns(
+        Heal_Pix_Position=hp_source,Heal_Pix_Tile=hp_tile)
 
 
 def get_data_catalog_selector(ingest: dict):
@@ -116,121 +123,114 @@ def get_data_catalog_selector(ingest: dict):
         ingest: The catalog ingest configurations.
     """
     if ingest["agent"] == "vizier":
-        yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
+        yield get_data_catalog_vizier(ingest["key"])
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
             logger.info("Opening file: %s", ingest_set["key"])
-            yield (
-                SourceFile(
+            yield SourceFile(
                     ingest_set["key"],
                     heading_alias=ingest_set["heading_alias"],
                     heading_missing=ingest_set["heading_missing"],
-                ),
-                ingest_set["bands"],
-            )
+                )
 
-
-def create_source_entry(
-    ds: DataStore, source: Dict[str, float], name: str,
-    band_names, telescope, wideband
-) -> Optional[Source]:
-    """Creates a Source object from the provided source data and adds it to the database.
-
-    If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
-    the function will return None.
-
-    Args:
-        db: An SQLAlchemy database session object.
-        source: A dictionary containing the source information with the following keys:
-            * `RAJ2000`: Right Ascension (J2000) in degrees (required).
-            * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-            * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
-            * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
-        name: String for the source name.
-
-    Returns:
-        The created Source object, or None if required keys are missing from the data.
-    """
-
-    try:
-        sky_coord: SkyCoord = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
-    except KeyError:
-        # Required keys missing, return None
-        logger.warning("Missing required keys in source data. Skipping source creation.")
-        return None
-
-    # get the HEALPix index of the coarse sky tile that would house it in the UNIQ pixel encoding
-    healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
-    hp_source = int(healpix.skycoord_to_healpix(sky_coord))
-    healpix_pixel = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
-    hp_pixel = int(healpix_pixel.skycoord_to_healpix(sky_coord))
-
-
-    source_float = {}
-    for k in source.keys():
-        if source[k] == None:
-            source_float[k] = None
-            continue
-        try:
-            source_float[k] = float(source[k])
-        except ValueError:
-            source_float[k] = source[k]
-
-    source_dict = {
-        # "source_id": source['source_id'],
-        "name": name,
-        "Heal_Pix_Position":hp_source,
-        # "sky_coord":sky_coord,
-        "RAJ2000":float(source["RAJ2000"]),
-        "RAJ2000_Error":float(source.get("e_RAJ2000")),
-        "DECJ2000":float(source["DEJ2000"]),
-        "DECJ2000_Error":float(source.get("e_DEJ2000")),
-    }
-    if wideband:
-        source_dict.update({
-            "Bck_Wide":source_float["bckwide"],
-            "Local_RMS_Wide":source_float["lrmswide"],
-            "Int_Flux_Wide":source_float["Fintwide"],
-            "Int_Flux_Wide_Error":source_float["e_Fintwide"],
-            "Resid_Mean_Wide":source_float["resmwide"],
-            "Resid_Sd_Wide":source_float["resstdwide"],
-            "Abs_Flux_Pct_Error":source_float["e_Fpwide"],
-            "Fit_Flux_Pct_Error":source_float["efitFpct"],
-            "A_PSF_Wide":source_float["psfawide"],
-            "B_PSF_Wide":source_float["psfbwide"],
-            "PA_PSF_Wide":source_float["psfPAwide"],
-            "Spectral_Index":source_float["alpha"],
-            "Spectral_Index_Error":source_float["e_alpha"],
-            "A_Wide":source_float["awide"],
-            "A_Wide_Error":source_float["e_awide"],
-            "B_Wide":source_float["bwide"],
-            "B_Wide_Error":source_float["e_bwide"],
-            "PA_Wide":source_float["pawide"],
-            "PA_Wide_Error":source_float["e_pawide"],
-            "Flux_Wide":source_float["Fpwide"],
-            "Flux_Wide_Error":source_float["eabsFpct"],
-        })
-
-    for band_cf_str in band_names:
-        source_dict.update({
-            f"Bck_Narrow{band_cf_str}":source_float[f"bck{band_cf_str}"],
-            f"Local_RMS_Narrow{band_cf_str}":source_float[f"lrms{band_cf_str}"],
-            f"Int_Flux_Narrow{band_cf_str}":source_float[f"Fint{band_cf_str}"],
-            f"Int_Flux_Narrow_Error{band_cf_str}":source_float[f"e_Fint{band_cf_str}"],
-            f"Resid_Mean_Narrow{band_cf_str}":source_float[f"resm{band_cf_str}"],
-            f"Resid_Sd_Narrow{band_cf_str}":source_float[f"resstd{band_cf_str}"],
-            f"A_PSF_Narrow{band_cf_str}":source_float[f"psfa{band_cf_str}"],
-            f"B_PSF_Narrow{band_cf_str}":source_float[f"psfb{band_cf_str}"],
-            f"PA_PSF_Narrow{band_cf_str}":source_float[f"psfPA{band_cf_str}"],
-            f"A_Narrow{band_cf_str}":source_float[f"a{band_cf_str}"],
-            f"B_Narrow{band_cf_str}":source_float[f"b{band_cf_str}"],
-            f"PA_Narrow{band_cf_str}":source_float[f"pa{band_cf_str}"],
-            f"Flux_Narrow{band_cf_str}":source_float[f"Fp{band_cf_str}"],
-            f"Flux_Narrow_Error{band_cf_str}":source_float[f"e_Fp{band_cf_str}"],
-        })
-    source_df = DataFrame(source_dict)
-    ds.add_source(source_df, telescope, hp_pixel)
+# Depricate when file import is updated
+# def create_source_entry(
+#     ds: DataStore, source: Dict[str, float], name: str,
+#     band_names, telescope, wideband
+# ) -> Optional[Source]:
+#     """Creates a Source object from the provided source data and adds it to the database.
+#
+#     If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
+#     the function will return None.
+#
+#     Args:
+#         db: An SQLAlchemy database session object.
+#         source: A dictionary containing the source information with the following keys:
+#             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
+#             * `DEJ2000`: Declination (J2000) in degrees (required).
+#             * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
+#             * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
+#             * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
+#         name: String for the source name.
+#
+#     Returns:
+#         The created Source object, or None if required keys are missing from the data.
+#     """
+#
+#     try:
+#         sky_coord: SkyCoord = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
+#     except KeyError:
+#         # Required keys missing, return None
+#         logger.warning("Missing required keys in source data. Skipping source creation.")
+#         return None
+#
+#     # get the HEALPix index of the coarse sky tile that would house it in the UNIQ pixel encoding
+#
+#
+#     source_float = {}
+#     for k in source.keys():
+#         if source[k] == None:
+#             source_float[k] = None
+#             continue
+#         try:
+#             source_float[k] = float(source[k])
+#         except ValueError:
+#             source_float[k] = source[k]
+#
+#     source_dict = {
+#         # "source_id": source['source_id'],
+#         "name": name,
+#         "Heal_Pix_Position":hp_source,
+#         # "sky_coord":sky_coord,
+#         "RAJ2000":float(source["RAJ2000"]),
+#         "RAJ2000_Error":float(source.get("e_RAJ2000")),
+#         "DECJ2000":float(source["DEJ2000"]),
+#         "DECJ2000_Error":float(source.get("e_DEJ2000")),
+#     }
+#     if wideband:
+#         source_dict.update({
+#             "Bck_Wide":source_float["bckwide"],
+#             "Local_RMS_Wide":source_float["lrmswide"],
+#             "Int_Flux_Wide":source_float["Fintwide"],
+#             "Int_Flux_Wide_Error":source_float["e_Fintwide"],
+#             "Resid_Mean_Wide":source_float["resmwide"],
+#             "Resid_Sd_Wide":source_float["resstdwide"],
+#             "Abs_Flux_Pct_Error":source_float["e_Fpwide"],
+#             "Fit_Flux_Pct_Error":source_float["efitFpct"],
+#             "A_PSF_Wide":source_float["psfawide"],
+#             "B_PSF_Wide":source_float["psfbwide"],
+#             "PA_PSF_Wide":source_float["psfPAwide"],
+#             "Spectral_Index":source_float["alpha"],
+#             "Spectral_Index_Error":source_float["e_alpha"],
+#             "A_Wide":source_float["awide"],
+#             "A_Wide_Error":source_float["e_awide"],
+#             "B_Wide":source_float["bwide"],
+#             "B_Wide_Error":source_float["e_bwide"],
+#             "PA_Wide":source_float["pawide"],
+#             "PA_Wide_Error":source_float["e_pawide"],
+#             "Flux_Wide":source_float["Fpwide"],
+#             "Flux_Wide_Error":source_float["eabsFpct"],
+#         })
+#
+#     for band_cf_str in band_names:
+#         source_dict.update({
+#             f"Bck_Narrow{band_cf_str}":source_float[f"bck{band_cf_str}"],
+#             f"Local_RMS_Narrow{band_cf_str}":source_float[f"lrms{band_cf_str}"],
+#             f"Int_Flux_Narrow{band_cf_str}":source_float[f"Fint{band_cf_str}"],
+#             f"Int_Flux_Narrow_Error{band_cf_str}":source_float[f"e_Fint{band_cf_str}"],
+#             f"Resid_Mean_Narrow{band_cf_str}":source_float[f"resm{band_cf_str}"],
+#             f"Resid_Sd_Narrow{band_cf_str}":source_float[f"resstd{band_cf_str}"],
+#             f"A_PSF_Narrow{band_cf_str}":source_float[f"psfa{band_cf_str}"],
+#             f"B_PSF_Narrow{band_cf_str}":source_float[f"psfb{band_cf_str}"],
+#             f"PA_PSF_Narrow{band_cf_str}":source_float[f"psfPA{band_cf_str}"],
+#             f"A_Narrow{band_cf_str}":source_float[f"a{band_cf_str}"],
+#             f"B_Narrow{band_cf_str}":source_float[f"b{band_cf_str}"],
+#             f"PA_Narrow{band_cf_str}":source_float[f"pa{band_cf_str}"],
+#             f"Flux_Narrow{band_cf_str}":source_float[f"Fp{band_cf_str}"],
+#             f"Flux_Narrow_Error{band_cf_str}":source_float[f"e_Fp{band_cf_str}"],
+#         })
+#     source_df = DataFrame(source_dict)
+#     ds.add_source(source_df, telescope, hp_pixel)
 
 
 def get_bands(ingest_bands: list) -> str:
@@ -264,7 +264,6 @@ def process_source_data(
     ds: DataStore,
     source_data: List[Dict[str, float]] | SourceFile,
     telescope: Any,
-    ingest_bands: Any,
     catalog_config: dict,
 ) -> bool:
     """Processes a list of source data entries and adds them to the database.
@@ -290,22 +289,30 @@ def process_source_data(
     """
 
     logger.info("Processing source data...")
-
-    count = 0
-    num_source_data = len(source_data)
-    band_names = get_bands(ingest_bands)
-    wideband = catalog_config.get("ingest", {}).get("wideband")
-    for source in source_data:
-        name = str(source.get(catalog_config["source"]))
-        if count % 1000 == 0:
-            logger.info(
-                "Loading source into database, progress: %s%%",
-                str(calculate_percentage(dividend=count, divisor=num_source_data)),
-            )
-        count += 1
-        create_source_entry(ds, source, name, band_names, telescope, wideband)
-
+    source_data = source_data.rename({catalog_config["catalog_name"]: "name"})
+    for tile in source_data["Heal_Pix_Tile"].unique().to_list():
+        logger.info(f"Processing Tile Pixel {tile}")
+        source_tile = source_data.filter(Heal_Pix_Tile=tile)
+        if source_tile.is_empty():
+            continue
+        ds.add_source(source_tile, telescope, tile)
+    ds.save()
     return True
+    #
+    # # df = DataFrame(dict(source_data))
+    # # df.with_columns("Heal_Pix_Position"=pl.col("RAJ2000"))) hp_source = int(healpix.skycoord_to_healpix(sky_coord))
+    # raise Error
+    # for source in source_data:
+    #     name = str(source.get(catalog_config["source"]))
+    #     if count % 1000 == 0:
+    #         logger.info(
+    #             "Loading source into database, progress: %s%%",
+    #             str(calculate_percentage(dividend=count, divisor=num_source_data)),
+    #         )
+    #     count += 1
+    #     # create_source_entry(ds, source, name, band_names, telescope, wideband)
+    #
+    # return True
 
 
 def get_full_catalog(ds: DataStore, catalog_config) -> bool:
@@ -334,15 +341,14 @@ def get_full_catalog(ds: DataStore, catalog_config) -> bool:
 
     # 2. Get catalog data
     source_data = get_data_catalog_selector(catalog_config["ingest"])
-
-    for sources, ingest_bands in source_data:
-        if not sources:
+    for sources in source_data:
+        if sources.is_empty():
             logger.error("No data-sources found for %s", catalog_name)
             return False
         logger.info("Processing %s sources", str(len(sources)))
         # 4. Process source data
         if not process_source_data(
-            ds, sources, telescope_name, ingest_bands, catalog_config
+            ds, sources, telescope_name, catalog_config
         ):
             return False
     ds.save()
