@@ -6,6 +6,7 @@ import csv
 import json
 import logging
 
+import polars as pl
 from polars import DataFrame
 
 # pylint: disable=R1708(stop-iteration-return)
@@ -18,8 +19,7 @@ from typing import Any, Dict, List, Optional
 from astropy.coordinates import SkyCoord
 from astropy_healpix import HEALPix
 from astroquery.vizier import Vizier
-
-from ska_sdp_global_sky_model.api.app.model import Source
+from astropy import units as u
 
 from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
 from ska_sdp_global_sky_model.utilities.helper_functions import (
@@ -31,72 +31,47 @@ from ska_sdp_global_sky_model.api.app.datastore import DataStore
 logger = logging.getLogger(__name__)
 
 
-class SourceFile:
-    """SourceFile cerates an iterator object which yields source dicts."""
+def source_file(
+    file_location: str,
+    heading_alias: dict | None = None,
+    heading_missing: list | None = None):
+    """Source file init method
+    Args:
+        file_location: A path to the file to be ingested.
+        heading_alias: Alter headers to match our expected input.
+        heading_missing: A list of headings to be padded onto the dataset
+    """
+    logger.info("Creating SourceFile object")
+    heading_missing = heading_missing or []
+    heading_alias = heading_alias or {}
 
-    def __init__(
-        self,
-        file_location: str,
-        heading_alias: dict | None = None,
-        heading_missing: list | None = None,
-    ):
-        """Source file init method
-        Args:
-            file_location: A path to the file to be ingested.
-            heading_alias: Alter headers to match our expected input.
-            heading_missing: A list of headings to be padded onto the dataset
-        """
-        logger.info("Creating SourceFile object")
-        self.file_location = file_location
-        self.heading_missing = heading_missing or []
-        self.heading_alias = heading_alias or {}
+    # Get the file size in bytes
+    file_size = os.path.getsize(file_location)
 
-        # Get the file size in bytes
-        file_size = os.path.getsize(self.file_location)
-
-        # Print the file size
-        logger.info("File size: %d bytes", file_size)
-        try:
-            with open(self.file_location, newline="", encoding="utf-8") as csvfile:
-                logger.info("Opened file: %s", self.file_location)
-                self.len = sum(1 for row in csvfile)
-                logger.info("File length (rows): %s", self.len)
-
-        except FileNotFoundError as f:
-            logger.error("File not found: %s", self.file_location)
-            self.len = 0
-            raise RuntimeError from f
-        except Exception as e:
-            logger.error("Error opening file: %s", e)
-            self.len = 0
-            raise RuntimeError from e
-
-        logger.info("SourceFile object created")
-
-    def header(self, header) -> list:
-        """Apply header aliasing
-        Args:
-            header: The header to be processed.
-        """
-        for item in self.heading_alias.items():
-            for i, n in enumerate(header):
-                if n == item[0]:
-                    header[i] = item[1]
-        return header + self.heading_missing
-
-    def __iter__(self) -> iter:
-        """Iterate through the sources"""
-        logger.info("In the iterator opening %s", self.file_location)
-        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
-            logger.info("opened")
-            csv_file = csv.reader(csvfile, delimiter=",")
-            heading = self.header(next(csv_file))
-            for row in csv_file:
-                yield dict(zip_longest(heading, row, fillvalue=None))
-
-    def __len__(self) -> int:
-        """Get the file length count."""
-        return self.len
+    # Print the file size
+    logger.info("File size: %d bytes", file_size)
+    try:
+        with open(file_location, newline="", encoding="utf-8") as csvfile:
+            logger.info("Opened file: %s", file_location)
+            file_len = sum(1 for row in csvfile)
+            logger.info("File length (rows): %s", file_len)
+        source_data = pl.read_csv(file_location)
+    except FileNotFoundError as f:
+        logger.error("File not found: %s", file_location)
+        raise RuntimeError from f
+    except Exception as e:
+        logger.error("Error opening file: %s", e)
+        raise RuntimeError from e
+    logger.info("SourceFile object created")
+    source_data = source_data.rename(heading_alias)
+    source_data = source_data.with_columns(**dict(zip_longest(heading_missing, [])))
+    sc = SkyCoord(source_data['RAJ2000'], source_data['DEJ2000'], frame='icrs', unit='deg')
+    healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
+    healpix_tile = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
+    hp_source = healpix.skycoord_to_healpix(sc)
+    hp_tile = healpix_tile.skycoord_to_healpix(sc)
+    return source_data.with_columns(
+        Heal_Pix_Position=hp_source,Heal_Pix_Tile=hp_tile)
 
 
 def get_data_catalog_vizier(key):
@@ -127,111 +102,11 @@ def get_data_catalog_selector(ingest: dict):
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
             logger.info("Opening file: %s", ingest_set["key"])
-            yield SourceFile(
+            yield source_file(
                     ingest_set["key"],
                     heading_alias=ingest_set["heading_alias"],
                     heading_missing=ingest_set["heading_missing"],
                 )
-
-# Depricate when file import is updated
-# def create_source_entry(
-#     ds: DataStore, source: Dict[str, float], name: str,
-#     band_names, telescope, wideband
-# ) -> Optional[Source]:
-#     """Creates a Source object from the provided source data and adds it to the database.
-#
-#     If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
-#     the function will return None.
-#
-#     Args:
-#         db: An SQLAlchemy database session object.
-#         source: A dictionary containing the source information with the following keys:
-#             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
-#             * `DEJ2000`: Declination (J2000) in degrees (required).
-#             * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-#             * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
-#             * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
-#         name: String for the source name.
-#
-#     Returns:
-#         The created Source object, or None if required keys are missing from the data.
-#     """
-#
-#     try:
-#         sky_coord: SkyCoord = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
-#     except KeyError:
-#         # Required keys missing, return None
-#         logger.warning("Missing required keys in source data. Skipping source creation.")
-#         return None
-#
-#     # get the HEALPix index of the coarse sky tile that would house it in the UNIQ pixel encoding
-#
-#
-#     source_float = {}
-#     for k in source.keys():
-#         if source[k] == None:
-#             source_float[k] = None
-#             continue
-#         try:
-#             source_float[k] = float(source[k])
-#         except ValueError:
-#             source_float[k] = source[k]
-#
-#     source_dict = {
-#         # "source_id": source['source_id'],
-#         "name": name,
-#         "Heal_Pix_Position":hp_source,
-#         # "sky_coord":sky_coord,
-#         "RAJ2000":float(source["RAJ2000"]),
-#         "RAJ2000_Error":float(source.get("e_RAJ2000")),
-#         "DECJ2000":float(source["DEJ2000"]),
-#         "DECJ2000_Error":float(source.get("e_DEJ2000")),
-#     }
-#     if wideband:
-#         source_dict.update({
-#             "Bck_Wide":source_float["bckwide"],
-#             "Local_RMS_Wide":source_float["lrmswide"],
-#             "Int_Flux_Wide":source_float["Fintwide"],
-#             "Int_Flux_Wide_Error":source_float["e_Fintwide"],
-#             "Resid_Mean_Wide":source_float["resmwide"],
-#             "Resid_Sd_Wide":source_float["resstdwide"],
-#             "Abs_Flux_Pct_Error":source_float["e_Fpwide"],
-#             "Fit_Flux_Pct_Error":source_float["efitFpct"],
-#             "A_PSF_Wide":source_float["psfawide"],
-#             "B_PSF_Wide":source_float["psfbwide"],
-#             "PA_PSF_Wide":source_float["psfPAwide"],
-#             "Spectral_Index":source_float["alpha"],
-#             "Spectral_Index_Error":source_float["e_alpha"],
-#             "A_Wide":source_float["awide"],
-#             "A_Wide_Error":source_float["e_awide"],
-#             "B_Wide":source_float["bwide"],
-#             "B_Wide_Error":source_float["e_bwide"],
-#             "PA_Wide":source_float["pawide"],
-#             "PA_Wide_Error":source_float["e_pawide"],
-#             "Flux_Wide":source_float["Fpwide"],
-#             "Flux_Wide_Error":source_float["eabsFpct"],
-#         })
-#
-#     for band_cf_str in band_names:
-#         source_dict.update({
-#             f"Bck_Narrow{band_cf_str}":source_float[f"bck{band_cf_str}"],
-#             f"Local_RMS_Narrow{band_cf_str}":source_float[f"lrms{band_cf_str}"],
-#             f"Int_Flux_Narrow{band_cf_str}":source_float[f"Fint{band_cf_str}"],
-#             f"Int_Flux_Narrow_Error{band_cf_str}":source_float[f"e_Fint{band_cf_str}"],
-#             f"Resid_Mean_Narrow{band_cf_str}":source_float[f"resm{band_cf_str}"],
-#             f"Resid_Sd_Narrow{band_cf_str}":source_float[f"resstd{band_cf_str}"],
-#             f"A_PSF_Narrow{band_cf_str}":source_float[f"psfa{band_cf_str}"],
-#             f"B_PSF_Narrow{band_cf_str}":source_float[f"psfb{band_cf_str}"],
-#             f"PA_PSF_Narrow{band_cf_str}":source_float[f"psfPA{band_cf_str}"],
-#             f"A_Narrow{band_cf_str}":source_float[f"a{band_cf_str}"],
-#             f"B_Narrow{band_cf_str}":source_float[f"b{band_cf_str}"],
-#             f"PA_Narrow{band_cf_str}":source_float[f"pa{band_cf_str}"],
-#             f"Flux_Narrow{band_cf_str}":source_float[f"Fp{band_cf_str}"],
-#             f"Flux_Narrow_Error{band_cf_str}":source_float[f"e_Fp{band_cf_str}"],
-#         })
-#     source_df = DataFrame(source_dict)
-#     ds.add_source(source_df, telescope, hp_pixel)
-
 
 def get_bands(ingest_bands: list) -> str:
     """Creates NarrowBandData objects from the provided source data for each band and adds them to
@@ -262,7 +137,7 @@ def get_bands(ingest_bands: list) -> str:
 
 def process_source_data(
     ds: DataStore,
-    source_data: List[Dict[str, float]] | SourceFile,
+    source_data: DataFrame,
     telescope: Any,
     catalog_config: dict,
 ) -> bool:
@@ -298,21 +173,6 @@ def process_source_data(
         ds.add_source(source_tile, telescope, tile)
     ds.save()
     return True
-    #
-    # # df = DataFrame(dict(source_data))
-    # # df.with_columns("Heal_Pix_Position"=pl.col("RAJ2000"))) hp_source = int(healpix.skycoord_to_healpix(sky_coord))
-    # raise Error
-    # for source in source_data:
-    #     name = str(source.get(catalog_config["source"]))
-    #     if count % 1000 == 0:
-    #         logger.info(
-    #             "Loading source into database, progress: %s%%",
-    #             str(calculate_percentage(dividend=count, divisor=num_source_data)),
-    #         )
-    #     count += 1
-    #     # create_source_entry(ds, source, name, band_names, telescope, wideband)
-    #
-    # return True
 
 
 def get_full_catalog(ds: DataStore, catalog_config) -> bool:
