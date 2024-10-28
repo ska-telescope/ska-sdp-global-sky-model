@@ -197,7 +197,7 @@ RACS = {
     "catalog_name": "RACS",
     "frequency_min": 700,
     "frequency_max": 1800,
-    "source": "gaussian_id",
+    "source": "source_id",
     "bands": [887, 1367, 1632],
 }
 RCAL = {
