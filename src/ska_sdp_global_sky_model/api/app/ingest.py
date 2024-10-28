@@ -2,12 +2,12 @@
 Gleam Catalog ingest
 """
 
-import csv
-import json
 import logging
 
 import polars as pl
 from polars import DataFrame
+
+from ska_sdp_global_sky_model.api.app.datastore import SourcePixel
 
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
@@ -19,13 +19,8 @@ from typing import Any, Dict, List, Optional
 from astropy.coordinates import SkyCoord
 from astropy_healpix import HEALPix
 from astroquery.vizier import Vizier
-from astropy import units as u
 
 from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
-from ska_sdp_global_sky_model.utilities.helper_functions import (
-    calculate_percentage,
-    convert_ra_dec_to_skycoord,
-)
 from ska_sdp_global_sky_model.api.app.datastore import DataStore
 
 logger = logging.getLogger(__name__)
@@ -35,7 +30,7 @@ def source_file(
     file_location: str,
     heading_alias: dict | None = None,
     heading_missing: list | None = None):
-    """Source file init method
+    """Source file to DataFrame function
     Args:
         file_location: A path to the file to be ingested.
         heading_alias: Alter headers to match our expected input.
@@ -164,13 +159,19 @@ def process_source_data(
     """
 
     logger.info("Processing source data...")
-    source_data = source_data.rename({catalog_config["catalog_name"]: "name"})
+    source_data = source_data.rename({catalog_config["source"]: "name"})
+    source_data = source_data.with_columns(pl.col("name").cast(pl.String))
     for tile in source_data["Heal_Pix_Tile"].unique().to_list():
         logger.info(f"Processing Tile Pixel {tile}")
         source_tile = source_data.filter(Heal_Pix_Tile=tile)
+        source_tile = source_tile.unique(subset=["name"], keep="first")
         if source_tile.is_empty():
             continue
-        ds.add_source(source_tile, telescope, tile)
+        sp = SourcePixel(telescope, tile, ds.dataset_root)
+        sp.add(source_tile)
+        sp.save()
+        sp.clear()
+        del sp
     ds.save()
     return True
 
