@@ -103,37 +103,11 @@ def get_data_catalog_selector(ingest: dict):
                     heading_missing=ingest_set["heading_missing"],
                 )
 
-def get_bands(ingest_bands: list) -> str:
-    """Creates NarrowBandData objects from the provided source data for each band and adds them to
-    the database.
-
-    This function expects the source data to have string values. It will attempt to convert
-    them to floats before creating the NarrowBandData objects. If any conversion fails,
-    the function will return None.
-
-    Args:
-        db: An SQLAlchemy database session object.
-        source: A dictionary containing the narrow-band source information with string values.
-        source_catalog: The corresponding Source object in the database.
-        bands: A dictionary mapping center frequencies (floats) to Band objects.
-        ingest_bands: The list of bands to be ingested this run.
-
-    Returns:
-        None (the function does not return a meaningful value). If data conversion fails
-        for any band, the loop terminates and None is returned.
-    """
-    band_names = []
-    for band_cf in ingest_bands:
-        band_cf_str = str(band_cf)
-        band_names.append(
-            f"0{band_cf_str}" if len(band_cf_str) < 3 else band_cf_str)
-    return band_names
-
 
 def process_source_data(
     ds: DataStore,
     source_data: DataFrame,
-    telescope: Any,
+    telescope: str,
     catalog_config: dict,
 ) -> bool:
     """Processes a list of source data entries and adds them to the database.
