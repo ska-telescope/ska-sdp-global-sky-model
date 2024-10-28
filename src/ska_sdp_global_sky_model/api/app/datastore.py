@@ -39,6 +39,8 @@ class SourcePixel:
         self.dataset.write_csv(self.source_root)
     def all(self):
         return self.dataset
+    def clear(self):
+        del self.dataset
 
 
 class PixelHandler:

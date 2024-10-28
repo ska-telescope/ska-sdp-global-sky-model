@@ -8,15 +8,72 @@ CRUD functionality goes here.
 import logging
 
 import astropy.units as u
-from astropy.coordinates import Latitude, Longitude, SkyCoord
+from astropy.coordinates import Angle, Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
-from sqlalchemy import and_
+from healpix_alchemy import Tile
+from mocpy import MOC
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, aliased
 
 from ska_sdp_global_sky_model.api.app.model import NarrowBandData, SkyTile, Source, WideBandData
 from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
 
 logger = logging.getLogger(__name__)
+
+
+def get_precise_local_sky_model(db, ra, dec, flux_wide, fov):
+    """
+    Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
+    """
+    moc = MOC.from_cone(
+        lon=Longitude(float(ra[0]) * u.deg),
+        lat=Latitude(float(dec[0]) * u.deg),
+        radius=Angle(float(fov), u.deg),
+        max_depth=10,
+    )
+
+    healpix_tiles = [FieldTile(hpx=hpx) for hpx in Tile.tiles_from(moc)]
+
+    db.add(Field(tiles=healpix_tiles))
+    db.commit()
+
+    narrowband_data = aliased(NarrowBandData)
+    wideband_data = aliased(WideBandData)
+
+    sources_in_field = (
+        db.query(Source, narrowband_data, wideband_data)
+        .filter(wideband_data.Flux_Wide > flux_wide)
+        .filter(
+            or_(
+                Source.Heal_Pix_Position.between(tile_range.hpx.lower, tile_range.hpx.upper)
+                for tile_range in healpix_tiles
+            )
+        )
+        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
+        .outerjoin(wideband_data, Source.id == wideband_data.source)
+        .all()
+    )
+
+    results = {"sources": {}}
+
+    for source, narrowband, wideband in sources_in_field:
+
+        source_dict = {"RA": source.RAJ2000, "DEC": source.DECJ2000}
+
+        if narrowband:
+            source_dict["narrowband"] = narrowband.columns_to_dict()
+
+        if wideband:
+            source_dict["wideband"] = wideband.columns_to_dict()
+
+        results["sources"][source.id] = source_dict
+
+    logger.info(
+        "Retrieve %s point sources within the area of interest.",
+        str(len(sources_in_field)),
+    )
+
+    return results
 
 
 def get_local_sky_model(

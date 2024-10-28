@@ -10,7 +10,7 @@ import tempfile
 import time
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.responses import StreamingResponse
@@ -18,9 +18,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
+from ska_sdp_global_sky_model.api.app.crud import (
+    get_local_sky_model,
+    get_precise_local_sky_model,
+)
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
-from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, Base, engine, get_db, get_ds, DataStore
 
 logger = logging.getLogger(__name__)
@@ -105,6 +107,51 @@ def get_point_sources(ds: DataStore = Depends(get_ds)):
     logger.info("Retrieving all point sources...")
     sources = ds.all()
     return sources.write_json()
+
+
+@app.get("/precise_local_sky_model", response_class=ORJSONResponse)
+async def get_precise_local_sky_model_endpoint(
+    ra: str,
+    dec: str,
+    flux_wide: float,
+    telescope: str,
+    fov: float,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Get the local sky model from a global sky model.
+
+    Args:
+        ra (float): Right ascension of the observation point in degrees.
+        dec (float): Declination of the observation point in degrees.
+        flux_wide (float): Wide-field flux of the observation in Jy.
+        telescope (str): Name of the telescope being used for the observation.
+        fov (float): Field of view of the telescope in arcminutes.
+
+    Returns:
+        dict: A dictionary containing the local sky model information.
+
+        The dictionary includes the following keys:
+            - ra: The right ascension provided as input.
+            - dec: The declination provided as input.
+            - flux_wide: The wide-field flux provided as input.
+            - telescope: The telescope name provided as input.
+            - fov: The field of view provided as input.
+            - local_data: ......
+    """
+    logger.info(
+        "Requesting local sky model with the following parameters: ra:%s, \
+dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+        ra,
+        dec,
+        flux_wide,
+        telescope,
+        fov,
+    )
+    local_model = get_precise_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, fov)
+    background_tasks.add_task(delete_previous_tiles, db)
+    return ORJSONResponse(local_model)
 
 
 @app.get("/local_sky_model", response_class=ORJSONResponse)
