@@ -7,23 +7,18 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 import logging
 import os
 import tempfile
-import time
 from typing import Optional
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.crud import (
-    get_local_sky_model,
-    get_precise_local_sky_model,
-)
+from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
-from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, Base, engine, get_db, get_ds, DataStore
+from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, get_ds, DataStore
 
 logger = logging.getLogger(__name__)
 
@@ -41,34 +36,6 @@ app.add_middleware(
 )
 
 
-def wait_for_db():
-    """Await DB connection."""
-    while True:
-        try:
-            with engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-            logger.info("Database is up and running!")
-            break
-        except Exception as e:
-            logger.info("Database connection failed: %s", e)
-            time.sleep(5)  # Wait before retrying
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Await for DB startup on app start"""
-    wait_for_db()
-
-
-@app.on_event("startup")
-def create_db_and_tables():
-    """
-    Called on application startup.
-    """
-    logger.info("Creating the database and tables...")
-    Base.metadata.create_all(engine)
-
-
 @app.get("/ping", summary="Ping the API")
 def ping():
     """Returns {"ping": "live"} when called"""
@@ -76,10 +43,10 @@ def ping():
     return {"ping": "live"}
 
 
-def ingest(db: Session, catalog_config: dict):
+def ingest(ds: DataStore, catalog_config: dict):
     """Ingest catalog"""
     try:
-        if get_full_catalog(db, catalog_config):
+        if get_full_catalog(ds, catalog_config):
             return True
         logger.error("Error ingesting the catalogue")
         return False
@@ -107,51 +74,6 @@ def get_point_sources(ds: DataStore = Depends(get_ds)):
     logger.info("Retrieving all point sources...")
     sources = ds.all()
     return sources.write_json()
-
-
-@app.get("/precise_local_sky_model", response_class=ORJSONResponse)
-async def get_precise_local_sky_model_endpoint(
-    ra: str,
-    dec: str,
-    flux_wide: float,
-    telescope: str,
-    fov: float,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
-    """
-    Get the local sky model from a global sky model.
-
-    Args:
-        ra (float): Right ascension of the observation point in degrees.
-        dec (float): Declination of the observation point in degrees.
-        flux_wide (float): Wide-field flux of the observation in Jy.
-        telescope (str): Name of the telescope being used for the observation.
-        fov (float): Field of view of the telescope in arcminutes.
-
-    Returns:
-        dict: A dictionary containing the local sky model information.
-
-        The dictionary includes the following keys:
-            - ra: The right ascension provided as input.
-            - dec: The declination provided as input.
-            - flux_wide: The wide-field flux provided as input.
-            - telescope: The telescope name provided as input.
-            - fov: The field of view provided as input.
-            - local_data: ......
-    """
-    logger.info(
-        "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, flux_wide:%s, telescope:%s, fov:%s",
-        ra,
-        dec,
-        flux_wide,
-        telescope,
-        fov,
-    )
-    local_model = get_precise_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, fov)
-    background_tasks.add_task(delete_previous_tiles, db)
-    return ORJSONResponse(local_model)
 
 
 @app.get("/local_sky_model", response_class=ORJSONResponse)
@@ -225,11 +147,6 @@ async def upload_rcal(
                 status_code=400, detail="Invalid file type. Please upload a CSV file."
             )
 
-        try:
-            db.execute(text("SELECT 1"))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Unable to access database") from e
-
         # Check if there is sufficient disk space to write the file
         statvfs = os.statvfs("/")
         free_space = statvfs.f_frsize * statvfs.f_bavail
@@ -256,7 +173,7 @@ async def upload_rcal(
             rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
             logger.info("Ingesting the catalogue...")
 
-            if ingest(db, rcal_config):
+            if ingest(ds, rcal_config):
                 return JSONResponse(
                     content={"message": "RCAL uploaded and ingested successfully"},
                     status_code=200,

@@ -14,7 +14,6 @@ from ska_sdp_global_sky_model.api.app.datastore import SourcePixel
 # pylint: disable=R0913(too-many-arguments)
 import os
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional
 
 from astropy.coordinates import SkyCoord
 from astropy_healpix import HEALPix
