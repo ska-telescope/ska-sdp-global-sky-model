@@ -8,13 +8,12 @@ import os
 from pathlib import Path
 
 import ska_ser_logging
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from starlette.config import Config
 
 from ska_sdp_global_sky_model.api.app.datastore import DataStore
 
 ENV_FILE = Path(".env")
-DATASET_ROOT = 'datasets/'
+DATASET_ROOT = "datasets/"
 if not ENV_FILE.exists():
     ENV_FILE = None
 
@@ -34,18 +33,8 @@ NSIDE_PIXEL: int = 16
 DATASTORE: DataStore = DataStore(DATASET_ROOT)
 
 
-@as_declarative()
-class Base:
-    """
-    Declarative base.
-    """
-
-    @declared_attr
-    def __tablename__(cls):
-        return cls.__name__.lower()
-
-
 def get_ds():
+    """Get the datastore handle."""
     return DATASTORE
 
 
@@ -158,7 +147,14 @@ RACS = {
                     "pa": "pa887",
                 },
                 "heading_missing": [
-                    "resm887", "resstd887", "bck887", "psfa887", "psfb887", "psfPA887"],
+                    "resm887",
+                    "resstd887",
+                    "bck887",
+                    "psfa887",
+                    "psfb887",
+                    "psfPA887",
+                    "Flux_Wide",
+                ],
             },
         ],
     },

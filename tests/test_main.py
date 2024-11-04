@@ -2,19 +2,18 @@
 """
 Basic testing of the API
 """
+from json import loads
+
 import pytest
 from fastapi.testclient import TestClient
 
-from ska_sdp_global_sky_model.api.app.main import app , DataStore , get_ds
-from json import loads
+from ska_sdp_global_sky_model.api.app.main import DataStore, app, get_ds
 
-
-TEST_DATASTORE: DataStore = DataStore('tests/datasets')
+TEST_DATASTORE: DataStore = DataStore("tests/datasets")
 
 
 def override_get_ds():
-    """Get the test datastore
-    """
+    """Get the test datastore"""
     # TEST_DATASTORE.
     return TEST_DATASTORE
 
@@ -38,6 +37,7 @@ def test_read_main(myclient):
     response = myclient.get("/ping")
     assert response.status_code == 200
     assert response.json() == {"ping": "live"}
+
 
 #
 # def test_upload_rcal(myclient):
@@ -72,5 +72,5 @@ def test_local_sky_model(myclient):
     assert local_sky_model.status_code == 200
     data = ""
     for chunk in local_sky_model.iter_text():
-        data += chunk
+        data.join(chunk)
     assert len(loads(data)) == 10
