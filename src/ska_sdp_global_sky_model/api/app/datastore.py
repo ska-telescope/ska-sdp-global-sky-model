@@ -1,8 +1,13 @@
+import logging
+
 from os import listdir, mkdir, walk
 from os.path import isfile, join
 from pathlib import Path
 
 import polars as pl
+
+
+logger = logging.getLogger(__name__)
 
 
 class SourcePixel:
@@ -101,6 +106,8 @@ class Search:
         fine_pixels = self.search_query.get(
             "hp_pixel_fine",
         )
+        yield "["
+        first = True
         for telescope in telescopes:
             for pixel in pixels:
                 source_pixel = self.pixel_handler.get_or_create_pixel(telescope, pixel)
@@ -112,7 +119,14 @@ class Search:
                     all_sources = source_pixel.all()
                 if flux_wide:
                     all_sources = all_sources.filter(pl.col("Fpwide") > flux_wide)
-                yield f"{all_sources.write_json()[1:-1]},"
+                if all_sources.is_empty():
+                    continue
+                if first:
+                    first = False
+                    yield f"{all_sources.write_json()[1:-1]}"
+                else:
+                    yield f",{all_sources.write_json()[1:-1]}"
+        yield "]"
 
 
 class DataStore:
@@ -139,7 +153,11 @@ class DataStore:
 
     def _telescope_args(self, telescopes):
         available_names = []
-        tel_available = next(walk(self.dataset_root))[1]
+        try:
+            tel_available = next(walk(self.dataset_root))[1]
+        except StopIteration:
+            logger.warning("Datasets directory is empty.")
+            return []
         for tel_name in tel_available:
             if not tel_name or tel_name[0] == ".":
                 continue
@@ -155,7 +173,7 @@ class DataStore:
         if not pixel_handler:
             pixel_handler = self.pixel_handler
         sources = pixel_handler[0].all()
-        for i in range(1, len(pixel_handler) - 1):
+        for i in range(1, len(pixel_handler)):
             sources_pixel = pixel_handler[i].all()
             for col_name, col_type in sources_pixel.schema.items():
                 if col_name not in sources.schema.names():
