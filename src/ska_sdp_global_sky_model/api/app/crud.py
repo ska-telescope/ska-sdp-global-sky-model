@@ -10,6 +10,7 @@ import logging
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
+
 from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
 
 logger = logging.getLogger(__name__)
@@ -69,9 +70,11 @@ def get_local_sky_model(
 
     # Modify the query to join the necessary tables
     result = ds.query_pxiels(
-        {   "healpix_pixel_rough": hp_pixel_course,
+        {
+            "healpix_pixel_rough": hp_pixel_course,
             "hp_pixel_fine": hp_pixel_fine,
             "flux_wide": flux_wide,
-            "telescopes": telescope.split(',')
-        })
+            "telescopes": telescope.split(","),
+        }
+    )
     return result

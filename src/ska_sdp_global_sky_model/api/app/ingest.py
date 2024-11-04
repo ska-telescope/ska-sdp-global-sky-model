@@ -4,31 +4,27 @@ Gleam Catalog ingest
 
 import logging
 
-import polars as pl
-from polars import DataFrame
-
-from ska_sdp_global_sky_model.api.app.datastore import SourcePixel
-
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
 import os
 from itertools import zip_longest
 
+import polars as pl
 from astropy.coordinates import SkyCoord
 from astropy_healpix import HEALPix
 from astroquery.vizier import Vizier
+from polars import DataFrame
 
+from ska_sdp_global_sky_model.api.app.datastore import DataStore, SourcePixel
 from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
-from ska_sdp_global_sky_model.api.app.datastore import DataStore
 
 logger = logging.getLogger(__name__)
 
 
 def source_file(
-    file_location: str,
-    heading_alias: dict | None = None,
-    heading_missing: list | None = None):
+    file_location: str, heading_alias: dict | None = None, heading_missing: list | None = None
+):
     """Source file to DataFrame function
     Args:
         file_location: A path to the file to be ingested.
@@ -59,13 +55,12 @@ def source_file(
     logger.info("SourceFile object created")
     source_data = source_data.rename(heading_alias)
     source_data = source_data.with_columns(**dict(zip_longest(heading_missing, [])))
-    sc = SkyCoord(source_data['RAJ2000'], source_data['DEJ2000'], frame='icrs', unit='deg')
+    sc = SkyCoord(source_data["RAJ2000"], source_data["DEJ2000"], frame="icrs", unit="deg")
     healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
     healpix_tile = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
     hp_source = healpix.skycoord_to_healpix(sc)
     hp_tile = healpix_tile.skycoord_to_healpix(sc)
-    return source_data.with_columns(
-        Heal_Pix_Position=hp_source,Heal_Pix_Tile=hp_tile)
+    return source_data.with_columns(Heal_Pix_Position=hp_source, Heal_Pix_Tile=hp_tile)
 
 
 def get_data_catalog_vizier(key):
@@ -79,11 +74,12 @@ def get_data_catalog_vizier(key):
     healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
     healpix_tile = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
     tb = catalog[1]
-    sc = SkyCoord(tb['RAJ2000'], tb['DEJ2000'], frame='icrs')
+    sc = SkyCoord(tb["RAJ2000"], tb["DEJ2000"], frame="icrs")
     hp_source = healpix.skycoord_to_healpix(sc)
     hp_tile = healpix_tile.skycoord_to_healpix(sc)
     return DataFrame(dict(tb.items())).with_columns(
-        Heal_Pix_Position=hp_source,Heal_Pix_Tile=hp_tile)
+        Heal_Pix_Position=hp_source, Heal_Pix_Tile=hp_tile
+    )
 
 
 def get_data_catalog_selector(ingest: dict):
@@ -97,10 +93,10 @@ def get_data_catalog_selector(ingest: dict):
         for ingest_set in ingest["file_location"]:
             logger.info("Opening file: %s", ingest_set["key"])
             yield source_file(
-                    ingest_set["key"],
-                    heading_alias=ingest_set["heading_alias"],
-                    heading_missing=ingest_set["heading_missing"],
-                )
+                ingest_set["key"],
+                heading_alias=ingest_set["heading_alias"],
+                heading_missing=ingest_set["heading_missing"],
+            )
 
 
 def process_source_data(
@@ -181,10 +177,7 @@ def get_full_catalog(ds: DataStore, catalog_config) -> bool:
             return False
         logger.info("Processing %s sources", str(len(sources)))
         # 4. Process source data
-        if not process_source_data(
-            ds, sources, telescope_name, catalog_config
-        ):
+        if not process_source_data(ds, sources, telescope_name, catalog_config):
             return False
     ds.save()
     return True
-

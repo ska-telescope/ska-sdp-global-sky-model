@@ -11,14 +11,12 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, ORJSONResponse
-from fastapi.responses import StreamingResponse
-
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
-from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, get_ds, DataStore
+from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, DataStore, get_ds
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +74,7 @@ def get_point_sources(ds: DataStore = Depends(get_ds)):
     return sources.write_json()
 
 
-@app.get("/local_sky_model", response_class=ORJSONResponse)
+@app.get("/local_sky_model", response_class=StreamingResponse)
 async def get_local_sky_model_endpoint(
     ra: str,
     dec: str,
@@ -117,7 +115,7 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         fov,
     )
     local_model = get_local_sky_model(ds, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
-    return StreamingResponse(local_model.stream(), media_type='application/json')
+    return StreamingResponse(local_model.stream(), media_type="text/event-stream")
 
 
 @app.post("/upload-rcal", summary="Ingest RCAL from a CSV {used in development}")
