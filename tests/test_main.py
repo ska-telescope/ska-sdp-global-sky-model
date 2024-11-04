@@ -1,4 +1,5 @@
 # pylint: disable=no-member
+# pylint: disable=consider-using-join
 """
 Basic testing of the API
 """
@@ -72,5 +73,5 @@ def test_local_sky_model(myclient):
     assert local_sky_model.status_code == 200
     data = ""
     for chunk in local_sky_model.iter_text():
-        data.join(chunk)
+        data += chunk
     assert len(loads(data)) == 10
