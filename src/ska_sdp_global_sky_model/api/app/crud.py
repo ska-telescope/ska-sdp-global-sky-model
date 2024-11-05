@@ -1,7 +1,5 @@
-# pylint: disable=no-member
-# pylint: disable=too-many-locals
-# pylint: disable=invalid-name
-# pylint: disable=too-many-arguments
+# pylint: disable=no-member, too-many-locals, invalid-name, too-many-arguments
+# pylint: disable=too-many-positional-arguments
 """
 CRUD functionality goes here.
 """
