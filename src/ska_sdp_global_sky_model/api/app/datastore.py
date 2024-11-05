@@ -45,7 +45,7 @@ class SourcePixel:
         self.source_path.parent.mkdir(parents=True, exist_ok=True)
         with self.source_path.open("a", encoding="utf-8"):
             pass
-        self.dataset.write_csv(self.source_root)
+        self.dataset.write_csv(self.source_path)
 
     def all(self):
         """Get all sources in this pixel."""
