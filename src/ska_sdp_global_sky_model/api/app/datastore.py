@@ -4,8 +4,6 @@
 """
 
 import logging
-from os import listdir, mkdir, walk
-from os.path import isfile, join
 from pathlib import Path
 
 import polars as pl
@@ -20,21 +18,17 @@ class SourcePixel:
         """Source Pixel init"""
         self.pixel = pixel
         self.telescope = telescope
-        self.dataset_root = dataset_root
+        self.dataset_root = Path(dataset_root)
+        self.source_path = Path(self.dataset_root, self.telescope, str(self.pixel))
         self.dataset = self.read()
-
-    @property
-    def source_root(self):
-        """Get the path to the source file"""
-        return join(self.dataset_root, self.telescope, str(self.pixel))
 
     def read(self):
         """Read the content of the source file."""
-        if not isfile(self.source_root):
+        if not self.source_path.is_file():
             return pl.DataFrame(
                 [], schema={"name": str, "Heal_Pix_Position": pl.Int64, "Fpwide": pl.Float64}
             )
-        return pl.read_csv(self.source_root)
+        return pl.read_csv(self.source_path)
 
     def add(self, source_new):
         """Add new sources to the current pixel."""
@@ -48,10 +42,9 @@ class SourcePixel:
 
     def save(self):
         """Commit current sources to file."""
-        Path(join(self.dataset_root, self.telescope)).mkdir(parents=True, exist_ok=True)
-        with open(self.source_root, "a", encoding="utf-8"):
+        self.source_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.source_path.open("a", encoding="utf-8"):
             pass
-        # open(self.source_root, "a").close()
         self.dataset.write_csv(self.source_root)
 
     def all(self):
@@ -183,15 +176,15 @@ class DataStore:
 
     def _telescope_args(self, telescopes):
         available_names = []
-        try:
-            tel_available = next(walk(self.dataset_root))[1]
-        except StopIteration:
-            logger.warning("Datasets directory is empty.")
+        root_path = Path(self.dataset_root)
+        if not root_path.is_dir():
+            logger.warning("Datasets directory is missing.")
             return []
+        tel_available = root_path.iterdir()
         for tel_name in tel_available:
-            if not tel_name or tel_name[0] == ".":
+            if not tel_name.is_dir() or tel_name.name[0] == ".":
                 continue
-            available_names.append(tel_name)
+            available_names.append(tel_name.name)
         if telescopes == "*":
             return available_names
         if isinstance(telescopes, str):
@@ -214,9 +207,9 @@ class DataStore:
 
     def _load_datasets(self):
         for telescope in self.telescopes:
-            tel_root = join(self.dataset_root, telescope)
-            for pixel in listdir(tel_root):
-                source_pixel = SourcePixel(telescope, pixel, self.dataset_root)
+            tel_root = Path(self.dataset_root, telescope)
+            for pixel in tel_root.iterdir():
+                source_pixel = SourcePixel(telescope, pixel.name, self.dataset_root)
                 self.pixel_handler.append(source_pixel)
 
     def has_telescope(self, telescope):
@@ -228,4 +221,4 @@ class DataStore:
     def add_telescope(self, telescope):
         """Add a telescope (catalog) to the datastore."""
         if not self.has_telescope(telescope):
-            mkdir(join(self.dataset_root, telescope))
+            Path(self.dataset_root, telescope).mkdir(parents=True, exist_ok=True)
