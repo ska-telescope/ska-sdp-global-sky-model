@@ -7,7 +7,7 @@ import logging
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
-import os
+from pathlib import Path
 from itertools import zip_longest
 
 import polars as pl
@@ -36,7 +36,7 @@ def source_file(
     heading_alias = heading_alias or {}
 
     # Get the file size in bytes
-    file_size = os.path.getsize(file_location)
+    file_size = Path(file_location).stat().st_size
 
     # Print the file size
     logger.info("File size: %d bytes", file_size)
