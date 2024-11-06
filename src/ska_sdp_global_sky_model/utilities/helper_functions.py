@@ -2,7 +2,6 @@
 
 from astropy.coordinates import SkyCoord
 from numpy import pi
-from sqlalchemy.orm import class_mapper
 
 
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
@@ -28,9 +27,7 @@ def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
         raise ValueError("RA must be between 0 and 360 degrees.")
     if not (-90.0 <= float(dec) and float(dec) <= 90.0):
         raise ValueError("Dec must be between -90 and 90 degrees.")
-
     # Create SkyCoord object in the specified frame (defaults to ICRS)
-
     # pylint: disable=no-member
     return SkyCoord(ra, dec, unit="deg", frame=frame)
 
@@ -77,9 +74,3 @@ def calculate_percentage(dividend: int | float, divisor: int | float) -> float:
         return 0.0
     percentage = (dividend / divisor) * 100
     return round(percentage, 2)  # Round to two decimal places
-
-
-def model_to_dict(model):
-    """Convert a SA row to dict."""
-    columns = class_mapper(model.__class__).columns
-    return {col.name: getattr(model, col.name) for col in columns}

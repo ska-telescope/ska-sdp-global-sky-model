@@ -8,12 +8,12 @@ import os
 from pathlib import Path
 
 import ska_ser_logging
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
-from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
 
+from ska_sdp_global_sky_model.api.app.datastore import DataStore
+
 ENV_FILE = Path(".env")
+DATASET_ROOT = "datasets/"
 if not ENV_FILE.exists():
     ENV_FILE = None
 
@@ -25,50 +25,17 @@ ska_ser_logging.configure_logging(
 logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
-# DB (Postgres)
-DB_NAME: str = config("sdp_sdp_global_sky_model_integration_database", default="postgres")
-POSTGRES_USER: str = config("sdp_sdp_global_sky_model_integration_username", default="postgres")
-POSTGRES_PASSWORD: str = config("sdp_sdp_global_sky_model_integration_password", default="pass")
-DB: str = config("DB", default="db")
-DB_SCHEMA: str = config("sdp_sdp_global_sky_model_integration_schema", default="public")
-DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-# Session DB (Redis)
-SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
-SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
-SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
-SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 # HEALPix
-NSIDE: int = config("NSIDE", default=64)
+NSIDE: int = config("NSIDE", default=128)
+NSIDE_PIXEL: int = 16
+
+DATASTORE: DataStore = DataStore(DATASET_ROOT)
 
 
-engine = create_engine(DB_URL)
-session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@as_declarative()
-class Base:
-    """
-    Declarative base.
-    """
-
-    @declared_attr
-    def __tablename__(cls):
-        return cls.__name__.lower()
-
-
-def get_db():
-    """
-    Provides a database session.
-
-    Yields:
-        sqlalchemy.orm.session.Session: A new database session object.
-    """
-    try:
-        db = session_local()
-        yield db
-    finally:
-        db.close()
+def get_ds():
+    """Get the datastore handle."""
+    return DATASTORE
 
 
 MWA = {
@@ -167,19 +134,27 @@ RACS = {
                     "dec": "DEJ2000",
                     "e_dec": "e_DEJ2000",
                     "catalogue_id": "RACS",
-                    "noise": "lrms1367",
-                    "psf_pa": "psfPA1367",
-                    "psf_min": "psfb1367",
-                    "maj_axis": "a1367",
-                    "min_axis": "b1367",
-                    "psf_maj": "psfa1367",
-                    "peak_flux": "Fp1367",
-                    "e_peak_flux": "e_Fp1367",
-                    "total_flux": "Fint1367",
-                    "e_total_flux": "e_Fint1367",
-                    "pa": "pa1367",
+                    "noise": "lrms887",
+                    # "psf_pa": "psfPA887",
+                    # "psf_min": "psfb887",
+                    "maj_axis": "a887",
+                    "min_axis": "b887",
+                    # "psf_maj": "psfa887",
+                    "peak_flux": "Fp887",
+                    "e_peak_flux": "e_Fp887",
+                    "total_flux_source": "Fint887",
+                    "e_total_flux_source": "e_Fint887",
+                    "pa": "pa887",
                 },
-                "heading_missing": ["resm1367", "resstd1367", "bck1367"],
+                "heading_missing": [
+                    "resm887",
+                    "resstd887",
+                    "bck887",
+                    "psfa887",
+                    "psfb887",
+                    "psfPA887",
+                    "Flux_Wide",
+                ],
             },
         ],
     },
@@ -187,7 +162,7 @@ RACS = {
     "catalog_name": "RACS",
     "frequency_min": 700,
     "frequency_max": 1800,
-    "source": "RACS",
+    "source": "source_id",
     "bands": [887, 1367, 1632],
 }
 RCAL = {
