@@ -3,12 +3,12 @@ Gleam Catalog ingest
 """
 
 import logging
+from itertools import zip_longest
 
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
 from pathlib import Path
-from itertools import zip_longest
 
 import polars as pl
 from astropy.coordinates import SkyCoord
