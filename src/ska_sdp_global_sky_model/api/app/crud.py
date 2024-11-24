@@ -4,8 +4,6 @@
 CRUD functionality goes here.
 """
 
-import logging
-
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
@@ -74,6 +72,3 @@ def get_local_sky_model(
         }
     )
     return result
-
-
-logger = logging.getLogger(__name__)
