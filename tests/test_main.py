@@ -40,7 +40,6 @@ def test_read_main(myclient):
     assert response.json() == {"ping": "live"}
 
 
-#
 # def test_upload_rcal(myclient):
 #     """Unit test for the /upload_rcal path"""
 #     file_path = "tests/data/rcal.csv"
@@ -67,7 +66,7 @@ def test_local_sky_model(myclient):
     """Unit test for the /local_sky_model path"""
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": 62, "dec": 15, "telescope": "TEST", "flux_wide": 0, "fov": 0.5},
+        params={"ra": 62, "dec": 15, "telescope": "TEST", "bckwide": 0, "fov": 0.5},
     )
 
     assert local_sky_model.status_code == 200

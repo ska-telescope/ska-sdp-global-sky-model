@@ -3,12 +3,12 @@ Gleam Catalog ingest
 """
 
 import logging
+from itertools import zip_longest
 
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
-import os
-from itertools import zip_longest
+from pathlib import Path
 
 import polars as pl
 from astropy.coordinates import SkyCoord
@@ -36,7 +36,7 @@ def source_file(
     heading_alias = heading_alias or {}
 
     # Get the file size in bytes
-    file_size = os.path.getsize(file_location)
+    file_size = Path(file_location).stat().st_size
 
     # Print the file size
     logger.info("File size: %d bytes", file_size)
@@ -55,6 +55,7 @@ def source_file(
     logger.info("SourceFile object created")
     source_data = source_data.rename(heading_alias)
     source_data = source_data.with_columns(**dict(zip_longest(heading_missing, [])))
+    # Get the healpix values for pixel and source resolution as well as SkyCoords vectors
     sc = SkyCoord(source_data["RAJ2000"], source_data["DEJ2000"], frame="icrs", unit="deg")
     healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
     healpix_tile = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")
@@ -107,15 +108,6 @@ def process_source_data(
 ) -> bool:
     """Processes a list of source data entries and adds them to the database.
 
-    This function iterates over the provided source data and performs the following for each entry:
-
-        1. Checks if a source with the same name (`GLEAM`) already exists in the database.
-            - If it does, skip to the next entry.
-        2. Creates a Source object using the `create_source_catalog_entry` function.
-        3. Creates a WideBandData object using the `create_wide_band_data_entry` function.
-        4. Creates NarrowBandData objects (one for each band) using the
-           `create_narrow_band_data_entry` function.
-
     Args:
         ds: An Polars datastore session object.
         source_data: A list of dictionaries containing source information with float values.
@@ -139,6 +131,7 @@ def process_source_data(
         sp.add(source_tile)
         sp.save()
         sp.clear()
+        # free up memory
         del sp
     ds.save()
     return True
@@ -147,14 +140,6 @@ def process_source_data(
 def get_full_catalog(ds: DataStore, catalog_config) -> bool:
     """
     Downloads and processes a source catalog for a specified telescope.
-
-    This function performs the following steps:
-
-        1. Loads or creates a telescope record in the database based on the provided name.
-        2. Retrieves source data for the specified catalog name.
-        3. Loads or creates bands associated with the telescope.
-        4. Processes the source data and adds the extracted information to the database.
-        5. Updates the telescope record to indicate successful ingestion.
 
     The function logs informative messages during processing.
 
@@ -167,15 +152,12 @@ def get_full_catalog(ds: DataStore, catalog_config) -> bool:
     telescope_name = catalog_config["name"]
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
-
-    # 2. Get catalog data
     source_data = get_data_catalog_selector(catalog_config["ingest"])
     for sources in source_data:
         if sources.is_empty():
             logger.error("No data-sources found for %s", catalog_name)
             return False
         logger.info("Processing %s sources", str(len(sources)))
-        # 4. Process source data
         if not process_source_data(ds, sources, telescope_name, catalog_config):
             return False
     ds.save()

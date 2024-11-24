@@ -4,8 +4,6 @@
 """
 
 import logging
-from os import listdir, mkdir, walk
-from os.path import isfile, join
 from pathlib import Path
 
 import polars as pl
@@ -31,16 +29,20 @@ class SourcePixel:
             self.dataset_data = self.read()
         return self.dataset_data
 
+    @dataset.setter
+    def dataset(self, value):
+        self.dataset_data = value
+
     @property
     def source_root(self):
         """Get the path to the source file"""
-        return join(self.dataset_root, self.telescope, str(self.pixel))
+        return Path(self.dataset_root, self.telescope, str(self.pixel))
 
     def read(self):
         """Read the content of the source file."""
-        if not isfile(self.source_root):
+        if not self.source_root.is_file():
             return pl.DataFrame(
-                [], schema={"name": str, "Heal_Pix_Position": pl.Int64, "Fpwide": pl.Float64}
+                [], schema={"name": str, "Heal_Pix_Position": pl.Int64}
             )
         return pl.read_csv(self.source_root)
 
@@ -56,19 +58,18 @@ class SourcePixel:
 
     def save(self):
         """Commit current sources to file."""
-        Path(join(self.dataset_root, self.telescope)).mkdir(parents=True, exist_ok=True)
-        with open(self.source_root, "a", encoding="utf-8"):
+        self.dataset_root.parent.mkdir(parents=True, exist_ok=True)
+        with self.dataset_root.open("a", encoding="utf-8"):
             pass
-        # open(self.source_root, "a").close()
-        self.dataset.write_csv(self.source_root)
+        self.dataset.write_csv(self.dataset_root)
 
     def all(self):
         """Get all sources in this pixel."""
         return self.dataset
 
     def clear(self):
-        """Clear the in-memory reperesentation to the dataset."""
-        del self.dataset
+        """Clear the in-memory dataset."""
+        del self.dataset_data
 
 
 class PixelHandler:
@@ -84,11 +85,11 @@ class PixelHandler:
 
     def metadata_file(self):
         """get the path to the metadata file"""
-        return join(self.dataset_root, self.telescope, "catalogue.yaml")
+        return Path(self.dataset_root, self.telescope, "catalogue.yaml")
 
     def get_metadata(self):
         """get the catalogue's metadata, else create an empty metadata file"""
-        if not isfile(self.metadata_file()):
+        if not self.metadata_file().is_file():
             return {"config": {"attributes": []}}
         with open(self.metadata_file(), "r", encoding="utf-8") as fd:
             return yaml.safe_load(fd.read())
@@ -169,15 +170,15 @@ class Search:
             ]
         telescopes = self.search_query["telescopes"]
         available_telescopes = []
-        try:
-            tel_available = next(walk(self.dataset_root))[1]
-        except StopIteration as e:
-            logger.warning("Datasets directory is empty.")
-            raise StopIteration from e
+        root_path = Path(self.dataset_root)
+        if not root_path.is_dir():
+            logger.warning("Datasets directory is missing.")
+            return []
+        tel_available = root_path.iterdir()
         for tel_name in tel_available:
-            if not tel_name or tel_name[0] == ".":
+            if not tel_name.is_dir() or tel_name.name[0] == ".":
                 continue
-            available_telescopes.append(tel_name)
+            available_telescopes.append(tel_name.name)
         if not available_telescopes:
             logger.warning("No matching catalog found")
             raise NameError
@@ -196,7 +197,8 @@ class Search:
             except ValueError:
                 logger.info("Could not evaluate %s %s", search_criteria, minimum)
                 continue
-            data_set = data_set.filter(pl.col(search_criteria) > minimum)
+            if search_criteria in data_set.schema.names():
+                data_set = data_set.filter(pl.col(search_criteria) > minimum)
         return data_set
 
     def stream(self):
@@ -271,15 +273,15 @@ class DataStore:
     def _telescope_args(self, telescopes):
         """Get all telescopes that have been instantiated."""
         available_names = []
-        try:
-            tel_available = next(walk(self.dataset_root))[1]
-        except StopIteration:
-            logger.warning("Datasets directory is empty.")
+        root_path = Path(self.dataset_root)
+        if not root_path.is_dir():
+            logger.warning("Datasets directory is missing.")
             return []
+        tel_available = root_path.iterdir()
         for tel_name in tel_available:
-            if not tel_name or tel_name[0] == ".":
+            if not tel_name.is_dir() or tel_name.name[0] == ".":
                 continue
-            available_names.append(tel_name)
+            available_names.append(tel_name.name)
         if telescopes == "*":
             return available_names
         if isinstance(telescopes, str):
@@ -309,11 +311,11 @@ class DataStore:
     def _load_datasets(self):
         """Load catalogue datasets"""
         for telescope, pixel_handler in self.telescopes.items():
-            tel_root = join(self.dataset_root, telescope)
-            for pixel in listdir(tel_root):
-                if pixel == "catalogue.yaml":
+            tel_root = Path(self.dataset_root, telescope)
+            for pixel in tel_root.iterdir():
+                if pixel.name == "catalogue.yaml":
                     continue
-                source_pixel = SourcePixel(telescope, pixel, self.dataset_root)
+                source_pixel = SourcePixel(telescope, pixel.name, self.dataset_root)
                 pixel_handler.append(source_pixel)
 
     def has_telescope(self, telescope):
@@ -325,4 +327,4 @@ class DataStore:
     def add_telescope(self, telescope):
         """Add a telescope (catalog) to the datastore."""
         if not self.has_telescope(telescope):
-            mkdir(join(self.dataset_root, telescope))
+            Path(self.dataset_root, telescope).mkdir(parents=True, exist_ok=True)
