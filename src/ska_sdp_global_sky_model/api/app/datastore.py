@@ -41,9 +41,7 @@ class SourcePixel:
     def read(self):
         """Read the content of the source file."""
         if not self.source_root.is_file():
-            return pl.DataFrame(
-                [], schema={"name": str, "Heal_Pix_Position": pl.Int64}
-            )
+            return pl.DataFrame([], schema={"name": str, "Heal_Pix_Position": pl.Int64})
         return pl.read_csv(self.source_root)
 
     def add(self, source_new):
