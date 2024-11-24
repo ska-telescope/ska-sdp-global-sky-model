@@ -131,7 +131,6 @@ def process_source_data(
     source_data = source_data.rename({catalog_config["source"]: "name"})
     source_data = source_data.with_columns(pl.col("name").cast(pl.String))
     for tile in source_data["Heal_Pix_Tile"].unique().to_list():
-        logger.info("Processing Tile Pixel %s", tile)
         source_tile = source_data.filter(Heal_Pix_Tile=tile)
         source_tile = source_tile.unique(subset=["name"], keep="first")
         if source_tile.is_empty():

@@ -9,6 +9,7 @@ from os.path import isfile, join
 from pathlib import Path
 
 import polars as pl
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,14 @@ class SourcePixel:
         self.pixel = pixel
         self.telescope = telescope
         self.dataset_root = dataset_root
-        self.dataset = self.read()
+        self.dataset_data = None
+
+    @property
+    def dataset(self):
+        """Avoid loading the dataset until it is needed."""
+        if self.dataset_data is None:
+            self.dataset_data = self.read()
+        return self.dataset_data
 
     @property
     def source_root(self):
@@ -66,11 +74,30 @@ class SourcePixel:
 class PixelHandler:
     """Pixel handler class used to manage pixels."""
 
-    def __init__(self, data_root):
+    def __init__(self, dataset_root, telescope):
         """Pixel Handler init"""
         self.index = 0
         self.pixels = []
-        self.data_root = data_root
+        self.telescope = telescope
+        self.dataset_root = dataset_root
+        self.metadata = self.get_metadata()
+
+    def metadata_file(self):
+        """get the path to the metadata file"""
+        return join(self.dataset_root, self.telescope, "catalogue.yaml")
+
+    def get_metadata(self):
+        """get the catalogue's metadata, else create an empty metadata file"""
+        if not isfile(self.metadata_file()):
+            return {"config": {"attributes": []}}
+        with open(self.metadata_file(), "r", encoding="utf-8") as fd:
+            return yaml.safe_load(fd.read())
+
+    def has_attribute(self, key):
+        """verify that a specific attribute exists within the metadata"""
+        if key in self.metadata["config"]["attributes"]:
+            return True
+        return False
 
     def append(self, source_pixel):
         """Add new source to the list of sources this handler is managing"""
@@ -79,10 +106,9 @@ class PixelHandler:
     def get_or_create_pixel(self, telescope, pixel):
         """Get the pixel by reference if it exists else create it."""
         for source_pixel in self.pixels:
-            if source_pixel.telescope == telescope:
-                if source_pixel.pixel == pixel:
-                    return source_pixel
-        source_pixel = SourcePixel(telescope, pixel, self.data_root)
+            if source_pixel.telescope == telescope and source_pixel.pixel == pixel:
+                return source_pixel
+        source_pixel = SourcePixel(telescope, pixel, self.dataset_root)
         self.pixels.append(source_pixel)
         return source_pixel
 
@@ -114,16 +140,68 @@ class Search:
 
     def __init__(self, dataset_root, search_query):
         """Search init method"""
-        self.pixel_handler = PixelHandler(dataset_root)
+        self.dataset_root = dataset_root
         self.search_query = search_query
+        self.telescopes = self.get_telescopes()
+        self.validate()
+
+    def validate(self):
+        """Validate that the search criteria, remove unknown search terms"""
+        invalid_keys = []
+        for key in self.search_query["advanced_search"].keys():
+            key_available = False
+            for pixel_handler in self.telescopes.values():
+                if pixel_handler.has_attribute(key):
+                    key_available = True
+            if not key_available:
+                invalid_keys.append(key)
+        for key in invalid_keys:
+            logger.info("Removing the following search criteria: %s", invalid_keys)
+            self.search_query["advanced_search"].pop(key)
+
+    def get_telescopes(self):
+        """Validate the search query."""
+        if not self.search_query.get("telescopes", None):
+            self.search_query["telescopes"] = "*"
+        elif isinstance(self.search_query.get("telescopes"), str):
+            self.search_query["telescopes"] = [
+                t.strip() for t in self.search_query["telescopes"].split(",")
+            ]
+        telescopes = self.search_query["telescopes"]
+        available_telescopes = []
+        try:
+            tel_available = next(walk(self.dataset_root))[1]
+        except StopIteration as e:
+            logger.warning("Datasets directory is empty.")
+            raise StopIteration from e
+        for tel_name in tel_available:
+            if not tel_name or tel_name[0] == ".":
+                continue
+            available_telescopes.append(tel_name)
+        if not available_telescopes:
+            logger.warning("No matching catalog found")
+            raise NameError
+        if not telescopes == "*":
+            available_telescopes = list(set(telescopes) & set(available_telescopes))
+        return {
+            telescope: PixelHandler(self.dataset_root, telescope)
+            for telescope in available_telescopes
+        }
+
+    def filter(self, data_set):
+        """Remove items that are less than a given criteria"""
+        for search_criteria, minimum in self.search_query["advanced_search"].items():
+            try:
+                minimum = float(minimum)
+            except ValueError:
+                logger.info("Could not evaluate %s %s", search_criteria, minimum)
+                continue
+            data_set = data_set.filter(pl.col(search_criteria) > minimum)
+        return data_set
 
     def stream(self):
         """Stream all data that matches the search criteria"""
-        telescopes = self.search_query.get("telescopes")
-        if not telescopes:
-            return "No telescope was found"
-        pixels = self.search_query.get("healpix_pixel_rough", None)
-        flux_wide = self.search_query.get("flux_wide", None)
+        pixels = self.search_query.get("healpix_pixel_rough")
         if not pixels.any():
             return "Empty search"
         fine_pixels = self.search_query.get(
@@ -131,17 +209,16 @@ class Search:
         )
         yield "["
         first = True
-        for telescope in telescopes:
+        for telescope, pixel_handler in self.telescopes.items():
             for pixel in pixels:
-                source_pixel = self.pixel_handler.get_or_create_pixel(telescope, pixel)
+                source_pixel = pixel_handler.get_or_create_pixel(telescope, pixel)
                 if fine_pixels.any():
                     all_sources = source_pixel.all().filter(
                         pl.col("Heal_Pix_Position").is_in(fine_pixels)
                     )
                 else:
                     all_sources = source_pixel.all()
-                if flux_wide:
-                    all_sources = all_sources.filter(pl.col("Fpwide") > flux_wide)
+                all_sources = self.filter(all_sources)
                 if all_sources.is_empty():
                     continue
                 if first:
@@ -158,30 +235,41 @@ class DataStore:
     def __init__(self, dataset_root, telescopes="*"):
         """The datastore init method."""
         self.dataset_root = dataset_root
-        self.pixel_handler = PixelHandler(self.dataset_root)
-        self.telescopes = self._telescope_args(telescopes)
+        # self.pixel_handler = PixelHandler(self.dataset_root)
+        self.telescopes = {
+            telescope: PixelHandler(self.dataset_root, telescope)
+            for telescope in self._telescope_args(telescopes)
+        }
         self._load_datasets()
 
     def add_source(self, source, telescope, pixel):
         """Add a source or sources to the datastore"""
-        source_pixel = self.pixel_handler.get_or_create_pixel(telescope, pixel)
+        if telescope not in self.telescopes.keys():
+            self.telescopes[telescope] = PixelHandler(self.dataset_root, telescope)
+        pixel_handler = self.telescopes[telescope]
+        source_pixel = pixel_handler.get_or_create_pixel(telescope, pixel)
         source_pixel.add(source)
 
     def add_dataset(self, sources, telescope, pixel):
         """Add a source or sources to the datastore."""
-        source_pixel = self.pixel_handler.get_or_create_pixel(telescope, pixel)
+        if telescope not in self.telescopes.keys():
+            self.telescopes[telescope] = PixelHandler(self.dataset_root, telescope)
+        pixel_handler = self.telescopes[telescope]
+        source_pixel = pixel_handler.get_or_create_pixel(telescope, pixel)
         source_pixel.add(sources)
 
     def save(self):
         """Commit all data to file"""
-        self.pixel_handler.save()
+        for pixel_handler in self.telescopes.values():
+            pixel_handler.save()
 
     def query_pxiels(self, search_query):
         """Instantiate a search"""
-        search_query["telescopes"] = search_query.get("telescopes", self.telescopes)
+        search_query["telescopes"] = search_query.get("telescopes", self.telescopes.keys())
         return Search(self.dataset_root, search_query)
 
     def _telescope_args(self, telescopes):
+        """Get all telescopes that have been instantiated."""
         available_names = []
         try:
             tel_available = next(walk(self.dataset_root))[1]
@@ -201,27 +289,36 @@ class DataStore:
 
     def all(self, pixel_handler=None):
         """Get all sources."""
-        if not pixel_handler:
-            pixel_handler = self.pixel_handler
-        sources = pixel_handler[0].all()
-        for i in range(1, len(pixel_handler)):
-            sources_pixel = pixel_handler[i].all()
-            for col_name, _ in sources_pixel.schema.items():
-                if col_name not in sources.schema.names():
-                    sources = sources.with_columns(pl.lit(None).alias(col_name))
-            sources = sources.update(sources_pixel, on="name", how="full")
+        if pixel_handler:
+            pixel_handlers = [pixel_handler]
+        else:
+            pixel_handlers = self.telescopes.values()
+        sources = None
+        for ph in pixel_handlers:
+            for sources_pixel in ph:
+                sources_pixel = sources_pixel.all()
+                if sources is None:
+                    sources = sources_pixel
+                    continue
+                for col_name, _ in sources_pixel.schema.items():
+                    if col_name not in sources.schema.names():
+                        sources = sources.with_columns(pl.lit(None).alias(col_name))
+                sources = sources.update(sources_pixel, on="name", how="full")
         return sources
 
     def _load_datasets(self):
-        for telescope in self.telescopes:
+        """Load catalogue datasets"""
+        for telescope, pixel_handler in self.telescopes.items():
             tel_root = join(self.dataset_root, telescope)
             for pixel in listdir(tel_root):
+                if pixel == "catalogue.yaml":
+                    continue
                 source_pixel = SourcePixel(telescope, pixel, self.dataset_root)
-                self.pixel_handler.append(source_pixel)
+                pixel_handler.append(source_pixel)
 
     def has_telescope(self, telescope):
         """Check whether a catalogue is currently present in the datastore"""
-        if telescope in self.telescopes:
+        if telescope in self.telescopes.keys():
             return True
         return False
 
