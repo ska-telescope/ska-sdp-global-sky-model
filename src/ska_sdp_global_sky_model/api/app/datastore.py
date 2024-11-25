@@ -60,9 +60,12 @@ class SourcePixel:
         with self.dataset_root.open("a", encoding="utf-8") as file:
             self.dataset.write_csv(file)
 
-    def all(self):
+    def all(self, defaults: list[str] | None = None):
         """Get all sources in this pixel."""
-        return self.dataset
+        if defaults is None:
+            return self.dataset
+        defaults = list(set(defaults) & set(self.dataset.schema.keys()))
+        return self.dataset.select(["Heal_Pix_Position"] + defaults)
 
     def clear(self):
         """Clear the in-memory dataset."""
@@ -83,6 +86,12 @@ class PixelHandler:
     def metadata_file(self):
         """get the path to the metadata file"""
         return Path(self.dataset_root, self.telescope, "catalogue.yaml")
+
+    def defaults(self):
+        """get the default catalgue attributes"""
+        if "default-attributes" in self.metadata["config"]:
+            return self.metadata["config"]["default-attributes"]
+        return self.metadata["config"]["attributes"]
 
     def get_metadata(self):
         """get the catalogue's metadata, else create an empty metadata file"""
@@ -209,14 +218,15 @@ class Search:
         yield "["
         first = True
         for telescope, pixel_handler in self.telescopes.items():
+            defaults = pixel_handler.defaults()
             for pixel in pixels:
                 source_pixel = pixel_handler.get_or_create_pixel(telescope, pixel)
                 if fine_pixels.any():
-                    all_sources = source_pixel.all().filter(
+                    all_sources = source_pixel.all(defaults=defaults).filter(
                         pl.col("Heal_Pix_Position").is_in(fine_pixels)
                     )
                 else:
-                    all_sources = source_pixel.all()
+                    all_sources = source_pixel.all(defaults=defaults)
                 all_sources = self.filter(all_sources)
                 if all_sources.is_empty():
                     continue
@@ -229,7 +239,7 @@ class Search:
 
 
 class DataStore:
-    """ "Data Store handle"""
+    """Data Store handle"""
 
     def __init__(self, dataset_root, telescopes="*"):
         """The datastore init method."""
