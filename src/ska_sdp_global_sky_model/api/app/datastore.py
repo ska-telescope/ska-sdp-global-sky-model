@@ -90,7 +90,7 @@ class PixelHandler:
 
     def defaults(self):
         """get the default catalgue attributes"""
-        if "default-attributes" in self.metadata["config"].keys():
+        if "default-attributes" in self.metadata["config"]:
             return self.metadata["config"]["default-attributes"]
         return self.metadata["config"]["attributes"]
 
