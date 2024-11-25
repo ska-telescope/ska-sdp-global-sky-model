@@ -61,9 +61,9 @@ class SourcePixel:
             pass
         self.dataset.write_csv(self.dataset_root)
 
-    def all(self, defaults: list = "*"):
+    def all(self, defaults: list[str] | None = None):
         """Get all sources in this pixel."""
-        if defaults == "*":
+        if defaults is None:
             return self.dataset
         defaults = list(set(defaults) & set(self.dataset.schema.keys()))
         return self.dataset.select(["Heal_Pix_Position"] + defaults)
