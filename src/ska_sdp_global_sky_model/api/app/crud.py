@@ -4,24 +4,20 @@
 CRUD functionality goes here.
 """
 
-import logging
-
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord
 from astropy_healpix import HEALPix
 
 from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
 
-logger = logging.getLogger(__name__)
-
 
 def get_local_sky_model(
     ds,
     ra: list,
     dec: list,
-    flux_wide: float,
     telescope: str,
     fov: float,
+    advanced_search: dict,
 ):
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
@@ -36,12 +32,11 @@ def get_local_sky_model(
             the boundaries of the desired LSM region.
         dec (list[float]): A list containing two declination values (in degrees) that define the \
             boundaries of the desired LSM region.
-        flux_wide (float): Placeholder for future implementation of wide-field flux \
-            of the observation (in Jy). Currently not used.
         telescope (str): Placeholder for future implementation of the telescope name \
             being used for the observation. Currently not used.
         fov (float): Placeholder for future implementation of the telescope's field of\
             view (in arcminutes). Currently not used.
+        advanced_search (dict): Advanced search parameters
 
     Returns:
         dict: A dictionary containing the LSM data. The structure of the dictionary is:
@@ -72,8 +67,8 @@ def get_local_sky_model(
         {
             "healpix_pixel_rough": hp_pixel_course,
             "hp_pixel_fine": hp_pixel_fine,
-            "flux_wide": flux_wide,
             "telescopes": telescope.split(","),
+            "advanced_search": advanced_search,
         }
     )
     return result

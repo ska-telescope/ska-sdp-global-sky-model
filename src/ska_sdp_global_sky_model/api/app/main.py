@@ -10,7 +10,7 @@ import os
 import tempfile
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -77,9 +77,9 @@ def get_point_sources(ds: DataStore = Depends(get_ds)):
 
 @app.get("/local_sky_model", response_class=StreamingResponse)
 async def get_local_sky_model_endpoint(
+    request: Request,
     ra: str,
     dec: str,
-    flux_wide: float,
     telescope: str,
     fov: float,
     ds: DataStore = Depends(get_ds),
@@ -99,23 +99,30 @@ async def get_local_sky_model_endpoint(
         dict: A dictionary containing the local sky model information.
 
         The dictionary includes the following keys:
+            - request: Allow users to free-form use search criteria
             - ra: The right ascension provided as input.
             - dec: The declination provided as input.
-            - flux_wide: The wide-field flux provided as input.
             - telescope: The telescope name provided as input.
             - fov: The field of view provided as input.
             - ds: ......
     """
+    advanced_search = {}
+    for key, value in request.query_params.items():
+        if key in ["ra", "dec", "fov", "telescope"]:
+            continue
+        advanced_search[key] = value
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
 dec:%s, flux_wide:%s, telescope:%s, fov:%s",
         ra,
         dec,
-        flux_wide,
         telescope,
         fov,
+        advanced_search,
     )
-    local_model = get_local_sky_model(ds, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
+    local_model = get_local_sky_model(
+        ds, ra.split(";"), dec.split(";"), telescope, fov, advanced_search
+    )
     return StreamingResponse(local_model.stream(), media_type="text/event-stream")
 
 
@@ -140,7 +147,6 @@ async def upload_rcal(
         or an error message if there is an issue with the catalog ingest.
     """
     try:
-
         if file.content_type != "text/csv":
             raise HTTPException(
                 status_code=400, detail="Invalid file type. Please upload a CSV file."
