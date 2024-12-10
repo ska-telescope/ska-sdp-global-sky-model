@@ -103,7 +103,7 @@ Request Parameters:
       - Float
       - Yes
     * - ``advanced_search_n``
-      - advanced_search_n could be "flux_wide" Wide-field flux of the observation in Jy (Jansky). Which would imply only return sources with higher than the specified flux_wide stated.
+      - This parameter can take a value such as "flux_wide", which represents the wide-field flux of the observation in Jansky (Jy). If specified, it will filter results to return only sources with a flux_wide value higher than the given threshold.
       - Float
       - Yes
 
@@ -206,5 +206,6 @@ When a new Source is added to the low resolution pixel, then the it is joined to
 Local Sky Model:
 ~~~~~~~~~~~~~~~~
 
-On local sky model search, the appropriate rough pixels which fall within the cone search are selected.
-These are then further filtered by their precise pixels.
+OWhen performing a local sky model search, the following steps are taken:
+Initial Selection: Rough pixels within the cone search area are identified.
+Refinement: These rough pixels are then filtered further based on their precise pixel locations.
