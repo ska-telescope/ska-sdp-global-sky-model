@@ -157,7 +157,7 @@ The actual data for the local sky model will be populated by the backend impleme
 How It Works:
 ~~~~~~~~~~~~~
 
-Under the hood, the Global Sky Model is using HEALPix coordinates and the data is managed by Polars which implement efficient DataFrames.
+Under the hood, the Global Sky Model is using HEALPix coordinates and the data is managed by Polars which implements efficient DataFrames.
 
 The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree.
 The resolution can be set in the conf.py. #TODO: this resolution should be set in the catalogue config.
@@ -201,7 +201,7 @@ The dataset_data will point to the DataFrame containing all the sources.
                         self.dataset = self.dataset.with_columns(pl.lit(None).alias(col_name))
                 self.dataset = self.dataset.update(source_new, on="name", how="full")
 
-When a new Source is added to the low resolution pixel, then the it is joined to the DataFrame.
+When a new Source is added to the low resolution pixel, then it is joined to the DataFrame.
 
 Local Sky Model:
 ~~~~~~~~~~~~~~~~
