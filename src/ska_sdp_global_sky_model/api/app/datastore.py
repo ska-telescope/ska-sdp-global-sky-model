@@ -56,10 +56,9 @@ class SourcePixel:
 
     def save(self):
         """Commit current sources to file."""
-        self.source_root.parent.mkdir(parents=True, exist_ok=True)
-        with self.dataset_root.open("a", encoding="utf-8"):
-            pass
-        self.dataset.write_csv(self.dataset_root)
+        self.dataset_root.parent.mkdir(parents=True, exist_ok=True)
+        with self.dataset_root.open("a", encoding="utf-8") as file:
+            self.dataset.write_csv(file)
 
     def all(self, defaults: list[str] | None = None):
         """Get all sources in this pixel."""
@@ -90,7 +89,7 @@ class PixelHandler:
 
     def defaults(self):
         """get the default catalgue attributes"""
-        if "default-attributes" in self.metadata["config"].keys():
+        if "default-attributes" in self.metadata["config"]:
             return self.metadata["config"]["default-attributes"]
         return self.metadata["config"]["attributes"]
 
@@ -98,7 +97,7 @@ class PixelHandler:
         """get the catalogue's metadata, else create an empty metadata file"""
         if not self.metadata_file().is_file():
             return {"config": {"attributes": []}}
-        with open(self.metadata_file(), "r", encoding="utf-8") as fd:
+        with self.metadata_file().open("r", encoding="utf-8") as fd:
             return yaml.safe_load(fd.read())
 
     def has_attribute(self, key):
