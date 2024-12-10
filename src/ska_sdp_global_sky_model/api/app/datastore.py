@@ -56,7 +56,7 @@ class SourcePixel:
 
     def save(self):
         """Commit current sources to file."""
-        self.dataset_root.parent.mkdir(parents=True, exist_ok=True)
+        self.source_root.parent.mkdir(parents=True, exist_ok=True)
         with self.dataset_root.open("a", encoding="utf-8"):
             pass
         self.dataset.write_csv(self.dataset_root)
