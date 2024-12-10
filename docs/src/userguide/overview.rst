@@ -94,16 +94,16 @@ Request Parameters:
       - Declination of the observation point in degrees.
       - Float
       - Yes
-    * - ``flux_wide``
-      - Wide-field flux of the observation in Jy (Jansky).
-      - Float
-      - Yes
     * - ``telescope``
       - Name of the telescope being used for the observation.
       - String
       - Yes
     * - ``fov``
       - Field of view of the telescope in arcminutes.
+      - Float
+      - Yes
+    * - ``advanced_search_n``
+      - This parameter can take a value such as "flux_wide", which represents the wide-field flux of the observation in Jansky (Jy). If specified, it will filter results to return only sources with a flux_wide value higher than the given threshold.
       - Float
       - Yes
 
@@ -118,11 +118,12 @@ The endpoint returns a JSON object representing the local sky model.
     {
     "ra": (float),  // Right ascension provided as input.
     "dec": (float),  // Declination provided as input.
-    "flux_wide": (float),  // Wide-field flux provided as input.
     "telescope": (string),  // Telescope name provided as input.
     "fov": (float),  // Field of view provided as input.
     "local_data": (string),  // Placeholder for data specific to the local sky model. 
-                                // This data will be populated by the backend.
+    "advanced_search_1": (float),  // Advanced search criteria 1.
+    ...
+    "advanced_search_n": (float), // Advanced search criteria n.
     }
 
 
@@ -156,101 +157,55 @@ The actual data for the local sky model will be populated by the backend impleme
 How It Works:
 ~~~~~~~~~~~~~
 
-Under the hood, the Global Sky Model is using HEALPix Alchemy, an extension to SQL Alchemy that adds region and image arithmetic 
-to PostgreSQL databases.
+Under the hood, the Global Sky Model is using HEALPix coordinates and the data is managed by Polars which implements efficient DataFrames.
 
-The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree. 
+The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree.
+The resolution can be set in the conf.py. #TODO: this resolution should be set in the catalogue config.
 When a source is ingested into the postgres database, its position is mapped to one of these HEALPix pixels. This establishes 
 a relationship between areas of the sky, and the sources they contain.
 
 .. code-block:: python
-    class WholeSky(Base):
-      """
-      Represents a collection of SkyTiles making up the whole sky.
-      """
+    class SourcePixel:
+    """The manager for a pixel in source"""
 
-      __table_args__ = {"schema": DB_SCHEMA}
+        def __init__(self, telescope, pixel, dataset_root):
+            """Source Pixel init"""
+            self.pixel = pixel
+            self.telescope = telescope
+            self.dataset_root = dataset_root
+            self.dataset_data = None
 
-      id = Column(Integer, primary_key=True, autoincrement=False)
-      tiles = relationship(
-          lambda: SkyTile, order_by="SkyTile.id", cascade="all, delete, delete-orphan"
-      )
+    class PixelHandler:
+        """Pixel handler class used to manage pixels."""
 
-    class SkyTile(Base):
-        """
-        A HEALPix tile that is a component of the whole sky.
-        """
+        def __init__(self, dataset_root, telescope):
+            """Pixel Handler init"""
+            self.index = 0
+            self.pixels = []
+            self.telescope = telescope
+            self.dataset_root = dataset_root
+            self.metadata = self.get_metadata()
 
-        __table_args__ = {"schema": DB_SCHEMA}
-
-        id = Column(ForeignKey(WholeSky.id, ondelete="CASCADE"), primary_key=True)
-        hpx = Column(Tile, index=True)
-        pk = Column(Integer, primary_key=True, autoincrement=False, unique=True)
-        sources = relationship("Source", back_populates="tile")
-
-Each row in the Source table, is a source in our catalog, whose position is represented by a HEALPix point:
+Each low resolution pixel is handled by a SourcePixel, these are aggregated by a PixelHandler, which aggregates the pixels within a catalogue configuration.
+The dataset_data will point to the DataFrame containing all the sources.
 
 .. code-block:: python
 
-    class Source(Base):
+       def add(self, source_new):
+            """Add new sources to the current pixel."""
+            if self.dataset.is_empty():
+                self.dataset = source_new
+            else:
+                for col_name, _ in source_new.schema.items():
+                    if col_name not in self.dataset.schema.names():
+                        self.dataset = self.dataset.with_columns(pl.lit(None).alias(col_name))
+                self.dataset = self.dataset.update(source_new, on="name", how="full")
 
-      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-      Heal_Pix_Position = Column(Point, index=True, nullable=False)
-      tile_id = Column(Integer, ForeignKey(SkyTile.pk), nullable=False)
-      tile = relationship(SkyTile, back_populates="sources")
+When a new Source is added to the low resolution pixel, then it is joined to the DataFrame.
 
-Upon requesting a local sky model, a cone search is carried out with the given parameters. The cone is constructed from the 
-HEALPix pixels that overlap (both fully and partially) with the defined area of interest. All the sources that satisfy the criteria
-set out in the request for a local sky model are returned by the following query:
+Local Sky Model:
+~~~~~~~~~~~~~~~~
 
-.. code-block:: python
-
-    query = (
-        db.query(SkyTile, Source, narrowband_data, wideband_data)
-        .filter(SkyTile.pk.in_(tiles_int))
-        .filter(wideband_data.Flux_Wide > flux_wide)
-        .join(SkyTile.sources)
-        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
-        .outerjoin(wideband_data, Source.id == wideband_data.source)
-        .all()
-    )
-
-
-Precise Local Sky Model:
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Alternatively, we provide the `precise_local_sky_model` endpoint that behaves similarly to the above endpoint, but does not suffer from the aliasing effects due to the pre-pixelisation of the sky that occurs in the above scenario.
-
-
-
-How It Works:
-~~~~~~~~~~~~~
-
-Under the hood, the Global Sky Model is using HEALPix Alchemy, an extension to SQL Alchemy that adds region and image arithmetic to PostgreSQL databases.
-
-Each row in the Source table, represents a point in our catalog, represented by a HEALPix point:
-
-.. code-block:: python
-
-    class Source(Base):
-
-      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-      Heal_Pix_Position = Column(Point, index=True, nullable=False)
-
-Upon requesting a local sky model, a cone search is carried out with the given parameters. The cone is constructed from a series of multi-resolution HEALPix tiles that cover the region of interest.
-
-.. image:: ../images/cone_search.png
-   :width: 100%
-
-.. code-block:: python
-  class Field(Base):
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tiles = relationship(lambda: FieldTile, order_by='FieldTile.id', cascade="all, delete, delete-orphan")
-
-  class FieldTile(Base):
-
-    id = Column(ForeignKey(Field.id, ondelete='CASCADE'), primary_key=True)
-    hpx = Column(Tile, index=True)
-
-Each row of the Field table represents an area over which we are returning a local sky model. Each row of the FieldTile table represents a mutli-resolution HEALPix tile that is contained within the corresponding Field. There is a one-to-many mapping between Field and FieldTile.
+OWhen performing a local sky model search, the following steps are taken:
+Initial Selection: Rough pixels within the cone search area are identified.
+Refinement: These rough pixels are then filtered further based on their precise pixel locations.

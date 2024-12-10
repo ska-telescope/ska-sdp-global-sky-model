@@ -39,8 +39,7 @@ Make any desired changes to the values files. A local values file can be specifi
 
 Once the install has completed, you will have the following running:
 
-* The Global Sky Model PostgreSQL database.
-* The Global Sky Model FastAPI 
+* The Global Sky Model FastAPI
 
 Running ``minikube service`` will return a URL to connect to the database via the API.
 
