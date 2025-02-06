@@ -2,13 +2,12 @@
 Gleam Catalog ingest
 """
 
-import logging
-from itertools import zip_longest
-
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
-from pathlib import Path
+
+import logging
+from itertools import zip_longest
 
 import polars as pl
 from astropy.coordinates import SkyCoord
@@ -35,7 +34,7 @@ def source_file(
     heading_missing = heading_missing or []
     heading_alias = heading_alias or {}
 
-    path = Path(DATASET_ROOT) / file_location
+    path = DATASET_ROOT / file_location
 
     # Get the file size in bytes
     file_size = path.stat().st_size
@@ -133,7 +132,7 @@ def process_source_data(
         source_tile = source_tile.unique(subset=["name"], keep="first")
         if source_tile.is_empty():
             continue
-        sp = SourcePixel(telescope, tile, ds.dataset_root / catalog_config["name"])
+        sp = SourcePixel(telescope, tile, ds.dataset_root)
         sp.read()
         sp.add(source_tile)
         sp.save()

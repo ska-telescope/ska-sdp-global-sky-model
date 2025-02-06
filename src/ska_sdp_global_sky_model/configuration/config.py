@@ -18,20 +18,22 @@ if not ENV_FILE.exists():
 config: Config = Config(ENV_FILE)
 
 ska_ser_logging.configure_logging(
-    logging.DEBUG if config("API_VERBOSE", default="false") == "true" else logging.WARNING
+    logging.DEBUG if config("API_VERBOSE", default="false") == "true" else logging.INFO
 )
 logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 API_BASE_PATH: str = config("API_BASE_PATH", default="")
-DATASET_ROOT: str = config("DATASET_ROOT", default="datasets/")
+DATASET_ROOT: Path = Path(config("DATASET_ROOT", default="datasets/"))
+TMDATA_SOURCE: str = config("TMDATA_SOURCE", default="")
+TMDATA_KEYS: list[str] = config("TMDATA_KEYS", default="").split(',')
 
 
 # HEALPix
 NSIDE: int = config("NSIDE", default=128)
 NSIDE_PIXEL: int = 16
 
-DATASTORE: DataStore = DataStore(Path(DATASET_ROOT))
+DATASTORE: DataStore = DataStore(DATASET_ROOT)
 
 
 def get_ds():

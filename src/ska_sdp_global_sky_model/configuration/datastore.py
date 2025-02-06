@@ -60,7 +60,7 @@ class SourcePixel:
         """Commit current sources to file."""
         logger.info("Writing: %s", self.source_root)
         self.source_root.parent.mkdir(parents=True, exist_ok=True)
-        with self.source_root.open("a", encoding="utf-8") as file:
+        with self.source_root.open("w", encoding="utf-8") as file:
             self.dataset.write_csv(file)
 
     def all(self, defaults: list[str] | None = None):
@@ -254,6 +254,7 @@ class DataStore:
 
     def reload(self):
         """Reload the datasets"""
+        logger.info("Reloading datasets...")
         self.telescopes = {
             telescope: PixelHandler(self.dataset_root, telescope)
             for telescope in self._telescope_args(self._telescopes_search)
@@ -330,6 +331,7 @@ class DataStore:
         """Load catalogue datasets"""
         for telescope, pixel_handler in self.telescopes.items():
             tel_root = Path(self.dataset_root, telescope)
+            print(tel_root)
             for pixel in tel_root.iterdir():
                 if pixel.name == "catalogue.yaml":
                     continue

@@ -10,10 +10,12 @@ import logging
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTasks
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.crud import get_local_sky_model
 from ska_sdp_global_sky_model.configuration.config import API_BASE_PATH, DataStore, get_ds
+from ska_sdp_global_sky_model.utilities.helper_functions import download_data_files
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,20 @@ app.add_middleware(
 )
 
 
+def load_data():
+    """Force a reload of the Datastore data"""
+    download_data_files()
+    get_ds().reload()
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Run startup tasks."""
+    background_tasks = BackgroundTasks()
+    background_tasks.add_task(load_data)
+    await background_tasks()
+
+
 @app.get("/ping", summary="Ping the API")
 def ping():
     """Returns {"ping": "live"} when called"""
@@ -44,6 +60,13 @@ def get_point_sources(ds: DataStore = Depends(get_ds)):
     logger.info("Retrieving all point sources...")
     sources = ds.all()
     return sources.write_json()
+
+
+@app.get("/datastore/reload", summary="Reload the Datastore from disk", status_code=201)
+def datastore_reload(background_tasks: BackgroundTasks):
+    """Retrieve all point sources"""
+    background_tasks.add_task(load_data)
+    return {"status": "Reload started"}
 
 
 @app.get("/local_sky_model", response_class=StreamingResponse)

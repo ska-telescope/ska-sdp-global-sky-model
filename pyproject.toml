@@ -29,6 +29,7 @@ orjson = "^3.10.15"
 python-multipart = "^0.0.9"
 polars = "^1.9.0"
 astropy-healpix = "^1.0.3"
+ska-telmodel = "^1.19.8"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.13.2"
