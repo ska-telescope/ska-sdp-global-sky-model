@@ -4,33 +4,34 @@ Configure variables to be used.
 """
 
 import logging
-import os
 from pathlib import Path
 
 import ska_ser_logging
 from starlette.config import Config
 
-from ska_sdp_global_sky_model.api.app.datastore import DataStore
+from ska_sdp_global_sky_model.configuration.datastore import DataStore
 
-ENV_FILE = Path(".env")
-DATASET_ROOT = "datasets/"
+ENV_FILE: Path | None = Path(".env")
 if not ENV_FILE.exists():
     ENV_FILE = None
 
-config = Config(ENV_FILE)
+config: Config = Config(ENV_FILE)
 
 ska_ser_logging.configure_logging(
-    logging.DEBUG if os.environ.get("API_VERBOSE", "false") == "true" else logging.WARNING
+    logging.DEBUG if config("API_VERBOSE", default="false") == "true" else logging.WARNING
 )
 logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
+
+API_BASE_PATH: str = config("API_BASE_PATH", default="")
+DATASET_ROOT: str = config("DATASET_ROOT", default="datasets/")
 
 
 # HEALPix
 NSIDE: int = config("NSIDE", default=128)
 NSIDE_PIXEL: int = 16
 
-DATASTORE: DataStore = DataStore(DATASET_ROOT)
+DATASTORE: DataStore = DataStore(Path(DATASET_ROOT))
 
 
 def get_ds():
@@ -102,7 +103,7 @@ RACS = {
         "agent": "file",
         "file_location": [
             {
-                "key": "./datasets/AS110_Derived_Catalogue_racs_mid_components_v01_15373.csv",
+                "key": "ingest/AS110_Derived_Catalogue_racs_mid_components_v01_15373.csv",
                 "bands": [1367],
                 "heading_alias": {
                     "ra": "RAJ2000",
@@ -125,8 +126,7 @@ RACS = {
                 "heading_missing": ["resm1367", "resstd1367", "bck1367"],
             },
             {
-                "key": "./datasets/AS110_Derived_Catalogue_racs_dr1_gaussians"
-                "_galacticcut_v2021_08_v02_5723.csv",
+                "key": "ingest/AS110_Derived_Catalogue_racs_dr1_gaussians_galacticcut_v2021_08_v02_5723.csv",
                 "bands": [887],
                 "heading_alias": {
                     "ra": "RAJ2000",

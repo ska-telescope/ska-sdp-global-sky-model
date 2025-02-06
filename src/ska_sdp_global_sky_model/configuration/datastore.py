@@ -42,6 +42,8 @@ class SourcePixel:
         """Read the content of the source file."""
         if not self.source_root.is_file():
             return pl.DataFrame([], schema={"name": str, "Heal_Pix_Position": pl.Int64})
+
+        logger.info("Reading existing dataset: %s", self.source_root)
         return pl.read_csv(self.source_root)
 
     def add(self, source_new):
@@ -56,8 +58,9 @@ class SourcePixel:
 
     def save(self):
         """Commit current sources to file."""
-        self.dataset_root.parent.mkdir(parents=True, exist_ok=True)
-        with self.dataset_root.open("a", encoding="utf-8") as file:
+        logger.info("Writing: %s", self.source_root)
+        self.source_root.parent.mkdir(parents=True, exist_ok=True)
+        with self.source_root.open("a", encoding="utf-8") as file:
             self.dataset.write_csv(file)
 
     def all(self, defaults: list[str] | None = None):
@@ -245,9 +248,15 @@ class DataStore:
         """The datastore init method."""
         self.dataset_root = dataset_root
         # self.pixel_handler = PixelHandler(self.dataset_root)
+        self._telescopes_search = telescopes
+        self.telescopes = {}
+        self.reload()
+
+    def reload(self):
+        """Reload the datasets"""
         self.telescopes = {
             telescope: PixelHandler(self.dataset_root, telescope)
-            for telescope in self._telescope_args(telescopes)
+            for telescope in self._telescope_args(self._telescopes_search)
         }
         self._load_datasets()
 
@@ -286,6 +295,8 @@ class DataStore:
             return []
         tel_available = root_path.iterdir()
         for tel_name in tel_available:
+            if "ingest" in str(tel_name):
+                continue
             if not tel_name.is_dir() or tel_name.name[0] == ".":
                 continue
             available_names.append(tel_name.name)

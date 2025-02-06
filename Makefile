@@ -18,30 +18,40 @@ include .make/k8s.mk
 PYTHON_LINE_LENGTH = 99
 
 build:
-	docker compose pull
-	docker compose build
+	docker build \
+		--target dev \
+		--tag ska-sdp-gsm .
 
 run:
-	docker compose up -d
+	mkdir -p gsm_local_data
+	docker run \
+		--publish 8000:80 \
+		--env API_VERBOSE=true \
+		--env DATASET_ROOT=gsm_local_data/ \
+		--volume ${PWD}/gsm_local_data:/usr/src/ska_sdp_global_sky_model/datasets \
+		--volume ${PWD}/src/ska_sdp_global_sky_model:/usr/src/ska_sdp_global_sky_model \
+		ska-sdp-gsm
 
-backup-gsm-db:
-	mkdir -p assets
-	docker compose exec db pg_dump postgres > assets/dump.sql
+run-local:
+	DATASET_ROOT=gsm_local_data \
+		poetry run \
+			uvicorn ska_sdp_global_sky_model.api.main:app \
+				--reload \
+				--host 127.0.01 \
+				--port 8000
 
-compress-gsm-db:
-	gzip -9 assets/dump.sql
-
-decompress-gsm-db:
-	gunzip assets/dump.sql.gz -f
-
-restore-gsm-db:
-	sleep 1
-	docker compose exec -T db psql postgres < assets/dump.sql
+ingest:
+	DATASET_ROOT=gsm_local_data \
+		poetry run gsm-ingest
 
 upload-gsm-backup:
-	ska-telmodel upload --repo=ska-telescope/sdp/ska-sdp-global-sky-model assets/dump.sql.gz ska/gsm/global_dump.sql.gz
+	ska-telmodel upload \
+		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
+		assets/dump.sql.gz ska/gsm/global_dump.sql.gz
 
 download-gsm-backup:
-	ska-telmodel --sources=gitlab://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model?gsm-data#tmdata cp ska/gsm/global_dump.sql.gz assets/dump.sql.gz
-
-make-dev-db: download-gsm-backup decompress-gsm-db restore-gsm-db
+	ska-telmodel \
+		--sources=gitlab://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model?gsm-data#tmdata \
+		cp \
+			ska/gsm/global_dump.sql.gz \
+			assets/dump.sql.gz
