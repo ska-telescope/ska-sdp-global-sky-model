@@ -126,7 +126,8 @@ RACS = {
                 "heading_missing": ["resm1367", "resstd1367", "bck1367"],
             },
             {
-                "key": "ingest/AS110_Derived_Catalogue_racs_dr1_gaussians_galacticcut_v2021_08_v02_5723.csv",
+                "key": "ingest/AS110_Derived_Catalogue_racs_dr1_gaussians_"
+                "galacticcut_v2021_08_v02_5723.csv",
                 "bands": [887],
                 "heading_alias": {
                     "ra": "RAJ2000",

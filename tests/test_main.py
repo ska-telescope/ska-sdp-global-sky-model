@@ -8,7 +8,7 @@ from json import loads
 import pytest
 from fastapi.testclient import TestClient
 
-from ska_sdp_global_sky_model.api.app.main import DataStore, app, get_ds
+from ska_sdp_global_sky_model.api.main import DataStore, app, get_ds
 
 TEST_DATASTORE: DataStore = DataStore("tests/datasets")
 

@@ -102,7 +102,7 @@ def get_data_catalog_selector(ingest: dict):
                     heading_missing=ingest_set["heading_missing"],
                 )
         case _:
-            logger.error("Unknown agent type: '%s'", ingest['agent'])
+            logger.error("Unknown agent type: '%s'", ingest["agent"])
 
 
 def process_source_data(
