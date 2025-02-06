@@ -26,7 +26,7 @@ logger.info("Logging started for ska-sdp-global-sky-model-api")
 API_BASE_PATH: str = config("API_BASE_PATH", default="")
 DATASET_ROOT: Path = Path(config("DATASET_ROOT", default="datasets/"))
 TMDATA_SOURCE: str = config("TMDATA_SOURCE", default="")
-TMDATA_KEYS: list[str] = config("TMDATA_KEYS", default="").split(',')
+TMDATA_KEYS: list[str] = config("TMDATA_KEYS", default="").split(",")
 
 
 # HEALPix

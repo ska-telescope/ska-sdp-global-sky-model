@@ -1,13 +1,15 @@
 """ This module contains helper functions for the ska_sdp_global_sky_model """
 
+import logging
+import tarfile
+
+import httpx
 from astropy.coordinates import SkyCoord
 from numpy import pi
 from ska_telmodel.data import TMData
-from ska_sdp_global_sky_model.configuration.config import TMDATA_SOURCE, TMDATA_KEYS, DATASET_ROOT
 
-import logging
-import httpx
-import tarfile
+from ska_sdp_global_sky_model.configuration.config import DATASET_ROOT, TMDATA_KEYS, TMDATA_SOURCE
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,29 +19,28 @@ def download_data_files():
     tmdata = TMData([TMDATA_SOURCE])
 
     for key in TMDATA_KEYS:
-        dest = DATASET_ROOT / key.split('/')[-1]
+        dest = DATASET_ROOT / key.split("/")[-1]
         logger.info("Downloading '%s' to '%s'", key, dest)
         if not dest.exists():
             logger.info("Downloading file")
             # this is what it should use, but it be broken
             # tmdata.get(key).copy(dest)
-            download_link = tmdata.get(key).get_link_contents()['downloadUrl']
+            download_link = tmdata.get(key).get_link_contents()["downloadUrl"]
             with httpx.stream("GET", download_link) as r:
-                with dest.open('wb') as file:
+                with dest.open("wb") as file:
                     for data in r.iter_bytes():
                         file.write(data)
         else:
             logger.info("File exists")
 
-        file_name = dest.name.split('_')[0]
+        file_name = dest.name.split("_")[0]
 
         extracted_folder = DATASET_ROOT / file_name
 
         if not extracted_folder.exists():
             logger.info("Extracting dataset...")
-            tar = tarfile.open(dest, mode="r:gz")
-            tar.extractall(DATASET_ROOT)
-            tar.close()
+            with tarfile.open(dest, mode="r:gz") as tar:
+                tar.extractall(DATASET_ROOT)
 
 
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:
