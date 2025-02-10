@@ -120,7 +120,7 @@ The endpoint returns a JSON object representing the local sky model.
     "dec": (float),  // Declination provided as input.
     "telescope": (string),  // Telescope name provided as input.
     "fov": (float),  // Field of view provided as input.
-    "local_data": (string),  // Placeholder for data specific to the local sky model. 
+    "local_data": (string),  // Placeholder for data specific to the local sky model.
     "advanced_search_1": (float),  // Advanced search criteria 1.
     ...
     "advanced_search_n": (float), // Advanced search criteria n.
@@ -150,7 +150,7 @@ This example request retrieves a local sky model for an observation with the fol
 * Telescope: HST
 * Field of view: 2.0 degrees
 
-The response will be a JSON object containing the provided input parameters and a placeholder value for "local_data". 
+The response will be a JSON object containing the provided input parameters and a placeholder value for "local_data".
 The actual data for the local sky model will be populated by the backend implementation.
 
 
@@ -161,10 +161,11 @@ Under the hood, the Global Sky Model is using HEALPix coordinates and the data i
 
 The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree.
 The resolution can be set in the conf.py. #TODO: this resolution should be set in the catalogue config.
-When a source is ingested into the postgres database, its position is mapped to one of these HEALPix pixels. This establishes 
+When a source is ingested into the postgres database, its position is mapped to one of these HEALPix pixels. This establishes
 a relationship between areas of the sky, and the sources they contain.
 
 .. code-block:: python
+
     class SourcePixel:
     """The manager for a pixel in source"""
 
@@ -206,6 +207,6 @@ When a new Source is added to the low resolution pixel, then it is joined to the
 Local Sky Model:
 ~~~~~~~~~~~~~~~~
 
-OWhen performing a local sky model search, the following steps are taken:
+When performing a local sky model search, the following steps are taken:
 Initial Selection: Rough pixels within the cone search area are identified.
 Refinement: These rough pixels are then filtered further based on their precise pixel locations.

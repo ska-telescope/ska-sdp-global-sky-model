@@ -1,5 +1,7 @@
 FROM artefact.skao.int/ska-build-python:0.1.1 AS builder
 
+RUN pip install --user --upgrade poetry==2.0.1
+
 ENV POETRY_NO_INTERACTION=1
 ENV POETRY_VIRTUALENVS_IN_PROJECT=1
 ENV POETRY_VIRTUALENVS_CREATE=1
@@ -7,14 +9,11 @@ ENV POETRY_VIRTUALENVS_CREATE=1
 WORKDIR /src
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies
+# Install just the dependencies
 RUN poetry install --only main --no-root
 
-COPY src ./src
-
-RUN poetry install --only main
-
 FROM artefact.skao.int/ska-python:0.1.2 AS runner
+
 ENV VIRTUAL_ENV=/src/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV PYTHONPATH="$PYTHONPATH:/src/"

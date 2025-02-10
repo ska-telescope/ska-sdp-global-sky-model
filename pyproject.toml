@@ -1,10 +1,22 @@
-[tool.poetry]
+[project]
 include = ["MANIFEST.skao.int"]
 name = "ska_sdp_global_sky_model"
 version = "0.1.4"
 description = ""
-authors = ["Jacob Maresca <jacob.maresca@akkodis.com>"]
+authors = [
+    {name = "Jacob Maresca", email =  "jacob.maresca@akkodis.com>"},
+    {name = "Christian Christelis", email =  "cchristelis@ska.ac.za"},
+    {name = "Dominic Schaff", email =  "dominic@vivosa.co.za"}
+]
+readme = "README.md"
 packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
+requires-python = ">=3.10,<3.12"
+license-files = ["LICENSE"]
+
+[project.urls]
+Documentation = "https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/"
+Repository = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model"
+Changelog = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/CHANGELOG.md"
 
 [[tool.poetry.source]]
 name = "ska-nexus"
@@ -17,7 +29,6 @@ url = "https://pypi.org/simple"
 priority = "supplemental"
 
 [tool.poetry.dependencies]
-python = "^3.10"
 fastapi = "^0.115.8"
 uvicorn = "^0.34.0"
 httpx = "^0.28.1"
@@ -49,10 +60,17 @@ sphinx-copybutton = "^0.5.2"
 ska-ser-sphinx-theme = "^0.1.2"
 sphinx-new-tab-link = "^0.4.0"
 
+[tool.isort]
+profile = "black"
+line_length = 99
+
+[tool.black]
+line-length = 99
+
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.scripts]
+[project.scripts]
 gsm-ingest = "ska_sdp_global_sky_model.cli.ingest_sm:main"
 gsm-download = "ska_sdp_global_sky_model.cli.download_sm:main"

@@ -33,7 +33,7 @@ def download_and_extract_file(download_url: str | None, output_name: str):
 
 def download_data_files():
     """Download all data files"""
-    if TMDATA_KEYS == "":
+    if TMDATA_KEYS == ['']:
         logger.warning("No known TelModel keys to download")
         return
 

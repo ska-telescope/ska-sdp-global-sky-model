@@ -26,7 +26,7 @@ Clone the repository and its submodules:
 Running the application
 =======================
 
-The API can be run as a script, provided the connection string to the PostgreSQL database 
+The API can be run as a script, provided the connection string to the PostgreSQL database
 is updated, using the command:
 
 .. code-block:: bash
@@ -39,4 +39,5 @@ Running the application tests
 The API is tested using the pytest framework alongside FastAPI's TestClient. The tests can be run with:
 
 .. code-block:: bash
+
     $ make python-test

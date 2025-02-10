@@ -30,7 +30,7 @@ run:
 run-local:
 	DATASET_ROOT=${GSM_DATA} \
 	TMDATA_SOURCE='file://tmdata/' \
-	TMDATA_KEYS='ska/sdp/gsm/Murchison_Widefield_Array_20250206.tar.gz' \
+	TMDATA_KEYS='ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250206.tar.gz' \
 		poetry run \
 			uvicorn ska_sdp_global_sky_model.api.main:app \
 				--reload \

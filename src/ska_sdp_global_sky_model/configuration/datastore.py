@@ -249,7 +249,6 @@ class DataStore:
         self._telescopes_search = telescopes
         self.telescopes = {}
         self.last_loaded_at = "0"
-        self.reload()
 
     def reload(self):
         """Reload the datasets"""
