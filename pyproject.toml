@@ -30,6 +30,8 @@ python-multipart = "^0.0.9"
 polars = "^1.9.0"
 astropy-healpix = "^1.0.3"
 ska-telmodel = "^1.19.8"
+fastapi-utils = "^0.8.0"
+typing-inspect = "^0.9.0"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.13.2"
@@ -52,4 +54,5 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-gsm-import = "ska_sdp_global_sky_model.cli.ingest_cli:main"
+gsm-ingest = "ska_sdp_global_sky_model.cli.ingest_sm:main"
+gsm-download = "ska_sdp_global_sky_model.cli.download_sm:main"

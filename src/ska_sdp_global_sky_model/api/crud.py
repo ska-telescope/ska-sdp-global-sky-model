@@ -1,8 +1,8 @@
-# pylint: disable=no-member, too-many-locals, invalid-name, too-many-arguments
-# pylint: disable=too-many-positional-arguments
 """
 CRUD functionality goes here.
 """
+
+# pylint: disable=no-member, too-many-arguments,too-many-positional-arguments
 
 import astropy.units as u
 from astropy.coordinates import Latitude, Longitude, SkyCoord

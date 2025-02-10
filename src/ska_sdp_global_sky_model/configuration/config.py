@@ -1,4 +1,3 @@
-# pylint: disable=no-member,too-few-public-methods, no-self-argument
 """
 Configure variables to be used.
 """
@@ -6,7 +5,6 @@ Configure variables to be used.
 import logging
 from pathlib import Path
 
-import ska_ser_logging
 from starlette.config import Config
 
 from ska_sdp_global_sky_model.configuration.datastore import DataStore
@@ -17,11 +15,7 @@ if not ENV_FILE.exists():
 
 config: Config = Config(ENV_FILE)
 
-ska_ser_logging.configure_logging(
-    logging.DEBUG if config("API_VERBOSE", default="false") == "true" else logging.INFO
-)
-logger = logging.getLogger(__name__)
-logger.info("Logging started for ska-sdp-global-sky-model-api")
+LOG_LEVEL = logging.DEBUG if config("API_VERBOSE", default="false") == "true" else logging.INFO
 
 API_BASE_PATH: str = config("API_BASE_PATH", default="")
 DATASET_ROOT: Path = Path(config("DATASET_ROOT", default="datasets/"))

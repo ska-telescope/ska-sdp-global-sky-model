@@ -2,9 +2,7 @@
 Gleam Catalog ingest
 """
 
-# pylint: disable=R1708(stop-iteration-return)
-# pylint: disable=E1101(no-member)
-# pylint: disable=R0913(too-many-arguments)
+# pylint: disable=no-member
 
 import logging
 from itertools import zip_longest

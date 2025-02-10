@@ -1,7 +1,4 @@
-# pylint: disable=too-few-public-methods
-# pylint: disable=inconsistent-return-statements
-"""Manage the file based datasets for catalogs.
-"""
+"""Manage the file based datasets for catalogs."""
 
 import logging
 from pathlib import Path
@@ -214,7 +211,8 @@ class Search:
         """Stream all data that matches the search criteria"""
         pixels = self.search_query.get("healpix_pixel_rough")
         if not pixels.any():
-            return "Empty search"
+            yield "Empty search"
+            return
         fine_pixels = self.search_query.get(
             "hp_pixel_fine",
         )
@@ -250,10 +248,21 @@ class DataStore:
         # self.pixel_handler = PixelHandler(self.dataset_root)
         self._telescopes_search = telescopes
         self.telescopes = {}
+        self.last_loaded_at = "0"
         self.reload()
 
     def reload(self):
         """Reload the datasets"""
+
+        last_update_file = self.dataset_root / ".last_updated"
+        if last_update_file.exists():
+            with last_update_file.open("r", encoding="utf8") as file:
+                last_updated_at = file.read()
+                if self.last_loaded_at == last_updated_at:
+                    logger.info("Skip reload as content has not changed")
+                    return
+                self.last_loaded_at = last_updated_at
+
         logger.info("Reloading datasets...")
         self.telescopes = {
             telescope: PixelHandler(self.dataset_root, telescope)
@@ -331,7 +340,7 @@ class DataStore:
         """Load catalogue datasets"""
         for telescope, pixel_handler in self.telescopes.items():
             tel_root = Path(self.dataset_root, telescope)
-            print(tel_root)
+            logger.info("Loading ... %s", tel_root)
             for pixel in tel_root.iterdir():
                 if pixel.name == "catalogue.yaml":
                     continue

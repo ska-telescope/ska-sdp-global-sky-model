@@ -1,16 +1,16 @@
-# pylint: disable=no-member
-# pylint: disable=consider-using-join
 """
 Basic testing of the API
 """
+
 from json import loads
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from ska_sdp_global_sky_model.api.main import DataStore, app, get_ds
 
-TEST_DATASTORE: DataStore = DataStore("tests/datasets")
+TEST_DATASTORE: DataStore = DataStore(Path("tests/datasets"))
 
 
 def override_get_ds():
@@ -70,7 +70,5 @@ def test_local_sky_model(myclient):
     )
 
     assert local_sky_model.status_code == 200
-    data = ""
-    for chunk in local_sky_model.iter_text():
-        data += chunk
+    data = "".join(local_sky_model.iter_text())
     assert len(loads(data)) == 10

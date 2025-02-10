@@ -1,21 +1,27 @@
-# pylint: disable=no-member
 """
 A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
-# pylint: disable=too-many-arguments, broad-exception-caught
-# pylint: disable=too-many-positional-arguments
 import logging
 
+import ska_ser_logging
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi_utils.tasks import repeat_every
 from starlette.background import BackgroundTasks
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.crud import get_local_sky_model
-from ska_sdp_global_sky_model.configuration.config import API_BASE_PATH, DataStore, get_ds
+from ska_sdp_global_sky_model.configuration.config import (
+    API_BASE_PATH,
+    LOG_LEVEL,
+    DataStore,
+    get_ds,
+)
 from ska_sdp_global_sky_model.utilities.helper_functions import download_data_files
+
+ska_ser_logging.configure_logging(LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +39,28 @@ app.add_middleware(
 )
 
 
-def load_data():
+def load_data_first_time():
     """Force a reload of the Datastore data"""
     download_data_files()
+    load_data()
+
+
+def load_data():
+    """Force a reload of the Datastore data"""
     get_ds().reload()
 
 
 @app.on_event("startup")
 async def startup_event():
+    """Run startup tasks."""
+    background_tasks = BackgroundTasks()
+    background_tasks.add_task(load_data_first_time)
+    await background_tasks()
+
+
+@app.on_event("startup")
+@repeat_every(seconds=60, logger=logger)
+async def reload_data_set():
     """Run startup tasks."""
     background_tasks = BackgroundTasks()
     background_tasks.add_task(load_data)
@@ -69,6 +89,7 @@ def datastore_reload(background_tasks: BackgroundTasks):
     return {"status": "Reload started"}
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 @app.get("/local_sky_model", response_class=StreamingResponse)
 async def get_local_sky_model_endpoint(
     request: Request,
