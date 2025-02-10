@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from ska_sdp_global_sky_model.api.main import DataStore, app, get_ds
 
 TEST_DATASTORE: DataStore = DataStore(Path("tests/datasets"))
+TEST_DATASTORE.reload()
 
 
 def override_get_ds():
