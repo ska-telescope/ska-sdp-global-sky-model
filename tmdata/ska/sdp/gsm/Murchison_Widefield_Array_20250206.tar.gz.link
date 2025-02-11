@@ -1,0 +1,13 @@
+# This is a link file.
+# The original file is considered too large to be stored in GitLab.
+
+# To download the contents do one of the following:
+# - use the CLI: `ska-telmodel cat ska/sdp/gsm/Murchison_Widefield_Array_20250206.tar.gz`
+# - use the CLI: `ska-telmodel cp ska/sdp/gsm/Murchison_Widefield_Array_20250206.tar.gz <location>`
+# - Use the `downloadUrl` value to download the file directly
+# - Use the `ska-telmodel` library as normal (with or without the `.link` suffix)
+# File added on 2025-02-06T13:39:00.672981+00:00 UTC
+
+file_hash = "b39e183ea3c28511bfc065490ebc84c654f8f8671fa16807b1951e48c50c60c1"
+downloadUrl = "http://localhost:9000/GSM/Data/Murchison_Widefield_Array_20250206.tar.gz"
+fileSize = 277952524

@@ -1,0 +1,13 @@
+# This is a link file.
+# The original file is considered too large to be stored in GitLab.
+
+# To download the contents do one of the following:
+# - use the CLI: `ska-telmodel cat ska/sdp/gsm/ASKAP_20250206.tar.gz`
+# - use the CLI: `ska-telmodel cp ska/sdp/gsm/ASKAP_20250206.tar.gz <location>`
+# - Use the `downloadUrl` value to download the file directly
+# - Use the `ska-telmodel` library as normal (with or without the `.link` suffix)
+# File added on 2025-02-06T13:38:56.617645+00:00 UTC
+
+file_hash = "b659271c0e7d632805073535b11e3d5cc67596abe3b2efa334cfd71ceba844a5"
+downloadUrl = "http://localhost:9000/GSM/Data/ASKAP_20250206.tar.gz"
+fileSize = 424788815

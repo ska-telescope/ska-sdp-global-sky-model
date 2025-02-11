@@ -1,7 +1,4 @@
-# pylint: disable=too-few-public-methods
-# pylint: disable=inconsistent-return-statements
-"""Manage the file based datasets for catalogs.
-"""
+"""Manage the file based datasets for catalogs."""
 
 import logging
 from pathlib import Path
@@ -42,6 +39,8 @@ class SourcePixel:
         """Read the content of the source file."""
         if not self.source_root.is_file():
             return pl.DataFrame([], schema={"name": str, "Heal_Pix_Position": pl.Int64})
+
+        logger.info("Reading existing dataset: %s", self.source_root)
         return pl.read_csv(self.source_root)
 
     def add(self, source_new):
@@ -56,8 +55,9 @@ class SourcePixel:
 
     def save(self):
         """Commit current sources to file."""
-        self.dataset_root.parent.mkdir(parents=True, exist_ok=True)
-        with self.dataset_root.open("a", encoding="utf-8") as file:
+        logger.info("Writing: %s", self.source_root)
+        self.source_root.parent.mkdir(parents=True, exist_ok=True)
+        with self.source_root.open("w", encoding="utf-8") as file:
             self.dataset.write_csv(file)
 
     def all(self, defaults: list[str] | None = None):
@@ -211,7 +211,8 @@ class Search:
         """Stream all data that matches the search criteria"""
         pixels = self.search_query.get("healpix_pixel_rough")
         if not pixels.any():
-            return "Empty search"
+            yield "Empty search"
+            return
         fine_pixels = self.search_query.get(
             "hp_pixel_fine",
         )
@@ -245,9 +246,26 @@ class DataStore:
         """The datastore init method."""
         self.dataset_root = dataset_root
         # self.pixel_handler = PixelHandler(self.dataset_root)
+        self._telescopes_search = telescopes
+        self.telescopes = {}
+        self.last_loaded_at = "0"
+
+    def reload(self):
+        """Reload the datasets"""
+
+        last_update_file = self.dataset_root / ".last_updated"
+        if last_update_file.exists():
+            with last_update_file.open("r", encoding="utf8") as file:
+                last_updated_at = file.read()
+                if self.last_loaded_at == last_updated_at:
+                    logger.info("Skip reload as content has not changed")
+                    return
+                self.last_loaded_at = last_updated_at
+
+        logger.info("Reloading datasets...")
         self.telescopes = {
             telescope: PixelHandler(self.dataset_root, telescope)
-            for telescope in self._telescope_args(telescopes)
+            for telescope in self._telescope_args(self._telescopes_search)
         }
         self._load_datasets()
 
@@ -286,6 +304,8 @@ class DataStore:
             return []
         tel_available = root_path.iterdir()
         for tel_name in tel_available:
+            if "ingest" in str(tel_name):
+                continue
             if not tel_name.is_dir() or tel_name.name[0] == ".":
                 continue
             available_names.append(tel_name.name)
@@ -319,6 +339,7 @@ class DataStore:
         """Load catalogue datasets"""
         for telescope, pixel_handler in self.telescopes.items():
             tel_root = Path(self.dataset_root, telescope)
+            logger.info("Loading ... %s", tel_root)
             for pixel in tel_root.iterdir():
                 if pixel.name == "catalogue.yaml":
                     continue

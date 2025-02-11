@@ -287,3 +287,4 @@ output.log.*
 
 # End of .gitignore
 unit-tests.xml
+gsm_local_data

@@ -1,47 +1,76 @@
-# include OCI Images support
-include .make/oci.mk
-
-# include Helm Chart support
-include .make/helm.mk
-
-# Include Python support
-include .make/python.mk
-
-# include core make support
 include .make/base.mk
-
-# include tmdata support
+include .make/oci.mk
+include .make/helm.mk
+include .make/python.mk
 include .make/tmdata.mk
-
 include .make/k8s.mk
 
 PYTHON_LINE_LENGTH = 99
 
+OPTS ?= --verbose racs
+GSM_DATA ?= gsm_local_data
+
+GSM_VERSION ?= $(shell date "+%Y%m%d")
+
 build:
-	docker compose pull
-	docker compose build
+	docker build \
+		--target dev \
+		--tag ska-sdp-gsm .
 
 run:
-	docker compose up -d
+	mkdir -p ${GSM_DATA}
+	docker run \
+		--publish 8000:80 \
+		--env API_VERBOSE=true \
+		--env DATASET_ROOT=/gsm/datasets \
+		--volume ${PWD}/${GSM_DATA}:/gsm/datasets \
+		--volume ${PWD}/src/ska_sdp_global_sky_model:/usr/src/ska_sdp_global_sky_model \
+		ska-sdp-gsm
 
-backup-gsm-db:
-	mkdir -p assets
-	docker compose exec db pg_dump postgres > assets/dump.sql
+run-local:
+	DATASET_ROOT=${GSM_DATA} \
+	TMDATA_SOURCE='file://tmdata/' \
+	TMDATA_KEYS='ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250206.tar.gz' \
+		poetry run \
+			uvicorn ska_sdp_global_sky_model.api.main:app \
+				--reload \
+				--host 127.0.01 \
+				--port 8000
 
-compress-gsm-db:
-	gzip -9 assets/dump.sql
+ingest:
+	DATASET_ROOT=${GSM_DATA} \
+		poetry run gsm-ingest ${OPTS}
 
-decompress-gsm-db:
-	gunzip assets/dump.sql.gz -f
 
-restore-gsm-db:
-	sleep 1
-	docker compose exec -T db psql postgres < assets/dump.sql
+upload-gsm-askap:
+	cd ${GSM_DATA}; tar cf - "ASKAP" | pigz -9 > "${PWD}/ASKAP_${GSM_VERSION}.tar.gz"
+	python ~/create_link.py ASKAP_${GSM_VERSION}.tar.gz
+# 	ska-telmodel upload \
+# 		--force-car-upload \
+# 		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
+# 		ASKAP_${GSM_VERSION}.tar.gz \
+# 		ska/sdp/gsm/ASKAP_${GSM_VERSION}.tar.gz
+
+
+upload-gsm-murchison-widefield-array:
+	cd ${GSM_DATA}; tar cf - "Murchison Widefield Array" | pigz -9 > "${PWD}/Murchison_Widefield_Array_${GSM_VERSION}.tar.gz"
+	python ~/create_link.py Murchison_Widefield_Array_${GSM_VERSION}.tar.gz
+# 	ska-telmodel upload \
+# 		--force-car-upload \
+# 		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
+# 		Murchison_Widefield_Array_${GSM_VERSION}.tar.gz \
+# 		ska/sdp/gsm/Murchison_Widefield_Array_${GSM_VERSION}.tar.gz
+
+compress: upload-gsm-askap upload-gsm-murchison-widefield-array
 
 upload-gsm-backup:
-	ska-telmodel upload --repo=ska-telescope/sdp/ska-sdp-global-sky-model assets/dump.sql.gz ska/gsm/global_dump.sql.gz
+	ska-telmodel upload \
+		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
+		assets/dump.sql.gz ska/gsm/global_dump.sql.gz
 
 download-gsm-backup:
-	ska-telmodel --sources=gitlab://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model?gsm-data#tmdata cp ska/gsm/global_dump.sql.gz assets/dump.sql.gz
-
-make-dev-db: download-gsm-backup decompress-gsm-db restore-gsm-db
+	ska-telmodel \
+		--sources=gitlab://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model?gsm-data#tmdata \
+		cp \
+			ska/gsm/global_dump.sql.gz \
+			assets/dump.sql.gz

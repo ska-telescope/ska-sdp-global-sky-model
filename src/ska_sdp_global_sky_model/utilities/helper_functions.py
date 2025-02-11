@@ -1,7 +1,61 @@
 """ This module contains helper functions for the ska_sdp_global_sky_model """
 
+import logging
+import tarfile
+
+import httpx
 from astropy.coordinates import SkyCoord
 from numpy import pi
+from ska_telmodel.data import TMData
+
+from ska_sdp_global_sky_model.configuration.config import DATASET_ROOT, TMDATA_KEYS, TMDATA_SOURCE
+
+logger = logging.getLogger(__name__)
+
+
+def download_and_extract_file(download_url: str | None, output_name: str):
+    """Attempt to download the url and extract the result."""
+    if download_url is not None and not output_name.exists():
+        with httpx.stream("GET", download_url) as r:
+            with output_name.open("wb") as file:
+                for data in r.iter_bytes():
+                    file.write(data)
+
+    file_name = " ".join(output_name.name.split("_")[:-1])
+
+    extracted_folder = DATASET_ROOT / file_name
+
+    if not extracted_folder.exists():
+        logger.info("Extracting dataset...")
+        with tarfile.open(output_name, mode="r:gz") as tar:
+            tar.extractall(DATASET_ROOT)
+
+
+def download_data_files():
+    """Download all data files"""
+    if TMDATA_KEYS == [""]:
+        logger.warning("No known TelModel keys to download")
+        return
+
+    logger.info("Using sources: '%s'", TMDATA_SOURCE)
+    tmdata = TMData([TMDATA_SOURCE])
+
+    for key in TMDATA_KEYS:
+        try:
+            dest = DATASET_ROOT / key.split("/")[-1]
+            logger.info("Downloading '%s' to '%s'", key, dest)
+            if not dest.exists():
+                logger.info("Downloading file")
+                # this is what it should use, but it be broken
+                # tmdata.get(key).copy(dest)
+                download_link = tmdata.get(key).get_link_contents()["downloadUrl"]
+            else:
+                logger.info("File exists")
+                download_link = None
+
+            download_and_extract_file(download_link, dest)
+        except ValueError:
+            logger.error("Key does not exist: '%s'", key)
 
 
 def convert_ra_dec_to_skycoord(ra: float, dec: float, frame="icrs") -> SkyCoord:

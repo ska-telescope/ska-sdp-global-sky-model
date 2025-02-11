@@ -2,13 +2,10 @@
 Gleam Catalog ingest
 """
 
+# pylint: disable=no-member
+
 import logging
 from itertools import zip_longest
-
-# pylint: disable=R1708(stop-iteration-return)
-# pylint: disable=E1101(no-member)
-# pylint: disable=R0913(too-many-arguments)
-from pathlib import Path
 
 import polars as pl
 from astropy.coordinates import SkyCoord
@@ -16,8 +13,8 @@ from astropy_healpix import HEALPix
 from astroquery.vizier import Vizier
 from polars import DataFrame
 
-from ska_sdp_global_sky_model.api.app.datastore import DataStore, SourcePixel
-from ska_sdp_global_sky_model.configuration.config import NSIDE, NSIDE_PIXEL
+from ska_sdp_global_sky_model.configuration.config import DATASET_ROOT, NSIDE, NSIDE_PIXEL
+from ska_sdp_global_sky_model.configuration.datastore import DataStore, SourcePixel
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +32,21 @@ def source_file(
     heading_missing = heading_missing or []
     heading_alias = heading_alias or {}
 
+    path = DATASET_ROOT / file_location
+
     # Get the file size in bytes
-    file_size = Path(file_location).stat().st_size
+    file_size = path.stat().st_size
 
     # Print the file size
     logger.info("File size: %d bytes", file_size)
     try:
-        with open(file_location, newline="", encoding="utf-8") as csvfile:
-            logger.info("Opened file: %s", file_location)
+        with path.open("r", newline="", encoding="utf-8") as csvfile:
+            logger.info("Opened file: %s", path)
             file_len = sum(1 for row in csvfile)
             logger.info("File length (rows): %s", file_len)
-        source_data = pl.read_csv(file_location)
+        source_data = pl.read_csv(path)
     except FileNotFoundError as f:
-        logger.error("File not found: %s", file_location)
+        logger.error("File not found: %s", path)
         raise RuntimeError from f
     except Exception as e:
         logger.error("Error opening file: %s", e)
@@ -88,16 +87,19 @@ def get_data_catalog_selector(ingest: dict):
     Args:
         ingest: The catalog ingest configurations.
     """
-    if ingest["agent"] == "vizier":
-        yield get_data_catalog_vizier(ingest["key"])
-    elif ingest["agent"] == "file":
-        for ingest_set in ingest["file_location"]:
-            logger.info("Opening file: %s", ingest_set["key"])
-            yield source_file(
-                ingest_set["key"],
-                heading_alias=ingest_set["heading_alias"],
-                heading_missing=ingest_set["heading_missing"],
-            )
+    match ingest["agent"]:
+        case "vizier":
+            yield get_data_catalog_vizier(ingest["key"])
+        case "file":
+            for ingest_set in ingest["file_location"]:
+                logger.info("Opening file: %s", ingest_set["key"])
+                yield source_file(
+                    ingest_set["key"],
+                    heading_alias=ingest_set["heading_alias"],
+                    heading_missing=ingest_set["heading_missing"],
+                )
+        case _:
+            logger.error("Unknown agent type: '%s'", ingest["agent"])
 
 
 def process_source_data(
@@ -123,21 +125,22 @@ def process_source_data(
     source_data = source_data.rename({catalog_config["source"]: "name"})
     source_data = source_data.with_columns(pl.col("name").cast(pl.String))
     for tile in source_data["Heal_Pix_Tile"].unique().to_list():
+        logger.info("Processing %s -> %s -> %s", catalog_config["name"], telescope, tile)
         source_tile = source_data.filter(Heal_Pix_Tile=tile)
         source_tile = source_tile.unique(subset=["name"], keep="first")
         if source_tile.is_empty():
             continue
         sp = SourcePixel(telescope, tile, ds.dataset_root)
+        sp.read()
         sp.add(source_tile)
         sp.save()
         sp.clear()
         # free up memory
         del sp
-    ds.save()
     return True
 
 
-def get_full_catalog(ds: DataStore, catalog_config) -> bool:
+def get_full_catalog(ds: DataStore, catalog_config: dict) -> bool:
     """
     Downloads and processes a source catalog for a specified telescope.
 
@@ -153,6 +156,7 @@ def get_full_catalog(ds: DataStore, catalog_config) -> bool:
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
     source_data = get_data_catalog_selector(catalog_config["ingest"])
+    logger.info("Saving data...")
     for sources in source_data:
         if sources.is_empty():
             logger.error("No data-sources found for %s", catalog_name)
@@ -160,5 +164,4 @@ def get_full_catalog(ds: DataStore, catalog_config) -> bool:
         logger.info("Processing %s sources", str(len(sources)))
         if not process_source_data(ds, sources, telescope_name, catalog_config):
             return False
-    ds.save()
     return True
