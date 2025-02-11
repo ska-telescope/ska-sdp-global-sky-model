@@ -24,7 +24,7 @@ TMDATA_KEYS: list[str] = config("TMDATA_KEYS", default="").split(",")
 
 
 # HEALPix
-NSIDE: int = config("NSIDE", default=128)
+NSIDE: int = int(config("NSIDE", default=128))
 NSIDE_PIXEL: int = 16
 
 DATASTORE: DataStore = DataStore(DATASET_ROOT)

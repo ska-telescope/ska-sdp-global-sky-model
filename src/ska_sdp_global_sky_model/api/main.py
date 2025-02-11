@@ -82,13 +82,6 @@ def get_point_sources(ds: DataStore = Depends(get_ds)):
     return sources.write_json()
 
 
-@app.get("/datastore/reload", summary="Reload the Datastore from disk", status_code=201)
-def datastore_reload(background_tasks: BackgroundTasks):
-    """Retrieve all point sources"""
-    background_tasks.add_task(load_data)
-    return {"status": "Reload started"}
-
-
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 @app.get("/local_sky_model", response_class=StreamingResponse)
 async def get_local_sky_model_endpoint(
