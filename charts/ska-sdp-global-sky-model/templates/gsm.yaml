@@ -1,0 +1,116 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: {{ .Chart.Name }}
+            port:
+              number: 80
+        path: "{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}(.*)"
+        pathType: ImplementationSpecific
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  storageClassName: {{ .Values.volume.storageClassName }}
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.volume.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+{{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+{{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
+        app.kubernetes.io/name: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: api
+        image: "{{ .Values.container.repository }}:{{ .Values.container.tag }}"
+        imagePullPolicy: {{ .Values.container.pullPolicy }}
+        ports:
+          - containerPort: 80
+        resources:
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+        env:
+          - name: API_VERBOSE
+            value: "{{ .Values.env.verbose }}"
+          - name: API_BASE_PATH
+            value: {{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}
+          - name: DATASET_ROOT
+            value: /datasets
+          - name: TMDATA_SOURCE
+            value: "{{ .Values.env.tmdata_source }}"
+          - name: TMDATA_KEYS
+            value: "{{ .Values.env.tmdata_keys }}"
+          - name: NSIDE
+            value: "{{ .Values.env.nside }}"
+          - name: WORKER_COUNT
+            value: "{{ .Values.env.workers }}"
+        volumeMounts:
+          - mountPath: /datasets
+            name: data
+        startupProbe:
+          httpGet:
+            path: /ping
+            port: 80
+          initialDelaySeconds: 5
+          failureThreshold: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 60
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Chart.Name }}
