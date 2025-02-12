@@ -60,7 +60,7 @@ Persisting a Dataset
 This section will describe a possible way to persist a dataset for an instance
 that is not running yet.
 
-Once new data has been ingested compress the directory using the following command:
+Once new data has been ingested (using `Creating a Dataset`_) compress the directory using the following command:
 
 .. code-block:: bash
 

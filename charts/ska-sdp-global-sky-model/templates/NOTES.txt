@@ -1,7 +1,7 @@
-The GSM API can be found at: <host>{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}/global-sky-model/
+The GSM API can be found at: <host>{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}
 
 <host> is whatever the cluster domain name is. Common links:
-1. http://<cluster IP>{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}/global-sky-model/ if on your local minikube
-2. https://sdhp.stfc.skao.int{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}/global-sky-model/ if on the shared cluster
+1. http://<cluster IP>{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }} if on your local minikube
+2. https://sdhp.stfc.skao.int{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }} if on the shared cluster
 
 The volume has the name {{ .Chart.Name }} and is configured to have {{ .Values.volume.size }} in size.

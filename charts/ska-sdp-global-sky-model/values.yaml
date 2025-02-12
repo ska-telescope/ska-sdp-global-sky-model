@@ -5,15 +5,23 @@ env:
   tmdata_source: ""
   tmdata_keys: ""
   nside: 128
+  workers: 2
 
-api:
+container:
   repository: artefact.skao.int/ska-sdp-global-sky-model-api
   tag: latest
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2048Mi
 
 ingress:
-  enabled: true
-  pathStart: "/sdp"
+  basePath: "/sdp/global-sky-model"
   namespaced: true
 
 volume:

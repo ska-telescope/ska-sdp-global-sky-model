@@ -10,8 +10,8 @@ domain: science-data-processing
 
 {{- define "ska-sdp-global-sky-model.ingress_path_prepend" }}
     {{- if $.Values.ingress.namespaced }}
-        {{- printf "/%s%s" .Release.Namespace $.Values.ingress.pathStart }}
+        {{- printf "/%s%s/" .Release.Namespace $.Values.ingress.basePath }}
     {{- else }}
-        {{- printf "%s" $.Values.ingress.pathStart }}
+        {{- printf "%s/" $.Values.ingress.basePath }}
     {{- end }}
 {{- end }}

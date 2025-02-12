@@ -31,7 +31,7 @@ The endpoint returns a JSON object reflecting the liveness of the API.
 .. code-block:: javascript
 
     {
-    "ping": "live"
+        "ping": "live"
     }
 
 
@@ -57,8 +57,8 @@ The endpoint returns a JSON object representing the complete list of sources.
 .. code-block:: javascript
 
     {
-    "source 1": {"ra": 123, "dec": -12.3},
-    "source 2": {"ra": 321, "dec": 32.1}
+        "source 1": {"ra": 123, "dec": -12.3},
+        "source 2": {"ra": 321, "dec": 32.1}
     }
 
 
@@ -116,14 +116,14 @@ The endpoint returns a JSON object representing the local sky model.
 .. code-block:: javascript
 
     {
-    "ra": (float),  // Right ascension provided as input.
-    "dec": (float),  // Declination provided as input.
-    "telescope": (string),  // Telescope name provided as input.
-    "fov": (float),  // Field of view provided as input.
-    "local_data": (string),  // Placeholder for data specific to the local sky model.
-    "advanced_search_1": (float),  // Advanced search criteria 1.
-    ...
-    "advanced_search_n": (float), // Advanced search criteria n.
+        "ra": (float),  // Right ascension provided as input.
+        "dec": (float),  // Declination provided as input.
+        "telescope": (string),  // Telescope name provided as input.
+        "fov": (float),  // Field of view provided as input.
+        "local_data": (string),  // Placeholder for data specific to the local sky model.
+        "advanced_search_1": (float),  // Advanced search criteria 1.
+        ...
+        "advanced_search_n": (float), // Advanced search criteria n.
     }
 
 
