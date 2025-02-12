@@ -1,62 +1,69 @@
-# Configure a ClusterIP service that will give us internal acess to the api.
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  storageClassName: {{ .Values.volume.storageClassName }}
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.volume.size }}
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Chart.Name }}-api-service
+  name: {{ .Chart.Name }}
   labels:
 {{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
-    app.kubernetes.io/name: {{ .Chart.Name }}-api
+    app.kubernetes.io/name: {{ .Chart.Name }}
 spec:
   selector:
-    app.kubernetes.io/name: {{ .Chart.Name }}-api
+    app.kubernetes.io/name: {{ .Chart.Name }}
 {{ include "ska-sdp-global-sky-model.labels" . | indent 4 }}
   ports:
   - port: 80
     targetPort: 80
     protocol: TCP
-
 ---
-
-# Configure a deployment for the api
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Chart.Name }}-api
+  name: {{ .Chart.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Chart.Name }}-api
+      app.kubernetes.io/name: {{ .Chart.Name }}
 {{ include "ska-sdp-global-sky-model.labels" . | indent 6 }}
   template:
     metadata:
       labels:
 {{ include "ska-sdp-global-sky-model.labels" . | indent 8 }}
-        app.kubernetes.io/name: {{ .Chart.Name }}-api
-      annotations:
-      {{ if ((.Values.vault).useVault) }}
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/agent-inject-status: "update"
-        vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.pathToSecretVault }}"
-        vault.hashicorp.com/agent-inject-template-config: |
-            {{`{{- with secret `}}"{{ .Values.vault.pathToSecretVault }}"{{` -}}`}}
-            {{`{{- range $k, $v := .Data.data }}`}}
-            {{`export {{ $k }}={{ $v }}`}}
-            {{`{{- end }}`}}
-            {{`{{- end }}`}}
-        vault.hashicorp.com/role: "kube-role"
-      {{ end }}
+        app.kubernetes.io/name: {{ .Chart.Name }}
     spec:
       containers:
       - name: {{ .Chart.Name }}-api
         image: "{{ .Values.api.repository }}:{{ .Values.api.tag }}"
         imagePullPolicy: {{ .Values.api.pullPolicy }}
-        command: ["/bin/sh", "-c", ". /vault/secrets/config && exec uvicorn ska_sdp_global_sky_model.api.app.main:app --host 0.0.0.0 --port 80 --app-dir /usr/src"]
         ports:
         - containerPort: 80
         env:
-        - name: DB
-          value: "{{ .Values.db.host }}"
+        - name: API_VERBOSE
+          value: "{{ .Values.env.verbose }}"
+        - name: API_BASE_PATH
+          value: "{{ include "ska-sdp-global-sky-model.ingress_path_prepend" . }}/global-sky-model/"
+        - name: DATASET_ROOT
+          value: /datasets
+        - name: TMDATA_SOURCE
+          value: "{{ .Values.env.tmdata_source }}"
+        - name: TMDATA_KEYS
+          value: "{{ .Values.env.tmdata_keys }}"
+        - name: NSIDE
+          value: "{{ .Values.env.nside }}"
+        volumeMounts:
+        - mountPath: /datasets
+          name: data
         startupProbe:
           httpGet:
             path: /ping
@@ -70,3 +77,7 @@ spec:
             port: 80
           initialDelaySeconds: 30
           periodSeconds: 60
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ .Chart.Name }}
