@@ -1,31 +1,29 @@
 replicaCount: 1
 
-api:
+env:
+  verbose: false
+  tmdata_source: ""
+  tmdata_keys: ""
+  nside: 128
+  workers: 2
+
+container:
   repository: artefact.skao.int/ska-sdp-global-sky-model-api
   tag: latest
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
 
-db:
-  host: "10.100.10.46"
-
-dbservice:
-  port: 5432
-  nodePort: 30001
-
-redisservice:
-  port: 6379
-  nodePort: 30002
-
+resources:
+  requests:
+    cpu: 1000m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2048Mi
 
 ingress:
-  enabled: true
-  pathStart: "/sdp"
+  basePath: "/sdp/global-sky-model"
   namespaced: true
 
-
-env:
-  name: dev
-
-vault:
-  useVault: true
-  pathToSecretVault: kv/users/jm22b/ska_sdp_gsm
+volume:
+  size: 10Gi
+  storageClassName: nfss1

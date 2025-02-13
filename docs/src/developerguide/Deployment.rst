@@ -1,50 +1,118 @@
 Deployment Guide
-~~~~~~~~~~~~~~~~
-
-This document complements the guidelines set out in the SKA telescope developer
- portal `<https://developer.skao.int/en/latest/>`_
+================
 
 Kubernetes Deployment
-=====================
+---------------------
 
 The SKA Global Sky Model is designed to be deployed as a service, accesible to
 other deployments via the included API.
 
-Steps to run the system locally in Minikube
-===========================================
+Helm Values
+~~~~~~~~~~~
 
-The following steps assume that you have cloned the repo, or have a local
-copy of the chart. All given commands assume that you are at the terminal in
-your chosen environment.
+The Helm values that are available are listed below:
 
-1. Start Minikube if it is not already running, and optionally enable the
-ingress addon:
+.. list-table::
+    :widths: auto
+    :header-rows: 1
+
+    * - Value
+      - Default
+      - Comment
+
+    * - ``replicaCount``
+      - ``1``
+      - The amount of replicas to use.
+
+    * - ``env.verbose``
+      - ``false``
+      - Enable higher verbosity in the logs.
+
+    * - ``env.tmdata_source``
+      - ``""``
+      - The override for where the GSM data is stored.
+
+    * - ``env.tmdata_keys``
+      - ``""``
+      - A comma seperated list of keys to download.
+
+    * - ``env.nside``
+      - ``128``
+      - The value to use for NSIDE.
+
+    * - ``env.wrokers``
+      - ``2``
+      - The amount of workers to create.
+
+    * - ``container.repository``
+      - ``artefact.skao.int/ska-sdp-global-sky-model-api``
+      - The repo of the container image to use.
+
+    * - ``container.tag``
+      - ``latest``
+      - Which version of the container image to use.
+
+    * - ``container.pullPolicy``
+      - ``IfNotPresent``
+      - What pull policy to use.
+
+    * - ``resources.requests.cpu``
+      - ``1000m``
+      - The minimum amount of CPU to request.
+
+    * - ``resources.requests.memory``
+      - ``512Mi``
+      - The minimum amount of memory to request.
+
+    * - ``resources.limits.cpu``
+      - ``2000m``
+      - The maximum amount of CPU to request.
+
+    * - ``resources.limits.memory``
+      - ``2048Mi``
+      - The maximum amount of memory to request.
+
+    * - ``ingress.basePath``
+      - ``/sdp/global-sky-model``
+      - What the base bath should be.
+
+    * - ``ingress.namespaced``
+      - ``true``
+      - Whether to prepend the base path with the namespace.
+
+    * - ``volume.size``
+      - ``10Gi``
+      - The size of the disk to use for the GSM data.
+
+    * - ``volume.storageClassName``
+      - ``nfss1``
+      - What storage class to use for the volume.
+
+
+Uploading Datasets
+~~~~~~~~~~~~~~~~~~
+
+If ``env.tmdata_keys`` was never set, or you would like to add more datasets,
+you can copy datasets onto the volume.
+
+First prepare the datasets as per :ref:`Persisting a Dataset` the resulting Tar GZip
+file can be uploaded using:
 
 .. code-block:: bash
 
-    $ minikube start
-    $ minikube addons enable ingress
+    $ kubectl exec -n dp-naledi-dominic ska-sdp-global-sky-model-79d5958644-7mg6m -- bash -c "mkdir /datasets/ingests"
+    $ kubectl cp -n dp-naledi-dominic gsm_local_data/ASKAP_20250206.tar.gz ska-sdp-global-sky-model-79d5958644-7mg6m:/datasets/ingests/
 
-2. For any values changes, create a local values file, for example ``values_local_deployment.yaml``
-
-3. Optionally, create a new namespace: ``kubectl create namespace [namespace]``.
-
-4. Install the helm chart as follows:
+And then you will need to import that file using:
 
 .. code-block:: bash
 
-    $ helm install [deployment-name] charts/ska-sdp-global-sky-model \
-        --namespace [namespace] \
-        --values values_local_deployment.yaml
+    $ kubectl exec -n dp-naledi-dominic ska-sdp-global-sky-model-79d5958644-7mg6m -- \
+      bash -c "python /src/ska_sdp_global_sky_model/cli/download_sm.py /datasets/ingests/*"
 
-Once the install has completed, you will have the following running:
-
-* The Global Sky Model FastAPI
-
-Running ``minikube service`` will return a URL to connect to the database via the API.
 
 Running the application with Docker
-===================================
+-----------------------------------
 
 Alternatively, the application can be built using the provided Dockerfile.
 
