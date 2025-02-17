@@ -12,6 +12,7 @@ COPY pyproject.toml poetry.lock ./
 # Install just the dependencies
 RUN poetry install --only main --no-root
 
+COPY README.md LICENSE  ./
 COPY src ./src
 
 RUN poetry install --only main
