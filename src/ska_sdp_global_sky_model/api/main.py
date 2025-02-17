@@ -121,7 +121,7 @@ async def get_local_sky_model_endpoint(
         advanced_search[key] = value
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+dec:%s, telescope:%s, fov:%s, other options: %s",
         ra,
         dec,
         telescope,
