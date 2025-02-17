@@ -12,6 +12,10 @@ COPY pyproject.toml poetry.lock ./
 # Install just the dependencies
 RUN poetry install --only main --no-root
 
+COPY src ./src
+
+RUN poetry install --only main
+
 FROM artefact.skao.int/ska-python:0.1.2 AS runner
 
 ENV VIRTUAL_ENV=/src/.venv
