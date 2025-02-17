@@ -31,7 +31,7 @@ is updated, using the command:
 
 .. code-block:: bash
 
-    $ uvicorn ska_sdp_global_sky_model.api.app.main:app --reload --host 0.0.0.0 --port 80 --app-dir /usr/src
+    $ uvicorn ska_sdp_global_sky_model.api.main:app --reload --host 0.0.0.0 --port 80 --app-dir ./src
 
 Running the application tests
 =============================
