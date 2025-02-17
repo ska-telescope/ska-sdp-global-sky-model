@@ -12,6 +12,11 @@ COPY pyproject.toml poetry.lock ./
 # Install just the dependencies
 RUN poetry install --only main --no-root
 
+COPY README.md LICENSE  ./
+COPY src ./src
+
+RUN poetry install --only main
+
 FROM artefact.skao.int/ska-python:0.1.2 AS runner
 
 ENV VIRTUAL_ENV=/src/.venv
@@ -20,16 +25,6 @@ ENV PYTHONPATH="$PYTHONPATH:/src/"
 ENV PYTHONUNBUFFERED=1
 ENV TZ=Etc/UTC
 ENV PYTHONDONTWRITEBYTECODE=1
-
-# User Setup
-ARG USERNAME=sdp_gsm
-ARG USER_UID=1000
-ARG USER_GID=1000
-
-RUN groupadd --gid ${USER_GID} ${USERNAME} \
-    && useradd -s /bin/bash --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME}
-
-USER ${USERNAME}
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 

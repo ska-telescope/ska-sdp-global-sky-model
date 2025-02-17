@@ -108,7 +108,7 @@ And then you will need to import that file using:
 .. code-block:: bash
 
     $ kubectl exec -n dp-naledi-dominic ska-sdp-global-sky-model-79d5958644-7mg6m -- \
-      bash -c "python /src/ska_sdp_global_sky_model/cli/download_sm.py /datasets/ingests/*"
+      bash -c "gsm-download /datasets/ingests/*"
 
 
 Running the application with Docker
