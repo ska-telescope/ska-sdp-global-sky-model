@@ -12,6 +12,9 @@ from ska_sdp_global_sky_model.configuration.config import DATASET_ROOT
 def create_last_update():
     """Create the last updated file."""
 
+    if not DATASET_ROOT.exists():
+        DATASET_ROOT.mkdir(parents=True, exist_ok=True)
+
     with (DATASET_ROOT / ".last_updated").open("w", encoding="utf8") as file:
         file.write(f"{time()}")
 
