@@ -38,7 +38,7 @@ CMD ["uvicorn", "ska_sdp_global_sky_model.api.main:app", "--reload", "--host", "
 
 FROM runner AS prod
 
-ENV WORKER_COUNT=2
+ENV WORKER_COUNT=1
 
 # Using "bash -c" for the variable expansion, and without a single string uvicorn dies
 CMD ["bash", "-c", "uvicorn ska_sdp_global_sky_model.api.main:app --workers ${WORKER_COUNT} --host 0.0.0.0 --port 80"]

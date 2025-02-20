@@ -5,7 +5,7 @@ env:
   tmdata_source: ""
   tmdata_keys: ""
   nside: 128
-  workers: 2
+  workers: 1
 
 container:
   repository: artefact.skao.int/ska-sdp-global-sky-model-api
