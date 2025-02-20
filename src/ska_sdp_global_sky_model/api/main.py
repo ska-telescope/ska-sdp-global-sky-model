@@ -13,6 +13,7 @@ from starlette.background import BackgroundTasks
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.crud import get_local_sky_model
+from ska_sdp_global_sky_model.cli.common_cli import create_last_update
 from ska_sdp_global_sky_model.configuration.config import (
     API_BASE_PATH,
     LOG_LEVEL,
@@ -42,6 +43,7 @@ app.add_middleware(
 def load_data_first_time():
     """Force a reload of the Datastore data"""
     download_data_files()
+    create_last_update()
     load_data()
 
 
