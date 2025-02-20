@@ -1,0 +1,13 @@
+# This is a link file.
+# The original file is considered too large to be stored in GitLab.
+
+# To download the contents do one of the following:
+# - use the CLI: `ska-telmodel cat [200~ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz`
+# - use the CLI: `ska-telmodel cp [200~ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz <location>`
+# - Use the `downloadUrl` value to download the file directly
+# - Use the `ska-telmodel` library as normal (with or without the `.link` suffix)
+# File added on 2025-02-20T12:37:46.063509+00:00 UTC
+
+file_hash = "2e3c97705f0575fd54c4989214ddaec93c0e842f9709f5bb69204844d1933edf"
+downloadUrl = "https://artefact.skao.int/repository/sts-608/gitlab/ska-telescope/sdp/ska-sdp-global-sky-model/largefiles/2e3c97705f0575fd54c4989214ddaec93c0e842f9709f5bb69204844d1933edf.gz"
+fileSize = 277952585

@@ -6,8 +6,8 @@
 # - use the CLI: `ska-telmodel cp ska/sdp/gsm/ASKAP_20250206.tar.gz <location>`
 # - Use the `downloadUrl` value to download the file directly
 # - Use the `ska-telmodel` library as normal (with or without the `.link` suffix)
-# File added on 2025-02-06T13:38:56.617645+00:00 UTC
+# File added on 2025-02-20T12:45:14.568505+00:00 UTC
 
 file_hash = "b659271c0e7d632805073535b11e3d5cc67596abe3b2efa334cfd71ceba844a5"
-downloadUrl = "http://localhost:9000/GSM/Data/ASKAP_20250206.tar.gz"
+downloadUrl = "https://artefact.skao.int/repository/sts-608/gitlab/ska-telescope/sdp/ska-sdp-global-sky-model/largefiles/b659271c0e7d632805073535b11e3d5cc67596abe3b2efa334cfd71ceba844a5.gz"
 fileSize = 424788815
