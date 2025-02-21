@@ -26,7 +26,7 @@ ska_ser_logging.configure_logging(LOG_LEVEL)
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="SKA SDP Global Sky Model", version="1.0.0", root_path=API_BASE_PATH)
+app = FastAPI(title="SKA SDP Global Sky Model", version="0.2.0", root_path=API_BASE_PATH)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []

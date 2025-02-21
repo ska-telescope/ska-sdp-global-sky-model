@@ -9,7 +9,7 @@ env:
 
 container:
   repository: artefact.skao.int/ska-sdp-global-sky-model
-  tag: 1.0.0
+  tag: 0.2.0
   pullPolicy: IfNotPresent
 
 resources:
