@@ -4,6 +4,61 @@ Sky Model Dataset
 This section will describe how to create new datasets, and upload them into
 the GSM Service.
 
+Existing Datasets
+-----------------
+
+There are 2 datasets that are available for use. This section will describe
+how to get them in the various setups.
+
+Helm Install
+~~~~~~~~~~~~
+
+Set the following ``values`` variables:
+
+.. code-block:: yaml
+
+    env:
+      tmdata_source: "car:sdp/ska-sdp-global-sky-model?0.2.0"
+      tmdata_keys: "ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz"
+
+Local Poetry Setup (On Startup)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Set the following ENV variables:
+
+.. code-block:: bash
+
+    $ export TMDATA_SOURCE=car:sdp/ska-sdp-global-sky-model?0.2.0
+    $ export TMDATA_KEYS=ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
+
+Local Poetry Setup
+~~~~~~~~~~~~~~~~~~
+
+You can run this helper to fetch the datasets:
+
+.. code-block:: bash
+
+    $ make manual-download
+
+Existing running install
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the api is already running, run in the same context as the API:
+
+.. code-block:: bash
+
+    TMDATA_SOURCE=car:sdp/ska-sdp-global-sky-model?0.2.0 gsm-download --verbose ska/sdp/gsm/ASKAP_20250206.tar.gz ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
+
+Fetching outside of the GSM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you want just the datafiles, you can use the ``ska-telmodel`` command:
+
+.. code-block:: bash
+
+    $ ska-telmodel --sources=car:sdp/ska-sdp-global-sky-model?0.2.0 cp ska/sdp/gsm/ASKAP_20250206.tar.gz
+    $ ska-telmodel --sources=car:sdp/ska-sdp-global-sky-model?0.2.0 cp ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
+
 Creating a Dataset
 ------------------
 
