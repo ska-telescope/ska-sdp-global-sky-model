@@ -13,7 +13,7 @@ how to get them in the various setups.
 Helm Install
 ~~~~~~~~~~~~
 
-Set the following ``values`` variables:
+Set the following ``values.yaml`` variables:
 
 .. code-block:: yaml
 
@@ -43,7 +43,7 @@ You can run this helper to fetch the datasets:
 Existing running install
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-If the api is already running, run in the same context as the API:
+If the API is already running, run in the same context as the API:
 
 .. code-block:: bash
 
