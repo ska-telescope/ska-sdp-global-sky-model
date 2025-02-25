@@ -8,7 +8,7 @@ include .make/k8s.mk
 PYTHON_LINE_LENGTH = 99
 
 OPTS ?= --verbose racs
-GSM_DATA ?= gsm_local_data
+GSM_DATA ?= datasets
 
 GSM_VERSION ?= $(shell date "+%Y%m%d")
 
@@ -30,7 +30,7 @@ run:
 run-local:
 	DATASET_ROOT=${GSM_DATA} \
 	TMDATA_SOURCE='file://tmdata/' \
-	TMDATA_KEYS='ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250206.tar.gz' \
+	TMDATA_KEYS='ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz' \
 		poetry run \
 			uvicorn ska_sdp_global_sky_model.api.main:app \
 				--reload \
@@ -44,33 +44,25 @@ ingest:
 
 upload-gsm-askap:
 	cd ${GSM_DATA}; tar cf - "ASKAP" | pigz -9 > "${PWD}/ASKAP_${GSM_VERSION}.tar.gz"
-	python ~/create_link.py ASKAP_${GSM_VERSION}.tar.gz
-# 	ska-telmodel upload \
-# 		--force-car-upload \
-# 		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
-# 		ASKAP_${GSM_VERSION}.tar.gz \
-# 		ska/sdp/gsm/ASKAP_${GSM_VERSION}.tar.gz
-
+	ska-telmodel upload \
+		--force-car-upload \
+		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
+		ASKAP_${GSM_VERSION}.tar.gz \
+		ska/sdp/gsm/ASKAP_${GSM_VERSION}.tar.gz
 
 upload-gsm-murchison-widefield-array:
 	cd ${GSM_DATA}; tar cf - "Murchison Widefield Array" | pigz -9 > "${PWD}/Murchison_Widefield_Array_${GSM_VERSION}.tar.gz"
-	python ~/create_link.py Murchison_Widefield_Array_${GSM_VERSION}.tar.gz
-# 	ska-telmodel upload \
-# 		--force-car-upload \
-# 		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
-# 		Murchison_Widefield_Array_${GSM_VERSION}.tar.gz \
-# 		ska/sdp/gsm/Murchison_Widefield_Array_${GSM_VERSION}.tar.gz
+	ska-telmodel upload \
+		--force-car-upload \
+		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
+		Murchison_Widefield_Array_${GSM_VERSION}.tar.gz \
+		ska/sdp/gsm/Murchison_Widefield_Array_${GSM_VERSION}.tar.gz
 
 compress: upload-gsm-askap upload-gsm-murchison-widefield-array
 
-upload-gsm-backup:
-	ska-telmodel upload \
-		--repo=ska-telescope/sdp/ska-sdp-global-sky-model \
-		assets/dump.sql.gz ska/gsm/global_dump.sql.gz
-
-download-gsm-backup:
-	ska-telmodel \
-		--sources=gitlab://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model?gsm-data#tmdata \
-		cp \
-			ska/gsm/global_dump.sql.gz \
-			assets/dump.sql.gz
+manual-download:
+	TMDATA_SOURCE=car:sdp/ska-sdp-global-sky-model?0.2.0 \
+		poetry run gsm-download \
+			--verbose \
+			ska/sdp/gsm/ASKAP_20250206.tar.gz \
+			ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
