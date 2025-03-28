@@ -1,8 +1,7 @@
-Welcome to SDP Global Sky Model's documentation!
-================================================
+SDP Global Sky Model
+====================
 
-The *ska-sdp-global-sky-model* repository contains the code for the SKA Global
- Sky Model.
+The *ska-sdp-global-sky-model* repository contains the code for the SKA Global Sky Model.
 
 .. toctree::
   :maxdepth: 1
@@ -22,4 +21,4 @@ The *ska-sdp-global-sky-model* repository contains the code for the SKA Global
   :maxdepth: 1
   :caption: Releases
 
-  releases/Changelog
+  CHANGELOG.rst
