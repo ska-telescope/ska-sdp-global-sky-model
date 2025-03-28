@@ -16,7 +16,7 @@ license-files = ["LICENSE"]
 [project.urls]
 Documentation = "https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/"
 Repository = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model"
-Changelog = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/CHANGELOG.md"
+Changelog = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/CHANGELOG.rst"
 
 [[tool.poetry.source]]
 name = "ska-nexus"
