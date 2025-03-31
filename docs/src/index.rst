@@ -8,6 +8,7 @@ The *ska-sdp-global-sky-model* repository contains the code for the SKA Global S
   :caption: User Guide
 
   userguide/overview
+  userguide/api_use
   userguide/sky_model_datasets
 
 .. toctree::
@@ -16,9 +17,3 @@ The *ska-sdp-global-sky-model* repository contains the code for the SKA Global S
 
   developerguide/Development
   developerguide/Deployment
-
-.. toctree::
-  :maxdepth: 1
-  :caption: Releases
-
-  CHANGELOG.rst

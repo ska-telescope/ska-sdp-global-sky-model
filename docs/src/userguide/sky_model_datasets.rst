@@ -1,19 +1,20 @@
 Sky Model Dataset
 =================
 
-This section will describe how to create new datasets, and upload them into
-the GSM Service.
+This section will describe how to ingest, create and upload new datasets for the the GSM Service.
 
 Existing Datasets
 -----------------
 
-There are 2 datasets that are available for use. This section will describe
-how to get them in the various setups.
+There are 2 datasets that are available for use:
 
-Helm Install
+  - ASKAP (RACS)
+  - Murchison Widefield Array (GLEAM)
+
+Helm Setup
 ~~~~~~~~~~~~
 
-Set the following ``values.yaml`` variables:
+To download the datasets via helm, set the following ``values.yaml`` variables:
 
 .. code-block:: yaml
 
@@ -24,17 +25,19 @@ Set the following ``values.yaml`` variables:
 Local Poetry Setup (On Startup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Set the following ENV variables:
+Or, if you are running locally and not using helm, set the following ENV variables:
 
 .. code-block:: bash
 
     $ export TMDATA_SOURCE=car:sdp/ska-sdp-global-sky-model?0.2.0
     $ export TMDATA_KEYS=ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
 
-Local Poetry Setup
-~~~~~~~~~~~~~~~~~~
+When the service starts, these datasets will download.
 
-You can run this helper to fetch the datasets:
+Manual Setup
+~~~~~~~~~~~~
+
+Finally, you have the option to manually fetch the data by running this helper:
 
 .. code-block:: bash
 
@@ -59,8 +62,8 @@ If you want just the datafiles, you can use the ``ska-telmodel`` command:
     $ ska-telmodel --sources=car:sdp/ska-sdp-global-sky-model?0.2.0 cp ska/sdp/gsm/ASKAP_20250206.tar.gz
     $ ska-telmodel --sources=car:sdp/ska-sdp-global-sky-model?0.2.0 cp ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
 
-Creating a Dataset
-------------------
+Creating a New Dataset
+----------------------
 
 This section will describe how to prepare a dataset for use by the GSM.
 
@@ -71,7 +74,7 @@ And each ingest will run one after the other.
 The ingest process does not create the ``catalogue.yaml`` which is required for
 retrieving more details from the API.
 
-Currently 3 types of datasets can be created:
+Currently three types of datasets can be created:
 
 GLEAM
 ~~~~~
@@ -112,10 +115,10 @@ include your own CSV files.
 Persisting a Dataset
 --------------------
 
-This section will describe a possible way to persist a dataset for an instance
-that is not running yet.
+If you want to persist a dataset for an instance that is not running yet:
 
-Once new data has been ingested (using `Creating a Dataset`_) compress the directory using the following command:
+  - Finish ingestion (using `Creating a New Dataset`_)
+  - Compress the directory using the following command:
 
 .. code-block:: bash
 
@@ -123,7 +126,7 @@ Once new data has been ingested (using `Creating a Dataset`_) compress the direc
     $ tar cf - "<directory>" | pigz -9 > "<directory (without spaces)>_$(date "+%Y%m%d").tar.gz"
 
 
-Downlading an Existing Dataset
+Downloading an Existing Dataset
 ------------------------------
 
 This section will describe how datasets can be loaded into the GSM, either on startup
@@ -141,7 +144,7 @@ datasets to download and prepare for use.
 * ``TMDATA_KEYS`` : is an optional environment variable which should contain a comma seperated list
   of keys that should be downloaded on startup. The GSM system assumes that these files are considered
   as large files, and as such will download the listed file. These files should be ``.tar.gz`` compressed
-  files created in the `Downlading an Existing Dataset`_ section
+  files created in the `Downloading an Existing Dataset`_ section
 
 On an Existing Instance
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -180,8 +183,10 @@ If the file is not in a default or setup source, you can specify a different sou
 Metadata file
 -------------
 
-Within each dataset a metadata file is used. This file is technically optional.
-But without it the search interface won't give many details.
+Each dataset should use a metadata file called ``catalogue.yaml``. This file is technically optional, 
+but without it only basic information like the Heal_Pix_position is returned by the API.
+
+It should live in the ``/datasets`` directory and will allow more attributes to be returned by the API, as well as metadata for the catalogue.
 
 An example of what the file should look like is as follows:
 
@@ -208,3 +213,7 @@ An example of what the file should look like is as follows:
         - "name"
         - "RAJ2000"
         - "DEJ2000"
+
+Now, when queried, the API will return ``RAJ2000`` and ``DEJ2000`` columns alongside the HEALPix information.
+
+``default_attributes`` are the columns which will be automatically returned by the API when /local_sky_model is queried, and ``attributes`` are the columns that can be filtered on by a query.
