@@ -1,34 +1,28 @@
 [project]
-include = ["MANIFEST.skao.int"]
 name = "ska_sdp_global_sky_model"
-version = "0.2.0"
-description = ""
-authors = [
-    {name = "Jacob Maresca", email =  "jacob.maresca@akkodis.com>"},
-    {name = "Christian Christelis", email =  "cchristelis@ska.ac.za"},
-    {name = "Dominic Schaff", email =  "dominic@vivosa.co.za"}
-]
-readme = "README.rst"
-packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
-requires-python = ">=3.10,<3.12"
-license-files = ["LICENSE"]
 
-[project.urls]
-Documentation = "https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/"
-Repository = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model"
-Changelog = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/CHANGELOG.rst"
+[tool.poetry]
+version = "0.2.0"
+description = "SKA SDP Global Sky Model"
+authors = ["SKA SDP Developers"]
+license = "BSD-3 Clause"
+readme = "README.rst"
+# This needs to be changed later
+packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
+repository = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model"
+documentation = "https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/"
 
 [[tool.poetry.source]]
-name = "ska-nexus"
+name = "PyPI"
+priority = "supplemental"
+
+[[tool.poetry.source]]
+name = "skao"
 url = "https://artefact.skao.int/repository/pypi-internal/simple"
 priority = "primary"
 
-[[tool.poetry.source]]
-name = "PyPI-public"
-url = "https://pypi.org/simple"
-priority = "supplemental"
-
 [tool.poetry.dependencies]
+python = ">=3.10,<3.12"
 fastapi = "^0.115.8"
 uvicorn = "^0.34.0"
 httpx = "^0.28.1"
@@ -67,10 +61,12 @@ line_length = 99
 [tool.black]
 line-length = 99
 
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
 [project.scripts]
 gsm-ingest = "ska_sdp_global_sky_model.cli.ingest_sm:main"
 gsm-download = "ska_sdp_global_sky_model.cli.download_sm:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
