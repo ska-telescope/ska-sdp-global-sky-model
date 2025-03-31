@@ -1,14 +1,14 @@
 [project]
-name = "ska-sdp-global-sky-model"
+name = "ska_sdp_global_sky_model"
 
 [tool.poetry]
-name = "ska-sdp-global-sky-model"
+name = "ska_sdp_global_sky_model"
 version = "0.2.0"
 description = "SKA SDP Global Sky Model"
 authors = ["SKA SDP Developers"]
 license = "BSD-3 Clause"
 readme = "README.rst"
-packages = [{include = "ska-sdp-global-sky-model", from = "src" }]
+packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 repository = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model"
 documentation = "https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/"
 
