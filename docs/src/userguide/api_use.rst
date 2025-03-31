@@ -133,11 +133,26 @@ This last example request retrieves a local sky model for an observation with th
       - Yes
 
 
-This endpoint returns a list of dictionaries of HEALPix pixels. These correspond to specific regions of the sky and are explained more below.
+This endpoint returns a list of dictionaries of HEALPix pixels, plus what is configured in the ``catalogue.yaml``. The HEALPix pixel id's correspond to specific regions of the sky and are explained more in the :doc:`overview <../userguide/overview>`. 
 
 .. code-block:: javascript
 
     [{"Heal_Pix_Position":156685},{"Heal_Pix_Position":156717}]
+
+or
+
+.. code-block:: javascript
+
+    {
+        "ra": (float),  // Right ascension provided as input.
+        "dec": (float),  // Declination provided as input.
+        "telescope": (string),  // Telescope name provided as input.
+        "fov": (float),  // Field of view provided as input.
+        "local_data": (string),  // Placeholder for data specific to the local sky model.
+        "advanced_search_1": (float),  // Advanced search criteria 1.
+        ...
+        "advanced_search_n": (float), // Advanced search criteria n.
+    }
 
 
 
