@@ -26,12 +26,19 @@ Clone the repository and its submodules:
 Running the application
 =======================
 
-The API can be run as a script, provided the connection string to the PostgreSQL database
-is updated, using the command:
+A pre-requisite to running the API is to ingest data to `datasets/`. Do this by running the ingest script:
+
+.. code-block:: bash
+
+    $ python cli/ingest_sm.py gleam
+
+Then run the api with:
 
 .. code-block:: bash
 
     $ uvicorn ska_sdp_global_sky_model.api.main:app --reload --host 0.0.0.0 --port 80 --app-dir ./src
+
+This will make the API available at `http://0.0.0.0:80`. 
 
 Running the application tests
 =============================

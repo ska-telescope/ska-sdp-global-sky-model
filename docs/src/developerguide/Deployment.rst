@@ -40,8 +40,8 @@ The Helm values that are available are listed below:
       - ``128``
       - The value to use for NSIDE.
 
-    * - ``env.wrokers``
-      - ``2``
+    * - ``env.workers``
+      - ``1``
       - The amount of workers to create.
 
     * - ``container.repository``
@@ -74,7 +74,7 @@ The Helm values that are available are listed below:
 
     * - ``ingress.basePath``
       - ``/sdp/global-sky-model``
-      - What the base bath should be.
+      - What the base path should be.
 
     * - ``ingress.namespaced``
       - ``true``

@@ -38,7 +38,7 @@ The endpoint returns a JSON object reflecting the liveness of the API.
 Get Sources API Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-This API endpoint retrieves a complete list of sources contained in the Sources table of the Postgres database.
+This API endpoint retrieves a complete list of sources by reading the csv files in the datastore under `datasets/`. This could take a long time or be unsuccessful locally given the large amount of memory required to return all the source information.
 
 URI:
 ~~~~
@@ -99,7 +99,7 @@ Request Parameters:
       - String
       - Yes
     * - ``fov``
-      - Field of view of the telescope in arcminutes.
+      - Field of view of the telescope in degrees.
       - Float
       - Yes
     * - ``advanced_search_n``
