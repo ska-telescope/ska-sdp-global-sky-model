@@ -1,8 +1,8 @@
 [project]
-name = "ska_sdp_global_sky_model"
+name = "ska-sdp-global-sky-model"
 
 [tool.poetry]
-name = "ska_sdp_global_sky_model"
+name = "ska-sdp-global-sky-model"
 version = "0.2.0"
 description = "SKA SDP Global Sky Model"
 authors = ["SKA SDP Developers"]
