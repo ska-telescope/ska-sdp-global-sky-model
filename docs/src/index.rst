@@ -37,4 +37,4 @@ To understand the internals, check out the `Developer Guide <developerguide/Deve
   :maxdepth: 1
   :caption: Releases
 
-  CHANGELOG.rst
+  changelog
