@@ -25,7 +25,7 @@ Example use:
 .. code-block:: bash
 
     GET /ping
-    http://127.0.0.1:8000/ping
+    curl http://127.0.0.1:8000/ping
 
 
 If the API is up and running, this should yield the result:
@@ -47,7 +47,7 @@ Example use:
 .. code-block:: bash
 
     GET /sources
-    http://127.0.0.1:8000/sources
+    curl http://127.0.0.1:8000/sources
 
 
 This returns a JSON object representing the complete list of sources, e.g:
@@ -79,7 +79,7 @@ Directly in the url:
 
 ..  code-block:: bash
 
-    http://127.0.0.1:8000/local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
+    curl http://127.0.0.1:8000/local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
 
 Via curl:
 

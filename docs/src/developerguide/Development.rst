@@ -26,13 +26,9 @@ Clone the repository and its submodules:
 Running the application
 =======================
 
-A pre-requisite to running the API is to ingest data to `datasets/`. The options for which data to use are outlined in the :doc:`dataset setup guide <../userguide/sky_model_datasets>`. For a quick start, run the ingest script:
+The API can be set up to pull data on start up. For ingestion options, see the :doc:`dataset setup guide <../userguide/sky_model_datasets>`. 
 
-.. code-block:: bash
-
-    $ python cli/ingest_sm.py gleam
-
-Optionally (but recommended), create a ``catalogue.yaml`` for your dataset, this is also outlined in the :doc:`../userguide/sky_model_datasets` section.
+In the dataset directory, check a ``catalogue.yaml`` exists for your dataset. Without this, the API response's will be limited. This is also outlined in the :doc:`../userguide/sky_model_datasets` section.
 
 Start the api with:
 
