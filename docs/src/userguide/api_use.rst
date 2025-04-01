@@ -141,21 +141,6 @@ The HEALPix pixel id (shown as Heal_Pix_Position here) corresponds to specific r
 
     [{"Heal_Pix_Position":156685},{"Heal_Pix_Position":156717}]
 
-or
-
-.. code-block:: javascript
-
-    {
-        "ra": (float),  // Right ascension provided as input.
-        "dec": (float),  // Declination provided as input.
-        "telescope": (string),  // Telescope name provided as input.
-        "fov": (float),  // Field of view provided as input.
-        "local_data": (string),  // Placeholder for data specific to the local sky model.
-        "advanced_search_1": (float),  // Advanced search criteria 1.
-        ...
-        "advanced_search_n": (float), // Advanced search criteria n.
-    }
-
 
 Interactive Documentation
 -------------------------
