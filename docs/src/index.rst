@@ -15,8 +15,8 @@ The GSM service provides an API to query sources based on their coordinates, flu
 format which utilises `HEALPix <https://healpix.sourceforge.io>`_ tiles.
 
 
-If you just want to use the GSM service, check the `User Guide <userguide/overview.html>`_.
-To understand the internals, check out the `Developer Guide <developerguide/Development.html>`_.
+If you just want to use the GSM service, check the `User Guide <user/overview.html>`_.
+To understand the internals, check out the `Developer Guide <developer/development.html>`_.
 
 .. toctree::
   :maxdepth: 1

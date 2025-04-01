@@ -1,7 +1,7 @@
 API Usage Guide
 ===============
 
-To deploy the API, see the :doc:`deployment docs <../developerguide/Development>` under the developer guide.
+To deploy the API, see the :doc:`deployment docs <../developer/development>` under the developer guide.
 
 Once up and running there are several API endpoints you can query to retrieve information:
 
@@ -135,7 +135,7 @@ This last example request retrieves a local sky model for an observation with th
 
 
 This endpoint returns a list of dictionaries of HEALPix pixels, plus what is configured in the ``catalogue.yaml``.
-The HEALPix pixel id (shown as Heal_Pix_Position here) corresponds to specific regions of the sky and are explained more in the :doc:`overview <../userguide/overview>`.
+The HEALPix pixel id (shown as Heal_Pix_Position here) corresponds to specific regions of the sky and are explained more in the :doc:`overview <../user/overview>`.
 
 .. code-block:: javascript
 
