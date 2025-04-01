@@ -6,7 +6,8 @@ Overview
 Under the hood, the Global Sky Model is using HEALPix coordinates and the data is managed by Polars which implements efficient DataFrames.
 
 The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree.
-The resolution can be set in the conf.py. #TODO: this resolution should be set in the catalogue config.
+The resolution can currently be set in config.py by editing ``NSIDE`` (coarse resolution) and ``NSIDE_PIXEL`` (fine resolution). The hope is that eventually
+the resolution values will be defined by the metadata file, ``catalogue.yaml``.
 When a source is ingested into the postgres database, its position is mapped to one of these HEALPix pixels. This establishes
 a relationship between areas of the sky, and the sources they contain.
 

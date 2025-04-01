@@ -1,7 +1,7 @@
 API Usage Guide
 ===============
 
-To deploy the API, see the :doc:`deployment docs <../developerguide/Development>` under the developer guide.
+To deploy the API, see the :doc:`deployment docs <../developer/development>` under the developer guide.
 
 Once up and running there are several API endpoints you can query to retrieve information:
 
@@ -25,7 +25,7 @@ Example use:
 .. code-block:: bash
 
     GET /ping
-    http://127.0.0.1:8000/ping
+    curl http://127.0.0.1:8000/ping
 
 
 If the API is up and running, this should yield the result:
@@ -47,7 +47,7 @@ Example use:
 .. code-block:: bash
 
     GET /sources
-    http://127.0.0.1:8000/sources
+    curl http://127.0.0.1:8000/sources
 
 
 This returns a JSON object representing the complete list of sources, e.g:
@@ -79,7 +79,7 @@ Directly in the url:
 
 ..  code-block:: bash
 
-    http://127.0.0.1:8000/local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
+    curl http://127.0.0.1:8000/local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
 
 Via curl:
 
@@ -135,26 +135,11 @@ This last example request retrieves a local sky model for an observation with th
 
 
 This endpoint returns a list of dictionaries of HEALPix pixels, plus what is configured in the ``catalogue.yaml``.
-The HEALPix pixel id (shown as Heal_Pix_Position here) corresponds to specific regions of the sky and are explained more in the :doc:`overview <../userguide/overview>`.
+The HEALPix pixel id (shown as Heal_Pix_Position here) corresponds to specific regions of the sky and are explained more in the :doc:`overview <../user/overview>`.
 
 .. code-block:: javascript
 
     [{"Heal_Pix_Position":156685},{"Heal_Pix_Position":156717}]
-
-or
-
-.. code-block:: javascript
-
-    {
-        "ra": (float),  // Right ascension provided as input.
-        "dec": (float),  // Declination provided as input.
-        "telescope": (string),  // Telescope name provided as input.
-        "fov": (float),  // Field of view provided as input.
-        "local_data": (string),  // Placeholder for data specific to the local sky model.
-        "advanced_search_1": (float),  // Advanced search criteria 1.
-        ...
-        "advanced_search_n": (float), // Advanced search criteria n.
-    }
 
 
 Interactive Documentation

@@ -25,14 +25,14 @@ To download the datasets via helm, set the following ``values.yaml`` variables:
 Local Poetry Setup (On Startup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Or, if you are running locally and not using helm, set the following ENV variables:
+Or, if you are running locally and not using helm, you can use the local dataset files. Set the following ENV variables:
 
 .. code-block:: bash
 
-    $ export TMDATA_SOURCE=car:sdp/ska-sdp-global-sky-model?0.2.0
+    $ export TMDATA_SOURCE=file://$(pwd)/tmdata
     $ export TMDATA_KEYS=ska/sdp/gsm/ASKAP_20250206.tar.gz,ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
 
-When the service starts, these datasets will download.
+When the service starts, these datasets will load from the ``tmdata/`` directory.
 
 Manual Setup
 ~~~~~~~~~~~~
