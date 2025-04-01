@@ -13,7 +13,7 @@ Once higher resolution observations are obtained, the SKA data will be used to u
 
 The GSM service uses `Fast API <https://fastapi.tiangolo.com>`_ as the main API framework and `starlette <https://www.starlette.io>`_
 to set up configurations. It also makes use of a data store implemented with `PostgreSQL <https://www.postgresql.org>`_.
-Healpix is used for sky-coordinate calculations.
+`HEALPix <https://healpix.sourceforge.io>`_ is used for sky-coordinate calculations.
 
 If you just want to use the GSM service, check the `User Guide <userguide/overview.html>`_.
 To understand the internals, check out the `Developer Guide <developerguide/Development.html>`_.
