@@ -15,7 +15,6 @@ Without visiting an endpoint, the base api host/port address will just display:
 .. code-block:: bash
     {"detail":"Not Found"}
 
-
 Ping
 ----
 
@@ -65,7 +64,9 @@ This returns a JSON object representing the complete list of sources, e.g:
 Local Sky Model
 ---------------
 
-This API endpoint retrieves a subset of the global sky model, filtered for a specified celestial observation. Filtered by right ascension (ra), declination (dec), telescope name and field of view (fov), the api returns sources within that region. See the table below for more information on the parameters.
+This API endpoint retrieves a subset of the global sky model, filtered for a specified celestial observation.
+Filtered by right ascension (ra), declination (dec), telescope name and field of view (fov), the api returns sources within that region.
+See the table below for more information on the parameters.
 
 Example uses:
 
@@ -156,8 +157,8 @@ or
     }
 
 
-
-Documentation
--------------
-For detailed documentation of the API, see the FastAPI Swagger UI documentation. This interactive API documentation can be accessed at http://127.0.0.1:8000/docs when running the application locally or https://<domain>/<namespace>/global-sky-model/docs when deployed behind an ingress.
-
+Interactive Documentation
+-------------------------
+For detailed documentation of the API, see the FastAPI Swagger UI documentation.
+This interactive API documentation can be accessed at http://127.0.0.1:8000/docs when running the application locally,
+or https://<domain>/<namespace>/global-sky-model/docs when deployed behind an ingress.

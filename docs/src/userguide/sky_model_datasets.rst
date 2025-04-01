@@ -12,7 +12,7 @@ There are 2 datasets that are available for use:
   - Murchison Widefield Array (GLEAM)
 
 Helm Setup
-~~~~~~~~~~~~
+~~~~~~~~~~
 
 To download the datasets via helm, set the following ``values.yaml`` variables:
 
