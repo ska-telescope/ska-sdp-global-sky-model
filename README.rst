@@ -1,45 +1,46 @@
-# SKA SDP Global Sky Model
+SKA SDP Global Sky Model
+========================
 
 This repository contains the code for constructing the global sky model in SKA SDP,
 operated as a CLI app implemented in Python.
 
-The [Documentation](https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/) includes usage
+The `[Documentation] <https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/>`__ includes usage
 examples, API, and installation directions.
 
-The CI/CD occurs on  [Gitlab](https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model.git).
+The CI/CD occurs on  `[Gitlab]<https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model.git>`__.
 
-## Standard CI machinery
+Standard CI machinery
+---------------------
 
 This repository is set up to use the
-[Makefiles](https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile) and [CI
-jobs](https://gitlab.com/ska-telescope/templates-repository) maintained by the
+`[Makefiles]<https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile>`_ and `[CI
+jobs]<https://gitlab.com/ska-telescope/templates-repository>`_ maintained by the
 System Team. For any questions, please look at the documentation in those
 repositories or ask for support on Slack in the #team-system-support channel.
 
 To keep the Makefiles up to date in this repository, follow the instructions
-at: https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile#keeping-up-to-date
+at `this link <https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile#keeping-up-to-date>`_.
 
 ## Contributing to this repository
 
-[Black](https://github.com/psf/black), [isort](https://pycqa.github.io/isort/),
+`[Black]<https://github.com/psf/black>`_, `[isort]<https://pycqa.github.io/isort/>`_,
 and various linting tools are used to keep the Python code in good shape.
 Please check that your code follows the formatting rules before committing it
 to the repository. You can apply Black and isort to the code with:
 
-```bash
-make python-format
-```
+.. code-block:: bash
+  make python-format
 
 and you can run the linting checks locally using:
 
-```bash
-make python-lint
-```
+.. code-block:: bash
+  make python-lint
 
 The linting job in the CI pipeline does the same checks, and it will fail if
 the code does not pass all of them.
 
-## Creating a new release
+Creating a new release
+----------------------
 
 When you are ready to make a new release (maintainers only):
 
