@@ -1,19 +1,19 @@
 SDP Global Sky Model
 ====================
 
-The SKA SDP Global Sky Model repository contains the code for the SKA global sky model (GSM), which is resource which maps out radio sources.
+The SKA SDP Global Sky Model (GSM) is a resource for indexing and querying radio source catalogues.
 It works as a service that ingests observation data and can be used by SDP or other users to fetch local sky model data.
 The main use case for this model is to aid calibration efforts.
 
 Initially, the project will not have observation data collected from SKA observations.
-As such, an existing catalog is used to bootstrap the SKA Global Sky Model.
-For the purposes of the LOW telescope, the selected catalog is the `GLEAM catalog <https://www.mwatelescope.org/science/galactic-science/gleam/>`_.
-A catalog for the MID telescope is the `RACS catalog <https://www.atnf.csiro.au/research/RACS/RACS_I1/>>`_.
+As such, an existing catalogue is used to bootstrap the SKA Global Sky Model.
+For the purposes of the Low telescope, the selected catalogue is the `GLEAM catalogue <https://www.mwatelescope.org/science/galactic-science/gleam/>`_.
+A catalogue for the Mid telescope is the `RACS catalogue <https://www.atnf.csiro.au/research/RACS/RACS_I1/>`_.
 Once higher resolution observations are obtained, the SKA data will be used to update and improve the GSM.
 
-The GSM service uses `Fast API <https://fastapi.tiangolo.com>`_ as the main API framework and `starlette <https://www.starlette.io>`_
-to set up configurations. It also makes use of a data store implemented with `PostgreSQL <https://www.postgresql.org>`_.
-`HEALPix <https://healpix.sourceforge.io>`_ is used for sky-coordinate calculations.
+The GSM service provides an API to query sources based on their coordinates, flux and catalogue. The catalogue data is stored in a file based
+format which utilises `HEALPix <https://healpix.sourceforge.io>`_ tiles.
+
 
 If you just want to use the GSM service, check the `User Guide <userguide/overview.html>`_.
 To understand the internals, check out the `Developer Guide <developerguide/Development.html>`_.
@@ -22,19 +22,19 @@ To understand the internals, check out the `Developer Guide <developerguide/Deve
   :maxdepth: 1
   :caption: User Guide
 
-  userguide/overview
-  userguide/api_use
-  userguide/sky_model_datasets
+  user/overview
+  user/api-use
+  user/sky-model-datasets
 
 .. toctree::
   :maxdepth: 1
   :caption: Developer Guide
 
-  developerguide/Development
-  developerguide/Deployment
+  developer/development
+  developer/deployment
 
 .. toctree::
   :maxdepth: 1
   :caption: Releases
 
-  changelog
+  ../../changelog
