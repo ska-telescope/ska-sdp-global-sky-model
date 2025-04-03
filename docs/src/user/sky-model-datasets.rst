@@ -74,7 +74,8 @@ And each ingest will run one after the other.
 The ingest process does not create the ``catalogue.yaml`` which is required for
 retrieving more details from the API.
 
-Currently three types of datasets can be created:
+Currently three types of datasets can be created, listed as below.
+However, this could be extended to any dataset that is available through Vizier.
 
 GLEAM
 ~~~~~
@@ -183,8 +184,9 @@ If the file is not in a default or setup source, you can specify a different sou
 Metadata file
 -------------
 
-Each dataset should use a metadata file called ``catalogue.yaml``. This file is technically optional, 
-but without it only basic information like the Heal_Pix_position is returned by the API.
+Each dataset should use a metadata file called ``catalogue.yaml``.
+This describes the dataset and is needed to correctly interpret the catalogue data.
+Without the catalogue only basic information like the Heal_Pix_position is returned by the API.
 
 It should live in the ``/datasets`` directory and will allow more attributes to be returned by the API, as well as metadata for the catalogue.
 
