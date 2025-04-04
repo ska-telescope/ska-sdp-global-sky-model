@@ -8,7 +8,7 @@ Under the hood, the Global Sky Model is using HEALPix coordinates and the data i
 The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree.
 The resolution can currently be set in config.py by editing ``NSIDE`` (coarse resolution) and ``NSIDE_PIXEL`` (fine resolution). The hope is that eventually
 the resolution values will be defined by the metadata file, ``catalogue.yaml``.
-When a source is ingested into the postgres database, its position is mapped to one of these HEALPix pixels. This establishes
+When a source is ingested into the file-based database, its position is mapped to one of these HEALPix pixels. This establishes
 a relationship between areas of the sky, and the sources they contain.
 
 .. code-block:: python

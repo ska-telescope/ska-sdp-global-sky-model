@@ -71,13 +71,14 @@ See the table below for more information on the parameters.
 Example uses:
 
 Get query:
+
 .. code-block:: bash
 
     GET /local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
 
 Directly in the url:
 
-..  code-block:: bash
+.. code-block:: bash
 
     curl http://127.0.0.1:8000/local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
 
