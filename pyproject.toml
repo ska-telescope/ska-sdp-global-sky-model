@@ -1,14 +1,14 @@
 [project]
 include = ["MANIFEST.skao.int"]
-name = "ska_sdp_global_sky_model"
+name = "ska-sdp-global-sky-model"
 version = "0.2.0"
-description = ""
+description = "SKA SDP Global Sky Model"
 authors = [
     {name = "Jacob Maresca", email =  "jacob.maresca@akkodis.com>"},
     {name = "Christian Christelis", email =  "cchristelis@ska.ac.za"},
     {name = "Dominic Schaff", email =  "dominic@vivosa.co.za"}
 ]
-readme = "README.md"
+readme = "README.rst"
 packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 requires-python = ">=3.10,<3.12"
 license-files = ["LICENSE"]
@@ -16,17 +16,16 @@ license-files = ["LICENSE"]
 [project.urls]
 Documentation = "https://developer.skao.int/projects/ska-sdp-global-sky-model/en/latest/"
 Repository = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model"
-Changelog = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/CHANGELOG.md"
+Changelog = "https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/CHANGELOG.rst"
 
 [[tool.poetry.source]]
-name = "ska-nexus"
+name = "PyPI"
+priority = "supplemental"
+
+[[tool.poetry.source]]
+name = "skao"
 url = "https://artefact.skao.int/repository/pypi-internal/simple"
 priority = "primary"
-
-[[tool.poetry.source]]
-name = "PyPI-public"
-url = "https://pypi.org/simple"
-priority = "supplemental"
 
 [tool.poetry.dependencies]
 fastapi = "^0.115.8"
@@ -74,3 +73,6 @@ build-backend = "poetry.core.masonry.api"
 [project.scripts]
 gsm-ingest = "ska_sdp_global_sky_model.cli.ingest_sm:main"
 gsm-download = "ska_sdp_global_sky_model.cli.download_sm:main"
+
+
+

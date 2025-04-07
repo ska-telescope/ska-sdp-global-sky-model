@@ -102,7 +102,7 @@ async def get_local_sky_model_endpoint(
         dec (float): Declination of the observation point in degrees.
         flux_wide (float): Wide-field flux of the observation in Jy.
         telescope (str): Name of the telescope being used for the observation.
-        fov (float): Field of view of the telescope in arcminutes.
+        fov (float): Field of view of the telescope in degrees.
         ds (DataStore):
 
     Returns:

@@ -35,7 +35,7 @@ def get_local_sky_model(
         telescope (str): Placeholder for future implementation of the telescope name \
             being used for the observation. Currently not used.
         fov (float): Placeholder for future implementation of the telescope's field of\
-            view (in arcminutes). Currently not used.
+            view (in degrees). Currently not used.
         advanced_search (dict): Advanced search parameters
 
     Returns:

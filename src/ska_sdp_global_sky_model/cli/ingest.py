@@ -54,7 +54,7 @@ def source_file(
     logger.info("SourceFile object created")
     source_data = source_data.rename(heading_alias)
     source_data = source_data.with_columns(**dict(zip_longest(heading_missing, [])))
-    # Get the healpix values for pixel and source resolution as well as SkyCoords vectors
+    # Get the HEALPix values for pixel and source resolution as well as SkyCoords vectors
     sc = SkyCoord(source_data["RAJ2000"], source_data["DEJ2000"], frame="icrs", unit="deg")
     healpix = HEALPix(nside=NSIDE, order="nested", frame="icrs")
     healpix_tile = HEALPix(nside=NSIDE_PIXEL, order="nested", frame="icrs")

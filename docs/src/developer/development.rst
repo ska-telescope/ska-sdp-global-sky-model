@@ -10,7 +10,7 @@ Tooling Pre-requisites
 Below are some tools that will be required to work with the SKA Global Sky Model:
 
 - Python 3.10 or later versions: Install page URL: https://www.python.org/downloads/
-- Poetry 1.8.2 or later versions: Install page URL: https://python-poetry.org/docs/#installation
+- Poetry 2.0.1 or later versions: Install page URL: https://python-poetry.org/docs/#installation
 - GNU make 4.2 or later versions: Install page URL: https://www.gnu.org/software/make/
 
 
@@ -26,12 +26,19 @@ Clone the repository and its submodules:
 Running the application
 =======================
 
-The API can be run as a script, provided the connection string to the PostgreSQL database
-is updated, using the command:
+The API can be set up to pull data on start up. For ingestion options, see the :doc:`dataset setup guide <../user/sky-model-datasets>`. 
+
+In the dataset directory, check a ``catalogue.yaml`` exists for your dataset.
+Without this, the API will not render all the columns correctly.
+This is also outlined in the :doc:`../user/sky-model-datasets` section.
+
+Start the api with:
 
 .. code-block:: bash
 
-    $ uvicorn ska_sdp_global_sky_model.api.main:app --reload --host 0.0.0.0 --port 80 --app-dir ./src
+    $ uvicorn ska_sdp_global_sky_model.api.main:app --reload --app-dir ./src
+
+This will make the API available at `http://127.0.0.1:8000`. 
 
 Running the application tests
 =============================
