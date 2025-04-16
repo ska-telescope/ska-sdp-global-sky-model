@@ -13,6 +13,7 @@ Once up and running there are several API endpoints you can query to retrieve in
 Without visiting an endpoint, the base api host/port address will just display:
 
 .. code-block:: bash
+
     {"detail":"Not Found"}
 
 Ping
@@ -40,7 +41,12 @@ If the API is up and running, this should yield the result:
 Sources
 -------
 
-This API endpoint retrieves a complete list of sources by reading the csv files in the datastore under `datasets/`. This could take a long time or be unsuccessful (if done locally) given the large amount of memory required to return all the source information.
+This API endpoint retrieves a complete list of sources by reading the csv files in the datastore under ``datasets/``.
+
+.. warning::
+
+    This could take a long time or be unsuccessful (if done locally) given the large amount
+    of memory required to return all the source information. Note recommended for local work.
 
 Example use:
 

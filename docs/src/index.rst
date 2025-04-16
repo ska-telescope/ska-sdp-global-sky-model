@@ -25,6 +25,7 @@ To understand the internals, check out the `Developer Guide <developer/developme
   user/overview
   user/api-use
   user/sky-model-datasets
+  user/cli-use
 
 .. toctree::
   :maxdepth: 1

@@ -21,7 +21,7 @@ Clone the repository and its submodules:
 
 .. code-block:: bash
 
-    git clone --recursive git@gitlab.com:ska-telescope/sdp/ska-sdp-global-sky-model.git
+    git clone git@gitlab.com:ska-telescope/sdp/ska-sdp-global-sky-model.git --recurse-submodules
 
 Running the application
 =======================
@@ -38,7 +38,7 @@ Start the api with:
 
     $ uvicorn ska_sdp_global_sky_model.api.main:app --reload --app-dir ./src
 
-This will make the API available at `http://127.0.0.1:8000`. 
+This will make the API available at ``http://127.0.0.1:8000``.
 
 Running the application tests
 =============================

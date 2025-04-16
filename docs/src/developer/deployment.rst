@@ -22,7 +22,7 @@ The Helm values that are available are listed below:
 
     * - ``replicaCount``
       - ``1``
-      - The amount of replicas to use.
+      - The number of replicas to use.
 
     * - ``env.verbose``
       - ``false``
@@ -42,14 +42,14 @@ The Helm values that are available are listed below:
 
     * - ``env.workers``
       - ``1``
-      - The amount of workers to create.
+      - The number of workers to create.
 
     * - ``container.repository``
       - ``artefact.skao.int/ska-sdp-global-sky-model-api``
       - The repo of the container image to use.
 
     * - ``container.tag``
-      - ``latest``
+      - ``0.2.0``
       - Which version of the container image to use.
 
     * - ``container.pullPolicy``
