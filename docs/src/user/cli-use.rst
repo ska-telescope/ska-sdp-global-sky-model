@@ -33,7 +33,7 @@ For example, if the API is already running, run in the same context as the API:
 See below for further examples.
 
 Local File
-**********
+~~~~~~~~~~
 
 For a local file, copy the file into a location on the POD. Then run the following command:
 
@@ -43,7 +43,7 @@ For a local file, copy the file into a location on the POD. Then run the followi
 
 
 TMData File
-***********
+~~~~~~~~~~~
 
 For a TMData referenced file, you only need to give the key.
 

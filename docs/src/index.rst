@@ -40,4 +40,4 @@ format which utilises `HEALPix <https://healpix.sourceforge.io>`_ tiles.
   :maxdepth: 1
   :caption: Releases
 
-  ../../changelog
+  changelog

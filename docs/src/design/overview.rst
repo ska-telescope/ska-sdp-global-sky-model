@@ -54,7 +54,7 @@ The ``dataset_data`` will point to the DataFrame containing all the sources.
 When a new Source is added to ``SourcePixel``, then it is joined to the DataFrame.
 
 Local Sky Model
-~~~~~~~~~~~~~~~
+---------------
 
 When performing a local sky model search, the following steps are taken:
 

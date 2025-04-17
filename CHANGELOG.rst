@@ -95,7 +95,7 @@ Development
 0.1.1
 -----
 - Bump release
-  (`MR2 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/2`__)
+  (`MR2 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/2>`__)
 
 0.1.0
 -----
