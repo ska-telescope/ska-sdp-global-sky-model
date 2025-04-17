@@ -26,11 +26,11 @@ Clone the repository and its submodules:
 Running the application
 =======================
 
-The API can be set up to pull data on start up. For ingestion options, see the :doc:`dataset setup guide <../user/sky-model-datasets>`. 
+The API can be set up to pull data on start up. For ingestion options, see the :doc:`dataset setup guide <../design/sky-model-datasets>`.
 
 In the dataset directory, check a ``catalogue.yaml`` exists for your dataset.
 Without this, the API will not render all the columns correctly.
-This is also outlined in the :doc:`../user/sky-model-datasets` section.
+This is also outlined in the :doc:`../design/sky-model-datasets` section.
 
 Start the api with:
 

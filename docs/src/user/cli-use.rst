@@ -33,7 +33,7 @@ For example, if the API is already running, run in the same context as the API:
 See below for further examples.
 
 Local File
-**********
+~~~~~~~~~~
 
 For a local file, copy the file into a location on the POD. Then run the following command:
 
@@ -43,7 +43,7 @@ For a local file, copy the file into a location on the POD. Then run the followi
 
 
 TMData File
-***********
+~~~~~~~~~~~
 
 For a TMData referenced file, you only need to give the key.
 
@@ -125,6 +125,6 @@ datasets to download and prepare for use.
 * ``TMDATA_KEYS`` : is an optional environment variable which should contain a comma seperated list
   of keys that should be downloaded on startup. The GSM system assumes that these files are considered
   as large files, and as such will download the listed file. These files should be ``.tar.gz`` compressed
-  files created in the `Downloading an Existing Dataset`_ section
+  files.
 
 

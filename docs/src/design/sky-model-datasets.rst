@@ -3,7 +3,7 @@ Sky Model Dataset
 
 This section will describe how the GSM handles datasets and what metadata files are needed. For 
 information on how to ingest, create and upload new datasets for the the GSM Service, please
-see :ref:`<get_data>`.
+see :ref:`get_data`.
 
 Existing Datasets
 -----------------

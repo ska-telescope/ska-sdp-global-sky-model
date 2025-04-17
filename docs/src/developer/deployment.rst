@@ -4,7 +4,7 @@ Deployment Guide
 Kubernetes Deployment
 ---------------------
 
-The SKA Global Sky Model is designed to be deployed as a service, accesible to
+The SKA Global Sky Model is designed to be deployed as a service, accessible to
 other deployments via the included API.
 
 Helm Values
@@ -95,7 +95,7 @@ Uploading Datasets
 If ``env.tmdata_keys`` was never set, or you would like to add more datasets,
 you can copy datasets onto the volume.
 
-First prepare the datasets as per :ref:`Persisting a Dataset` the resulting Tar GZip
+First prepare the datasets as per "Persisting a Dataset" - TODO-where is this ref? the resulting Tar GZip
 file can be uploaded using:
 
 .. code-block:: bash

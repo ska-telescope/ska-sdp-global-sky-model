@@ -58,7 +58,7 @@ Persisting a Dataset
 
 If you want to persist a dataset for an instance that is not running yet:
 
-  - Finish ingestion (using `Creating a New Dataset`_)
+  - Finish ingestion (using "Creating a New Dataset" TODO: where is this section?..)
   - Compress the directory using the following command:
 
 .. code-block:: bash
