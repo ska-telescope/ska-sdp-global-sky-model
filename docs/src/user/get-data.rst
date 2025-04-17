@@ -1,20 +1,10 @@
-Sky Model Dataset
-=================
+.. _get_data:
 
-This section will describe how the GSM handles datasets and what metadata files are needed. For 
-information on how to how to ingest, create and upload new datasets for the the GSM Service, please
-see the :doc:`CLI docs </cli-use>`.
+Downloading and uploading catalogue data
+========================================
 
-Existing Datasets
------------------
-
-There are two datasets that are available for use:
-
-  - Murchison Widefield Array (GLEAM)
-  - ASKAP (RACS)
-
-Downloading the Data
---------------------
+Accessing data
+--------------
 
 You can use the CLI for this, or, see below for other options.
 
@@ -62,6 +52,7 @@ If you want just the datafiles, you can use the ``ska-telmodel`` command:
     $ ska-telmodel --sources=car:sdp/ska-sdp-global-sky-model?0.2.0 cp ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
 
 
+
 Persisting a Dataset
 --------------------
 
@@ -75,42 +66,3 @@ If you want to persist a dataset for an instance that is not running yet:
     $ cd ${GSM_DATA}
     $ tar cf - "<directory>" | pigz -9 > "<directory (without spaces)>_$(date "+%Y%m%d").tar.gz"
 
-
-Metadata file
--------------
-
-Each dataset should use a metadata file called ``catalogue.yaml``.
-This describes the dataset and is needed to correctly interpret the catalogue data.
-Without the catalogue only basic information like the Heal_Pix_position is returned by the API.
-
-It should live in the ``/datasets`` directory and will allow more attributes to be returned by the API, as well as metadata for the catalogue.
-
-An example of what the file should look like is as follows:
-
-.. code-block:: yaml
-
-    interface: http://schema.skao.int/catalogue-meta/0.1
-
-    name: RACS
-
-    version: 1
-
-    context:
-      date: 10-11-2024
-      description: "ASKAP Racs Catalogue"
-      notes: "Mid and low frequency catalog"
-
-    config:
-      default-attributes:
-        - "name"
-        - "RAJ2000"
-        - "DEJ2000"
-      attributes:
-        - "recno"
-        - "name"
-        - "RAJ2000"
-        - "DEJ2000"
-
-Now, when queried, the API will return ``RAJ2000`` and ``DEJ2000`` columns alongside the HEALPix information.
-
-``default_attributes`` are the columns which will be automatically returned by the API when /local_sky_model is queried, and ``attributes`` are the columns that can be filtered on by a query.

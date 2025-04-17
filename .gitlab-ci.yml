@@ -53,6 +53,9 @@ include:
 - project: 'ska-telescope/templates-repository'
   file: 'gitlab-ci/includes/deploy.dev.gitlab-ci.yml'
 
+docs-build-rtd:
+  allow_failure: false
+
 deploy:
   extends: deploy-dev-environment
   rules:

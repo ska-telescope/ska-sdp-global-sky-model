@@ -1,3 +1,5 @@
+.. _cli_use:
+
 GSM CLI use
 ===========
 
