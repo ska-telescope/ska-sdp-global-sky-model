@@ -26,8 +26,8 @@ format which utilises `HEALPix <https://healpix.sourceforge.io>`_ tiles.
   :caption: User Guide
 
   user/api-use
-  user/cli-use
   user/get-data
+  user/cli-use
 
 .. toctree::
   :maxdepth: 1

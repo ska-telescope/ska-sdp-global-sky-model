@@ -1,15 +1,32 @@
 .. _cli_use:
 
-GSM CLI use
-===========
+Command Line Interface
+======================
 
 This section describes the two CLI commands the GSM, ``gsm-download`` and ``gsm-ingest``.
 
 Overview
 --------
 
-``gsm-download``: For fetching and extracting catalogue .tar files
+``gsm-download``: For fetching and extracting catalogue files
 ``gsm-ingest``: For converting catalogues into a format the GSM can use.
+
+
+Environment Variables
+---------------------
+
+On startup there are 2 environment variables that are used to determine which
+datasets to download and prepare for use.
+
+* ``TMDATA_SOURCE`` : is an optional environment variable that can be set to a path
+  that can be used for the telescope model source data. If blank the system
+  will look in the default list of sources.
+* ``TMDATA_KEYS`` : is an optional environment variable which should contain a comma seperated list
+  of keys that should be downloaded on startup. The GSM system assumes that these files are considered
+  as large files, and as such will download the listed file. These files should be ``.tar.gz`` compressed
+  files.
+
+In addition, set ``DATASET_ROOT`` to define where the data need to be downloaded to.
 
 gsm-download
 ------------
@@ -30,17 +47,14 @@ For example, if the API is already running, run in the same context as the API:
 
     TMDATA_SOURCE=car:sdp/ska-sdp-global-sky-model?0.2.0 gsm-download --verbose ska/sdp/gsm/ASKAP_20250206.tar.gz ska/sdp/gsm/Murchison_Widefield_Array_20250218.tar.gz
 
-See below for further examples.
-
 Local File
 ~~~~~~~~~~
 
-For a local file, copy the file into a location on the POD. Then run the following command:
+For a local file, copy the file into a location on the k8s pod running the GSM. Then run the following command:
 
 .. code-block:: bash
 
     $ gsm-download <file>.tar.gz
-
 
 TMData File
 ~~~~~~~~~~~
@@ -57,6 +71,8 @@ If the file is not in a default or setup source, you can specify a different sou
 
     $ TMDATA_SOURCE="<TM Data source>" gsm-download <key to file>.tar.gz
 
+
+.. _gms_ingest:
 
 gsm-ingest
 ----------
@@ -100,31 +116,3 @@ We require 2 CSVs in the ``DATASET_ROOT/ingest`` directory:
 .. code-block:: bash
 
     $ DATASET_ROOT=<directory to use> gsm-ingest racs
-
-RCAL
-~~~~
-
-This dataset is data used for the Realtime Calibration. And requires you to
-include your own CSV files.
-
-
-.. code-block:: bash
-
-    $ DATASET_ROOT=<directory to use> gsm-ingest <csv file(s)>
-
-
-Environment Variables
----------------------
-
-On startup there are 2 environment variables that are used to determine which
-datasets to download and prepare for use.
-
-* ``TMDATA_SOURCE`` : is an optional environment variable that can be set to a path
-  that can be used for the telescope model source data. If blank the system
-  will look in the default list of sources.
-* ``TMDATA_KEYS`` : is an optional environment variable which should contain a comma seperated list
-  of keys that should be downloaded on startup. The GSM system assumes that these files are considered
-  as large files, and as such will download the listed file. These files should be ``.tar.gz`` compressed
-  files.
-
-

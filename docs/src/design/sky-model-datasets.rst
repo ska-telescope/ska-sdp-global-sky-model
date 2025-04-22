@@ -21,9 +21,10 @@ Metadata file
 
 Each dataset should use a metadata file called ``catalogue.yaml``.
 This describes the dataset and is needed to correctly interpret the catalogue data.
-Without the catalogue only basic information like the Heal_Pix_position is returned by the API.
+Without the catalogue, only basic information like the ``Heal_Pix_position`` is returned by the API.
 
-It should live in the ``/datasets`` directory and will allow more attributes to be returned by the API, as well as metadata for the catalogue.
+It should live in the directory containing the catalogue data files and will allow more attributes
+to be returned by the API, as well as metadata for the catalogue.
 
 An example of what the file should look like is as follows:
 

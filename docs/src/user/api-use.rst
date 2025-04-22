@@ -1,7 +1,7 @@
 API Usage Guide
 ===============
 
-To deploy the API, see the :doc:`deployment docs <../developer/development>` under the developer guide.
+To deploy the API, see the :ref:`deployment`.
 
 Once up and running there are several API endpoints you can query to retrieve information:
 
@@ -58,26 +58,35 @@ Directly in the url:
 
     curl http://127.0.0.1:8000/local_sky_model?ra=120;130&dec=-50;-40&telescope=Murchison%20Widefield%20Array&fov=2
 
-Via curl:
+This will return a list of sources with various information, for example:
+
+.. code-block::
+
+    [{
+        "Heal_Pix_Position":156722,"Fint122":0.069661,"Fintwide":0.074672,"Fint212":0.113818,"Fint115":-0.014681,"Fint092":0.062107,"Fint227":0.095824,"Fint174":0.030177,"Fint189":0.08885,"DEJ2000":-50.274509,"Fint204":0.09043,"Fint084":-0.017805,"name":"J080350-501628","Fint197":0.03983,"Fint158":0.064523,"Fint166":0.067736,"RAJ2000":120.961189,"Fint220":0.061598,"Fint143":0.05896,"Fint130":0.138036,"Fint099":0.058149,"Fint181":0.029213,"Fint107":0.046523,"Fint076":0.004217,"Fint151":0.093087
+     }, ...]
+
+
+Obtain data for a single source, via curl:
 
 .. code-block:: bash
 
     curl -X GET http://localhost:8000/local_sky_model \
     -H 'Content-Type: application/json' \
     -d '{
-        "ra": 123.456,
-        "dec": -56.789,
+        "ra": 120.0,
+        "dec": -50.0,
         "flux_wide": 1.23,
-        "telescope": "HST",
+        "telescope": "Murchison Widefield Array",
         "fov": 2.0
     }'
 
 This last example request retrieves a local sky model for an observation with the following parameters:
 
-* Right Ascension (RA): 123.456 degrees
-* Declination (DEC): -56.789 degrees
+* Right Ascension (RA): 120 degrees
+* Declination (DEC): -50 degrees
 * Wide-field flux: 1.23 Jy
-* Telescope: HST
+* Telescope: Murchison Widefield Array
 * Field of view: 2.0 degrees
 
 
@@ -125,5 +134,6 @@ docs
 Interactive documentation
 
 For detailed documentation of the API, see the FastAPI Swagger UI documentation.
-This interactive API documentation can be accessed at http://127.0.0.1:8000/docs when running the application locally,
-or https://<domain>/<namespace>/global-sky-model/docs when deployed behind an ingress.
+This interactive API documentation can be accessed at ``http://127.0.0.1:8000/docs`` when running the application locally,
+or ``https://<domain>/<namespace>/global-sky-model/docs`` when deployed behind an ingress.
+Remember to replace ``<domain>`` and ``<namespace>`` with the appropriate values.
