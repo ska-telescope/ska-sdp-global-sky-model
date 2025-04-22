@@ -4,6 +4,8 @@ Changelog
 Development
 -----------
 
+- Reorganized and updated the documentation
+  (`MR44 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/44>`__)
 - Fix RTD by upgrading to poetry 2 
   (`MR42 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/42>`__)
 - Update documentation and Make commands for datasets 
