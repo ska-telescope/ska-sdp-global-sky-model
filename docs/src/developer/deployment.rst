@@ -1,10 +1,12 @@
+.. _deployment:
+
 Deployment Guide
 ================
 
 Kubernetes Deployment
 ---------------------
 
-The SKA Global Sky Model is designed to be deployed as a service, accesible to
+The SKA Global Sky Model is designed to be deployed as a service, accessible to
 other deployments via the included API.
 
 Helm Values
@@ -22,7 +24,7 @@ The Helm values that are available are listed below:
 
     * - ``replicaCount``
       - ``1``
-      - The amount of replicas to use.
+      - The number of replicas to use.
 
     * - ``env.verbose``
       - ``false``
@@ -42,14 +44,14 @@ The Helm values that are available are listed below:
 
     * - ``env.workers``
       - ``1``
-      - The amount of workers to create.
+      - The number of workers to create.
 
     * - ``container.repository``
       - ``artefact.skao.int/ska-sdp-global-sky-model-api``
       - The repo of the container image to use.
 
     * - ``container.tag``
-      - ``latest``
+      - ``0.2.0``
       - Which version of the container image to use.
 
     * - ``container.pullPolicy``
@@ -88,35 +90,44 @@ The Helm values that are available are listed below:
       - ``nfss1``
       - What storage class to use for the volume.
 
-
-Uploading Datasets
-~~~~~~~~~~~~~~~~~~
-
-If ``env.tmdata_keys`` was never set, or you would like to add more datasets,
-you can copy datasets onto the volume.
-
-First prepare the datasets as per :ref:`Persisting a Dataset` the resulting Tar GZip
-file can be uploaded using:
+Run the following command to install the chart in a kubernetes cluster
+(this command works if you have the repository cloned locally).
+Note that some variables will need replacing first, which are described below.
 
 .. code-block:: bash
 
-    $ kubectl exec -n dp-naledi-dominic ska-sdp-global-sky-model-79d5958644-7mg6m -- bash -c "mkdir /datasets/ingests"
-    $ kubectl cp -n dp-naledi-dominic gsm_local_data/ASKAP_20250206.tar.gz ska-sdp-global-sky-model-79d5958644-7mg6m:/datasets/ingests/
+    $ helm install sdp-gsm charts/ska-sdp-global-sky-model -n <namespace> \
+        --values <my-values.yaml>
 
-And then you will need to import that file using:
-
-.. code-block:: bash
-
-    $ kubectl exec -n dp-naledi-dominic ska-sdp-global-sky-model-79d5958644-7mg6m -- \
-      bash -c "gsm-download /datasets/ingests/*"
+``<namespace>`` is the namespace where you want to install the GSM, and
+``<my-values.yaml>`` is the custom values file you may create. This is
+optional and the ``--values`` option can be omitted.
 
 
-Running the application with Docker
------------------------------------
+Running the application locally
+-------------------------------
 
-Alternatively, the application can be built using the provided Dockerfile.
+Alternatively, the application can be built and run locally by
+using the provided Dockerfile, via the following make targets:
 
 .. code-block:: bash
 
     $ make build
     $ make run
+
+Without Docker, you can use the following make target to run the
+site on localhost. This requires that you have downloaded the
+catalogue data already via one of the options described in
+:ref:`download_data`.
+
+.. code-block:: bash
+
+    $ make run-local
+
+or
+
+.. code-block:: bash
+
+    $ uvicorn ska_sdp_global_sky_model.api.main:app --reload --app-dir ./src
+
+This will make the API available at ``http://127.0.0.1:8000``.

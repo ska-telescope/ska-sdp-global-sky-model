@@ -14,17 +14,20 @@ Once higher resolution observations are obtained, the SKA data will be used to u
 The GSM service provides an API to query sources based on their coordinates, flux and catalogue. The catalogue data is stored in a file based
 format which utilises `HEALPix <https://healpix.sourceforge.io>`_ tiles.
 
+.. toctree::
+  :maxdepth: 1
+  :caption: Design
 
-If you just want to use the GSM service, check the `User Guide <user/overview.html>`_.
-To understand the internals, check out the `Developer Guide <developer/development.html>`_.
+  design/overview
+  design/sky-model-datasets
 
 .. toctree::
   :maxdepth: 1
   :caption: User Guide
 
-  user/overview
   user/api-use
-  user/sky-model-datasets
+  user/get-data
+  user/cli-use
 
 .. toctree::
   :maxdepth: 1
@@ -37,4 +40,4 @@ To understand the internals, check out the `Developer Guide <developer/developme
   :maxdepth: 1
   :caption: Releases
 
-  ../../changelog
+  changelog

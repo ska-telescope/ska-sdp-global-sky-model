@@ -1,4 +1,4 @@
-""" This module contains helper functions for the ska_sdp_global_sky_model """
+"""This module contains helper functions for the ska_sdp_global_sky_model"""
 
 import logging
 import tarfile
