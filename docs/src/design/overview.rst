@@ -2,14 +2,21 @@
 Overview
 ========
 
-Under the hood, the Global Sky Model is using `HEALPix <https://healpix.sourceforge.io>`_ coordinates and the
-data is managed by `Polars <https://pola.rs/>`_ which implements efficient DataFrames.
+The Global Sky Model (GSM) is implemented using `HEALPix <https://healpix.sourceforge.io>`_ pixel indices and the
+data are managed by `Polars <https://pola.rs/>`_, which implements efficient DataFrames.
 
-The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of approximately one square degree.
-The resolution can currently be set in `config.py <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/src/ska_sdp_global_sky_model/configuration/config.py>`_
-by editing ``NSIDE`` (coarse resolution) and ``NSIDE_PIXEL`` (fine resolution). The hope is that eventually
-the resolution values will be defined by the catalogue-specific metadata file, :ref:`catalogue.yaml <metadata>`.
-When a source is ingested into the file-based database, its position is mapped to one of these HEALPix pixels. This establishes
+HEALPix is used to aid the search mechanism of the GSM, which is similar to database sharding,
+i.e. the data are stored in individual files covering certain areas of the sky, and the sources
+are all associated with HEALPix pixel indices, which can be matched to the right data files.
+The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of
+approximately one square degree, which is used for an initial search.
+Then, a fine-resolution search is also performed to narrow down the location
+of the requested local sky model. The resolution can currently be set in
+`config.py <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/src/ska_sdp_global_sky_model/configuration/config.py>`_
+by editing ``NSIDE`` (coarse resolution) and ``NSIDE_PIXEL`` (fine resolution).
+The hope is that eventually the resolution values will be defined by the catalogue-specific
+metadata file, :ref:`catalogue.yaml <metadata>`. When a source is ingested into the file-based database,
+its position is mapped to one of these HEALPix pixels. This establishes
 a relationship between areas of the sky, and the sources they contain.
 
 .. code-block:: python
@@ -57,5 +64,5 @@ Local Sky Model
 
 When performing a local sky model search, the following steps are taken:
 
-1. Initial Selection: Rough pixels within the cone search area are identified.
-#. Refinement: These rough pixels are then filtered further based on their precise pixel locations.
+1. Initial Selection: Coarse pixels within the cone search area are identified.
+#. Refinement: These coarse pixels are then filtered further based on the sources' precise pixel locations.
