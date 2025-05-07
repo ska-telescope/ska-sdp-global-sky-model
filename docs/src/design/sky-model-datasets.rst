@@ -1,17 +1,23 @@
 Sky Model Dataset
 =================
 
-This section will describe how the GSM handles datasets and what metadata files are needed. For 
+This section describes how the GSM handles datasets and what metadata files are needed. For
 information on how to ingest, create and upload new datasets for the the GSM Service, please
 see :ref:`get_data`.
+
+Initially, the model will not be based on data collected from SKA observations.
+As such, existing catalogues are used to bootstrap the SKA Global Sky Model.
+Once higher resolution observations are obtained, the SKA data will be used to update and improve the GSM.
 
 Existing Datasets
 -----------------
 
 There are two datasets that are available for use:
 
-  - `GLEAM <https://www.mwatelescope.org/science/galactic-science/gleam/>`_ (Murchison Widefield Array)
+  - `GLEAM <https://www.mwatelescope.org/science/galactic-science/gleam/>`_ (Murchison Widefield Array):
+    to bootstrap the Low telescope sky model.
   - `RACS <https://www.atnf.csiro.au/research/RACS/RACS_I1/>`_ (Australian Square Kilometre Array Pathfinder)
+    to bootstrap the Mid telescope sky model.
 
 
 .. _metadata:
