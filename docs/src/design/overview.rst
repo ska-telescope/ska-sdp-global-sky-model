@@ -2,16 +2,16 @@
 Overview
 ========
 
-The Global Sky Model (GSM) is implemented using `HEALPix <https://healpix.sourceforge.io>`_ pixel indices and the
-data are managed by `Polars <https://pola.rs/>`_, which implements efficient DataFrames.
+The Global Sky Model (GSM) uses `HEALPix <https://healpix.sourceforge.io>`_ pixel indices to
+implement efficient searches for sources, and `Polars <https://pola.rs/>`_ to manage the data.
 
 HEALPix is used to aid the search mechanism of the GSM, which is similar to database sharding,
 i.e. the data are stored in individual files covering certain areas of the sky, and the sources
 are all associated with HEALPix pixel indices, which can be matched to the right data files.
 The whole sky has been divided into HEALPix pixels with a relatively coarse resolution of
-approximately one square degree, which is used for an initial search.
-Then, a fine-resolution search is also performed to narrow down the location
-of the requested local sky model. The resolution can currently be set in
+approximately one degree, which is used for an initial search.
+Then, a fine-resolution search is performed to refine the selection of sources to
+those that fall within the requested area of the sky. The resolution can currently be set in
 `config.py <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/blob/main/src/ska_sdp_global_sky_model/configuration/config.py>`_
 by editing ``NSIDE`` (coarse resolution) and ``NSIDE_PIXEL`` (fine resolution).
 The hope is that eventually the resolution values will be defined by the catalogue-specific

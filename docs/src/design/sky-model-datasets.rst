@@ -5,7 +5,7 @@ This section describes how the GSM handles datasets and what metadata files are 
 information on how to ingest, create and upload new datasets for the the GSM Service, please
 see :ref:`get_data`.
 
-Initially, the project will not have observation data collected from SKA observations.
+Initially, the model will not be based on data collected from SKA observations.
 As such, existing catalogues are used to bootstrap the SKA Global Sky Model.
 Once higher resolution observations are obtained, the SKA data will be used to update and improve the GSM.
 

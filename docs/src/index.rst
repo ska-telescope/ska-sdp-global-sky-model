@@ -7,7 +7,7 @@ The main use case for this model is to aid calibration efforts.
 
 The GSM service provides an API to query sources based on their coordinates,
 flux density and catalogue. The catalogue data is stored in a file based
-format which utilises `HEALPix <https://healpix.sourceforge.io>`_ tiles.
+format which uses `HEALPix <https://healpix.sourceforge.io>`_ tiles.
 
 .. toctree::
   :maxdepth: 1
