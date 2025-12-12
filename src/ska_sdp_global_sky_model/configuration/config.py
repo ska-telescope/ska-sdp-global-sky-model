@@ -39,7 +39,8 @@ SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
 SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 # HEALPix
-NSIDE: int = config("NSIDE", default=64)
+NSIDE: int = config("NSIDE", default=4096)
+NEST: bool = config("NEST", default=True)
 
 
 engine = create_engine(DB_URL)

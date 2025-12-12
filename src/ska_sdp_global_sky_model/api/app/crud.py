@@ -8,22 +8,27 @@ CRUD functionality goes here.
 import logging
 from collections import defaultdict
 
-import astropy.units as u
-from astropy.coordinates import Latitude, Longitude, SkyCoord
-from astropy_healpix import HEALPix
 from sqlalchemy import and_
 from sqlalchemy.orm import Session, aliased
+from sqlalchemy.sql.functions import GenericFunction
+from sqlalchemy.types import Boolean
 
-from ska_sdp_global_sky_model.api.app.model import NarrowBandData, SkyTile, Source, WideBandData
-from ska_sdp_global_sky_model.configuration.config import NSIDE
+from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideBandData
 
 logger = logging.getLogger(__name__)
+
+class h3c_radial_query(GenericFunction):
+    """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
+    type = Boolean()
+    inherit_cache = True
+    name = "h3c_radial_query"
+
 
 
 def get_local_sky_model(
     db,
-    ra: list,
-    dec: list,
+    ra: float,
+    dec: float,
     flux_wide: float,
     _telescope: str,
     fov: float,
@@ -65,40 +70,36 @@ def get_local_sky_model(
             }
     """
 
-    hp = HEALPix(nside=NSIDE, order="nested", frame="icrs")
-    coord = SkyCoord(
-        Longitude(float(ra[0]) * u.deg), Latitude(float(dec[0]) * u.deg), frame="icrs"
-    )
-    tiles = hp.cone_search_skycoord(coord, radius=float(fov) * u.deg)
-    tiles += 4 * NSIDE**2
-    tiles_int = getattr(tiles, "tolist", lambda: tiles)()
 
     # Aliases for narrowband and wideband data
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
 
     # Modify the query to join the necessary tables
+
     query = (
-        db.query(SkyTile, Source, narrowband_data, wideband_data)
-        .filter(SkyTile.pk.in_(tiles_int))
+        db.query(Source, narrowband_data, wideband_data)
+        .where(h3c_radial_query(
+                        Source.RAJ2000,
+                        Source.DECJ2000,
+                        float(ra[0]),
+                        float(dec[0]),
+                        float(fov)
+                    ))
         .filter(wideband_data.Flux_Wide > flux_wide)
-        .join(SkyTile.sources)
         .outerjoin(narrowband_data, Source.id == narrowband_data.source)
         .outerjoin(wideband_data, Source.id == wideband_data.source)
         .all()
     )
 
     # Process the results into a structure
-    results = defaultdict(
-        lambda: {
-            "sources": defaultdict(
-                lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []}
-            )
-        }
-    )
+    results = {
+    "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
+}
 
-    for sky_tile, source, narrowband, wideband in query:
-        source_data = results[sky_tile.pk]["sources"][source.id]
+
+    for source, narrowband, wideband in query:
+        source_data = results["sources"][source.id]
         source_data["ra"] = source.RAJ2000
         source_data["dec"] = source.DECJ2000
         if narrowband:
@@ -108,7 +109,7 @@ def get_local_sky_model(
 
     logger.info(
         "Retrieve %s point sources within the area of interest.",
-        str(len(query)),
+        str(len(results["sources"])),
     )
 
     return results

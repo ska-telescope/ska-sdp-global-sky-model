@@ -1,7 +1,8 @@
 # Using multi stage build to update the requirements.txt from the project.toml.
 FROM artefact.skao.int/ska-sdp-python:0.1.0 AS starter
 WORKDIR /app
-RUN pip install --no-cache-dir poetry
+RUN pip install --no-cache-dir poetry \
+    && poetry self add poetry-plugin-export
 COPY pyproject.toml poetry.lock ./
 COPY src/ska_sdp_global_sky_model/api/app /app/src/ska_sdp_global_sky_model/api/
 RUN poetry export -o requirements.txt && poetry build
