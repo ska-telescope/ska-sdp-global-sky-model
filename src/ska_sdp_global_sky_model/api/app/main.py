@@ -20,6 +20,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
+from ska_sdp_global_sky_model.configuration.config import q3c_index
 from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, Base, engine, get_db
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ def create_db_and_tables():
     """
     logger.info("Creating the database and tables...")
     Base.metadata.create_all(engine)
+    q3c_index()
 
 
 @app.get("/ping", summary="Ping the API")

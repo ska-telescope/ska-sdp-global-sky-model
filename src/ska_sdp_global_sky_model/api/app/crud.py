@@ -17,11 +17,11 @@ from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideB
 
 logger = logging.getLogger(__name__)
 
-class h3c_radial_query(GenericFunction):
+class q3c_radial_query(GenericFunction):
     """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
     type = Boolean()
     inherit_cache = True
-    name = "h3c_radial_query"
+    name = "q3c_radial_query"
 
 
 
@@ -79,7 +79,7 @@ def get_local_sky_model(
 
     query = (
         db.query(Source, narrowband_data, wideband_data)
-        .where(h3c_radial_query(
+        .where(q3c_radial_query(
                         Source.RAJ2000,
                         Source.DECJ2000,
                         float(ra[0]),
