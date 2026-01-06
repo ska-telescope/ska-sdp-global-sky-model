@@ -1,6 +1,7 @@
 # pylint: disable=no-member
 # pylint: disable=too-many-locals
 # pylint: disable=invalid-name
+# pylint: disable=too-few-public-methods
 """
 CRUD functionality goes here.
 """
@@ -17,12 +18,13 @@ from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideB
 
 logger = logging.getLogger(__name__)
 
+
 class q3c_radial_query(GenericFunction):
     """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
+
     type = Boolean()
     inherit_cache = True
     name = "q3c_radial_query"
-
 
 
 def get_local_sky_model(
@@ -70,7 +72,6 @@ def get_local_sky_model(
             }
     """
 
-
     # Aliases for narrowband and wideband data
     narrowband_data = aliased(NarrowBandData)
     wideband_data = aliased(WideBandData)
@@ -79,13 +80,11 @@ def get_local_sky_model(
 
     query = (
         db.query(Source, narrowband_data, wideband_data)
-        .where(q3c_radial_query(
-                        Source.RAJ2000,
-                        Source.DECJ2000,
-                        float(ra[0]),
-                        float(dec[0]),
-                        float(fov)
-                    ))
+        .where(
+            q3c_radial_query(
+                Source.RAJ2000, Source.DECJ2000, float(ra[0]), float(dec[0]), float(fov)
+            )
+        )
         .filter(wideband_data.Flux_Wide > flux_wide)
         .outerjoin(narrowband_data, Source.id == narrowband_data.source)
         .outerjoin(wideband_data, Source.id == wideband_data.source)
@@ -94,9 +93,8 @@ def get_local_sky_model(
 
     # Process the results into a structure
     results = {
-    "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
-}
-
+        "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
+    }
 
     for source, narrowband, wideband in query:
         source_data = results["sources"][source.id]

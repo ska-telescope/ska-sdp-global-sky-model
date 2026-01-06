@@ -8,10 +8,9 @@ import os
 from pathlib import Path
 
 import ska_ser_logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
 from starlette.config import Config
 
 ENV_FILE = Path(".env")
@@ -72,16 +71,18 @@ def get_db():
     finally:
         db.close()
 
+
 def q3c_index():
     """Create Q3C extension + index exist"""
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS q3c;"))
         conn.execute(
             text(
-                'CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix '
+                "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
                 'ON source (q3c_ang2ipix("RAJ2000","DECJ2000"));'
             )
         )
+
 
 MWA = {
     "ingest": {

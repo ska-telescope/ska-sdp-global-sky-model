@@ -7,7 +7,7 @@ Data models for SQLAlchemy
 
 import logging
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, BigInteger
+from sqlalchemy import BigInteger, Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TEXT
 from sqlalchemy.orm import Session, mapped_column
 
@@ -52,7 +52,6 @@ class Source(Base):
     DECJ2000_Error = Column(Float)
     Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
     json = Column(TEXT)
-
 
     def to_json(self, session: Session):
         """Serializes the source object and its associated telescope data to a JSON string.
