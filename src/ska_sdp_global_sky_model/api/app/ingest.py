@@ -202,6 +202,13 @@ def load_or_create_bands(
     return bands
 
 
+def to_float(val):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
     """Computes the healpix position of a given source with particular NSIDE."""
     logger.debug(
@@ -209,6 +216,9 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
         dec_deg,
         type(dec_deg),
     )
+
+    ra_deg = to_float(ra_deg)
+    dec_deg = to_float(dec_deg)
 
     theta = np.radians(90.0 - dec_deg)
     phi = np.radians(ra_deg)
