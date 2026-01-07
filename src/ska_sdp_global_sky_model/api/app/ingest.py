@@ -204,6 +204,12 @@ def load_or_create_bands(
 
 def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
     """Computes the healpix position of a given source with particular NSIDE."""
+    logger.debug(
+        "Subtracting values: %r (%s)",
+        dec_deg,
+        type(dec_deg),
+    )
+
     theta = np.radians(90.0 - dec_deg)
     phi = np.radians(ra_deg)
     return int(hp.ang2pix(nside, theta, phi, nest=nest))
