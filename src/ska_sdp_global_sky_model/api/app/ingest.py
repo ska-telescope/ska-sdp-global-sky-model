@@ -203,6 +203,7 @@ def load_or_create_bands(
 
 
 def to_float(val):
+    """Coerce to float."""
     try:
         return float(val)
     except (TypeError, ValueError):
