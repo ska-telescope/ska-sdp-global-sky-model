@@ -212,11 +212,6 @@ def to_float(val):
 
 def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
     """Computes the healpix position of a given source with particular NSIDE."""
-    logger.debug(
-        "Subtracting values: %r (%s)",
-        dec_deg,
-        type(dec_deg),
-    )
 
     ra_deg = to_float(ra_deg)
     dec_deg = to_float(dec_deg)
