@@ -69,7 +69,7 @@ def test_upload_rcal(myclient):
         files = {"file": ("rcal.csv", file, "text/csv")}
 
         # Send a POST request to the FastAPI endpoint
-        response = myclient.post("/upload-rcal/", files=files)
+        response = myclient.post("/upload-rcal", files=files)
 
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
