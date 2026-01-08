@@ -2,6 +2,7 @@ FROM artefact.skao.int/ska-build-python:0.3.1 AS build
 WORKDIR /app
 ENV POETRY_VIRTUALENVS_CREATE=false
 COPY pyproject.toml poetry.lock ./
+COPY README.rst LICENSE ./
 RUN poetry install --no-root --only main
 
 COPY src/ src/
