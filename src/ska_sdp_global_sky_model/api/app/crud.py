@@ -105,11 +105,7 @@ def get_local_sky_model(
         .all()
     )
 
-    narrow_rows = (
-        db.query(NarrowBandData)
-        .filter(NarrowBandData.source.in_(source_ids))
-        .all()
-    )
+    narrow_rows = db.query(NarrowBandData).filter(NarrowBandData.source.in_(source_ids)).all()
 
     results = {
         "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
