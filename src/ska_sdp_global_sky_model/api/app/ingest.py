@@ -9,12 +9,13 @@ import logging
 # pylint: disable=R1708(stop-iteration-return)
 # pylint: disable=E1101(no-member)
 # pylint: disable=R0913(too-many-arguments)
+# pylint: disable=R0914(too-many-locals)
 import os
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional
-import numpy as np
-import healpy as hp
+from typing import Dict, Optional
 
+import healpy as hp
+import numpy as np
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
@@ -25,10 +26,8 @@ from ska_sdp_global_sky_model.api.app.model import (
     Telescope,
     WideBandData,
 )
-from ska_sdp_global_sky_model.configuration.config import NSIDE, NEST
-from ska_sdp_global_sky_model.utilities.helper_functions import (
-    calculate_percentage,
-)
+from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
+from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
 logger = logging.getLogger(__name__)
 
@@ -203,14 +202,29 @@ def load_or_create_bands(
     return bands
 
 
+def to_float(val):
+    """Coerce to float."""
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
+    """Computes the healpix position of a given source with particular NSIDE."""
+
+    ra_deg = to_float(ra_deg)
+    dec_deg = to_float(dec_deg)
+
     theta = np.radians(90.0 - dec_deg)
     phi = np.radians(ra_deg)
     return int(hp.ang2pix(nside, theta, phi, nest=nest))
 
 
 def create_source_catalog_entry(
-    db: Session, source: Dict[str, float], name: str,
+    db: Session,
+    source: Dict[str, float],
+    name: str,
 ) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
@@ -361,13 +375,130 @@ def create_narrow_band_data_entry(
         db.commit()
 
 
+def coerce_floats(source_dict: dict) -> dict:
+    """Coerce values to floats."""
+    out = {}
+    for k, v in source_dict.items():
+        try:
+            out[k] = float(v)
+        except (ValueError, TypeError):
+            out[k] = v
+    return out
+
+
+def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
+    """Construct source structure."""
+    return {
+        "name": str(source_dict.get(catalog_config["source"])),
+        "Heal_Pix_Position": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
+        "RAJ2000": source_dict["RAJ2000"],
+        "RAJ2000_Error": source_dict.get("e_RAJ2000"),
+        "DECJ2000": source_dict["DEJ2000"],
+        "DECJ2000_Error": source_dict.get("e_DEJ2000"),
+    }
+
+
+def build_wideband_mapping(source_dict: dict, telescope_id: int) -> dict:
+    """Construct wideband structure."""
+    s = coerce_floats(source_dict)
+
+    return {
+        "name": s["name"],
+        "Bck_Wide": s["bckwide"],
+        "Local_RMS_Wide": s["lrmswide"],
+        "Int_Flux_Wide": s["Fintwide"],
+        "Int_Flux_Wide_Error": s["e_Fintwide"],
+        "Resid_Mean_Wide": s["resmwide"],
+        "Resid_Sd_Wide": s["resstdwide"],
+        "Abs_Flux_Pct_Error": s["e_Fpwide"],
+        "Fit_Flux_Pct_Error": s["efitFpct"],
+        "A_PSF_Wide": s["psfawide"],
+        "B_PSF_Wide": s["psfbwide"],
+        "PA_PSF_Wide": s["psfPAwide"],
+        "Spectral_Index": s["alpha"],
+        "Spectral_Index_Error": s["e_alpha"],
+        "A_Wide": s["awide"],
+        "A_Wide_Error": s["e_awide"],
+        "B_Wide": s["bwide"],
+        "B_Wide_Error": s["e_bwide"],
+        "PA_Wide": s["pawide"],
+        "PA_Wide_Error": s["e_pawide"],
+        "Flux_Wide": s["Fpwide"],
+        "Flux_Wide_Error": s["eabsFpct"],
+        "telescope": telescope_id,
+    }
+
+
+def build_narrowband_mapping(source_dict: dict, band_cf: float, band_id: int) -> dict:
+    """Construct narrowband structure."""
+    s = coerce_floats(source_dict)
+    band_cf_str = f"{int(band_cf):03d}"
+
+    return {
+        "name": s["name"],
+        "Bck_Narrow": s[f"bck{band_cf_str}"],
+        "Local_RMS_Narrow": s[f"lrms{band_cf_str}"],
+        "Int_Flux_Narrow": s[f"Fint{band_cf_str}"],
+        "Int_Flux_Narrow_Error": s[f"e_Fint{band_cf_str}"],
+        "Resid_Mean_Narrow": s[f"resm{band_cf_str}"],
+        "Resid_Sd_Narrow": s[f"resstd{band_cf_str}"],
+        "A_PSF_Narrow": s[f"psfa{band_cf_str}"],
+        "B_PSF_Narrow": s[f"psfb{band_cf_str}"],
+        "PA_PSF_Narrow": s[f"psfPA{band_cf_str}"],
+        "A_Narrow": s[f"a{band_cf_str}"],
+        "B_Narrow": s[f"b{band_cf_str}"],
+        "PA_Narrow": s[f"pa{band_cf_str}"],
+        "Flux_Narrow": s[f"Fp{band_cf_str}"],
+        "Flux_Narrow_Error": s[f"e_Fp{band_cf_str}"],
+        "band": band_id,
+    }
+
+
+def commit_batch(
+    db: Session,
+    source_objs: list,
+    wideband_objs: list,
+    narrowband_objs: list,
+    telescope_id: int,
+):
+    """Commit batches of sources."""
+    if not source_objs:
+        return
+
+    db.bulk_insert_mappings(Source, source_objs)
+    db.commit()
+
+    inserted_sources = db.query(Source).order_by(Source.id.desc()).limit(len(source_objs)).all()
+    inserted_sources.reverse()
+
+    source_id_map = {src["name"]: orm.id for src, orm in zip(source_objs, inserted_sources)}
+
+    for wb in wideband_objs:
+        wb["source"] = source_id_map[wb["name"]]
+        wb["telescope"] = telescope_id
+
+    for nb in narrowband_objs:
+        nb["source"] = source_id_map[nb["name"]]
+
+    if wideband_objs:
+        db.bulk_insert_mappings(WideBandData, wideband_objs)
+    if narrowband_objs:
+        db.bulk_insert_mappings(NarrowBandData, narrowband_objs)
+
+    db.commit()
+
+    source_objs.clear()
+    wideband_objs.clear()
+    narrowband_objs.clear()
+
+
 def process_source_data_batch(
     db: Session,
-    source_data: List[Dict[str, float]] | SourceFile,
-    bands: Dict[float, Band],
-    telescope: Any,
-    ingest_bands: list,
-    catalog_config: dict,
+    source_data,
+    bands,
+    telescope,
+    ingest_bands,
+    catalog_config,
     batch_size: int = 500,
 ) -> bool:
     """
@@ -386,170 +517,57 @@ def process_source_data_batch(
     """
     logger.info("Processing source data in batches...")
 
-    # Preload existing source names to avoid per-row queries
     existing_names = set(r[0] for r in db.query(Source.name).all())
 
-    source_objs = []
-    wideband_objs = []
-    narrowband_objs = []
+    source_objs, wideband_objs, narrowband_objs = [], [], []
 
     count = 0
-    num_source_data = len(source_data)
+    total = len(source_data)
 
-    for source in source_data:
-        if hasattr(source, "items"):  # already a dict
-            source_dict = source
-        else:
-            source_dict = dict(source)
-
+    for src in source_data:
+        source_dict = dict(src) if not hasattr(src, "items") else src
         name = str(source_dict.get(catalog_config["source"]))
+
         if name in existing_names:
             continue
         existing_names.add(name)
 
+        source_dict["name"] = name
         count += 1
+
         if count % 100 == 0:
             logger.info(
                 "Progress: %s%%",
-                str(calculate_percentage(dividend=count, divisor=num_source_data)),
+                calculate_percentage(count, total),
             )
 
-        # --- Prepare Source object ---
-        source_obj = {
-            "name": name,
-            "Heal_Pix_Position": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
-            "RAJ2000": source_dict["RAJ2000"],
-            "RAJ2000_Error": source_dict.get("e_RAJ2000"),
-            "DECJ2000": source_dict["DEJ2000"],
-            "DECJ2000_Error": source_dict.get("e_DEJ2000"),
-        }
-        source_objs.append(source_obj)
+        source_objs.append(build_source_mapping(source_dict, catalog_config))
 
-        # --- Prepare WideBandData object ---
         if catalog_config.get("ingest", {}).get("wideband"):
-            source_float = {}
-            for k, v in source_dict.items():
-                try:
-                    source_float[k] = float(v)
-                except (ValueError, TypeError):
-                    source_float[k] = v
+            wideband_objs.append(build_wideband_mapping(source_dict, telescope.id))
 
-            wideband_objs.append({
-                "name": name,
-                "Bck_Wide": source_float["bckwide"],
-                "Local_RMS_Wide": source_float["lrmswide"],
-                "Int_Flux_Wide": source_float["Fintwide"],
-                "Int_Flux_Wide_Error": source_float["e_Fintwide"],
-                "Resid_Mean_Wide": source_float["resmwide"],
-                "Resid_Sd_Wide": source_float["resstdwide"],
-                "Abs_Flux_Pct_Error": source_float["e_Fpwide"],
-                "Fit_Flux_Pct_Error": source_float["efitFpct"],
-                "A_PSF_Wide": source_float["psfawide"],
-                "B_PSF_Wide": source_float["psfbwide"],
-                "PA_PSF_Wide": source_float["psfPAwide"],
-                "Spectral_Index": source_float["alpha"],
-                "Spectral_Index_Error": source_float["e_alpha"],
-                "A_Wide": source_float["awide"],
-                "A_Wide_Error": source_float["e_awide"],
-                "B_Wide": source_float["bwide"],
-                "B_Wide_Error": source_float["e_bwide"],
-                "PA_Wide": source_float["pawide"],
-                "PA_Wide_Error": source_float["e_pawide"],
-                "Flux_Wide": source_float["Fpwide"],
-                "Flux_Wide_Error": source_float["eabsFpct"],
-                "telescope": telescope.id,
-                # "source": will be set after bulk Source insert
-            })
-
-        # --- Prepare NarrowBandData objects ---
         for band_cf, band in bands.items():
-            if band_cf not in ingest_bands:
-                continue
-            band_id = band.id
-            band_cf_str = str(band_cf)
-            band_cf_str = f"0{band_cf_str}" if len(band_cf_str) < 3 else band_cf_str
+            if band_cf in ingest_bands:
+                narrowband_objs.append(build_narrowband_mapping(source_dict, band_cf, band.id))
 
-            source_float = {}
-            for k, v in source_dict.items():
-                try:
-                    source_float[k] = float(v)
-                except (ValueError, TypeError):
-                    source_float[k] = v
-
-            narrowband_objs.append({
-                "name": name,
-                "Bck_Narrow": source_float[f"bck{band_cf_str}"],
-                "Local_RMS_Narrow": source_float[f"lrms{band_cf_str}"],
-                "Int_Flux_Narrow": source_float[f"Fint{band_cf_str}"],
-                "Int_Flux_Narrow_Error": source_float[f"e_Fint{band_cf_str}"],
-                "Resid_Mean_Narrow": source_float[f"resm{band_cf_str}"],
-                "Resid_Sd_Narrow": source_float[f"resstd{band_cf_str}"],
-                "A_PSF_Narrow": source_float[f"psfa{band_cf_str}"],
-                "B_PSF_Narrow": source_float[f"psfb{band_cf_str}"],
-                "PA_PSF_Narrow": source_float[f"psfPA{band_cf_str}"],
-                "A_Narrow": source_float[f"a{band_cf_str}"],
-                "B_Narrow": source_float[f"b{band_cf_str}"],
-                "PA_Narrow": source_float[f"pa{band_cf_str}"],
-                "Flux_Narrow": source_float[f"Fp{band_cf_str}"],
-                "Flux_Narrow_Error": source_float[f"e_Fp{band_cf_str}"],
-                "band": band_id,
-                # "source": will be set after bulk Source insert
-            })
-
-        # --- Commit in batches ---
         if count % batch_size == 0:
-            # 1. Bulk insert Source objects
-            db.bulk_insert_mappings(Source, source_objs)
-            db.commit()
+            commit_batch(
+                db,
+                source_objs,
+                wideband_objs,
+                narrowband_objs,
+                telescope.id,
+            )
 
-            # Fetch IDs for recently inserted sources to link wide/narrowband
-            inserted_sources = db.query(Source).order_by(Source.id.desc()).limit(len(source_objs)).all()
-            inserted_sources = list(reversed(inserted_sources))
-            source_id_map = {source_dict["name"]: orm_obj.id for source_dict, orm_obj in zip(source_objs, inserted_sources)}
-
-
-            # Set source IDs for wideband and narrowband
-            for wb in wideband_objs:
-                wb["source"] = source_id_map[wb["name"]]
-                wb["telescope"] = telescope.id
-
-            for nb in narrowband_objs:
-                nb["source"] = source_id_map[nb["name"]]
-
-            if wideband_objs:
-                db.bulk_insert_mappings(WideBandData, wideband_objs)
-            if narrowband_objs:
-                db.bulk_insert_mappings(NarrowBandData, narrowband_objs)
-            db.commit()
-
-            # Reset batches
-            source_objs.clear()
-            wideband_objs.clear()
-            narrowband_objs.clear()
-
-    # --- Final commit for any remaining objects ---
-    if source_objs:
-        db.bulk_insert_mappings(Source, source_objs)
-        db.commit()
-
-        inserted_sources = db.query(Source).order_by(Source.id.desc()).limit(len(source_objs)).all()
-        inserted_sources = list(reversed(inserted_sources))
-        source_id_map = {s["name"]: s.id for s, s in zip(source_objs, inserted_sources)}
-
-        for wb in wideband_objs:
-            wb["source"] = source_id_map[wb["name"]]
-            wb["telescope"] = telescope.id
-        for nb in narrowband_objs:
-            nb["source"] = source_id_map[nb["name"]]
-
-        if wideband_objs:
-            db.bulk_insert_mappings(WideBandData, wideband_objs)
-        if narrowband_objs:
-            db.bulk_insert_mappings(NarrowBandData, narrowband_objs)
-        db.commit()
+    commit_batch(
+        db,
+        source_objs,
+        wideband_objs,
+        narrowband_objs,
+        telescope.id,
+    )
 
     return True
-
 
 
 def get_full_catalog(db: Session, catalog_config) -> bool:
@@ -597,7 +615,12 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
         logger.info("Processing %s sources", str(len(sources)))
         # 4. Process source data
         if not process_source_data_batch(
-            db, sources, bands, telescope, ingest_bands, catalog_config,
+            db,
+            sources,
+            bands,
+            telescope,
+            ingest_bands,
+            catalog_config,
         ):
             return False
 

@@ -66,10 +66,10 @@ def test_upload_rcal(myclient):
     # Open the file in binary mode
     with open(file_path, "rb") as file:
         # Create a dictionary with the file
-        files = {"file": file}
+        files = {"file": ("rcal.csv", file, "text/csv")}
 
         # Send a POST request to the FastAPI endpoint
-        response = myclient.post("/upload-rcal/", files=files)
+        response = myclient.post("/upload-rcal", files=files)
 
     assert response.status_code == 200
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}

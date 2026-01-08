@@ -1,6 +1,7 @@
 # pylint: disable=no-member
 # pylint: disable=too-many-locals
 # pylint: disable=invalid-name
+# pylint: disable=too-few-public-methods
 """
 CRUD functionality goes here.
 """
@@ -12,18 +13,18 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
-import time
 
 from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideBandData
 
 logger = logging.getLogger(__name__)
 
+
 class q3c_radial_query(GenericFunction):
     """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
+
     type = Boolean()
     inherit_cache = True
     name = "q3c_radial_query"
-
 
 
 def get_local_sky_model(
