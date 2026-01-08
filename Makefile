@@ -7,6 +7,7 @@ include .make/k8s.mk
 
 
 PYTHON_LINE_LENGTH = 99
+CHANGELOG_FILE = CHANGELOG.rst
 
 build:
 	docker compose pull
