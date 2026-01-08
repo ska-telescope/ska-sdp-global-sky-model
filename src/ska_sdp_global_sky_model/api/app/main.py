@@ -1,4 +1,4 @@
-# pylint: disable=no-member
+# pylint: disable=no-member, too-many-positional-arguments
 """
 A simple fastAPI to obtain a local sky model from a global sky model.
 """

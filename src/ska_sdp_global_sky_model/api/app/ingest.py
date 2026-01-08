@@ -1,3 +1,5 @@
+# pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
+# pylint: disable=too-many-arguments, too-many-locals
 """
 Gleam Catalog ingest
 """
@@ -5,11 +7,6 @@ Gleam Catalog ingest
 import csv
 import json
 import logging
-
-# pylint: disable=R1708(stop-iteration-return)
-# pylint: disable=E1101(no-member)
-# pylint: disable=R0913(too-many-arguments)
-# pylint: disable=R0914(too-many-locals)
 import os
 from itertools import zip_longest
 from typing import Dict, Optional
