@@ -12,6 +12,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
+import time
 
 from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideBandData
 
@@ -70,47 +71,58 @@ def get_local_sky_model(
             }
     """
 
-
     # Aliases for narrowband and wideband data
-    narrowband_data = aliased(NarrowBandData)
-    wideband_data = aliased(WideBandData)
+    wideband = aliased(WideBandData)
 
-    # Modify the query to join the necessary tables
-
-    query = (
-        db.query(Source, narrowband_data, wideband_data)
-        .where(q3c_radial_query(
-                        Source.RAJ2000,
-                        Source.DECJ2000,
-                        float(ra[0]),
-                        float(dec[0]),
-                        float(fov)
-                    ))
-        .filter(wideband_data.Flux_Wide > flux_wide)
-        .outerjoin(narrowband_data, Source.id == narrowband_data.source)
-        .outerjoin(wideband_data, Source.id == wideband_data.source)
+    sources = (
+        db.query(Source.id, Source.RAJ2000, Source.DECJ2000)
+        .join(wideband, Source.id == wideband.source)
+        .where(
+            q3c_radial_query(
+                Source.RAJ2000,
+                Source.DECJ2000,
+                float(ra[0]),
+                float(dec[0]),
+                float(fov),
+            )
+        )
+        .filter(wideband.Flux_Wide > flux_wide)
+        .distinct(Source.id)
         .all()
     )
 
-    # Process the results into a structure
-    results = {
-    "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
-}
+    # return if no sources were found
+    if not sources:
+        return {"sources": {}}
 
+    source_ids = [s.id for s in sources]
 
-    for source, narrowband, wideband in query:
-        source_data = results["sources"][source.id]
-        source_data["ra"] = source.RAJ2000
-        source_data["dec"] = source.DECJ2000
-        if narrowband:
-            source_data["narrowband"].append(narrowband.columns_to_dict())
-        if wideband:
-            source_data["wideband"].append(wideband.columns_to_dict())
-
-    logger.info(
-        "Retrieve %s point sources within the area of interest.",
-        str(len(results["sources"])),
+    wide_rows = (
+        db.query(WideBandData)
+        .filter(WideBandData.source.in_(source_ids))
+        .filter(WideBandData.Flux_Wide > flux_wide)
+        .all()
     )
+
+    narrow_rows = (
+        db.query(NarrowBandData)
+        .filter(NarrowBandData.source.in_(source_ids))
+        .all()
+    )
+
+    results = {
+        "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
+    }
+
+    for s in sources:
+        results["sources"][s.id]["ra"] = s.RAJ2000
+        results["sources"][s.id]["dec"] = s.DECJ2000
+
+    for wb_row in wide_rows:
+        results["sources"][wb_row.source]["wideband"].append(wb_row.columns_to_dict())
+
+    for nb_row in narrow_rows:
+        results["sources"][nb_row.source]["narrowband"].append(nb_row.columns_to_dict())
 
     return results
 
