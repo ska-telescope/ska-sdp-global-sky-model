@@ -91,7 +91,7 @@ def _watcher_process():
 
 def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
     """Get and filter the list of flows"""
-    for _, flow in txn.flow.query_values(kind="data-product"):
+    for key, flow in txn.flow.query_values(kind="data-product"):
         source = None
         for raw_source in flow.sources:
             if raw_source.function == "GlobalSkyModel.RequestLocalSkyModel":
@@ -99,15 +99,20 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
                 break
 
         if source is None:
+            logger.debug("%s -> has no valid source", key)
             continue
 
         if flow.data_model not in ["CsvNamedColumns"]:
+            logger.debug("%s -> does not have correct data_model", key, flow.data_model)
             continue
 
         state = txn.flow.state(flow).get() or {}
+        status = state.get("status", "NO-STATE")
+        if status in ["COMPLETED", "FAILED"]:
+            continue
 
-        if state.get("status", "UNKNOWN") != "INITIALISED":
-            logger.info(" -> not in correct state %s != INITIALISED", state.get("status"))
+        if status != "INITIALISED":
+            logger.info("%s -> not in correct state %s != INITIALISED", key, state.get("status"))
             continue
 
         yield flow, source
