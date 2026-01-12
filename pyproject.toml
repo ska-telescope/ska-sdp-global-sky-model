@@ -7,7 +7,7 @@ authors = ["Jacob Maresca <jacob.maresca@akkodis.com>"]
 packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.10,<3.12"
 fastapi = "^0.110.1"
 sqlalchemy = "^2.0.29"
 uvicorn = "^0.29.0"
@@ -24,7 +24,7 @@ mocpy = "^0.15.0"
 cdshealpix = "^0.6.5"
 orjson = "^3.10.6"
 python-multipart = "^0.0.9"
-
+ska-sdp-config = "^1.4.0"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.13.2"

@@ -1,0 +1,167 @@
+"""Config DB listener.
+
+This module watches for flow entries that request for a Local Sky Model.
+
+Requirements:
+
+- Flow.sink: ``DataProduct``
+- Flow.sink.data_dir: ``PVCPath``
+- Flow.sources[*].function: ``GlobalSkyModel.RequestLocalSkyModel``
+- Flow.sources:
+    - 1 source
+    - parameters contain: ``ra,dec,fov`` and optionally ``version``
+
+The states are updated as follows:
+
+- When starting the processing: ``FLOWING``
+- When successfully completed: ``COMPLETED``
+- When failed: ``FAILED``, with a ``reason`` field
+"""
+
+import dataclasses
+import logging
+import threading
+import time
+from collections.abc import Generator
+from pathlib import Path
+
+import ska_sdp_config
+from ska_sdp_config.entity.flow import Flow, FlowSource
+
+logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class QueryParameters:
+    """The list of available and optional query parameters."""
+
+    ra: float
+    dec: float
+    fov: float
+    version: str = "latest"
+
+
+def start_thread():  # pragma: no cover
+    """Start the background thread that will search for flow entries"""
+    thread = threading.Thread(target=_db_watcher, kwargs={}, daemon=True, name="Thread-Watcher")
+    thread.start()
+
+
+def _db_watcher():  # pragma: no cover
+    """Outer watcher function"""
+    while True:
+        try:
+            _watcher_process()
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.exception(e)
+
+        # This sleep is for in case something goes wrong, so that the
+        # CPU/Network doesn't get overloaded.
+        time.sleep(10)
+
+
+def _watcher_process():
+    """Main watcher process."""
+    # This function should only end if an exception is thrown, and when
+    # that happens the process should be restarted automatically.
+    config = ska_sdp_config.Config()
+    for watcher in config.watcher(timeout=30):
+        for txn in watcher.txn():
+            flows = list(_get_flows(txn))
+
+        for flow, source in flows:
+
+            logger.info("Found flow ... %s", flow.key)
+
+            try:
+                query_params = QueryParameters(**source.parameters)
+            except TypeError as err:
+                for txn in watcher.txn():
+                    _update_state(txn, flow, "FAILED", str(err)[27:])
+                continue
+
+            for txn in watcher.txn():
+                _update_state(txn, flow, "FLOWING")
+
+            successful, reason = _process_flow(flow, query_params)
+
+            for txn in watcher.txn():
+                _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
+
+
+def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
+    """Get and filter the list of flows"""
+    for _, flow in txn.flow.query_values(kind="data-product"):
+        source = None
+        for raw_source in flow.sources:
+            if raw_source.function == "GlobalSkyModel.RequestLocalSkyModel":
+                source = raw_source
+                break
+
+        if source is None:
+            continue
+
+        if flow.data_model not in ["CsvNamedColumns"]:
+            continue
+
+        state = txn.flow.state(flow).get() or {}
+
+        if state.get("status", "UNKNOWN") != "INITIALISED":
+            logger.info(" -> not in correct state %s != INITIALISED", state.get("status"))
+            continue
+
+        yield flow, source
+
+
+def _process_flow(flow: Flow, query_parameters: QueryParameters) -> (bool, str | None):
+    """Process the Flow entry"""
+
+    output_location = Path("/mnt/data") / flow.sink.data_dir.pvc_subpath
+
+    logger.info(" -> Save to %s", output_location)
+    logger.info(" -> params: %s", query_parameters)
+
+    try:
+        output_data = _call_function(query_parameters)
+        _write_metadata(output_location, flow)
+        _write_data(output_location, output_data)
+    except Exception as err:  # pylint: disable=broad-exception-caught
+        return False, str(err)
+
+    return True, None
+
+
+def _update_state(
+    txn: ska_sdp_config.Config.txn, flow: Flow, state: str, reason: str | None = None
+):
+    """Update the Flow state"""
+    current_state = txn.flow.state(flow).get()
+
+    new_state = {"status": state, "last_updated": time.time()}
+    if reason:
+        new_state["reason"] = reason
+
+    if current_state:
+        current_state.update(new_state)
+        txn.flow.state(flow).update(current_state)
+    else:
+        logger.warning("Flow was missing state, creating ... %s", flow.key)
+        txn.flow.state(flow).create(new_state)
+
+
+def _call_function(query_parameters: QueryParameters) -> list:  # pragma: no cover
+    """This is a stub of the search function"""
+    logger.debug("params: %s", query_parameters)
+    return []
+
+
+def _write_data(output: Path, data: list):  # pragma: no cover
+    """This is a stub to write the LSM to disk"""
+    logger.debug("output: %s", output)
+    logger.debug("data: %s", data)
+
+
+def _write_metadata(output: Path, flow: Flow):  # pragma: no cover
+    """This is a stub to write the Metadata"""
+    logger.debug("output: %s", output)
+    logger.debug("flow: %s", flow)
