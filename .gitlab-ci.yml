@@ -23,9 +23,9 @@ stages:
   - lint
   - build
   - test
+  - scan
   - publish
   - pages
-  - scan
 
 services:
   - name: artefact.skao.int/ska-sdp-global-sky-model-db:0.1.1
@@ -34,22 +34,20 @@ services:
     alias: redis
     
 
- 
-
 include:
-  # Python
   - project: "ska-telescope/templates-repository"
-    file: "gitlab-ci/includes/python.gitlab-ci.yml"
-    # .post step finalisers eg: badges
-  - project: "ska-telescope/templates-repository"
-    file: "gitlab-ci/includes/finaliser.gitlab-ci.yml"
-  # OCI
-  - project: "ska-telescope/templates-repository"
-    file: "gitlab-ci/includes/oci-image.gitlab-ci.yml"
-  # Helm
-  - project: "ska-telescope/templates-repository"
-    file: "gitlab-ci/includes/helm-chart.gitlab-ci.yml"
-  - project: 'ska-telescope/templates-repository'
-    file : 'gitlab-ci/includes/release.gitlab-ci.yml'
-  - project: 'ska-telescope/templates-repository'
-    file: 'gitlab-ci/includes/docs.gitlab-ci.yml'
+    file:
+      # Python
+      - "gitlab-ci/includes/python.gitlab-ci.yml"
+      # .post step finalisers eg: badges
+      - "gitlab-ci/includes/finaliser.gitlab-ci.yml"
+      # OCI
+      - "gitlab-ci/includes/oci-image.gitlab-ci.yml"
+      # Helm
+      - "gitlab-ci/includes/helm-chart.gitlab-ci.yml"
+      # Release management
+      - 'gitlab-ci/includes/release.gitlab-ci.yml'
+      # Documentation
+      - 'gitlab-ci/includes/docs.gitlab-ci.yml'
+      # SonarQube scan
+      - 'gitlab-ci/includes/sonar-scan.gitlab-ci.yml'
