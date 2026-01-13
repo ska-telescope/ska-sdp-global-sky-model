@@ -273,14 +273,11 @@ def test_get_flows_filtering(valid_flow):
     txn = MagicMock()
 
     flow2 = copy.deepcopy(valid_flow)
-    flow3 = copy.deepcopy(valid_flow)
     flow2.sources[0].function = "invalid-function"
-    flow3.data_model = "incorrectmodel"
 
     txn.flow.query_values.return_value = [
         (valid_flow.key, valid_flow),
         (flow2.key, flow2),
-        (flow3.key, flow3),
     ]
     txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
 

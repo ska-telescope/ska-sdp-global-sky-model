@@ -66,6 +66,7 @@ def _db_watcher():  # pragma: no cover
             config = ska_sdp_config.Config()
             _watcher_process(config)
         except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("An error has occured, thread needs to restart")
             logger.exception(e)
         finally:
             try:
@@ -73,10 +74,10 @@ def _db_watcher():  # pragma: no cover
             except Exception:  # pylint: disable=broad-exception-caught
                 # explicitly ignoring this error
                 pass
-
         # This sleep is for in case something goes wrong, so that the
         # CPU/Network doesn't get overloaded.
-        time.sleep(10)
+        logger.debug("Sleeping before restart")
+        time.sleep(1)
 
 
 def _watcher_process(config: ska_sdp_config.Config.txn):
@@ -122,10 +123,6 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
 
         if source is None:
             logger.debug("%s -> has no valid source", key)
-            continue
-
-        if flow.data_model not in ["CsvNamedColumns"]:
-            logger.debug("%s -> does not have correct data_model '%s'", key, flow.data_model)
             continue
 
         state = txn.flow.state(flow).get() or {}

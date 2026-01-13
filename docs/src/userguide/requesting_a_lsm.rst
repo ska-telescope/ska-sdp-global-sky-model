@@ -59,8 +59,7 @@ checked:
 
 1. The type needs to be ``data-product``.
 2. The function name needs to be ``GlobalSkyModel.RequestLocalSkyModel``.
-3. The ``data_model`` needs to be of type ``CsvNamedColumns``.
-4. The state needs to exist and have a status of ``INITIALISED``.
+3. The state needs to exist and have a status of ``INITIALISED``.
 
 Once a flow has been found that matches those criteria, the following is done:
 
