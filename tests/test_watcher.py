@@ -68,7 +68,11 @@ def test_happy_path(
     mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
-    mock_txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
+    mock_txn.flow.state.return_value.get.side_effect = [
+        {"status": "INITIALISED"},  # from list
+        {"status": "INITIALISED"},  # from update to flowing
+        {"status": "FLOWING"},  # from update to completed
+    ]
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
     mock_filter_function.return_value = ["data"]
@@ -90,7 +94,7 @@ def test_happy_path(
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),
-        call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
+        call.flow.state().update({"status": "FLOWING", "last_updated": 1234.5678}),
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),
@@ -217,7 +221,11 @@ def test_watcher_process_missing_parameter(
     mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
-    mock_txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
+    mock_txn.flow.state.return_value.get.side_effect = [
+        {"status": "INITIALISED"},  # from list
+        {"status": "INITIALISED"},  # from update to flowing
+        {"status": "FLOWING"},  # from update to failed
+    ]
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
     mock_filter_function.return_value = ["data"]
