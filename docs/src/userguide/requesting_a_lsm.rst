@@ -42,10 +42,13 @@ The layout of a flow entry should match the following:
 
     Some things to be aware of:
 
-    1. The first valid source in a flow will be used, any after that will be ignored.
+    1. The first item in ``flow.sources`` with ``function="GlobalSkyModel.RequestLocalSkyModel"``
+       will be used, any other ones which may have the same function are
+       ignored. Note: there should not be more than one source with this
+       matching function.
     2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
     3. The output location needs to be specified in ``pvc_subpath``, but the metadata
-       file will be put in the first ``<pb_id>`` parent directory.
+       file will be put in the first ``<pb_id>/ska-sdm`` parent directory.
 
 Process Flow
 ------------

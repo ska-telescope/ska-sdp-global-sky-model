@@ -28,6 +28,11 @@ from pathlib import Path
 import ska_sdp_config
 from ska_sdp_config.entity.flow import Flow, FlowSource
 
+from ska_sdp_global_sky_model.configuration.config import (
+    REQUEST_WATCHER_TIMEOUT,
+    SHARED_VOLUME_MOUNT,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,9 +41,16 @@ class QueryParameters:
     """The list of available and optional query parameters."""
 
     ra: float
+    """Right Ascension"""
+
     dec: float
+    """Declination"""
+
     fov: float
+    """Field of View"""
+
     version: str = "latest"
+    """version of the GSM data"""
 
 
 def start_thread():  # pragma: no cover
@@ -51,21 +63,27 @@ def _db_watcher():  # pragma: no cover
     """Outer watcher function"""
     while True:
         try:
-            _watcher_process()
+            config = ska_sdp_config.Config()
+            _watcher_process(config)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception(e)
+        finally:
+            try:
+                config.close()
+            except Exception:  # pylint: disable=broad-exception-caught
+                # explicitly ignoring this error
+                pass
 
         # This sleep is for in case something goes wrong, so that the
         # CPU/Network doesn't get overloaded.
         time.sleep(10)
 
 
-def _watcher_process():
+def _watcher_process(config: ska_sdp_config.Config.txn):
     """Main watcher process."""
     # This function should only end if an exception is thrown, and when
     # that happens the process should be restarted automatically.
-    config = ska_sdp_config.Config()
-    for watcher in config.watcher(timeout=30):
+    for watcher in config.watcher(timeout=REQUEST_WATCHER_TIMEOUT):
         for txn in watcher.txn():
             flows = list(_get_flows(txn))
 
@@ -76,6 +94,9 @@ def _watcher_process():
             try:
                 query_params = QueryParameters(**source.parameters)
             except TypeError as err:
+                logger.error(
+                    "%s -> Used invalid query parameters: %s", flow.key, source.parameters
+                )
                 for txn in watcher.txn():
                     _update_state(txn, flow, "FAILED", str(err)[27:])
                 continue
@@ -103,7 +124,7 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
             continue
 
         if flow.data_model not in ["CsvNamedColumns"]:
-            logger.debug("%s -> does not have correct data_model", key, flow.data_model)
+            logger.debug("%s -> does not have correct data_model '%s'", key, flow.data_model)
             continue
 
         state = txn.flow.state(flow).get() or {}
@@ -112,7 +133,7 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
             continue
 
         if status != "INITIALISED":
-            logger.info("%s -> not in correct state %s != INITIALISED", key, state.get("status"))
+            logger.debug("%s -> not in correct state %s != INITIALISED", key, state.get("status"))
             continue
 
         yield flow, source
@@ -121,16 +142,17 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
 def _process_flow(flow: Flow, query_parameters: QueryParameters) -> (bool, str | None):
     """Process the Flow entry"""
 
-    output_location = Path("/mnt/data") / flow.sink.data_dir.pvc_subpath
+    output_location = SHARED_VOLUME_MOUNT / flow.sink.data_dir.pvc_subpath
 
     logger.info(" -> Save to %s", output_location)
     logger.info(" -> params: %s", query_parameters)
 
     try:
-        output_data = _call_function(query_parameters)
+        output_data = _query_gsm_for_lsm(query_parameters)
         _write_metadata(output_location, flow)
         _write_data(output_location, output_data)
     except Exception as err:  # pylint: disable=broad-exception-caught
+        logger.exception(err)
         return False, str(err)
 
     return True, None
@@ -154,7 +176,11 @@ def _update_state(
         txn.flow.state(flow).create(new_state)
 
 
-def _call_function(query_parameters: QueryParameters) -> list:  # pragma: no cover
+# The next functions are meant to be replaced when we actually query the
+# data, as well as write the metadata and data to disk.
+
+
+def _query_gsm_for_lsm(query_parameters: QueryParameters) -> list:  # pragma: no cover
     """This is a stub of the search function"""
     logger.debug("params: %s", query_parameters)
     return []

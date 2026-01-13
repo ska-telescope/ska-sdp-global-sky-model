@@ -55,18 +55,17 @@ def fixture_valid_flow():
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function", autospec=True)
-@patch("ska_sdp_config.Config")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
 def test_happy_path(
-    mock_config, mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
+    mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
 ):
     """Test the happy path"""
 
     mock_time.return_value = 1234.5678
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
-
-    mock_config.return_value.watcher.return_value = [mock_watcher]
+    mock_config = MagicMock()
+    mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
     mock_txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
@@ -74,11 +73,11 @@ def test_happy_path(
 
     mock_filter_function.return_value = ["data"]
 
-    _watcher_process()
+    _watcher_process(mock_config)
 
     path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
 
-    assert mock_config.mock_calls == [call(), call().watcher(timeout=30)]
+    assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
         call.txn(),
         call.txn(),
@@ -106,24 +105,22 @@ def test_happy_path(
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function", autospec=True)
-@patch("ska_sdp_config.Config")
-def test_no_state(
-    mock_config, mock_filter_function, mock_write_data, mock_write_metadata, valid_flow
-):
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
+def test_no_state(mock_filter_function, mock_write_data, mock_write_metadata, valid_flow):
     """Test watcher process when a flow has no state"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
+    mock_config = MagicMock()
 
-    mock_config.return_value.watcher.return_value = [mock_watcher]
+    mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
     mock_txn.flow.state.return_value.get.return_value = None
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
-    _watcher_process()
+    _watcher_process(mock_config)
 
-    assert mock_config.mock_calls == [call(), call().watcher(timeout=30)]
+    assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
         call.txn(),
     ]
@@ -139,24 +136,22 @@ def test_no_state(
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function", autospec=True)
-@patch("ska_sdp_config.Config")
-def test_state_completed(
-    mock_config, mock_filter_function, mock_write_data, mock_write_metadata, valid_flow
-):
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
+def test_state_completed(mock_filter_function, mock_write_data, mock_write_metadata, valid_flow):
     """Test watcher process when the state is already completed"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
+    mock_config = MagicMock()
 
-    mock_config.return_value.watcher.return_value = [mock_watcher]
+    mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
     mock_txn.flow.state.return_value.get.return_value = {"status": "COMPLETED"}
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
-    _watcher_process()
+    _watcher_process(mock_config)
 
-    assert mock_config.mock_calls == [call(), call().watcher(timeout=30)]
+    assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
         call.txn(),
     ]
@@ -172,24 +167,24 @@ def test_state_completed(
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function", autospec=True)
-@patch("ska_sdp_config.Config")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
 def test_state_not_initialised(
-    mock_config, mock_filter_function, mock_write_data, mock_write_metadata, valid_flow
+    mock_filter_function, mock_write_data, mock_write_metadata, valid_flow
 ):
     """Test watcher process when the state is already failed"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
+    mock_config = MagicMock()
 
-    mock_config.return_value.watcher.return_value = [mock_watcher]
+    mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
     mock_txn.flow.state.return_value.get.return_value = {"status": "FLOWING"}
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
-    _watcher_process()
+    _watcher_process(mock_config)
 
-    assert mock_config.mock_calls == [call(), call().watcher(timeout=30)]
+    assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
         call.txn(),
     ]
@@ -206,10 +201,9 @@ def test_state_not_initialised(
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function", autospec=True)
-@patch("ska_sdp_config.Config")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
 def test_watcher_process_missing_parameter(
-    mock_config, mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
+    mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
 ):
     """Test the happy path"""
 
@@ -218,8 +212,9 @@ def test_watcher_process_missing_parameter(
     mock_time.return_value = 1234.5678
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
+    mock_config = MagicMock()
 
-    mock_config.return_value.watcher.return_value = [mock_watcher]
+    mock_config.watcher.return_value = [mock_watcher]
     mock_watcher.txn.return_value = [mock_txn]
 
     mock_txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
@@ -227,9 +222,9 @@ def test_watcher_process_missing_parameter(
 
     mock_filter_function.return_value = ["data"]
 
-    _watcher_process()
+    _watcher_process(mock_config)
 
-    assert mock_config.mock_calls == [call(), call().watcher(timeout=30)]
+    assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
         call.txn(),
         call.txn(),
@@ -283,7 +278,7 @@ def test_get_flows_filtering(valid_flow):
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
     """Test that we cann start the processing for a flow"""
 
@@ -312,7 +307,7 @@ def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._call_function")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
     """Test that we cann start the processing for a flow"""
 

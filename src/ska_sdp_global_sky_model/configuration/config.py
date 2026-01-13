@@ -41,6 +41,9 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 # HEALPix
 NSIDE: int = config("NSIDE", default=64)
 
+REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
+SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
+
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
