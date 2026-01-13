@@ -27,7 +27,7 @@ ingress addon:
 
 2. Change to the chart directory in the repository: ``cd charts/ska-sdp-global-sky-model``.
 Make any desired changes to the values files. A local values file can be specified for easy
- management of values used for dev purposes.
+management of values used for dev purposes.
 
 3. Optionally, create a new namespace: ``kubectl create namespace [namespace]``.
 

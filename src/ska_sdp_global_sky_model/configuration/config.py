@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 import ska_ser_logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
@@ -39,7 +39,8 @@ SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
 SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 # HEALPix
-NSIDE: int = config("NSIDE", default=64)
+NSIDE: int = config("NSIDE", default=4096)
+NEST: bool = config("NEST", default=True)
 
 
 engine = create_engine(DB_URL)
@@ -69,6 +70,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def q3c_index():
+    """Create Q3C extension + index exist"""
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS q3c;"))
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
+                'ON source (q3c_ang2ipix("RAJ2000","DECJ2000"));'
+            )
+        )
 
 
 MWA = {
