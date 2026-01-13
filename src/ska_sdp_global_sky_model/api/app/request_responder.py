@@ -90,24 +90,25 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
         for flow, source in flows:
 
             logger.info("Found flow ... %s", flow.key)
+            _watcher_process_flow(watcher, flow, source)
 
-            try:
-                query_params = QueryParameters(**source.parameters)
-            except TypeError as err:
-                logger.error(
-                    "%s -> Used invalid query parameters: %s", flow.key, source.parameters
-                )
-                for txn in watcher.txn():
-                    _update_state(txn, flow, "FAILED", str(err)[27:])
-                continue
 
-            for txn in watcher.txn():
-                _update_state(txn, flow, "FLOWING")
+def _watcher_process_flow(watcher, flow, source):
+    try:
+        query_params = QueryParameters(**source.parameters)
+    except TypeError as err:
+        logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
+        for txn in watcher.txn():
+            _update_state(txn, flow, "FAILED", str(err)[27:])
+        return
 
-            successful, reason = _process_flow(flow, query_params)
+    for txn in watcher.txn():
+        _update_state(txn, flow, "FLOWING")
 
-            for txn in watcher.txn():
-                _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
+    successful, reason = _process_flow(flow, query_params)
+
+    for txn in watcher.txn():
+        _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
 
 
 def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
