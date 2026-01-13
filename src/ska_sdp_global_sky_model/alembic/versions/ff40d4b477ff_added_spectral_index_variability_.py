@@ -1,3 +1,4 @@
+# pylint: disable=E1101(no-member)
 """
 Added spectral index, variability, polarisation.
 Revision ID: ff40d4b477ff.

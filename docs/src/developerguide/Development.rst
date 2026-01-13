@@ -39,4 +39,5 @@ Running the application tests
 The API is tested using the pytest framework alongside FastAPI's TestClient. The tests can be run with:
 
 .. code-block:: bash
+    
     $ make python-test

@@ -1,4 +1,4 @@
-# pylint: disable=no-member
+# pylint: disable=no-member, too-many-positional-arguments
 """
 A simple fastAPI to obtain a local sky model from a global sky model.
 """
@@ -20,7 +20,15 @@ from starlette.middleware.cors import CORSMiddleware
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
-from ska_sdp_global_sky_model.configuration.config import MWA, RACS, RCAL, Base, engine, get_db
+from ska_sdp_global_sky_model.configuration.config import (
+    MWA,
+    RACS,
+    RCAL,
+    Base,
+    engine,
+    get_db,
+    q3c_index,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +72,7 @@ def create_db_and_tables():
     """
     logger.info("Creating the database and tables...")
     Base.metadata.create_all(engine)
+    q3c_index()
 
 
 @app.get("/ping", summary="Ping the API")

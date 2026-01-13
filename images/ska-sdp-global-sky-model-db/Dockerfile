@@ -1,5 +1,17 @@
-FROM postgres:13.11
+FROM postgres:16
 
-RUN echo "en_US.UTF-8 UTF-8"> /etc/locale.gen 
-RUN locale-gen
-RUN apt-get update -y && apt-get install -y wget cmake postgresql-server-dev-13 postgresql-13-q3c
+# Install build dependencies
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        postgresql-16-q3c \
+        ca-certificates \
+        postgresql-server-dev-16; \
+    rm -rf /var/lib/apt/lists/*
+
+
+COPY db/*.sql /docker-entrypoint-initdb.d/
+
+EXPOSE 5432
+
+CMD ["postgres"]
