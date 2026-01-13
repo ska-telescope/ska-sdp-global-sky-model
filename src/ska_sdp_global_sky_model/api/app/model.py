@@ -7,40 +7,13 @@ Data models for SQLAlchemy
 
 import logging
 
-from healpix_alchemy import Point, Tile
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TEXT
-from sqlalchemy.orm import Session, mapped_column, relationship
+from sqlalchemy.orm import Session, mapped_column
 
 from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 
 logger = logging.getLogger(__name__)
-
-
-class WholeSky(Base):
-    """
-    Represents a collection of SkyTiles making up the whole sky.
-    """
-
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id = Column(Integer, primary_key=True, autoincrement=False)
-    tiles = relationship(
-        lambda: SkyTile, order_by="SkyTile.id", cascade="all, delete, delete-orphan"
-    )
-
-
-class SkyTile(Base):
-    """
-    A HEALPix tile that is a component of the whole sky.
-    """
-
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id = Column(ForeignKey(WholeSky.id, ondelete="CASCADE"), primary_key=True)
-    hpx = Column(Tile, index=True)
-    pk = Column(Integer, primary_key=True, autoincrement=False, unique=True)
-    sources = relationship("Source", back_populates="tile")
 
 
 class Source(Base):
@@ -77,12 +50,8 @@ class Source(Base):
     RAJ2000_Error = Column(Float)
     DECJ2000 = Column(Float)
     DECJ2000_Error = Column(Float)
-    Heal_Pix_Position = Column(Point, index=True, nullable=False)
-    sky_coord = Column(Point, index=True)
+    Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
     json = Column(TEXT)
-
-    tile_id = Column(Integer, ForeignKey(SkyTile.pk), nullable=False)
-    tile = relationship(SkyTile, back_populates="sources")
 
     def to_json(self, session: Session):
         """Serializes the source object and its associated telescope data to a JSON string.

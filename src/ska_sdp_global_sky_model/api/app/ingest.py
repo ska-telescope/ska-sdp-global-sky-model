@@ -1,3 +1,5 @@
+# pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
+# pylint: disable=too-many-arguments, too-many-locals
 """
 Gleam Catalog ingest
 """
@@ -5,34 +7,24 @@ Gleam Catalog ingest
 import csv
 import json
 import logging
-
-# pylint: disable=R1708(stop-iteration-return)
-# pylint: disable=E1101(no-member)
-# pylint: disable=R0913(too-many-arguments)
 import os
 from itertools import zip_longest
-from typing import Any, Dict, List, Optional
+from typing import Dict, Optional
 
-from astropy.coordinates import SkyCoord
-from astropy_healpix import HEALPix
+import healpy as hp
+import numpy as np
 from astroquery.vizier import Vizier
-from sqlalchemy import exc
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.model import (
     Band,
     NarrowBandData,
-    SkyTile,
     Source,
     Telescope,
-    WholeSky,
     WideBandData,
 )
-from ska_sdp_global_sky_model.configuration.config import NSIDE
-from ska_sdp_global_sky_model.utilities.helper_functions import (
-    calculate_percentage,
-    convert_ra_dec_to_skycoord,
-)
+from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
+from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
 logger = logging.getLogger(__name__)
 
@@ -207,8 +199,29 @@ def load_or_create_bands(
     return bands
 
 
+def to_float(val):
+    """Coerce to float."""
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
+    """Computes the healpix position of a given source with particular NSIDE."""
+
+    ra_deg = to_float(ra_deg)
+    dec_deg = to_float(dec_deg)
+
+    theta = np.radians(90.0 - dec_deg)
+    phi = np.radians(ra_deg)
+    return int(hp.ang2pix(nside, theta, phi, nest=nest))
+
+
 def create_source_catalog_entry(
-    db: Session, source: Dict[str, float], name: str, healpix: HEALPix, sky_map: WholeSky
+    db: Session,
+    source: Dict[str, float],
+    name: str,
 ) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
@@ -229,37 +242,13 @@ def create_source_catalog_entry(
         The created Source object, or None if required keys are missing from the data.
     """
 
-    try:
-        sky_coord: SkyCoord = convert_ra_dec_to_skycoord(source["RAJ2000"], source["DEJ2000"])
-    except KeyError:
-        # Required keys missing, return None
-        logger.warning("Missing required keys in source data. Skipping source creation.")
-        return None
-
-    # get the HEALPix index of the coarse sky tile that would house it in the UNIQ pixel encoding
-    ipix = int(healpix.skycoord_to_healpix(sky_coord))
-    hpx = ipix + 4 * NSIDE**2
-
-    # check if tile housing source exists yet
-    try:
-        tile = db.query(SkyTile).filter(SkyTile.pk == hpx).one()
-    except exc.NoResultFound:
-        tile = SkyTile(hpx=hpx, pk=hpx)
-
-    sky_map.tiles.append(tile)
-    db.add_all([tile])
-
-    db.commit()
-
     source_catalog = Source(
         name=name,
-        Heal_Pix_Position=sky_coord,
-        sky_coord=sky_coord,
+        Heal_Pix_Position=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         RAJ2000=source["RAJ2000"],
         RAJ2000_Error=source.get("e_RAJ2000"),
         DECJ2000=source["DEJ2000"],
         DECJ2000_Error=source.get("e_DEJ2000"),
-        tile_id=hpx,
     )
     db.add(source_catalog)
     db.commit()
@@ -383,67 +372,197 @@ def create_narrow_band_data_entry(
         db.commit()
 
 
-def process_source_data(
+def coerce_floats(source_dict: dict) -> dict:
+    """Coerce values to floats."""
+    out = {}
+    for k, v in source_dict.items():
+        try:
+            out[k] = float(v)
+        except (ValueError, TypeError):
+            out[k] = v
+    return out
+
+
+def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
+    """Construct source structure."""
+    return {
+        "name": str(source_dict.get(catalog_config["source"])),
+        "Heal_Pix_Position": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
+        "RAJ2000": source_dict["RAJ2000"],
+        "RAJ2000_Error": source_dict.get("e_RAJ2000"),
+        "DECJ2000": source_dict["DEJ2000"],
+        "DECJ2000_Error": source_dict.get("e_DEJ2000"),
+    }
+
+
+def build_wideband_mapping(source_dict: dict, telescope_id: int) -> dict:
+    """Construct wideband structure."""
+    s = coerce_floats(source_dict)
+
+    return {
+        "name": s["name"],
+        "Bck_Wide": s["bckwide"],
+        "Local_RMS_Wide": s["lrmswide"],
+        "Int_Flux_Wide": s["Fintwide"],
+        "Int_Flux_Wide_Error": s["e_Fintwide"],
+        "Resid_Mean_Wide": s["resmwide"],
+        "Resid_Sd_Wide": s["resstdwide"],
+        "Abs_Flux_Pct_Error": s["e_Fpwide"],
+        "Fit_Flux_Pct_Error": s["efitFpct"],
+        "A_PSF_Wide": s["psfawide"],
+        "B_PSF_Wide": s["psfbwide"],
+        "PA_PSF_Wide": s["psfPAwide"],
+        "Spectral_Index": s["alpha"],
+        "Spectral_Index_Error": s["e_alpha"],
+        "A_Wide": s["awide"],
+        "A_Wide_Error": s["e_awide"],
+        "B_Wide": s["bwide"],
+        "B_Wide_Error": s["e_bwide"],
+        "PA_Wide": s["pawide"],
+        "PA_Wide_Error": s["e_pawide"],
+        "Flux_Wide": s["Fpwide"],
+        "Flux_Wide_Error": s["eabsFpct"],
+        "telescope": telescope_id,
+    }
+
+
+def build_narrowband_mapping(source_dict: dict, band_cf: float, band_id: int) -> dict:
+    """Construct narrowband structure."""
+    s = coerce_floats(source_dict)
+    band_cf_str = f"{int(band_cf):03d}"
+
+    return {
+        "name": s["name"],
+        "Bck_Narrow": s[f"bck{band_cf_str}"],
+        "Local_RMS_Narrow": s[f"lrms{band_cf_str}"],
+        "Int_Flux_Narrow": s[f"Fint{band_cf_str}"],
+        "Int_Flux_Narrow_Error": s[f"e_Fint{band_cf_str}"],
+        "Resid_Mean_Narrow": s[f"resm{band_cf_str}"],
+        "Resid_Sd_Narrow": s[f"resstd{band_cf_str}"],
+        "A_PSF_Narrow": s[f"psfa{band_cf_str}"],
+        "B_PSF_Narrow": s[f"psfb{band_cf_str}"],
+        "PA_PSF_Narrow": s[f"psfPA{band_cf_str}"],
+        "A_Narrow": s[f"a{band_cf_str}"],
+        "B_Narrow": s[f"b{band_cf_str}"],
+        "PA_Narrow": s[f"pa{band_cf_str}"],
+        "Flux_Narrow": s[f"Fp{band_cf_str}"],
+        "Flux_Narrow_Error": s[f"e_Fp{band_cf_str}"],
+        "band": band_id,
+    }
+
+
+def commit_batch(
     db: Session,
-    source_data: List[Dict[str, float]] | SourceFile,
-    bands: Dict[float, Band],
-    telescope: Any,
-    ingest_bands: list,
-    catalog_config: dict,
-    heal_pix: HEALPix,
-    sky_map: WholeSky | None,
+    source_objs: list,
+    wideband_objs: list,
+    narrowband_objs: list,
+    telescope_id: int,
+):
+    """Commit batches of sources."""
+    if not source_objs:
+        return
+
+    db.bulk_insert_mappings(Source, source_objs)
+    db.commit()
+
+    inserted_sources = db.query(Source).order_by(Source.id.desc()).limit(len(source_objs)).all()
+    inserted_sources.reverse()
+
+    source_id_map = {src["name"]: orm.id for src, orm in zip(source_objs, inserted_sources)}
+
+    for wb in wideband_objs:
+        wb["source"] = source_id_map[wb["name"]]
+        wb["telescope"] = telescope_id
+
+    for nb in narrowband_objs:
+        nb["source"] = source_id_map[nb["name"]]
+
+    if wideband_objs:
+        db.bulk_insert_mappings(WideBandData, wideband_objs)
+    if narrowband_objs:
+        db.bulk_insert_mappings(NarrowBandData, narrowband_objs)
+
+    db.commit()
+
+    source_objs.clear()
+    wideband_objs.clear()
+    narrowband_objs.clear()
+
+
+def process_source_data_batch(
+    db: Session,
+    source_data,
+    bands,
+    telescope,
+    ingest_bands,
+    catalog_config,
+    batch_size: int = 500,
 ) -> bool:
-    """Processes a list of source data entries and adds them to the database.
-
-    This function iterates over the provided source data and performs the following for each entry:
-
-        1. Checks if a source with the same name (`GLEAM`) already exists in the database.
-            - If it does, skip to the next entry.
-        2. Creates a Source object using the `create_source_catalog_entry` function.
-        3. Creates a WideBandData object using the `create_wide_band_data_entry` function.
-        4. Creates NarrowBandData objects (one for each band) using the
-           `create_narrow_band_data_entry` function.
+    """
+    Processes source data and inserts into DB using batch operations for speed.
 
     Args:
-        db: An SQLAlchemy database session object.
-        source_data: A list of dictionaries containing source information with float values.
-        bands: A dictionary mapping center frequencies (floats) to Band objects.
-        telescope: The telescope object (type can vary depending on your implementation).
-        ingest_bands: List of bands to ingest
-        catalog_config: The catalog configuration.
-
+        db: SQLAlchemy session.
+        source_data: List of source dictionaries.
+        bands: Dict mapping center frequency to Band object.
+        telescope: Telescope object.
+        ingest_bands: List of bands to ingest.
+        catalog_config: Catalog configuration.
+        batch_size: Number of sources to insert per DB commit.
     Returns:
-        True if all source data entries are processed successfully, False otherwise.
+        True if successful, False otherwise.
     """
+    logger.info("Processing source data in batches...")
 
-    logger.info("Processing source data...")
+    existing_names = set(r[0] for r in db.query(Source.name).all())
+
+    source_objs, wideband_objs, narrowband_objs = [], [], []
 
     count = 0
-    num_source_data = len(source_data)
-    for source in source_data:
-        name = str(source.get(catalog_config["source"]))
-        if count % 100 == 0:
-            logger.info(
-                "Loading source into database, progress: %s%%",
-                str(calculate_percentage(dividend=count, divisor=num_source_data)),
-            )
+    total = len(source_data)
+
+    for src in source_data:
+        source_dict = dict(src) if not hasattr(src, "items") else src
+        name = str(source_dict.get(catalog_config["source"]))
+
+        if name in existing_names:
+            continue
+        existing_names.add(name)
+
+        source_dict["name"] = name
         count += 1
 
-        if db.query(Source).filter_by(name=name).count():
-            continue
+        if count % 100 == 0:
+            logger.info(
+                "Progress: %s%%",
+                calculate_percentage(count, total),
+            )
 
-        source_catalog = create_source_catalog_entry(db, source, name, heal_pix, sky_map)
-        if not source_catalog:
-            # Error creating source catalog entry, data processing unsuccessful
-            return False
+        source_objs.append(build_source_mapping(source_dict, catalog_config))
 
-        if wideband := catalog_config.get("ingest", {}).get("wideband"):
-            if wideband is True:
-                if not create_wide_band_data_entry(db, source, source_catalog, telescope):
-                    # Error creating wide band entry, data processing unsuccessful
-                    return False
+        if catalog_config.get("ingest", {}).get("wideband"):
+            wideband_objs.append(build_wideband_mapping(source_dict, telescope.id))
 
-        create_narrow_band_data_entry(db, source, source_catalog, bands, ingest_bands)
+        for band_cf, band in bands.items():
+            if band_cf in ingest_bands:
+                narrowband_objs.append(build_narrowband_mapping(source_dict, band_cf, band.id))
+
+        if count % batch_size == 0:
+            commit_batch(
+                db,
+                source_objs,
+                wideband_objs,
+                narrowband_objs,
+                telescope.id,
+            )
+
+    commit_batch(
+        db,
+        source_objs,
+        wideband_objs,
+        narrowband_objs,
+        telescope.id,
+    )
 
     return True
 
@@ -472,18 +591,6 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
-    hp = HEALPix(nside=NSIDE, order="nested", frame="icrs")
-
-    # check if sky map exists yet
-    try:
-        sky_map = db.query(WholeSky).filter_by(id=1).one()
-        logger.info("SKY MAP EXISTS")
-    except exc.NoResultFound:
-        sky_map = WholeSky(id=1, tiles=[])
-        db.add(sky_map)
-        db.commit()
-        logger.info("SKY MAP DOES NOT EXIST")
-
     # 1. Load or create telescope
     telescope = load_or_create_telescope(db, catalog_config)
 
@@ -504,8 +611,13 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
             return False
         logger.info("Processing %s sources", str(len(sources)))
         # 4. Process source data
-        if not process_source_data(
-            db, sources, bands, telescope, ingest_bands, catalog_config, hp, sky_map
+        if not process_source_data_batch(
+            db,
+            sources,
+            bands,
+            telescope,
+            ingest_bands,
+            catalog_config,
         ):
             return False
 
