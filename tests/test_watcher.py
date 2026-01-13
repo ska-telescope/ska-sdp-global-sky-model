@@ -228,11 +228,21 @@ def test_watcher_process_missing_parameter(
     assert mock_watcher.mock_calls == [
         call.txn(),
         call.txn(),
+        call.txn(),
     ]
     assert mock_txn.mock_calls == [
         call.flow.query_values(kind="data-product"),
         call.flow.state(valid_flow),
         call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().update(
+            {
+                "status": "FLOWING",
+                "last_updated": 1234.5678,
+            }
+        ),
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),

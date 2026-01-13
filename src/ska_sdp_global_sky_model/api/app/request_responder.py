@@ -94,6 +94,9 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
 
 
 def _watcher_process_flow(watcher, flow, source):
+    for txn in watcher.txn():
+        _update_state(txn, flow, "FLOWING")
+
     try:
         query_params = QueryParameters(**source.parameters)
     except TypeError as err:
@@ -101,9 +104,6 @@ def _watcher_process_flow(watcher, flow, source):
         for txn in watcher.txn():
             _update_state(txn, flow, "FAILED", str(err)[27:])
         return
-
-    for txn in watcher.txn():
-        _update_state(txn, flow, "FLOWING")
 
     successful, reason = _process_flow(flow, query_params)
 
