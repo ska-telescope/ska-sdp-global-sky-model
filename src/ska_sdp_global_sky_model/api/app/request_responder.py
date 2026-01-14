@@ -66,7 +66,7 @@ def _db_watcher():  # pragma: no cover
             config = ska_sdp_config.Config()
             _watcher_process(config)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("An error has occured, thread needs to restart")
+            logger.error("An error has occurred, thread needs to restart")
             logger.exception(e)
         finally:
             try:
