@@ -47,7 +47,7 @@ class QueryParameters:
     """Declination [rad]"""
 
     fov: float
-    """Field of View [rad]"""
+    """Field of View radius [rad]"""
 
     version: str = "latest"
     """version of the GSM data"""

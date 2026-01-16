@@ -41,9 +41,9 @@ def fixture_valid_flow():
                 uri="gsm://request/lsm",
                 function="GlobalSkyModel.RequestLocalSkyModel",
                 parameters={
-                    "ra": 123,
-                    "dec": 123,
-                    "fov": 123,
+                    "ra": 2.9670,
+                    "dec": -0.1745,
+                    "fov": 0.0873,
                 },
             ),
         ],
@@ -101,7 +101,7 @@ def test_happy_path(
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
     assert mock_filter_function.mock_calls == [
-        call(QueryParameters(ra=123, dec=123, fov=123, version="latest"))
+        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
     ]
     assert mock_write_data.mock_calls == [call(path, ["data"])]
     assert mock_write_metadata.mock_calls == [call(path, valid_flow)]
@@ -309,7 +309,7 @@ def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
     assert reason is None
 
     assert mock_call.mock_calls == [
-        call(QueryParameters(ra=123, dec=123, fov=123, version="latest"))
+        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
     ]
     assert mock_meta.mock_calls == [
         call(
@@ -338,7 +338,7 @@ def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
     assert reason == "An error occured"
 
     assert mock_call.mock_calls == [
-        call(QueryParameters(ra=123, dec=123, fov=123, version="latest"))
+        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
     ]
     assert mock_meta.mock_calls == []
     assert mock_data.mock_calls == []

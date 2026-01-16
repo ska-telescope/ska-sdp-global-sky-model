@@ -27,9 +27,9 @@ The layout of a flow entry should match the following:
                 uri="gsm://request/lsm",
                 function="GlobalSkyModel.RequestLocalSkyModel",
                 parameters={
-                    "ra": 123,
-                    "dec": 123,
-                    "fov": 123,
+                    "ra": 2.9670,
+                    "dec": -0.1745,
+                    "fov": 0.0873,
                     "version": "latest",
                 },
             )
