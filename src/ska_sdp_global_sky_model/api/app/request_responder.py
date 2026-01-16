@@ -162,6 +162,10 @@ def _update_state(
     """Update the Flow state"""
     current_state = txn.flow.state(flow).get()
 
+    if current_state is not None and current_state.get("status") == state:
+        logger.debug("Skip updating state to same state")
+        return
+
     new_state = {"status": state, "last_updated": time.time()}
     if reason:
         new_state["reason"] = reason

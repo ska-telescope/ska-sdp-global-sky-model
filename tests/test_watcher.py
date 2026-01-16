@@ -406,3 +406,18 @@ def test_update_state_create_state(mock_time):
             {"status": "NEW_STATE", "last_updated": 12345.123, "reason": "reason"}
         ),
     ]
+
+
+def test_update_state_no_change():
+    """Test state is not updated if same state is supplied"""
+    txn = MagicMock()
+    txn.flow.state.return_value.get.return_value = {"status": "FLOWING"}
+
+    flow = MagicMock()
+
+    _update_state(txn, flow, "FLOWING")
+
+    assert txn.mock_calls == [
+        call.flow.state(flow),
+        call.flow.state().get(),
+    ]
