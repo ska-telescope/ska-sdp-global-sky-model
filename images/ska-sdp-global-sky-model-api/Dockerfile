@@ -1,4 +1,4 @@
-FROM artefact.skao.int/ska-build-python:0.3.1 AS build
+FROM artefact.skao.int/ska-build-python:0.3.3 AS build
 WORKDIR /app
 ENV POETRY_VIRTUALENVS_CREATE=false
 COPY pyproject.toml poetry.lock ./
@@ -8,7 +8,7 @@ RUN poetry install --no-root --only main
 COPY src/ src/
 RUN pip install --no-compile --no-dependencies .
 
-FROM artefact.skao.int/ska-python:0.2.3 AS builder
+FROM artefact.skao.int/ska-python:0.2.5 AS builder
 # dont write pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 # dont buffer to stdout/stderr

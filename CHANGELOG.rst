@@ -1,15 +1,18 @@
-Changelog
+CHANGELOG
 =========
 
 Development
 -----------
+
 - Re-instated postgres backend storage starting from version 0.1.4.
   (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
+- [Added] Watcher for creating local sky models from Flow entries
+  (`MR51 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/51>`__)
 
 Note
 ----
 The 0.2.0 release has been shelved and should not be used as a reference to main. The 'new' main
-is based on version 0.1.4. The development changes post 0.2.0 (under 'Unreleased') were not 
+is based on version 0.1.4. The development changes post 0.2.0 (under 'Unreleased') were not
 released and can also be disregarded.
 
 
@@ -18,24 +21,24 @@ Unreleased
 
 - Reorganized and updated the documentation
   (`MR44 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/44>`__)
-- Fix RTD by upgrading to poetry 2 
+- Fix RTD by upgrading to poetry 2
   (`MR42 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/42>`__)
-- Update documentation and Make commands for datasets 
+- Update documentation and Make commands for datasets
   (`MR41 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/41>`__)
 
 
 0.2.0 (former)
------
+--------------
 
 - Prepare deployment and release new version
   (`MR40 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/40>`__)
-- Update uvicorn command line 
+- Update uvicorn command line
   (`MR39 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/39>`__)
 - Fix Deployment, and small fixes
   (`MR38 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/38>`__)
 - Update the Chart and documentation
   (`MR37 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/37>`__)
-- Initial Updates for restructure 
+- Initial Updates for restructure
   (`MR36 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/36>`__)
 - Update readme
   (`MR35 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/35>`__)
@@ -54,13 +57,13 @@ Unreleased
 0.1.4
 -----
 
-- Bumped version to 0.1.4 
+- Bumped version to 0.1.4
   (`MR28 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/28>`__)
 - Update docs to reflect changes to GSM
   (`MR27 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/27>`__)
-- Increase code coverage 
+- Increase code coverage
   (`MR26 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/26>`__)
-- Use the ska-sdp-python image 
+- Use the ska-sdp-python image
   (`MR25 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/25>`__)
 - Modify schema to include spectral index, variability, curvature, polarisation
   (`MR24 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/24>`__)
@@ -71,11 +74,11 @@ Unreleased
 0.1.3
 -----
 
-- Changes to allow ingest of an arbitrary catalog for testing. 
+- Changes to allow ingest of an arbitrary catalog for testing.
   (`MR22 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/22>`__)
-- Improve Local Sky Model creation speed 
+- Improve Local Sky Model creation speed
   (`MR21 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/21>`__)
-- Make dev db available 
+- Make dev db available
   (`MR20 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/20>`__)
 - Quick fix for key error
   (`MR19 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/19>`__)
@@ -83,7 +86,7 @@ Unreleased
   (`MR18 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/18>`__)
 - Fixed up dockerfile, ensure DB connection is up and running before finishing app startup
   (`MR17 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/17>`__)
-- Make the ingest generic to be able to process both vizier and file based catalog 
+- Make the ingest generic to be able to process both vizier and file based catalog
   (`MR16 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/16>`__)
 - Implement Cone Search
   (`MR15 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/15>`__)
@@ -114,5 +117,5 @@ Unreleased
 0.1.0
 -----
 
-- Helm chart for Postgresql backend with pgsphere extension and a fastAPI 
+- Helm chart for Postgresql backend with pgsphere extension and a fastAPI
   (`MR1 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/1>`__)
