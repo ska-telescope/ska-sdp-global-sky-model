@@ -41,13 +41,13 @@ class QueryParameters:
     """The list of available and optional query parameters."""
 
     ra: float
-    """Right Ascension"""
+    """Right Ascension [rad]"""
 
     dec: float
-    """Declination"""
+    """Declination [rad]"""
 
     fov: float
-    """Field of View"""
+    """Field of View [rad]"""
 
     version: str = "latest"
     """version of the GSM data"""
