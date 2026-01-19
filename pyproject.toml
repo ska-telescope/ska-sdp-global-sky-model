@@ -27,6 +27,11 @@ name = "skao"
 url = "https://artefact.skao.int/repository/pypi-internal/simple"
 priority = "primary"
 
+[[tool.poetry.source]]
+name = "ska-sdp-datamodels-gitlab"
+url = "https://gitlab.com/api/v4/projects/40032008/packages/pypi/simple"
+priority = "supplemental"
+
 [tool.poetry.dependencies]
 fastapi = "^0.110.1"
 sqlalchemy = "^2.0.29"
@@ -41,6 +46,7 @@ python-multipart = "^0.0.9"
 healpy = "^1.19.0"
 alembic = "^1.13.2"
 ska-sdp-config = "^1.4.0"
+ska-sdp-datamodels = "1.0.2+dev.cdaa6cba4"
 
 
 [tool.poetry.group.dev.dependencies]

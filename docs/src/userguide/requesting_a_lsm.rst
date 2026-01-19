@@ -64,10 +64,48 @@ checked:
 Once a flow has been found that matches those criteria, the following is done:
 
 1. The state is updated to ``FLOWING``.
-2. The local sky model is retrieved.
+2. The local sky model is retrieved from the database by:
+
+   a. Querying sources within the specified field of view using spatial indexing (q3c_radial_query)
+   b. Retrieving all associated narrowband measurements for matched sources
+   c. Retrieving all associated wideband measurements for matched sources
+   d. Converting database records to SkySource objects from ska_sdp_datamodels
+
 3. The LSM is written to the shared volume.
 4. The metadata is written to.
 5. The state is updated to ``COMPLETED``.
 
 If there is a failure the state is updated to ``FAILED`` and a reason is set.
+
+Database Query Details
+----------------------
+
+The LSM query uses the following approach:
+
+1. **Spatial Query**: Uses PostgreSQL's q3c extension to efficiently find sources
+   within a circular region defined by RA, Dec, and FOV radius (all in radians).
+
+2. **Data Retrieval**: For each matched source, the system retrieves:
+
+   - Source position (RA, Dec) and identifier
+   - All wideband measurements from different telescopes
+   - All narrowband measurements across different bands and telescopes
+
+3. **Data Model Mapping**: Database records are mapped to the GlobalSkyModel data
+   structure defined in ``ska_sdp_datamodels.global_sky_model``:
+
+   - ``GlobalSkyModel``: Top-level container with a dictionary of sources keyed by source ID
+   - ``SkySource``: Contains source ID, position, and lists of measurements
+   - ``WidebandMeasurement``: Full-band spectral data with polarization info
+   - ``NarrowbandMeasurement``: Band-specific measurements with spectral indices
+
+4. **Result Format**: Returns a ``GlobalSkyModel`` object containing a dictionary
+   of ``SkySource`` objects (keyed by source ID) with all relevant astronomical
+   measurements for sources within the requested field of view.
+
+.. note::
+   The ``version`` parameter in query parameters is reserved for future use to
+   support multiple GSM catalog versions. Currently, it defaults to "latest"
+   but does not affect query results.
+
 
