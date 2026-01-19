@@ -5,7 +5,7 @@ Gleam Catalog ingest
 """
 
 import csv
-import json
+import datetime
 import logging
 import os
 from itertools import zip_longest
@@ -16,13 +16,7 @@ import numpy as np
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.model import (
-    Band,
-    NarrowBandData,
-    Source,
-    Telescope,
-    WideBandData,
-)
+from ska_sdp_global_sky_model.api.app.model import Source, Version
 from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
@@ -114,7 +108,7 @@ def get_data_catalog_selector(ingest: dict):
         ingest: The catalog ingest configurations.
     """
     if ingest["agent"] == "vizier":
-        yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
+        yield get_data_catalog_vizier(ingest["key"])
     elif ingest["agent"] == "file":
         for ingest_set in ingest["file_location"]:
             logger.info("Opening file: %s", ingest_set["key"])
@@ -123,80 +117,51 @@ def get_data_catalog_selector(ingest: dict):
                     ingest_set["key"],
                     heading_alias=ingest_set["heading_alias"],
                     heading_missing=ingest_set["heading_missing"],
-                ),
-                ingest_set["bands"],
+                )
             )
 
 
-def load_or_create_telescope(db: Session, catalog_config: dict) -> Optional[Telescope]:
+def create_version(db: Session, catalog_config: dict) -> Optional[Version]:
     """
     Loads a telescope by name from the database. If not found, creates a new one.
 
     Args:
         db: SQLAlchemy database object
-        catalog_config: Dictionary of telescope configuration.
+        catalog_config: Dictionary of catalogue configuration.
 
     Returns:
-        Telescope object or None if not found and not created.
+        (version, created): Version object as well as boolean created flag.
     """
     catalog_name = catalog_config["name"]
-    logger.info("Creating new telescope: %s", catalog_name)
+    catalog_version = catalog_config["version"]
+    logger.info("Creating new catalogue: %s", catalog_name)
     try:
 
-        telescope = db.query(Telescope).filter_by(name=catalog_name).first()
+        version = (
+            db.query(Version)
+            .filter_by(name=catalog_name, version=catalog_version)
+            .first()
+        )
 
-        if not telescope:
-            logger.info("Telescope does not exist ..")
-            telescope = Telescope(
+        if not version:
+            logger.info("GSM version does not exist ingesting.")
+            version = Version(
                 name=catalog_name,
-                frequency_min=catalog_config["frequency_min"],
-                frequency_max=catalog_config["frequency_max"],
-                ingested=False,
+                version=catalog_version,
+                date_created=catalog_config.get("date_created"),
+                date_added=datetime.datetime.now(),
             )
-            db.add(telescope)
+            db.add(version)
             db.commit()
         else:
-            logger.info("Telescope already exists, checking if catalog is ingested...")
-            if telescope.ingested:
-                logger.info("%s catalog already ingested, exiting.", catalog_name)
-                return None
+            logger.info("GSM version already exists, don't re-ingest")
+            return version
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("Error loading telescope: %s", e)
+        logger.error("Error loading version: %s", e)
         db.rollback()
         raise e
 
-    return telescope
-
-
-def load_or_create_bands(
-    db: Session, telescope_id: int, telescope_bands: list
-) -> Dict[float, Band]:
-    """Loads bands associated with the telescope from the database.
-
-    If a band for a given center frequency is not found, a new Band object
-    is created and added to the database.
-
-    Args:
-        db: An SQLAlchemy database session object.
-        telescope_id: The ID of the telescope to retrieve bands for.
-        telescope_bands: List of bands the data is registered over.
-
-    Returns:
-        A dictionary mapping center frequency (float) to Band objects.
-    """
-    logger.info("Loading bands associated with the telescope from the database...")
-    bands = {}
-    for band_cf in telescope_bands:
-        logger.info("Loading band: %s", band_cf)
-        band = db.query(Band).filter_by(centre=band_cf, telescope=telescope_id).first()
-        if not band:
-            band = Band(centre=band_cf, telescope=telescope_id)
-            db.add(band)
-            bands[band_cf] = band
-        else:
-            bands[band_cf] = band
-    db.commit()
-    return bands
+    return version
 
 
 def to_float(val):
@@ -220,6 +185,7 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
 
 def create_source_catalog_entry(
     db: Session,
+    version: Version,
     source: Dict[str, float],
     name: str,
 ) -> Optional[Source]:
@@ -233,9 +199,6 @@ def create_source_catalog_entry(
         source: A dictionary containing the source information with the following keys:
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-            * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
-            * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
         name: String for the source name.
 
     Returns:
@@ -244,132 +207,15 @@ def create_source_catalog_entry(
 
     source_catalog = Source(
         name=name,
+        version=version,
         Heal_Pix_Position=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         RAJ2000=source["RAJ2000"],
-        RAJ2000_Error=source.get("e_RAJ2000"),
         DECJ2000=source["DEJ2000"],
-        DECJ2000_Error=source.get("e_DEJ2000"),
+        # Add profile model
     )
     db.add(source_catalog)
     db.commit()
     return source_catalog
-
-
-def create_wide_band_data_entry(
-    db: Session, source: Dict[str, str] | SourceFile, source_catalog: Source, telescope: Telescope
-) -> Optional[WideBandData]:
-    """Creates a WideBandData object from the provided source data and adds it to the database.
-
-    This function expects the source data to have string values. It will attempt to convert
-    them to floats before creating the WideBandData object. If any conversion fails, the
-    function will return None.
-
-    Args:
-        db: An SQLAlchemy database session object.
-        source: A dictionary containing the wide-band source information with string values.
-        source_catalog: The corresponding Source object in the database.
-        telescope: The telescope object (type can vary depending on your implementation).
-
-    Returns:
-        The created WideBandData object, or None if data conversion fails.
-    """
-    source_float = {}
-    for k in source.keys():
-        try:
-            source_float[k] = float(source[k])
-        except ValueError:
-            source_float[k] = source[k]
-
-    wide_band_data = WideBandData(
-        Bck_Wide=source_float["bckwide"],
-        Local_RMS_Wide=source_float["lrmswide"],
-        Int_Flux_Wide=source_float["Fintwide"],
-        Int_Flux_Wide_Error=source_float["e_Fintwide"],
-        Resid_Mean_Wide=source_float["resmwide"],
-        Resid_Sd_Wide=source_float["resstdwide"],
-        Abs_Flux_Pct_Error=source_float["e_Fpwide"],
-        Fit_Flux_Pct_Error=source_float["efitFpct"],
-        A_PSF_Wide=source_float["psfawide"],
-        B_PSF_Wide=source_float["psfbwide"],
-        PA_PSF_Wide=source_float["psfPAwide"],
-        Spectral_Index=source_float["alpha"],
-        Spectral_Index_Error=source_float["e_alpha"],
-        A_Wide=source_float["awide"],
-        A_Wide_Error=source_float["e_awide"],
-        B_Wide=source_float["bwide"],
-        B_Wide_Error=source_float["e_bwide"],
-        PA_Wide=source_float["pawide"],
-        PA_Wide_Error=source_float["e_pawide"],
-        Flux_Wide=source_float["Fpwide"],
-        Flux_Wide_Error=source_float["eabsFpct"],
-        telescope=telescope.id,
-        source=source_catalog.id,
-    )
-    db.add(wide_band_data)
-    db.commit()
-    return wide_band_data
-
-
-def create_narrow_band_data_entry(
-    db: Session,
-    source: Dict[str, str],
-    source_catalog: Source,
-    bands: Dict[float, Band],
-    ingest_bands: list,
-) -> Optional[None]:
-    """Creates NarrowBandData objects from the provided source data for each band and adds them to
-    the database.
-
-    This function expects the source data to have string values. It will attempt to convert
-    them to floats before creating the NarrowBandData objects. If any conversion fails,
-    the function will return None.
-
-    Args:
-        db: An SQLAlchemy database session object.
-        source: A dictionary containing the narrow-band source information with string values.
-        source_catalog: The corresponding Source object in the database.
-        bands: A dictionary mapping center frequencies (floats) to Band objects.
-        ingest_bands: The list of bands to be ingested this run.
-
-    Returns:
-        None (the function does not return a meaningful value). If data conversion fails
-        for any band, the loop terminates and None is returned.
-    """
-    for band_cf, band in bands.items():
-        if band_cf not in ingest_bands:
-            # Not processing this band from the current catalog source.
-            continue
-        band_id = band.id
-        band_cf_str = str(band_cf)
-        band_cf_str = f"0{band_cf_str}" if len(band_cf_str) < 3 else band_cf_str
-
-        source_float = {}
-        for k in source.keys():
-            try:
-                source_float[k] = float(source[k])
-            except ValueError:
-                source_float[k] = source[k]
-
-        narrow_band_data = NarrowBandData(
-            Bck_Narrow=source_float[f"bck{band_cf_str}"],
-            Local_RMS_Narrow=source_float[f"lrms{band_cf_str}"],
-            Int_Flux_Narrow=source_float[f"Fint{band_cf_str}"],
-            Int_Flux_Narrow_Error=source_float[f"e_Fint{band_cf_str}"],
-            Resid_Mean_Narrow=source_float[f"resm{band_cf_str}"],
-            Resid_Sd_Narrow=source_float[f"resstd{band_cf_str}"],
-            A_PSF_Narrow=source_float[f"psfa{band_cf_str}"],
-            B_PSF_Narrow=source_float[f"psfb{band_cf_str}"],
-            PA_PSF_Narrow=source_float[f"psfPA{band_cf_str}"],
-            A_Narrow=source_float[f"a{band_cf_str}"],
-            B_Narrow=source_float[f"b{band_cf_str}"],
-            PA_Narrow=source_float[f"pa{band_cf_str}"],
-            Flux_Narrow=source_float[f"Fp{band_cf_str}"],
-            Flux_Narrow_Error=source_float[f"e_Fp{band_cf_str}"],
-            source=source_catalog.id,
-            band=band_id,
-        )
-        db.add(narrow_band_data)
-        db.commit()
 
 
 def coerce_floats(source_dict: dict) -> dict:
@@ -465,36 +311,11 @@ def commit_batch(
     db.bulk_insert_mappings(Source, source_objs)
     db.commit()
 
-    inserted_sources = db.query(Source).order_by(Source.id.desc()).limit(len(source_objs)).all()
-    inserted_sources.reverse()
-
-    source_id_map = {src["name"]: orm.id for src, orm in zip(source_objs, inserted_sources)}
-
-    for wb in wideband_objs:
-        wb["source"] = source_id_map[wb["name"]]
-        wb["telescope"] = telescope_id
-
-    for nb in narrowband_objs:
-        nb["source"] = source_id_map[nb["name"]]
-
-    if wideband_objs:
-        db.bulk_insert_mappings(WideBandData, wideband_objs)
-    if narrowband_objs:
-        db.bulk_insert_mappings(NarrowBandData, narrowband_objs)
-
-    db.commit()
-
-    source_objs.clear()
-    wideband_objs.clear()
-    narrowband_objs.clear()
-
 
 def process_source_data_batch(
     db: Session,
     source_data,
-    bands,
     telescope,
-    ingest_bands,
     catalog_config,
     batch_size: int = 500,
 ) -> bool:
@@ -504,9 +325,7 @@ def process_source_data_batch(
     Args:
         db: SQLAlchemy session.
         source_data: List of source dictionaries.
-        bands: Dict mapping center frequency to Band object.
         telescope: Telescope object.
-        ingest_bands: List of bands to ingest.
         catalog_config: Catalog configuration.
         batch_size: Number of sources to insert per DB commit.
     Returns:
@@ -542,10 +361,6 @@ def process_source_data_batch(
 
         if catalog_config.get("ingest", {}).get("wideband"):
             wideband_objs.append(build_wideband_mapping(source_dict, telescope.id))
-
-        for band_cf, band in bands.items():
-            if band_cf in ingest_bands:
-                narrowband_objs.append(build_narrowband_mapping(source_dict, band_cf, band.id))
 
         if count % batch_size == 0:
             commit_batch(
@@ -591,21 +406,16 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
-    # 1. Load or create telescope
-    telescope = load_or_create_telescope(db, catalog_config)
+    # 1. Load version
+    version = create_version(db, catalog_config)
 
-    if not telescope:
+    if not version:
         return False
 
     # 2. Get catalog data
     source_data = get_data_catalog_selector(catalog_config["ingest"])
 
-    # 3. Load or create bands
-    bands = load_or_create_bands(db, telescope.id, catalog_config["bands"])
-    if not bands:
-        return False
-
-    for sources, ingest_bands in source_data:
+    for sources in source_data:
         if not sources:
             logger.error("No data-sources found for %s", catalog_name)
             return False
@@ -614,16 +424,12 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
         if not process_source_data_batch(
             db,
             sources,
-            bands,
-            telescope,
-            ingest_bands,
+            version,
             catalog_config,
         ):
             return False
 
-    # 5. Mark telescope as ingested
-    telescope.ingested = True
-    db.add(telescope)
+    db.add(version)
     db.commit()
 
     return True
@@ -634,7 +440,6 @@ def post_process(db):
     count = 0
     for source in db.query(Source).all():
         logger.info("Loading source json: %s", str(count))
-        source.json = json.dumps(source.to_json(db))
         db.add(source)
         count += 1
         if count % 100 == 0:

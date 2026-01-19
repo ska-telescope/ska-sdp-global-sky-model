@@ -8,11 +8,11 @@ import logging
 from collections import defaultdict
 
 from sqlalchemy import and_
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
 
-from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideBandData
+from ska_sdp_global_sky_model.api.app.model import Source
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +71,8 @@ def get_local_sky_model(
     """
 
     # Aliases for narrowband and wideband data
-    wideband = aliased(WideBandData)
-
     sources = (
         db.query(Source.id, Source.RAJ2000, Source.DECJ2000)
-        .join(wideband, Source.id == wideband.source)
         .where(
             q3c_radial_query(
                 Source.RAJ2000,
@@ -85,25 +82,12 @@ def get_local_sky_model(
                 float(fov),
             )
         )
-        .filter(wideband.Flux_Wide > flux_wide)
-        .distinct(Source.id)
         .all()
     )
 
     # return if no sources were found
     if not sources:
         return {"sources": {}}
-
-    source_ids = [s.id for s in sources]
-
-    wide_rows = (
-        db.query(WideBandData)
-        .filter(WideBandData.source.in_(source_ids))
-        .filter(WideBandData.Flux_Wide > flux_wide)
-        .all()
-    )
-
-    narrow_rows = db.query(NarrowBandData).filter(NarrowBandData.source.in_(source_ids)).all()
 
     results = {
         "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
@@ -112,12 +96,6 @@ def get_local_sky_model(
     for s in sources:
         results["sources"][s.id]["ra"] = s.RAJ2000
         results["sources"][s.id]["dec"] = s.DECJ2000
-
-    for wb_row in wide_rows:
-        results["sources"][wb_row.source]["wideband"].append(wb_row.columns_to_dict())
-
-    for nb_row in narrow_rows:
-        results["sources"][nb_row.source]["narrowband"].append(nb_row.columns_to_dict())
 
     return results
 

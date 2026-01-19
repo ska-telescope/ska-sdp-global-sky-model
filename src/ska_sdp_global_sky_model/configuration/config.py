@@ -117,6 +117,7 @@ MWA = {
     "frequency_min": 80,
     "frequency_max": 300,
     "source": "GLEAM",
+    "version": "0.0.1",
     "bands": [
         76,
         84,
