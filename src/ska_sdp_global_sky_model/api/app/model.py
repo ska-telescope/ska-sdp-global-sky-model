@@ -6,11 +6,19 @@ Data models for SQLAlchemy
 # pylint: disable=no-member
 
 import logging
-from xmlrpc.client import DateTime
 
-from sqlalchemy import BigInteger, Boolean, Column, Float, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import TEXT
-from sqlalchemy.orm import Session, mapped_column
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import mapped_column
 
 from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 
@@ -23,26 +31,22 @@ class Version(Base):
     __table_args__ = {"schema": DB_SCHEMA}
 
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, unique=True)
-    number = Column(Integer)
-    frequency_min = Column(Float)
-    frequency_max = Column(Float)
+    name = Column(String)
+    version = Column(String)  # Semantic version
     date_created = Column(DateTime)
     date_added = Column(DateTime)
     latest = Column(Boolean, default=False)
 
     __table_args__ = (
         # Enforce that versions aren't duplicated within the same name
-        UniqueConstraint('name', 'number', name='_name_number_uc'),
+        UniqueConstraint("name", "version", name="_name_version_uc"),
         # Enforce that only one row can have lastest = True within the same name
-        UniqueConstraint(
-            'name',
-            'latest',
-            # This condition ensures the constraint only applies to rows where is_active is True
-            postgresql_where=latest.is_(True)
-        ),
+        # UniqueConstraint(
+        #     'name',
+        #     'latest',
+        #     postgresql_where=latest.is_(True)
+        # ),
     )
-
 
 
 class Source(Base):
@@ -78,6 +82,7 @@ class Source(Base):
     RAJ2000 = Column(Float)
     DECJ2000 = Column(Float)
     Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
+    # -------- START: This will be replaced by profile model -----------#
     I_76 = Column(Float)  # Integrated flux (Jy), centred at 76 MHz
     MajorAxis_76 = Column(Float)  # "a076" - Fitted semi-major axis (arcsec), centred at 76 MHz.
     MinorAxis_76 = Column(Float)  # "b076" - Fitted semi-minor axis (arcsec), centred at 76 MHz.
@@ -158,4 +163,5 @@ class Source(Base):
     MajorAxis_227 = Column(Float)
     MinorAxis_227 = Column(Float)
     Orientation_227 = Column(Float)
+    # -------- END: This will be replaced by profile model -----------#
     version = mapped_column(ForeignKey(Version.id))
