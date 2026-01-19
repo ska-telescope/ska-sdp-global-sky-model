@@ -137,11 +137,7 @@ def create_version(db: Session, catalog_config: dict) -> Optional[Version]:
     logger.info("Creating new catalogue: %s", catalog_name)
     try:
 
-        version = (
-            db.query(Version)
-            .filter_by(name=catalog_name, version=catalog_version)
-            .first()
-        )
+        version = db.query(Version).filter_by(name=catalog_name, version=catalog_version).first()
 
         if not version:
             logger.info("GSM version does not exist ingesting.")
