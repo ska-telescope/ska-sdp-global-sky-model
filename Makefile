@@ -37,3 +37,6 @@ download-gsm-backup:
 	ska-telmodel --sources=gitlab://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model?gsm-data#tmdata cp ska/gsm/global_dump.sql.gz assets/dump.sql.gz
 
 make-dev-db: download-gsm-backup decompress-gsm-db restore-gsm-db
+
+make sql-schema:
+	$(PYTHON_VARS_BEFORE_PYTEST) python gsm_schema/gsm_schema.py > ./gsm_schema.sql
