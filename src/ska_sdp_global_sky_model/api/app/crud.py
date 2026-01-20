@@ -25,6 +25,7 @@ class q3c_radial_query(GenericFunction):
     name = "q3c_radial_query"
 
 
+# pylint: disable=unused-argument
 def get_local_sky_model(
     db,
     ra: float,

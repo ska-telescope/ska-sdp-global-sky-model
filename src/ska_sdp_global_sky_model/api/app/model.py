@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import mapped_column
 
 from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
@@ -28,24 +29,24 @@ logger = logging.getLogger(__name__)
 class Version(Base):
     """Model for GSM Version."""
 
-    __table_args__ = {"schema": DB_SCHEMA}
-
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String)
+    layer_id = Column(String, default="default")
     version = Column(String)  # Semantic version
-    date_created = Column(DateTime)
+    epoch = Column(DateTime)
     date_added = Column(DateTime)
-    latest = Column(Boolean, default=False)
+    default_version = Column(Boolean, default=False)
+    catalogue_metadata = Column(JSONB)
 
     __table_args__ = (
         # Enforce that versions aren't duplicated within the same name
-        UniqueConstraint("name", "version", name="_name_version_uc"),
-        # Enforce that only one row can have lastest = True within the same name
+        UniqueConstraint("layer_id", "version", name="_layer_id_version_uc"),
+        # Enforce that only one row can have default_version = True within the same name
         # UniqueConstraint(
-        #     'name',
-        #     'latest',
-        #     postgresql_where=latest.is_(True)
+        #     'layer_id',
+        #     'default_version',
+        #     postgresql_where=default_version.is_(True)
         # ),
+        {"schema": DB_SCHEMA},
     )
 
 

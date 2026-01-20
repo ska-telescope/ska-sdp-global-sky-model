@@ -13,11 +13,11 @@ from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
 
-ENV_FILE = Path(".env")
-if not ENV_FILE.exists():
-    ENV_FILE = None
+env_file = Path(".env")
+if not env_file.exists():
+    env_file = None
 
-config = Config(ENV_FILE)
+config = Config(env_file)
 
 ska_ser_logging.configure_logging(
     logging.DEBUG if os.environ.get("API_VERBOSE", "false") == "true" else logging.WARNING
@@ -114,6 +114,7 @@ MWA = {
     },
     "name": "Murchison Widefield Array",
     "catalog_name": "GLEAM",
+    "layer_id": "gleam",
     "frequency_min": 80,
     "frequency_max": 300,
     "source": "GLEAM",

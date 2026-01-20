@@ -132,17 +132,17 @@ def create_version(db: Session, catalog_config: dict) -> Optional[Version]:
     Returns:
         (version, created): Version object as well as boolean created flag.
     """
-    catalog_name = catalog_config["name"]
+    layer_id = catalog_config["layer_id"]
     catalog_version = catalog_config["version"]
-    logger.info("Creating new catalogue: %s", catalog_name)
+    logger.info("Creating new catalogue: %s", layer_id)
     try:
 
-        version = db.query(Version).filter_by(name=catalog_name, version=catalog_version).first()
+        version = db.query(Version).filter_by(name=layer_id, version=catalog_version).first()
 
         if not version:
             logger.info("GSM version does not exist ingesting.")
             version = Version(
-                name=catalog_name,
+                layer_id=layer_id,
                 version=catalog_version,
                 date_created=catalog_config.get("date_created"),
                 date_added=datetime.datetime.now(),
@@ -151,7 +151,6 @@ def create_version(db: Session, catalog_config: dict) -> Optional[Version]:
             db.commit()
         else:
             logger.info("GSM version already exists, don't re-ingest")
-            return version
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error loading version: %s", e)
         db.rollback()
@@ -231,9 +230,7 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
         "name": str(source_dict.get(catalog_config["source"])),
         "Heal_Pix_Position": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
         "RAJ2000": source_dict["RAJ2000"],
-        "RAJ2000_Error": source_dict.get("e_RAJ2000"),
         "DECJ2000": source_dict["DEJ2000"],
-        "DECJ2000_Error": source_dict.get("e_DEJ2000"),
     }
 
 
@@ -293,13 +290,7 @@ def build_narrowband_mapping(source_dict: dict, band_cf: float, band_id: int) ->
     }
 
 
-def commit_batch(
-    db: Session,
-    source_objs: list,
-    wideband_objs: list,
-    narrowband_objs: list,
-    telescope_id: int,
-):
+def commit_batch(db: Session, source_objs: list):
     """Commit batches of sources."""
     if not source_objs:
         return
@@ -331,7 +322,7 @@ def process_source_data_batch(
 
     existing_names = set(r[0] for r in db.query(Source.name).all())
 
-    source_objs, wideband_objs, narrowband_objs = [], [], []
+    source_objs, wideband_objs = [], []
 
     count = 0
     total = len(source_data)
@@ -362,17 +353,11 @@ def process_source_data_batch(
             commit_batch(
                 db,
                 source_objs,
-                wideband_objs,
-                narrowband_objs,
-                telescope.id,
             )
 
     commit_batch(
         db,
         source_objs,
-        wideband_objs,
-        narrowband_objs,
-        telescope.id,
     )
 
     return True
