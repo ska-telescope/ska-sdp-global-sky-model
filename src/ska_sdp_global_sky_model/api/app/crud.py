@@ -17,6 +17,7 @@ from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideB
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable=abstract-method,too-many-ancestors
 class q3c_radial_query(GenericFunction):
     """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
 
