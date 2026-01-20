@@ -20,6 +20,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
+from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.configuration.config import (
     MWA,
     RACS,
@@ -63,6 +64,7 @@ def wait_for_db():
 async def startup_event():
     """Await for DB startup on app start"""
     wait_for_db()
+    start_thread()
 
 
 @app.on_event("startup")

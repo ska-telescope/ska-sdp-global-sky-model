@@ -49,7 +49,5 @@ include:
       - 'gitlab-ci/includes/release.gitlab-ci.yml'
       # Documentation
       - 'gitlab-ci/includes/docs.gitlab-ci.yml'
-      # TMData
-      - 'gitlab-ci/includes/tmdata.gitlab-ci.yml'
       # SonarQube scan
       - 'gitlab-ci/includes/sonar-scan.gitlab-ci.yml'

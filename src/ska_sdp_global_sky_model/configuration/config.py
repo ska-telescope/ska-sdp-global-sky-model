@@ -42,6 +42,9 @@ SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 NSIDE: int = config("NSIDE", default=4096)
 NEST: bool = config("NEST", default=True)
 
+REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
+SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
+
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
