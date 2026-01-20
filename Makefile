@@ -38,5 +38,6 @@ download-gsm-backup:
 
 make-dev-db: download-gsm-backup decompress-gsm-db restore-gsm-db
 
+GSM_VERSION ?= 0.0.1
 make sql-schema:
-	$(PYTHON_VARS_BEFORE_PYTEST) python gsm_schema/gsm_schema.py > ./gsm_schema.sql
+	$(PYTHON_VARS_BEFORE_PYTEST) python gsm_schema/gsm_schema.py > ./gsm_schema_${GSM_VERSION}.sql

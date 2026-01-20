@@ -1,5 +1,4 @@
 # flake8: noqa
-import io
 
 from sqlalchemy.schema import CreateSchema, CreateTable
 
@@ -11,7 +10,7 @@ def write_out_schema():
     create_schema_stmt = str(
         CreateSchema(DB_SCHEMA).compile(engine)) + ";\n"
 
-    metadata = Base().metadata
+    metadata = Base.metadata
 
     for table in metadata.sorted_tables:
         create_schema_stmt += str(
