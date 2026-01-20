@@ -41,3 +41,25 @@ The API is tested using the pytest framework alongside FastAPI's TestClient. The
 .. code-block:: bash
     
     $ make python-test
+
+Keeping models and schema in sync
+=================================
+
+The API may be set up to manage the database schema directly in which case the following code block updates the tables accordingly:
+
+.. code-block:: python
+    @app.on_event("startup")
+    def create_db_and_tables():
+        """
+        Called on application startup.
+        """
+        logger.info("Creating the database and tables...")
+        Base.metadata.create_all(engine)
+        q3c_index()
+
+Alternatively the schema may be exported by running, which outputs `gsm_schema_0.0.1.sql`,
+and using `Liquibase <https://confluence.skatelescope.org/display/SE/Liquibase+example>`_:
+
+.. code-block:: bash
+
+   $ make sql-schema VERSION_NUMBER
