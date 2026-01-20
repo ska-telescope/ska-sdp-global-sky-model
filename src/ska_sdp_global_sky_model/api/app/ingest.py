@@ -137,14 +137,14 @@ def create_version(db: Session, catalog_config: dict) -> Optional[Version]:
     logger.info("Creating new catalogue: %s", layer_id)
     try:
 
-        version = db.query(Version).filter_by(name=layer_id, version=catalog_version).first()
+        version = db.query(Version).filter_by(layer_id=layer_id, version=catalog_version).first()
 
         if not version:
             logger.info("GSM version does not exist ingesting.")
             version = Version(
                 layer_id=layer_id,
                 version=catalog_version,
-                date_created=catalog_config.get("date_created"),
+                epoch=catalog_config.get("date_created"),
                 date_added=datetime.datetime.now(),
             )
             db.add(version)
