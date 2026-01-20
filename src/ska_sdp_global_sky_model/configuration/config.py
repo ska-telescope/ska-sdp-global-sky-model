@@ -13,11 +13,11 @@ from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
 from starlette.config import Config
 
-env_file = Path(".env")
-if not env_file.exists():
-    env_file = None
+ENV_FILE = Path(".env")
+if not ENV_FILE.exists():
+    ENV_FILE = None
 
-config = Config(env_file)
+config = Config(ENV_FILE)
 
 ska_ser_logging.configure_logging(
     logging.DEBUG if os.environ.get("API_VERBOSE", "false") == "true" else logging.WARNING
