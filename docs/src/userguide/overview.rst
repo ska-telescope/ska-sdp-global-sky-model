@@ -104,14 +104,24 @@ How It Works:
 
 Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
 
-Each row in the Source table, represents a point in our catalog, with an associated HEALPix position:
+Each row in the Source table represents a point in our catalog, with an associated HEALPix position:
 
 .. code-block:: python
 
     class Source(Base):
+        """Astronomical source with positional and spectral data."""
 
-      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-      Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
+        __tablename__ = "source"
+
+        id: int = mapped_column(Integer, primary_key=True, index=True)
+        name: str = mapped_column(String, unique=True, nullable=False)
+        RAJ2000: float = mapped_column(Float, nullable=False)
+        DECJ2000: float = mapped_column(Float, nullable=False)
+        Heal_Pix_Position: int = mapped_column(BigInteger, index=True, nullable=False)
+        version_id: int = mapped_column(Integer, ForeignKey("version.id"), nullable=False)
+
+        # Relationship to Version
+        version_ref = relationship("Version", back_populates="sources")
 
 Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sources meeting the criteria of the given parameters are returned as the Local Sky Model.
 

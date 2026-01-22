@@ -191,6 +191,7 @@ def create_source_catalog_entry(
 
     Args:
         db: An SQLAlchemy database session object.
+        version: Version object to associate with the source.
         source: A dictionary containing the source information with the following keys:
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
@@ -202,7 +203,7 @@ def create_source_catalog_entry(
 
     source_catalog = Source(
         name=name,
-        version=version,
+        version_id=version.id,
         Heal_Pix_Position=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         RAJ2000=source["RAJ2000"],
         DECJ2000=source["DEJ2000"],
