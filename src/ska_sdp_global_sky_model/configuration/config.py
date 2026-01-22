@@ -244,6 +244,8 @@ RCAL = {
     },
     "name": "Realtime Calibration test data",
     "catalog_name": "RCAL",
+    "layer_id": "rcal",
+    "version": "0.0.1",
     "frequency_min": 80,
     "frequency_max": 300,
     "source": "GLEAM",

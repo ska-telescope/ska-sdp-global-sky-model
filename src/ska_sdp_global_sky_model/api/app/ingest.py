@@ -225,13 +225,14 @@ def coerce_floats(source_dict: dict) -> dict:
     return out
 
 
-def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
+def build_source_mapping(source_dict: dict, catalog_config: dict, version) -> dict:
     """Construct source structure."""
     return {
         "name": str(source_dict.get(catalog_config["source"])),
         "Heal_Pix_Position": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
         "RAJ2000": source_dict["RAJ2000"],
         "DECJ2000": source_dict["DEJ2000"],
+        "version_id": version.id,
     }
 
 
@@ -303,7 +304,7 @@ def commit_batch(db: Session, source_objs: list):
 def process_source_data_batch(
     db: Session,
     source_data,
-    telescope,
+    version,
     catalog_config,
     batch_size: int = 500,
 ) -> bool:
@@ -313,7 +314,7 @@ def process_source_data_batch(
     Args:
         db: SQLAlchemy session.
         source_data: List of source dictionaries.
-        telescope: Telescope object.
+        version: Version object for the catalog.
         catalog_config: Catalog configuration.
         batch_size: Number of sources to insert per DB commit.
     Returns:
@@ -345,10 +346,10 @@ def process_source_data_batch(
                 calculate_percentage(count, total),
             )
 
-        source_objs.append(build_source_mapping(source_dict, catalog_config))
+        source_objs.append(build_source_mapping(source_dict, catalog_config, version))
 
         if catalog_config.get("ingest", {}).get("wideband"):
-            wideband_objs.append(build_wideband_mapping(source_dict, telescope.id))
+            wideband_objs.append(build_wideband_mapping(source_dict, version.id))
 
         if count % batch_size == 0:
             commit_batch(
