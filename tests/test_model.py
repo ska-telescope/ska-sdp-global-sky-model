@@ -5,20 +5,12 @@
 import datetime
 
 import pytest
-from sqlalchemy import JSON, TypeDecorator, create_engine, event
+from sqlalchemy import JSON, create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from ska_sdp_global_sky_model.api.app.model import Base, Source, Version
-
-
-# Monkey-patch JSONB to work with SQLite for tests
-class JSONBCompat(TypeDecorator):
-    """JSONB compatibility layer for SQLite tests."""
-
-    impl = JSON
-    cache_ok = True
 
 
 # Replace JSONB with JSON-compatible version for SQLite

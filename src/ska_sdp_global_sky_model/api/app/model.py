@@ -51,9 +51,10 @@ class Version(Base):
     __table_args__ = (
         # Enforce that versions aren't duplicated within the same layer
         UniqueConstraint("layer_id", "version", name="_layer_id_version_uc"),
-        # TODO: Add partial unique constraint for default_version=True per layer_id
-        # Requires: UniqueConstraint('layer_id', 'default_version',
-        #           postgresql_where=(default_version.is_(True)))
+        # Note: Partial unique constraint for default_version=True per layer_id
+        # could be added using:
+        # UniqueConstraint('layer_id', 'default_version',
+        #                  postgresql_where=(default_version.is_(True)))
         {"schema": DB_SCHEMA},
     )
 
