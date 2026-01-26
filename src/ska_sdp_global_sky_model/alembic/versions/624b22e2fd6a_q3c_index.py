@@ -1,3 +1,4 @@
+# flake8: noqa
 # pylint: disable=all
 """q3c_index
 
