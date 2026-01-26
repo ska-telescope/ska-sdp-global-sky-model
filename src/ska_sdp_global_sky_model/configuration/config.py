@@ -19,9 +19,7 @@ if not ENV_FILE.exists():
 
 config = Config(ENV_FILE)
 
-ska_ser_logging.configure_logging(
-    level=config("SDP_LOG_LEVEL", "WARNING").upper()
-)
+ska_ser_logging.configure_logging(level=config("SDP_LOG_LEVEL", "WARNING").upper())
 logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
