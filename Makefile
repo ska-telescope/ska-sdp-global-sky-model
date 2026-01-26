@@ -1,8 +1,6 @@
 include .make/base.mk
 include .make/oci.mk
-include .make/helm.mk
 include .make/python.mk
-include .make/k8s.mk
 
 
 PYTHON_LINE_LENGTH = 99
