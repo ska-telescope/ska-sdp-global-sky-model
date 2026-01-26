@@ -4,7 +4,6 @@ Configure variables to be used.
 """
 
 import logging
-import os
 from pathlib import Path
 
 import ska_ser_logging
