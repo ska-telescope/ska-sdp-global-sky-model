@@ -20,7 +20,7 @@ if not ENV_FILE.exists():
 config = Config(ENV_FILE)
 
 ska_ser_logging.configure_logging(
-    logging.DEBUG if os.environ.get("API_VERBOSE", "false") == "true" else logging.WARNING
+    level=config("SDP_LOG_LEVEL", "WARNING").upper()
 )
 logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
@@ -32,15 +32,10 @@ POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
 DB_SCHEMA: str = config("DB_SCHEMA", default="public")
 DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-# Session DB (Redis)
-SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
-SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
-SESSION_DB_PORT: int = config("SESSION_DB_PORT", default=6379)
-SESSION_DB_TOKEN_KEY: str = config("SESSION_DB_TOKEN_KEY", default="secret")
 
 # HEALPix
 NSIDE: int = config("NSIDE", default=4096)
-NEST: bool = config("NEST", default=True)
+NEST: bool = config("NEST", default="True").upper() == "TRUE"
 
 REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
 SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
