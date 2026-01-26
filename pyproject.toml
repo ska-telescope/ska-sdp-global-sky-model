@@ -61,10 +61,14 @@ ska-ser-sphinx-theme = "^0.2.1"
 sphinx-new-tab-link = "^0.6.1"
 
 [tool.isort]
+skip = ["src/ska_sdp_global_sky_model/alembic"]
 profile = "black"
 line_length = 99
 
 [tool.black]
+force-exclude = '''
+src/ska_sdp_global_sky_model/alembic
+'''
 line-length = 99
 
 [build-system]
