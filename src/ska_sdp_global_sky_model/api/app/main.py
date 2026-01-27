@@ -4,11 +4,11 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
 # pylint: disable=too-many-arguments, broad-exception-caught
+import asyncio
 import logging
 import os
 import tempfile
 import time
-import asyncio
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
