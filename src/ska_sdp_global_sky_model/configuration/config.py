@@ -32,6 +32,7 @@ POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
 DB_SCHEMA: str = config("DB_SCHEMA", default="public")
 DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
+TEST_DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 # Session DB (Redis)
 SESSION_DB_NAME: int = config("SESSION_DB_NAME", default=0)
 SESSION_DB_HOST: str = config("SESSION_DB_HOST", default="session-db")
