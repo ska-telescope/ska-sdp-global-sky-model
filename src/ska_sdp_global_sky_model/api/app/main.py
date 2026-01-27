@@ -8,6 +8,7 @@ import logging
 import os
 import tempfile
 import time
+import asyncio
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
@@ -46,7 +47,7 @@ app.add_middleware(
 )
 
 
-def wait_for_db():
+async def wait_for_db():
     """Await DB connection."""
     while True:
         try:
@@ -62,7 +63,7 @@ def wait_for_db():
 @app.on_event("startup")
 async def startup_event():
     """Await for DB startup on app start"""
-    wait_for_db()
+    asyncio.create_task(wait_for_db())
     start_thread()
 
 
