@@ -9,9 +9,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from ska_sdp_global_sky_model.api.app.main import Base, app, get_db
-from ska_sdp_global_sky_model.configuration.config import TEST_DB_URL
+from ska_sdp_global_sky_model.configuration.config import DB_URL, q3c_index
 
-SQLALCHEMY_DATABASE_URL = TEST_DB_URL
+SQLALCHEMY_DATABASE_URL = DB_URL
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
@@ -35,6 +35,7 @@ def test_db():
     Database for test purposes.
     """
     Base.metadata.create_all(bind=engine)
+    q3c_index()
     yield
     Base.metadata.drop_all(bind=engine)
 
