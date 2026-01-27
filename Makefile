@@ -29,7 +29,10 @@ restore-gsm-db:
 	sleep 1
 	docker compose exec -T db psql postgres < assets/dump.sql
 
+migrate:
+	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi alembic upgrade head
 
-GSM_VERSION ?= 0.0.1
-make sql-schema:
-	$(PYTHON_VARS_BEFORE_PYTEST) python gsm_schema/gsm_schema.py > ./gsm_schema_${GSM_VERSION}.sql
+MIGRATION_NOTE = "New Migration Note"
+create-migration:
+	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi bash -c "alembic revision  --autogenerate -m $(MIGRATION_NOTE)"
+	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi bash -c "chmod 0666 alembic/versions/*.py"
