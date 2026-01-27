@@ -49,8 +49,8 @@ def fixture_client():
     are not starting the FastAPI app correctly"""
     with TestClient(app) as client:
         # Manually trigger the startup events
-
-        app.router.startup()
+        Base.metadata.create_all(bind=engine)
+        q3c_index()
         yield client
 
 
