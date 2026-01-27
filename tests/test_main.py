@@ -87,7 +87,6 @@ def fixture_client():
     with (
         patch("ska_sdp_global_sky_model.api.app.main.wait_for_db"),
         patch("ska_sdp_global_sky_model.api.app.main.start_thread"),
-        patch("ska_sdp_global_sky_model.api.app.main.q3c_index"),
         patch("ska_sdp_global_sky_model.api.app.main.engine", engine),
     ):
 
