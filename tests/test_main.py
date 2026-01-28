@@ -120,6 +120,26 @@ def test_upload_rcal(myclient):
     assert response.json() == {"message": "RCAL uploaded and ingested successfully"}
 
 
+def test_upload_sky_survey_batch(myclient):
+    """Unit test for the /upload-sky-survey-batch path"""
+    file_paths = [
+        "tests/data/survey1.csv",
+        "tests/data/survey2.csv",
+    ]
+
+    files = []
+    for path in file_paths:
+        files.append(("files", (path.split("/")[-1], open(path, "rb"), "text/csv")))
+
+    response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "upload_id" in data
+    assert data["status"] == "completed"
+
+
 def test_sources(myclient):
     """Unit test for the /local_sky_model path"""
     file_path = "tests/data/rcal.csv"

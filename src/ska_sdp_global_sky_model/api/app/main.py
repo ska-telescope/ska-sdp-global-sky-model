@@ -6,9 +6,12 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 # pylint: disable=too-many-arguments, broad-exception-caught
 import logging
 import os
+import shutil
 import tempfile
 import time
+from enum import Enum
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
@@ -25,6 +28,7 @@ from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: di
     MWA,
     RACS,
     RCAL,
+    SKY_SURVEY,
     Base,
     engine,
     get_db,
@@ -44,6 +48,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class UploadState(str, Enum):
+    PENDING = "pending"
+    UPLOADING = "uploading"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+upload_tracker: dict[str, dict] = {}
 
 
 def wait_for_db():
@@ -238,3 +252,81 @@ async def upload_rcal(
     except Exception as e:
         logger.error("Error on RCAL catalog ingest: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post(
+    "/upload-sky-survey-batch",
+    summary="Upload sky survey CSV files in a batch",
+    description="All sky survey CSV files must upload successfully or none are ingested.",
+)
+async def upload_sky_survey_batch(
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    config: Optional[dict] = None,
+):
+    upload_id = str(uuid4())
+    temp_dir = tempfile.mkdtemp(prefix="sky_survey_")
+
+    upload_tracker[upload_id] = {
+        "total": len(files),
+        "uploaded": 0,
+        "state": UploadState.UPLOADING.value,
+        "errors": [],
+        "temp_dir": temp_dir,
+    }
+
+    try:
+        # db.execute(text("SELECT 1"))
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Unable to access database") from e
+
+        for file in files:
+            if file.content_type != "text/csv":
+                raise HTTPException(
+                    status_code=400, detail="Invalid file type. Please upload a CSV file."
+                )
+
+            path = os.path.join(temp_dir, file.filename)
+            with open(path, "wb") as f:
+                f.write(await file.read())
+
+            upload_tracker[upload_id]["uploaded"] += 1
+
+        # ingest all sky survey files
+        for filename in os.listdir(temp_dir):
+            survey_config = config
+            if not survey_config:
+                survey_config = SKY_SURVEY.copy()
+            survey_config["ingest"]["file_location"][0]["key"] = os.path.join(temp_dir, filename)
+
+            if not ingest(db, survey_config):
+                raise RuntimeError(f"Ingest failed for {filename}")
+
+        upload_tracker[upload_id]["state"] = UploadState.COMPLETED.value
+
+        return {"upload_id": upload_id, "status": "completed"}
+
+    except Exception as e:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        upload_tracker[upload_id]["state"] = UploadState.FAILED.value
+        upload_tracker[upload_id]["errors"].append(str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/upload-sky-survey-status/{upload_id}")
+def upload_sky_survey_status(upload_id: str):
+    if upload_id not in upload_tracker:
+        raise HTTPException(status_code=404, detail="Upload ID not found")
+
+    status = upload_tracker[upload_id]
+
+    return {
+        "upload_id": upload_id,
+        "state": status["state"],
+        "total_files": status["total"],
+        "uploaded_files": status["uploaded"],
+        "remaining_files": status["total"] - status["uploaded"],
+        "errors": status["errors"],
+    }
