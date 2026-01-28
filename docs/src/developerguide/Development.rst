@@ -42,24 +42,21 @@ The API is tested using the pytest framework alongside FastAPI's TestClient. The
     
     $ make python-test
 
-Keeping models and schema in sync
-=================================
+Updating the schema
+===================
 
-The API may be set up to manage the database schema directly in which case the following code block updates the tables accordingly:
-
-.. code-block:: python
-    @app.on_event("startup")
-    def create_db_and_tables():
-        """
-        Called on application startup.
-        """
-        logger.info("Creating the database and tables...")
-        Base.metadata.create_all(engine)
-        q3c_index()
-
-Alternatively the schema may be exported by running, which outputs `gsm_schema_0.0.1.sql`,
-and using `Liquibase <https://confluence.skatelescope.org/display/SE/Liquibase+example>`_:
+After updating the schema (models.py) a migration needs to be created. These can either be created manually
+or by auto-generating. Auto generating these is the recommended path. This can be done by running the following
+command:
 
 .. code-block:: bash
 
-   $ make sql-schema VERSION_NUMBER
+    $ make create-migration
+
+
+The migration files are stored in src/ska_sdp_global_sky_model/alembic/versions. These should be added to the
+repository. Applying the migrations can be done by running the command:
+
+.. code-block:: bash
+
+    $ make migrate
