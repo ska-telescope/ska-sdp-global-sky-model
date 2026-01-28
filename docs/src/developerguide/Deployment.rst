@@ -74,6 +74,8 @@ To start all services:
 
 This will start all required services in the background. The API will be available at ``http://localhost:8000``.
 
+**Interactive API documentation** is available at ``http://localhost:8000/docs``.
+
 Service Configuration
 ---------------------
 

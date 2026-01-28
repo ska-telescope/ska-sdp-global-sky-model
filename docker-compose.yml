@@ -1,6 +1,6 @@
 services:
   etcd:
-    image: artefact.skao.int/ska-sdp-etcd:3.5.12
+    image: artefact.skao.int/ska-sdp-etcd:3.5.21
     environment:
       ETCD_NAME: ska-sdp-etcd-0
       ETCD_LOG_LEVEL: info

@@ -64,33 +64,11 @@ The FastAPI service provides REST endpoints for:
 Running the application
 =======================
 
-There are two main ways to run the application for development:
-
 Using Docker Compose (Recommended)
 -----------------------------------
 
-The easiest way to run the full application stack locally is using Docker Compose:
-
-.. code-block:: bash
-
-    $ docker compose up -d
-
-This starts all required services:
-
-- PostgreSQL database (port 5432)
-- FastAPI service (port 8000)
-- Redis (port 6379)
-- etcd for distributed configuration (port 2379)
-
-The application will be available at ``http://localhost:8000``.
-
-**Environment Variables:**
-
-The FastAPI service uses the following environment variables to connect to etcd:
-
-- ``SDP_CONFIG_HOST``: Hostname of etcd service (set to ``etcd`` in docker-compose)
-- ``SDP_CONFIG_PORT``: Port of etcd service (default: ``2379``)
-- ``API_VERBOSE``: Set to ``true`` for verbose logging
+For an integrated setup, use Docker Compose to run the full application stack. See the 
+:doc:`Deployment` guide for complete instructions on running with Docker Compose.
 
 Running Standalone (Development)
 ---------------------------------
