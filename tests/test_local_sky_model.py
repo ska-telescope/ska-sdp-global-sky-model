@@ -81,9 +81,7 @@ class TestLocalSkyModel:
                 assert numpy.allclose(model["spec_idx"][i], [0.987, 0.654])
             else:
                 assert model["spec_idx"].num_terms[i] == 3
-                assert numpy.allclose(
-                    model["spec_idx"][i], [-0.7, i / 100.0, 0.123]
-                )
+                assert numpy.allclose(model["spec_idx"][i], [-0.7, i / 100.0, 0.123])
             if i == 2:
                 # Overridden value.
                 assert model["ref_freq"][i] == 300e6
@@ -161,9 +159,7 @@ class TestLocalSkyModel:
             assert model2["dec"][i] == pytest.approx(-i)
             assert model2["i_pol"][i] == pytest.approx(10.0 * i)
             assert bool(model2["log_spec_idx"][i]) == bool(i % 2)
-            assert numpy.allclose(
-                model2["spec_idx"][i], [-0.7, i / 100.0, 0.123]
-            )
+            assert numpy.allclose(model2["spec_idx"][i], [-0.7, i / 100.0, 0.123])
             assert model2["ref_freq"][i] == pytest.approx(100e6 + 1e6 * i)
             assert model2["q_pol"][i] == pytest.approx(2.0 * i)
             assert model2["u_pol"][i] == pytest.approx(-1.1 * i)
