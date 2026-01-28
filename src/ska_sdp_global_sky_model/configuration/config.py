@@ -28,7 +28,7 @@ POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("DB", default="db")
 DB_SCHEMA: str = config("DB_SCHEMA", default="public")
-DB_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
+DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 
 # HEALPix
 NSIDE: int = config("NSIDE", default=4096)
