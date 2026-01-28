@@ -21,14 +21,13 @@ from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
-from ska_sdp_global_sky_model.configuration.config import (
+from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
     MWA,
     RACS,
     RCAL,
     Base,
     engine,
     get_db,
-    q3c_index,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,16 +64,6 @@ async def startup_event():
     """Await for DB startup on app start"""
     wait_for_db()
     start_thread()
-
-
-@app.on_event("startup")
-def create_db_and_tables():
-    """
-    Called on application startup.
-    """
-    logger.info("Creating the database and tables...")
-    Base.metadata.create_all(engine)
-    q3c_index()
 
 
 @app.get("/ping", summary="Ping the API")

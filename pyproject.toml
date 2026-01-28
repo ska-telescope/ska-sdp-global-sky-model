@@ -47,6 +47,7 @@ healpy = "^1.19.0"
 alembic = "^1.13.2"
 ska-sdp-config = "^1.4.0"
 ska-sdp-datamodels = "1.0.2+dev.cf31ee643"
+psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
 
 
 [tool.poetry.group.dev.dependencies]
@@ -66,10 +67,16 @@ ska-ser-sphinx-theme = "^0.2.1"
 sphinx-new-tab-link = "^0.6.1"
 
 [tool.isort]
+# auto generated files.
+skip = ["src/ska_sdp_global_sky_model/alembic"]
 profile = "black"
 line_length = 99
 
 [tool.black]
+# auto generated files.
+force-exclude = '''
+src/ska_sdp_global_sky_model/alembic
+'''
 line-length = 99
 
 [build-system]
