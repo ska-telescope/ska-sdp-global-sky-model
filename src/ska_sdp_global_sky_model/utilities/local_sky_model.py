@@ -72,9 +72,7 @@ class LocalSkyModel:
     _header: Dict[str, Any] = field(default_factory=dict)
 
     # Data are stored here.
-    _cols: Dict[str, Union[numpy.ndarray, List[str]]] = field(
-        default_factory=dict
-    )
+    _cols: Dict[str, Union[numpy.ndarray, List[str]]] = field(default_factory=dict)
 
     # --------------------------
     # Column wrapper.
@@ -175,9 +173,7 @@ class LocalSkyModel:
         return numpy.int8(1 if raw.lower() in ["true", "t", "1"] else 0)
 
     @staticmethod
-    def _convert_to_float_array(
-        value: Any, max_len: int
-    ) -> Tuple[numpy.ndarray, int]:
+    def _convert_to_float_array(value: Any, max_len: int) -> Tuple[numpy.ndarray, int]:
         """
         Converts input to a numpy float array.
 
@@ -263,9 +259,7 @@ class LocalSkyModel:
         return "[]" if not parts else "[" + ",".join(parts) + "]"
 
     @staticmethod
-    def _get_column_type(
-        name: str, vector_columns_lower: List[str]
-    ) -> "LocalSkyModel.ColumnType":
+    def _get_column_type(name: str, vector_columns_lower: List[str]) -> "LocalSkyModel.ColumnType":
         """
         Returns the column type for the given column name.
 
@@ -376,9 +370,7 @@ class LocalSkyModel:
         """
         # Define the columns that could be vectors (use defaults if not given).
         vector_columns = (
-            list(vector_columns)
-            if vector_columns is not None
-            else list(cls._VECTOR_FLOAT_COLUMNS)
+            list(vector_columns) if vector_columns is not None else list(cls._VECTOR_FLOAT_COLUMNS)
         )
         vector_columns_lower = [column.lower() for column in vector_columns]
 
@@ -397,26 +389,16 @@ class LocalSkyModel:
         # Fill each array with the "missing" sentinel value.
         for name, spec in schema.items():
             if spec.column_type == "float":
-                cols[name] = numpy.full(
-                    (num_rows,), numpy.nan, dtype=numpy.float64
-                )
+                cols[name] = numpy.full((num_rows,), numpy.nan, dtype=numpy.float64)
             elif spec.column_type == "int":
-                cols[name] = numpy.full(
-                    (num_rows,), cls.INT_MISSING, dtype=numpy.int32
-                )
+                cols[name] = numpy.full((num_rows,), cls.INT_MISSING, dtype=numpy.int32)
             elif spec.column_type == "bool":
-                cols[name] = numpy.full(
-                    (num_rows,), cls.BOOL_MISSING, dtype=numpy.int8
-                )
+                cols[name] = numpy.full((num_rows,), cls.BOOL_MISSING, dtype=numpy.int8)
             elif spec.column_type == "str":
                 cols[name] = [""] * num_rows
             elif spec.column_type == "vector_float":
-                cols[name] = numpy.full(
-                    (num_rows, max_vector_len), numpy.nan, dtype=numpy.float64
-                )
-                cols[name + cls._NUM_TERMS] = numpy.zeros(
-                    (num_rows,), dtype=numpy.uint8
-                )
+                cols[name] = numpy.full((num_rows, max_vector_len), numpy.nan, dtype=numpy.float64)
+                cols[name + cls._NUM_TERMS] = numpy.zeros((num_rows,), dtype=numpy.uint8)
             else:
                 raise ValueError(spec.column_type)
 
@@ -455,9 +437,7 @@ class LocalSkyModel:
 
         # Get the columns that may contain vectors.
         vector_columns = (
-            list(vector_columns)
-            if vector_columns is not None
-            else list(cls._VECTOR_FLOAT_COLUMNS)
+            list(vector_columns) if vector_columns is not None else list(cls._VECTOR_FLOAT_COLUMNS)
         )
 
         # Load the file and split lines into a list of strings.
@@ -467,9 +447,7 @@ class LocalSkyModel:
         columns = cls._tokenize_line(cls._find_format_string(lines))
 
         # Count the number of rows, and create an empty sky model.
-        num_rows = sum(
-            1 for line in lines if not line.lstrip().startswith("#")
-        )
+        num_rows = sum(1 for line in lines if not line.lstrip().startswith("#"))
         model = cls.empty(
             column_names=columns,
             num_rows=num_rows,
@@ -549,14 +527,10 @@ class LocalSkyModel:
                     # Append a token based on the data type of the column.
                     if column_type == "float":
                         value = float(self._cols[name][row_index])
-                        tokens.append(
-                            "" if math.isnan(value) else f"{value:g}"
-                        )
+                        tokens.append("" if math.isnan(value) else f"{value:g}")
                     elif column_type == "int":
                         value = int(self._cols[name][row_index])
-                        tokens.append(
-                            "" if value == self.INT_MISSING else str(value)
-                        )
+                        tokens.append("" if value == self.INT_MISSING else str(value))
                     elif column_type == "bool":
                         value = int(self._cols[name][row_index])
                         if value == int(self.BOOL_MISSING):
@@ -648,15 +622,11 @@ class LocalSkyModel:
         column_type = self.schema[name].column_type
 
         if column_type == "float":
-            self._cols[name][row_index] = (
-                numpy.nan if value is None else float(value)
-            )
+            self._cols[name][row_index] = numpy.nan if value is None else float(value)
             return
 
         if column_type == "int":
-            self._cols[name][row_index] = (
-                self.INT_MISSING if value is None else int(value)
-            )
+            self._cols[name][row_index] = self.INT_MISSING if value is None else int(value)
             return
 
         if column_type == "bool":
@@ -666,9 +636,7 @@ class LocalSkyModel:
                 self._cols[name][row_index] = numpy.int8(1 if value else 0)
             else:
                 v = str(value).strip().lower()
-                self._cols[name][row_index] = numpy.int8(
-                    1 if v in {"true", "t", "1"} else 0
-                )
+                self._cols[name][row_index] = numpy.int8(1 if v in {"true", "t", "1"} else 0)
             return
 
         if column_type == "str":
@@ -676,9 +644,7 @@ class LocalSkyModel:
             return
 
         if column_type == "vector_float":
-            vec, num_elements = self._convert_to_float_array(
-                value, self.max_vector_len
-            )
+            vec, num_elements = self._convert_to_float_array(value, self.max_vector_len)
             self._cols[name][row_index, :] = vec
             self._cols[name + self._NUM_TERMS][row_index] = num_elements
             return
