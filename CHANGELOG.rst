@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- Added etcd service to docker-compose setup and updated documentation
+  (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
 - Remove the dependencie on a running PostgreSQL instance for tests
   (`MR59 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/59>`__)
 - Re-instated postgres backend storage starting from version 0.1.4.

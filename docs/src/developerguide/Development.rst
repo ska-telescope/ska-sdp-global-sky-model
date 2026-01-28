@@ -23,11 +23,85 @@ Clone the repository and its submodules:
 
     git clone --recursive git@gitlab.com:ska-telescope/sdp/ska-sdp-global-sky-model.git
 
+Application Architecture
+========================
+
+The SKA Global Sky Model application consists of several components:
+
+Database Services
+-----------------
+
+**PostgreSQL Database**
+    Stores the global sky model catalog data including:
+    
+    - Source metadata
+    - Catalog versions and layers
+
+**Redis**
+    Provides session management and caching capabilities.
+
+**etcd**
+    A distributed key-value store used by the SKA SDP configuration system. The application 
+    uses etcd to:
+    
+    - Watch for flow requests (data processing workflows)
+    - Coordinate between different SDP services
+    
+    The ``request_responder.py`` module starts a background thread that watches etcd for 
+    flow entries requesting local sky models. When a flow is detected, it processes the 
+    request and writes the results to the specified location.
+
+API Service
+-----------
+
+The FastAPI service provides REST endpoints for:
+
+- Querying sources by position and field of view
+- Uploading catalog data
+- Managing catalog versions
+- Health checks and status
+
 Running the application
 =======================
 
-The API can be run as a script, provided the connection string to the PostgreSQL database 
-is updated, using the command:
+There are two main ways to run the application for development:
+
+Using Docker Compose (Recommended)
+-----------------------------------
+
+The easiest way to run the full application stack locally is using Docker Compose:
+
+.. code-block:: bash
+
+    $ docker compose up -d
+
+This starts all required services:
+
+- PostgreSQL database (port 5432)
+- FastAPI service (port 8000)
+- Redis (port 6379)
+- etcd for distributed configuration (port 2379)
+
+The application will be available at ``http://localhost:8000``.
+
+**Environment Variables:**
+
+The FastAPI service uses the following environment variables to connect to etcd:
+
+- ``SDP_CONFIG_HOST``: Hostname of etcd service (set to ``etcd`` in docker-compose)
+- ``SDP_CONFIG_PORT``: Port of etcd service (default: ``2379``)
+- ``API_VERBOSE``: Set to ``true`` for verbose logging
+
+Running Standalone (Development)
+---------------------------------
+
+The API can also be run as a standalone script for development. This requires:
+
+1. A running PostgreSQL database
+2. A running etcd instance (for flow management features)
+3. A running Redis instance
+
+Then run the API directly:
 
 .. code-block:: bash
 
