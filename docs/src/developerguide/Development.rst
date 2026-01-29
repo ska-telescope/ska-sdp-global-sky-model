@@ -23,11 +23,59 @@ Clone the repository and its submodules:
 
     git clone --recursive git@gitlab.com:ska-telescope/sdp/ska-sdp-global-sky-model.git
 
+Application Architecture
+========================
+
+The SKA Global Sky Model application consists of several components:
+
+Database Services
+-----------------
+
+**PostgreSQL Database**
+    Stores the global sky model catalog data including:
+    
+    - Source metadata
+    - Catalog versions and layers
+
+**etcd**
+    A distributed key-value store used by the SKA SDP configuration system. The application 
+    uses etcd to:
+    
+    - Watch for flow requests (data processing workflows)
+    - Coordinate between different SDP services
+    
+    The ``request_responder.py`` module starts a background thread that watches etcd for 
+    flow entries requesting local sky models. When a flow is detected, it processes the 
+    request and writes the results to the specified location.
+
+API Service
+-----------
+
+The FastAPI service provides REST endpoints for:
+
+- Querying sources by position and field of view
+- Uploading catalog data
+- Managing catalog versions
+- Health checks and status
+
 Running the application
 =======================
 
-The API can be run as a script, provided the connection string to the PostgreSQL database 
-is updated, using the command:
+Using Docker Compose (Recommended)
+-----------------------------------
+
+For an integrated setup, use Docker Compose to run the full application stack. See the 
+:doc:`Deployment` guide for complete instructions on running with Docker Compose.
+
+Running Standalone (Development)
+---------------------------------
+
+The API can also be run as a standalone script for development. This requires:
+
+1. A running PostgreSQL database
+2. A running etcd instance (for flow management features)
+
+Then run the API directly:
 
 .. code-block:: bash
 

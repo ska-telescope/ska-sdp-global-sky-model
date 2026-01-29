@@ -7,12 +7,18 @@ Development
 - [Added] Implemented ``_query_gsm_for_lsm`` function to query the Global Sky Model 
   database and return sources within a specified field of view as ``GlobalSkyModel`` objects.
   (`MR55 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/55>`__)
+- Added etcd service to docker-compose setup and updated documentation
+  (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
 - Remove the dependencie on a running PostgreSQL instance for tests
   (`MR59 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/59>`__)
 - Re-instated postgres backend storage starting from version 0.1.4.
   (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
 - [Added] Watcher for creating local sky models from Flow entries
   (`MR51 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/51>`__)
+- [Removed] Helm chart
+  (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
+- [Modified] Logger ENV variable has changed behaviour, and remove links to Redis
+  (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 
 Note
 ----
