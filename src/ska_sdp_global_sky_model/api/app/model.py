@@ -1,5 +1,10 @@
 """
-Data models for SQLAlchemy
+Data models for SQLAlchemy.
+
+This module defines the database schema for the Global Sky Model (GSM).
+It includes models for:
+- Version: Catalog versions with metadata
+- Source: Astronomical sources with coordinates and spectral data
 """
 
 # pylint: disable=too-few-public-methods
@@ -10,16 +15,17 @@ import logging
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    Column,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 
@@ -27,142 +33,192 @@ logger = logging.getLogger(__name__)
 
 
 class Version(Base):
-    """Model for GSM Version."""
+    """
+    Model for GSM Version/Catalog metadata.
 
-    id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    layer_id = Column(String, default="default")
-    version = Column(String)  # Semantic version
-    epoch = Column(DateTime)
-    date_added = Column(DateTime)
-    default_version = Column(Boolean, default=False)
-    catalogue_metadata = Column(JSONB)
+    Attributes:
+        id (int): Primary key identifier.
+        layer_id (str): Identifier for the catalog layer (e.g., 'gleam', 'nvss').
+        version (str): Semantic version string (e.g., '1.0.0').
+        epoch (DateTime): Observation epoch for the catalog.
+        date_added (DateTime): Timestamp when this version was added to the database.
+        default_version (bool): Flag indicating if this is the default version for the layer.
+        catalogue_metadata (dict): JSON field for additional catalog-specific metadata.
+        sources (relationship): Back-reference to Source objects belonging to this version.
+    """
 
+    __tablename__ = "version"
     __table_args__ = (
-        # Enforce that versions aren't duplicated within the same name
+        # Enforce that versions aren't duplicated within the same layer
         UniqueConstraint("layer_id", "version", name="_layer_id_version_uc"),
-        # Enforce that only one row can have default_version = True within the same name
-        # UniqueConstraint(
-        #     'layer_id',
-        #     'default_version',
-        #     postgresql_where=default_version.is_(True)
-        # ),
+        # Note: Partial unique constraint for default_version=True per layer_id
+        # could be added using:
+        # UniqueConstraint('layer_id', 'default_version',
+        #                  postgresql_where=(default_version.is_(True)))
         {"schema": DB_SCHEMA},
     )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    layer_id: Mapped[str] = mapped_column(String, nullable=False, default="default")
+    version: Mapped[str] = mapped_column(String, nullable=False)
+    epoch: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+    date_added: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+    default_version: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    catalogue_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # Relationships
+    sources: Mapped[list["Source"]] = relationship("Source", back_populates="version_ref")
+
+    def __repr__(self) -> str:
+        """Return string representation of Version."""
+        return (
+            f"<Version(id={self.id}, layer_id='{self.layer_id}', "
+            f"version='{self.version}', default={self.default_version})>"
+        )
 
 
 class Source(Base):
     """
-    Represents a source of astronomical data and its location.
+    Represents an astronomical source with positional and spectral data.
 
-    This class is derived from a wideband image (170-231MHz).
+    This model stores source information including celestial coordinates,
+    HEALPix spatial indexing, and frequency-dependent measurements.
+    Currently contains GLEAM-specific frequency measurements that will be
+    replaced with a more generic spectral model in future versions.
 
-    **Attributes:**
-        name (str): Unique name of the source.
-        coords (tuple): A tuple containing the Right Ascension (RAJ2000) and Declination
-        (DECJ2000) of the source.
-        hpx (int): Healpix index of the source's position.
-        telescopes (dict): A dictionary containing data for telescopes that observed this source.
-            Each key in the dictionary is the telescope name, and the corresponding value is
-            another dictionary containing:
-                * wideband (str or None): JSON-serialized data from the WideBandData table
-                associated with this telescope and source, or None if no data exists.
-                * narrowband (dict): A dictionary where each key is the center frequency of a
-                narrowband observation and the value is JSON-serialized data from the
-                NarrowBandData table for that specific band, telescope, and source, or None if
-                no data exists.
+    Attributes:
+        id (int): Primary key identifier.
+        name (str): Unique source name/identifier.
+        RAJ2000 (float): Right Ascension in J2000 coordinates (degrees).
+        DECJ2000 (float): Declination in J2000 coordinates (degrees).
+        Heal_Pix_Position (int): HEALPix index for spatial queries.
+        version_id (int): Foreign key to Version table.
+        version_ref (relationship): Reference to the associated Version object.
 
-    **Methods:**
-        to_json(session) -> dict: Generates a dictionary containing the source's information and
-        data from associated telescopes.
+        # GLEAM-specific frequency measurements (LEGACY - to be replaced)
+        I_* (float): Integrated flux density at specific frequencies (Jy).
+        MajorAxis_* (float): Fitted semi-major axis at specific frequencies (arcsec).
+        MinorAxis_* (float): Fitted semi-minor axis at specific frequencies (arcsec).
+        Orientation_* (float): Position angle at specific frequencies (degrees).
+
+    Notes:
+        - RA/DEC are stored in degrees (J2000 epoch)
+        - HEALPix position uses NSIDE=4096, NESTED scheme by default
+        - Frequency-specific columns will be replaced by a generic spectral model
     """
 
-    __table_args__ = {"schema": DB_SCHEMA}
+    __tablename__ = "source"
+    __table_args__ = (
+        # Check constraints for coordinate validity
+        CheckConstraint("RAJ2000 >= 0 AND RAJ2000 < 360", name="check_ra_range"),
+        CheckConstraint("DECJ2000 >= -90 AND DECJ2000 <= 90", name="check_dec_range"),
+        # Index on foreign key for performance (column name is "version" in DB)
+        Index("ix_source_version_id", "version"),
+        {"schema": DB_SCHEMA},
+    )
 
-    id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, unique=True)
-    RAJ2000 = Column(Float)
-    DECJ2000 = Column(Float)
-    Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
-    # -------- START: This will be replaced by profile model -----------#
-    I_76 = Column(Float)  # Integrated flux (Jy), centred at 76 MHz
-    MajorAxis_76 = Column(Float)  # "a076" - Fitted semi-major axis (arcsec), centred at 76 MHz.
-    MinorAxis_76 = Column(Float)  # "b076" - Fitted semi-minor axis (arcsec), centred at 76 MHz.
-    Orientation_76 = Column(Float)  # "pa076" - Fitted position angle (deg), centred at 76 MHz.
-    I_84 = Column(Float)
-    MajorAxis_84 = Column(Float)
-    MinorAxis_84 = Column(Float)
-    Orientation_84 = Column(Float)
-    I_92 = Column(Float)
-    MajorAxis_92 = Column(Float)
-    MinorAxis_92 = Column(Float)
-    Orientation_92 = Column(Float)
-    I_99 = Column(Float)
-    MajorAxis_99 = Column(Float)
-    MinorAxis_99 = Column(Float)
-    Orientation_99 = Column(Float)
-    I_107 = Column(Float)
-    MajorAxis_107 = Column(Float)
-    MinorAxis_107 = Column(Float)
-    Orientation_107 = Column(Float)
-    I_115 = Column(Float)
-    MajorAxis_115 = Column(Float)
-    MinorAxis_115 = Column(Float)
-    Orientation_115 = Column(Float)
-    I_122 = Column(Float)
-    MajorAxis_122 = Column(Float)
-    MinorAxis_122 = Column(Float)
-    Orientation_122 = Column(Float)
-    I_130 = Column(Float)
-    MajorAxis_130 = Column(Float)
-    MinorAxis_130 = Column(Float)
-    Orientation_130 = Column(Float)
-    I_143 = Column(Float)
-    MajorAxis_143 = Column(Float)
-    MinorAxis_143 = Column(Float)
-    Orientation_143 = Column(Float)
-    I_151 = Column(Float)
-    MajorAxis_151 = Column(Float)
-    MinorAxis_151 = Column(Float)
-    Orientation_151 = Column(Float)
-    I_158 = Column(Float)
-    MajorAxis_158 = Column(Float)
-    MinorAxis_158 = Column(Float)
-    Orientation_158 = Column(Float)
-    I_166 = Column(Float)
-    MajorAxis_166 = Column(Float)
-    MinorAxis_166 = Column(Float)
-    Orientation_166 = Column(Float)
-    I_174 = Column(Float)
-    MajorAxis_174 = Column(Float)
-    MinorAxis_174 = Column(Float)
-    Orientation_174 = Column(Float)
-    I_181 = Column(Float)
-    MajorAxis_181 = Column(Float)
-    MinorAxis_181 = Column(Float)
-    Orientation_181 = Column(Float)
-    I_189 = Column(Float)
-    MajorAxis_189 = Column(Float)
-    MinorAxis_189 = Column(Float)
-    Orientation_189 = Column(Float)
-    I_197 = Column(Float)
-    MajorAxis_197 = Column(Float)
-    MinorAxis_197 = Column(Float)
-    Orientation_197 = Column(Float)
-    I_204 = Column(Float)
-    MajorAxis_204 = Column(Float)
-    MinorAxis_204 = Column(Float)
-    Orientation_204 = Column(Float)
-    I_212 = Column(Float)
-    MajorAxis_212 = Column(Float)
-    MinorAxis_212 = Column(Float)
-    Orientation_212 = Column(Float)
-    I_220 = Column(Float)
-    MajorAxis_220 = Column(Float)
-    MinorAxis_220 = Column(Float)
-    Orientation_220 = Column(Float)
-    I_227 = Column(Float)
-    MajorAxis_227 = Column(Float)
-    MinorAxis_227 = Column(Float)
-    Orientation_227 = Column(Float)
-    # -------- END: This will be replaced by profile model -----------#
-    version = mapped_column(ForeignKey(Version.id))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    RAJ2000: Mapped[float] = mapped_column(Float, nullable=False)
+    DECJ2000: Mapped[float] = mapped_column(Float, nullable=False)
+    Heal_Pix_Position: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)
+    version_id: Mapped[int] = mapped_column(
+        "version", Integer, ForeignKey(f"{Version.__table__.fullname}.id"), nullable=False
+    )
+
+    # Relationship
+    version_ref: Mapped["Version"] = relationship("Version", back_populates="sources")
+
+    # -------- START: GLEAM-specific columns (LEGACY - to be replaced) -----------#
+    # These columns contain frequency-specific measurements from GLEAM catalog.
+    # Future versions will replace this with a generic spectral model using
+    # separate tables for fitted parameters (spectral indices, source shapes, etc.)
+    I_76: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_76: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_76: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_76: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_84: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_84: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_84: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_84: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_92: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_92: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_92: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_92: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_99: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_99: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_99: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_99: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_107: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_107: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_107: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_107: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_115: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_115: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_115: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_115: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_122: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_122: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_122: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_122: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_130: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_130: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_130: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_130: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_143: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_143: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_143: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_143: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_151: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_151: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_151: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_151: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_158: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_158: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_158: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_158: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_166: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_166: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_166: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_166: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_174: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_174: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_174: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_174: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_181: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_181: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_181: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_181: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_189: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_189: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_189: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_189: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_197: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_197: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_197: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_197: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_204: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_204: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_204: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_204: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_212: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_212: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_212: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_212: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_220: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_220: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_220: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_220: Mapped[float | None] = mapped_column(Float, nullable=True)
+    I_227: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MajorAxis_227: Mapped[float | None] = mapped_column(Float, nullable=True)
+    MinorAxis_227: Mapped[float | None] = mapped_column(Float, nullable=True)
+    Orientation_227: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # -------- END: GLEAM-specific columns (LEGACY) -----------#
+
+    def __repr__(self) -> str:
+        """Return string representation of Source."""
+        return (
+            f"<Source(id={self.id}, name='{self.name}', "
+            f"RA={self.RAJ2000:.4f}, DEC={self.DECJ2000:.4f}, "
+            f"version_id={self.version_id})>"
+        )

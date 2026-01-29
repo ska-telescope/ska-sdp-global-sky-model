@@ -40,7 +40,61 @@ The API is tested using the pytest framework alongside FastAPI's TestClient. The
 
 .. code-block:: bash
     
-    $ make python-test
+    $ make python-tests
+
+Test Database Setup
+-------------------
+
+The tests use an in-memory SQLite database instead of PostgreSQL to avoid the need for a running 
+database instance during testing. 
+
+Database Mocking Strategy
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The test suite implements several key mocking strategies:
+
+1. **In-memory SQLite Database**: Tests use ``sqlite:///:memory:`` instead of PostgreSQL, with 
+   ``StaticPool`` to maintain a single connection across tests.
+
+2. **Q3C Function Mocking**: PostgreSQL's Q3C extension for spherical coordinate searches is 
+   mocked for SQLite using a simple box check approximation:
+
+   .. code-block:: python
+
+       @event.listens_for(engine, "connect")
+       def register_q3c_mock(dbapi_conn, connection_record):
+           def q3c_radial_query_mock(ra1, dec1, ra2, dec2, radius):
+               # Simple box check - not accurate but sufficient for testing
+               ra_diff = abs(ra1 - ra2)
+               dec_diff = abs(dec1 - dec2)
+               return 1 if (ra_diff <= radius and dec_diff <= radius) else 0
+           dbapi_conn.create_function("q3c_radial_query", 5, q3c_radial_query_mock)
+
+3. **JSONB Compatibility**: PostgreSQL's JSONB type is replaced with JSON for SQLite compatibility:
+
+   .. code-block:: python
+
+       @event.listens_for(Base.metadata, "before_create")
+       def replace_jsonb_sqlite(target, connection, **kw):
+           if connection.dialect.name == "sqlite":
+               for table in target.tables.values():
+                   table.schema = None
+                   for column in table.columns:
+                       if isinstance(column.type, JSONB):
+                           column.type = JSON()
+
+4. **Startup Function Mocking**: Database connection checks and background threads are mocked to 
+   prevent actual connections during tests:
+
+   .. code-block:: python
+
+       with patch("ska_sdp_global_sky_model.api.app.main.wait_for_db"), \\
+            patch("ska_sdp_global_sky_model.api.app.main.start_thread"), \\
+            patch("ska_sdp_global_sky_model.api.app.main.q3c_index"), \\
+            patch("ska_sdp_global_sky_model.api.app.main.engine", engine):
+           # Test code here
+
+See [test_main.py](tests/test_main.py) for a complete example of the mocking implementation.
 
 Updating the schema
 ===================
