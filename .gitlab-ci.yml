@@ -19,8 +19,8 @@ stages:
   - lint
   - build
   - test
-  - publish
   - scan
+  - publish
   - pages
 
 services:
@@ -45,3 +45,13 @@ include:
       - 'gitlab-ci/includes/docs.gitlab-ci.yml'
       # SonarQube scan
       - 'gitlab-ci/includes/sonar-scan.gitlab-ci.yml'
+      # GitLab security templates (includes container scanning)
+      - 'gitlab-ci/includes/gitlab-templates.gitlab-ci.yml'
+
+# Override container_scanning to scan both API and DB images
+container_scanning:
+  stage: scan
+  parallel:
+    matrix:
+      - CS_IMAGE: "$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME-api:$CI_COMMIT_SHORT_SHA"
+      - CS_IMAGE: "$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME-db:$CI_COMMIT_SHORT_SHA"
