@@ -19,8 +19,8 @@ stages:
   - lint
   - build
   - test
-  - scan
   - publish
+  - scan
   - pages
 
 services:
