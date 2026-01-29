@@ -6,12 +6,9 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 # pylint: disable=too-many-arguments, broad-exception-caught
 import logging
 import os
-import shutil
 import tempfile
 import time
-from enum import Enum
 from typing import Optional
-from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
@@ -24,6 +21,7 @@ from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
 from ska_sdp_global_sky_model.api.app.model import Source
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
+from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
     MWA,
     RACS,
@@ -49,17 +47,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-class UploadState(str, Enum):
-    """Upload states for a sky survey upload."""
-
-    PENDING = "pending"
-    UPLOADING = "uploading"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-upload_tracker: dict[str, dict] = {}
+# Initialize upload manager
+upload_manager = UploadManager()
 
 
 def wait_for_db():
@@ -286,67 +275,75 @@ async def upload_sky_survey_batch(
     Returns
     -------
     dict
+    db : Session
+        Database session
+    config : Optional[dict]
+        Optional catalog configuration. If not provided, SKY_SURVEY config is used.
+
+    Raises
+    ------
+    HTTPException
+        If validation, upload, or ingestion fails
+
+    Returns
+    -------
+    dict
         Upload identifier and completion status.
-
-
     """
-    upload_id = str(uuid4())
-    temp_dir = tempfile.mkdtemp(prefix="sky_survey_")
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
 
-    upload_tracker[upload_id] = {
-        "total": len(files),
-        "uploaded": 0,
-        "state": UploadState.UPLOADING.value,
-        "errors": [],
-        "temp_dir": temp_dir,
-    }
+    # Validate database connection
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Unable to access database") from e
+
+    # Validate configuration
+    survey_config = config if config else SKY_SURVEY.copy()
+    if not survey_config:
+        raise HTTPException(
+            status_code=400,
+            detail="SKY_SURVEY configuration not available. Please provide a config parameter.",
+        )
+
+    # Create upload tracking
+    upload_status = upload_manager.create_upload(len(files))
+    upload_id = upload_status.upload_id
 
     try:
-        try:
-            db.execute(text("SELECT 1"))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Unable to access database") from e
-
+        # Validate and save all files first
         for file in files:
-            if file.content_type != "text/csv":
-                raise HTTPException(
-                    status_code=400, detail="Invalid file type. Please upload a CSV file."
-                )
+            upload_manager.validate_file(file)
+            await upload_manager.save_file(file, upload_status)
 
-            path = os.path.join(temp_dir, file.filename)
-            with open(path, "wb") as f:
-                f.write(await file.read())
+        # Ingest all files
+        for file_path in upload_manager.list_files(upload_id):
+            file_config = survey_config.copy()
+            file_config["ingest"]["file_location"][0]["key"] = str(file_path)
 
-            upload_tracker[upload_id]["uploaded"] += 1
+            if not ingest(db, file_config):
+                raise RuntimeError(f"Ingest failed for {file_path.name}")
 
-        # ingest all sky survey files
-        for filename in os.listdir(temp_dir):
-            survey_config = config
-            if not survey_config:
-                survey_config = SKY_SURVEY.copy()
-            survey_config["ingest"]["file_location"][0]["key"] = os.path.join(temp_dir, filename)
-
-            if not ingest(db, survey_config):
-                raise RuntimeError(f"Ingest failed for {filename}")
-
-        upload_tracker[upload_id]["state"] = UploadState.COMPLETED.value
+        upload_manager.mark_completed(upload_id)
 
         return {"upload_id": upload_id, "status": "completed"}
 
     except HTTPException:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        upload_tracker[upload_id]["state"] = UploadState.FAILED.value
+        upload_manager.mark_failed(upload_id, "HTTP exception during upload")
         raise
 
     except Exception as e:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        upload_tracker[upload_id]["state"] = UploadState.FAILED.value
-        upload_tracker[upload_id]["errors"].append(str(e))
-
+        error_msg = str(e)
+        upload_manager.mark_failed(upload_id, error_msg)
         raise HTTPException(
             status_code=500,
-            detail="Sky survey upload failed",
+            detail=f"Sky survey upload failed: {error_msg}",
         ) from e
+
+    finally:
+        # Always cleanup temporary files
+        upload_manager.cleanup(upload_id)
 
 
 @app.get("/upload-sky-survey-status/{upload_id}")
@@ -369,16 +366,5 @@ def upload_sky_survey_status(upload_id: str):
     dict
         Upload progress, completion state, and error information.
     """
-    if upload_id not in upload_tracker:
-        raise HTTPException(status_code=404, detail="Upload ID not found")
-
-    status = upload_tracker[upload_id]
-
-    return {
-        "upload_id": upload_id,
-        "state": status["state"],
-        "total_files": status["total"],
-        "uploaded_files": status["uploaded"],
-        "remaining_files": status["total"] - status["uploaded"],
-        "errors": status["errors"],
-    }
+    status = upload_manager.get_status(upload_id)
+    return status.to_dict()
