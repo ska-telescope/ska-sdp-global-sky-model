@@ -7,7 +7,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   OCI_IMAGE_BUILD_CONTEXT: $(PWD)
-  CI_POETRY_VERSION: 2.0.1
 
 # Enable caching for python
 cache:
@@ -23,11 +22,6 @@ stages:
   - publish
   - pages
 
-services:
-  - name: redis:7.2.4
-    alias: redis
-    
-
 include:
   - project: "ska-telescope/templates-repository"
     file:
@@ -37,8 +31,6 @@ include:
       - "gitlab-ci/includes/finaliser.gitlab-ci.yml"
       # OCI
       - "gitlab-ci/includes/oci-image.gitlab-ci.yml"
-      # Helm
-      - "gitlab-ci/includes/helm-chart.gitlab-ci.yml"
       # Release management
       - 'gitlab-ci/includes/release.gitlab-ci.yml'
       # Documentation
