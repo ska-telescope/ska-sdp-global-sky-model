@@ -37,9 +37,6 @@ Database Services
     - Source metadata
     - Catalog versions and layers
 
-**Redis**
-    Provides session management and caching capabilities.
-
 **etcd**
     A distributed key-value store used by the SKA SDP configuration system. The application 
     uses etcd to:
@@ -77,7 +74,6 @@ The API can also be run as a standalone script for development. This requires:
 
 1. A running PostgreSQL database
 2. A running etcd instance (for flow management features)
-3. A running Redis instance
 
 Then run the API directly:
 

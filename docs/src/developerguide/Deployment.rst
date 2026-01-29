@@ -13,7 +13,6 @@ The application can be built and run using the provided docker-compose file. The
 
 - **PostgreSQL database**: Stores the global sky model data
 - **FastAPI service**: REST API for accessing the sky model
-- **Redis**: Session management and caching
 - **etcd**: Configuration store for SKA SDP flow management
 
 Prerequisites
@@ -58,9 +57,6 @@ The docker-compose setup includes the following services:
 **FastAPI Service**
     - Port: ``8000`` (mapped to container port 80)
     - Mounts: ``./src/ska_sdp_global_sky_model`` for live code reloading during development
-
-**Redis**
-    - Port: ``6379``
 
 Stopping the Services
 ---------------------
