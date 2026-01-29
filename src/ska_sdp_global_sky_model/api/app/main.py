@@ -51,6 +51,8 @@ app.add_middleware(
 
 
 class UploadState(str, Enum):
+    """Upload states for a sky survey upload."""
+
     PENDING = "pending"
     UPLOADING = "uploading"
     COMPLETED = "completed"
