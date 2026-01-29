@@ -12,6 +12,10 @@ Development
   (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
 - [Added] Watcher for creating local sky models from Flow entries
   (`MR51 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/51>`__)
+- [Removed] Helm chart
+  (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
+- [Modified] Logger ENV variable has changed behaviour, and remove links to Redis
+  (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 
 Note
 ----
