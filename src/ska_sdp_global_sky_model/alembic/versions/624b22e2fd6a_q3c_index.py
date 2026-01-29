@@ -8,16 +8,16 @@ Create Date: 2026-01-23 09:11:00.835022
 
 """
 
-from typing import Sequence, Union
+from typing import Sequence
 
 from alembic import op
 from sqlalchemy.sql import text
 
 # revision identifiers, used by Alembic.
 revision: str = "624b22e2fd6a"
-down_revision: Union[str, None] = "6ab7861d2188"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "6ab7861d2188"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -31,4 +31,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """
+    No downgrade path provided.
+    """
     pass
