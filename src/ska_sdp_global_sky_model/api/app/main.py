@@ -264,6 +264,30 @@ async def upload_sky_survey_batch(
     db: Session = Depends(get_db),
     config: Optional[dict] = None,
 ):
+    """
+    Upload and ingest one or more sky survey CSV files atomically.
+
+    All files are first written to a temporary staging directory. Ingestion
+    only proceeds if all files are successfully uploaded. If any file
+    fails validation or ingestion, the entire batch is rolled back.
+
+    Parameters
+    ----------
+    files : list[UploadFile]
+        One or more CSV files containing sky survey data.
+
+    Raises
+    ------
+    HTTPException
+        If validation, upload, or ingestion fails
+
+    Returns
+    -------
+    dict
+        Upload identifier and completion status.
+
+
+    """
     upload_id = str(uuid4())
     temp_dir = tempfile.mkdtemp(prefix="sky_survey_")
 
@@ -276,7 +300,6 @@ async def upload_sky_survey_batch(
     }
 
     try:
-        # db.execute(text("SELECT 1"))
         try:
             db.execute(text("SELECT 1"))
         except Exception as e:
@@ -308,15 +331,42 @@ async def upload_sky_survey_batch(
 
         return {"upload_id": upload_id, "status": "completed"}
 
+    except HTTPException:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        upload_tracker[upload_id]["state"] = UploadState.FAILED.value
+        raise
+
     except Exception as e:
         shutil.rmtree(temp_dir, ignore_errors=True)
         upload_tracker[upload_id]["state"] = UploadState.FAILED.value
         upload_tracker[upload_id]["errors"].append(str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail="Sky survey upload failed",
+        ) from e
 
 
 @app.get("/upload-sky-survey-status/{upload_id}")
 def upload_sky_survey_status(upload_id: str):
+    """
+    Retrieve the current status of a sky survey upload.
+
+    Parameters
+    ----------
+    upload_id : str
+        Unique identifier returned when the upload was initiated.
+
+    Raises
+    ------
+    HTTPException
+        If the upload ID does not exist.
+
+    Returns
+    -------
+    dict
+        Upload progress, completion state, and error information.
+    """
     if upload_id not in upload_tracker:
         raise HTTPException(status_code=404, detail="Upload ID not found")
 

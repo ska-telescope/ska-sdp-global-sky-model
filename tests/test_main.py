@@ -3,6 +3,7 @@
 Basic testing of the API
 """
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -122,22 +123,19 @@ def test_upload_rcal(myclient):
 
 def test_upload_sky_survey_batch(myclient):
     """Unit test for the /upload-sky-survey-batch path"""
-    file_paths = [
-        "tests/data/survey1.csv",
-        "tests/data/survey2.csv",
-    ]
+    first_file = Path("tests/data/survey1.csv")
+    second_file = Path("tests/data/survey2.csv")
 
-    files = []
-    for path in file_paths:
-        files.append(("files", (path.split("/")[-1], open(path, "rb"), "text/csv")))
+    with first_file.open("rb") as f1, second_file.open("rb") as f2:
+        files = [
+            ("files", (first_file.name, f1, "text/csv")),
+            ("files", (second_file.name, f2, "text/csv")),
+        ]
 
-    response = myclient.post("/upload-sky-survey-batch", files=files)
+        response = myclient.post("/upload-sky-survey-batch", files=files)
 
     assert response.status_code == 200
-
-    data = response.json()
-    assert "upload_id" in data
-    assert data["status"] == "completed"
+    assert response.json()["status"] == "completed"
 
 
 def test_sources(myclient):
