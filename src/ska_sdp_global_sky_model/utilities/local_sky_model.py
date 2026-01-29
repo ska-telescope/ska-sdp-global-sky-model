@@ -116,63 +116,6 @@ class LocalSkyModel:
     # --------------------------
 
     @staticmethod
-    def _convert_to_float(raw: Optional[str]) -> float:
-        """
-        Converts a string to a float, allowing for missing/null values.
-
-        :param raw: Input string.
-        :type raw: Optional[str]
-        :return: Output float.
-        :rtype: float
-        """
-        if raw is None:
-            return numpy.nan
-        raw = raw.strip()
-        if raw == "":
-            return numpy.nan
-        try:
-            return float(raw)
-        except ValueError:
-            return numpy.nan
-
-    @staticmethod
-    def _convert_to_int(raw: Optional[str]) -> int:
-        """
-        Converts a string to an int, allowing for missing/null values.
-
-        :param raw: Input string.
-        :type raw: Optional[str]
-        :return: Output int.
-        :rtype: int
-        """
-        if raw is None:
-            return LocalSkyModel.INT_MISSING
-        raw = raw.strip()
-        if raw == "":
-            return LocalSkyModel.INT_MISSING
-        try:
-            return int(raw)
-        except ValueError:
-            return LocalSkyModel.INT_MISSING
-
-    @staticmethod
-    def _convert_to_bool(raw: Optional[str]) -> numpy.int8:
-        """
-        Converts a string to a boolean, allowing for missing/null values.
-
-        :param raw: Input string.
-        :type raw: Optional[str]
-        :return: Output bool, as an int8 (allows for "missing" data).
-        :rtype: int8
-        """
-        if raw is None:
-            return LocalSkyModel.BOOL_MISSING
-        raw = raw.strip()
-        if raw == "":
-            return LocalSkyModel.BOOL_MISSING
-        return numpy.int8(1 if raw.lower() in ["true", "t", "1"] else 0)
-
-    @staticmethod
     def _convert_to_float_array(value: Any, max_len: int) -> Tuple[numpy.ndarray, int]:
         """
         Converts input to a numpy float array.
@@ -465,29 +408,9 @@ class LocalSkyModel:
             # Split up the line.
             tokens = cls._tokenize_line(line.strip())
 
-            # Loop over columns in the line.
+            # Loop over columns in the line, storing each value.
             for column_index, name in enumerate(columns):
-
-                # Get the field contents from the current token.
-                raw = tokens[column_index]
-
-                # Convert the value to the appropriate type and store it.
-                column_type = model.schema[name].column_type
-                if column_type == "float":
-                    model._cols[name][row] = cls._convert_to_float(raw)
-                elif column_type == "int":
-                    model._cols[name][row] = cls._convert_to_int(raw)
-                elif column_type == "bool":
-                    model._cols[name][row] = cls._convert_to_bool(raw)
-                elif column_type == "str":
-                    model._cols[name][row] = str(raw)
-                elif column_type == "vector_float":
-                    (
-                        model._cols[name][row, :],
-                        model._cols[name + model._NUM_TERMS][row],
-                    ) = cls._convert_to_float_array(raw, max_vector_len)
-                else:
-                    raise ValueError(column_type)
+                model.set_value(name, row, tokens[column_index])
 
             # Next line. Increment row counter for the next valid line.
             row += 1
@@ -619,34 +542,35 @@ class LocalSkyModel:
         :param value: Value to set for parameter. Use 'None' for 'missing'.
         :type value: Any
         """
+        # Deal with an empty string (treat as a missing value).
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                value = None
+
+        # Switch on column type.
         column_type = self.schema[name].column_type
-
         if column_type == "float":
-            self._cols[name][row_index] = numpy.nan if value is None else float(value)
-            return
-
-        if column_type == "int":
-            self._cols[name][row_index] = self.INT_MISSING if value is None else int(value)
-            return
-
-        if column_type == "bool":
+            try:
+                self._cols[name][row_index] = float(value)
+            except (TypeError, ValueError):
+                self._cols[name][row_index] = numpy.nan
+        elif column_type == "int":
+            try:
+                self._cols[name][row_index] = int(value)
+            except (TypeError, ValueError):
+                self._cols[name][row_index] = self.INT_MISSING
+        elif column_type == "bool":
             if value is None:
                 self._cols[name][row_index] = self.BOOL_MISSING
-            elif isinstance(value, bool):
-                self._cols[name][row_index] = numpy.int8(1 if value else 0)
             else:
-                v = str(value).strip().lower()
-                self._cols[name][row_index] = numpy.int8(1 if v in {"true", "t", "1"} else 0)
-            return
-
-        if column_type == "str":
+                val = str(value).strip().lower()
+                self._cols[name][row_index] = numpy.int8(1 if val in ("true", "t", "1") else 0)
+        elif column_type == "str":
             self._cols[name][row_index] = "" if value is None else str(value)
-            return
-
-        if column_type == "vector_float":
-            vec, num_elements = self._convert_to_float_array(value, self.max_vector_len)
-            self._cols[name][row_index, :] = vec
-            self._cols[name + self._NUM_TERMS][row_index] = num_elements
-            return
-
-        raise ValueError(f"Unknown column type: {column_type}")  # Unreachable
+        elif column_type == "vector_float":
+            self._cols[name][row_index, :], self._cols[name + self._NUM_TERMS][row_index] = (
+                self._convert_to_float_array(value, self.max_vector_len)
+            )
+        else:
+            raise ValueError(f"Unknown column type: {column_type}")
