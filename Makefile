@@ -34,3 +34,6 @@ MIGRATION_NOTE = "New Migration Note"
 create-migration:
 	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi bash -c "alembic revision  --autogenerate -m $(MIGRATION_NOTE)"
 	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi bash -c "chmod 0666 alembic/versions/*.py"
+
+generate-schema:
+	poetry run python scripts/generate_db_schema.py

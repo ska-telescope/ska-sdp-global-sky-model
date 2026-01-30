@@ -104,39 +104,40 @@ How It Works:
 
 Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
 
-Each row in the Source table, represents a point in our catalog, with an associated HEALPix position:
+The simplified schema stores all source information in a single Source table. Each row represents a celestial source with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing:
 
 .. code-block:: python
 
     class Source(Base):
 
       id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+      name = mapped_column(String, unique=True, nullable=False)
       Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
+      RAJ2000 = mapped_column(Float, nullable=False)
+      DECJ2000 = mapped_column(Float, nullable=False)
+      I_Pol = mapped_column(Float)  # Stokes I polarization (flux)
+      Spec_Idx = mapped_column(JSON)  # Spectral index as array
+      # ... additional fields for polarization, morphology, etc.
 
 Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sources meeting the criteria of the given parameters are returned as the Local Sky Model.
 
 .. code-block:: javascript
   
     {
-      "sources": {
-        "<source_id>": {
+      "sources": [
+        {
+          "id": <number>,
+          "name": "<source_name>",
           "ra": <number>,
           "dec": <number>,
-          "narrowband": [
-            {
-              "id": <number>,
-              "band": <number>,
-              "source": <number>,
-              "...": ...
-            }
-          ],
-          "wideband": [
-            {
-              "id": <number>,
-              "source": <number>,
-              "...": ...
-            }
-          ]
+          "i_pol": <number>,
+          "spec_idx": [<number>, ...],
+          "major_ax": <number>,
+          "minor_ax": <number>,
+          "pos_ang": <number>,
+          "q_pol": <number>,
+          "u_pol": <number>,
+          "v_pol": <number>
         }
-      }
+      ]
     }
