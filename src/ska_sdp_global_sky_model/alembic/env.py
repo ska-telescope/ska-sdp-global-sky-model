@@ -1,3 +1,4 @@
+# pylint: disable=no-member
 """
 Alembic migrations scripts.
 """
@@ -29,7 +30,7 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-
+# pylint: disable=unused-argument
 def include_object(object, name, type_, reflected, compare_to):
     """Insert specific rules when inspecting model schema
     differences. (True include, False exclude.)
