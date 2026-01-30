@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Alembic migrations to ease schema management.
+  (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
 - Added etcd service to docker-compose setup and updated documentation
   (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
 - Remove the dependencie on a running PostgreSQL instance for tests
