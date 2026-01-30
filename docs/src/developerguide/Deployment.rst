@@ -41,7 +41,7 @@ When this setup is running, the database schema should be initialised or migrate
 
 .. code-block:: bash
 
-    $ docker compose up -d
+    $ make migrate
 
 Service Configuration
 ---------------------
