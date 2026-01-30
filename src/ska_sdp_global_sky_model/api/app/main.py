@@ -191,8 +191,9 @@ async def upload_rcal(
         or an error message if there is an issue with the catalog ingest.
     """
     try:
-
-        if file.content_type != "text/csv":
+        # Accept common CSV mime types
+        allowed_types = ["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]
+        if file.content_type not in allowed_types and not file.filename.endswith('.csv'):
             raise HTTPException(
                 status_code=400, detail="Invalid file type. Please upload a CSV file."
             )
@@ -241,7 +242,7 @@ async def upload_rcal(
                 status_code=500,
             )
     except Exception as e:
-        logger.error("Error on RCAL catalog ingest: %s", e)
+        logger.error("Error on file upload: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

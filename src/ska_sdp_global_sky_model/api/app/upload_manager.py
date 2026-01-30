@@ -126,7 +126,8 @@ class UploadManager:
         HTTPException
             If the file is not a CSV
         """
-        if file.content_type != "text/csv":
+        allowed_types = ["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]
+        if file.content_type not in allowed_types and not file.filename.endswith('.csv'):
             raise HTTPException(
                 status_code=400, detail=f"Invalid file type for {file.filename}. Must be CSV."
             )
