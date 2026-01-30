@@ -16,7 +16,7 @@ import numpy as np
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.model import (
+from ska_sdp_global_sky_model.api.app.db_schema import (
     Band,
     NarrowBandData,
     Source,

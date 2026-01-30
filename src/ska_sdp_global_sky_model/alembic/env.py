@@ -8,7 +8,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from ska_sdp_global_sky_model.api.app.model import Base
+from ska_sdp_global_sky_model.api.app.db_schema import Base
 from ska_sdp_global_sky_model.configuration.config import DB_URL, DB_SCHEMA
 
 # this is the Alembic Config object, which provides

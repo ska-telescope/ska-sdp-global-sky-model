@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
 
-from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideBandData
+from ska_sdp_global_sky_model.api.app.db_schema import NarrowBandData, Source, WideBandData
 
 logger = logging.getLogger(__name__)
 
