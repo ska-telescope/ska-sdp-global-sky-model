@@ -32,7 +32,7 @@ target_metadata = Base.metadata
 
 
 # pylint: disable=unused-argument
-def include_object(object, name, type_, reflected, compare_to):
+def include_object(obj, name, type_, reflected, compare_to):
     """Insert specific rules when inspecting model schema
     differences. (True include, False exclude.)
 
