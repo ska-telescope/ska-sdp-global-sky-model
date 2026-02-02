@@ -1,0 +1,90 @@
+Database Guide
+~~~~~~~~~~~~~~
+
+This document complements the guidelines set out in the SKA telescope developer
+ portal `<https://developer.skao.int/en/latest/>`_
+
+Running the application database
+================================
+
+The application expects a PostgreSQL database to be available.
+The database will needs the following environment variables to be set
+correctly:
+
+- POSTGRES_USER: The database user, which should have access to the database
+- POSTGRES_PASSWORD: The database's user password.
+- POSTGRES_DB_NAME: The database name.
+- POSTGRES_HOST: The host that the database is available on.
+    (It is vital that the container has access to this host)
+- POSTGRES_SCHEMA_NAME: The shema that is available to the user for the user.
+
+Schema management
+-----------------
+
+The database schema is being managed by alembic `<https://alembic.sqlalchemy.org/en/latest/>`_
+
+The alembic migration tool is available through the `alembic` command.
+
+The file `alembic/env.py` is generated when initialising the tool,
+and has been extended to add functionality adapting to translate schema names as well as
+avoiding manual indexes.
+
+Development Environment
+=======================
+
+The development environment can be set up using docker compose or k8s.
+In either case it is highly recommended to use the `POSTGRES_SCHEMA_NAME=public`.
+This is due to this being the default name used in the migrations.
+
+Updating schema
+---------------
+
+The schema is migrated to the latest version by running `alembic migrate`.
+This can either be done in the docker compose environment:
+
+.. code-block:: bash
+
+    $ make compose-migrate
+
+Alternatively if this the container is set up using k8s the following command
+can be run inside the container:
+
+.. code-block:: bash
+
+    $ make k8s-migrate
+
+The schema changes can be rolled back to a previous version by running `alembic rollback -1`.
+This is available in docker compose:
+
+.. code-block:: bash
+
+    $ make compose-migrate-rollback
+
+and in the k8s container by:
+
+.. code-block:: bash
+
+    $ make k8s-migrate-rollback
+
+
+Schema changes
+--------------
+
+The database model may change. In this case these changes need to be consolidated into a
+migration file (versions) and added to git.
+It is important that the environment is using the public schema in the PostgreSQL schema.
+
+This file may be created manually and added to the folder `alembic/versions/`.
+Alternatively this file may be generated. This is done by running in docker compose:
+
+.. code-block:: bash
+
+    $ make compose-create-migration MIGRATION_NOTE='migration_text'
+
+or inside the container
+
+.. code-block:: bash
+
+   $ make k8s-create-migration
+
+
