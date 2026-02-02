@@ -79,6 +79,10 @@ src/ska_sdp_global_sky_model/alembic/versions
 '''
 line-length = 99
 
+[tool.pylint.main]
+# auto generated files.
+ignore-paths = ["src/ska_sdp_global_sky_model/alembic/versions"]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,11 @@
+[flake8]
+# Exclude auto-generated Alembic migration files
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    build,
+    dist,
+    src/ska_sdp_global_sky_model/alembic/versions
+
+max-line-length = 99
