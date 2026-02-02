@@ -10,6 +10,7 @@ with hardcoded database-specific fields.
 # pylint: disable=redefined-outer-name,duplicate-code
 
 import pytest
+from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
 from sqlalchemy import JSON, create_engine, event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
@@ -401,3 +402,73 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
 
         assert metadata_count == 1
         assert source_count == 2
+
+
+class TestSourceModelDataclassSync:
+    """Tests to verify Source model stays in sync with SkySource dataclass."""
+
+    def test_all_dataclass_fields_present_in_model(self):
+        """Test that all fields from SkySource are present in Source model."""
+        # Get all field names from the dataclass
+        dataclass_fields = set(SkySource.__annotations__.keys())
+
+        # Get all column names from the Source model
+        inspector = inspect(engine)
+        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
+
+        model_columns = set()
+        for table_name in inspector.get_table_names():
+            if "source" in table_name.lower():
+                model_columns = {col["name"] for col in inspector.get_columns(table_name)}
+                break
+
+        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
+
+        # Check that all dataclass fields are in the model
+        # (excluding 'id' and 'healpix_index' which are database-specific)
+        missing_fields = dataclass_fields - model_columns
+        assert (
+            not missing_fields
+        ), f"Fields from SkySource dataclass missing in Source model: {missing_fields}"
+
+    def test_model_has_only_expected_columns(self):
+        """Test that Source model doesn't have unexpected columns."""
+        # Expected columns: dataclass fields + database-specific fields
+        expected_columns = set(SkySource.__annotations__.keys())
+        expected_columns.update(["id", "healpix_index"])
+
+        # Get actual model columns
+        inspector = inspect(engine)
+        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
+
+        actual_columns = set()
+        for table_name in inspector.get_table_names():
+            if "source" in table_name.lower():
+                actual_columns = {col["name"] for col in inspector.get_columns(table_name)}
+                break
+
+        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
+
+        unexpected_columns = actual_columns - expected_columns
+        assert not unexpected_columns, f"Unexpected columns in Source model: {unexpected_columns}"
+
+    def test_field_count_matches(self):
+        """Test that the number of fields matches expectations."""
+        # Expected: all dataclass fields + 2 database-specific (id, healpix_index)
+        expected_count = len(SkySource.__annotations__) + 2
+
+        # Get actual count
+        inspector = inspect(engine)
+        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
+
+        actual_count = 0
+        for table_name in inspector.get_table_names():
+            if "source" in table_name.lower():
+                actual_count = len(inspector.get_columns(table_name))
+                break
+
+        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
+
+        assert (
+            actual_count == expected_count
+        ), f"Expected {expected_count} columns, but found {actual_count}"

@@ -15,7 +15,6 @@ database-specific concerns like indexing and JSON serialization.
 
 import logging
 import typing
-from dataclasses import fields as dataclass_fields
 from typing import get_args, get_origin
 
 from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
@@ -72,6 +71,26 @@ def _python_type_to_column(field_type: type) -> Column:
     return Column(sa_type, nullable=True)
 
 
+def _add_dynamic_columns_to_model(model_class, dataclass):
+    """
+    Dynamically add columns from a dataclass to a SQLAlchemy model.
+
+    This function iterates over the dataclass annotations and adds corresponding
+    SQLAlchemy columns to the model class using setattr().
+
+    Args:
+        model_class: The SQLAlchemy model class to add columns to
+        dataclass: The dataclass whose fields will be mapped to columns
+    """
+    for col, dtype in dataclass.__annotations__.items():
+        if col == "name":
+            # Special handling for name field - make it unique and not nullable
+            setattr(model_class, col, Column(String, unique=True, nullable=False))
+        else:
+            # All other fields are nullable to support partial data insertion
+            setattr(model_class, col, _python_type_to_column(dtype))
+
+
 class GlobalSkyModelMetadata(Base):
     """Metadata describing a GSM catalogue instance."""
 
@@ -99,17 +118,8 @@ class Source(Base):
     __tablename__ = "source"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    # Hardcoded primary key and unique constraint
+    # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-
-    # Dynamically generate columns from SkySource dataclass
-    for field in dataclass_fields(SkySource):
-        # Special handling for name field - make it unique and not nullable
-        if field.name == "name":
-            locals()[field.name] = Column(String, unique=True, nullable=False)
-        # All other fields are nullable to support partial data insertion
-        else:
-            locals()[field.name] = _python_type_to_column(field.type)
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
@@ -145,3 +155,7 @@ class Source(Base):
                 "rot_meas": self.rot_meas,
             },
         }
+
+
+# Apply dynamic column generation to Source model
+_add_dynamic_columns_to_model(Source, SkySource)
