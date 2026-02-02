@@ -10,6 +10,8 @@ Development
   - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables only
   - All measurements and properties stored directly on source records
   - List-type fields (e.g., ``spec_idx``) stored as JSON columns
+  - Field names now match data model exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index`` (no longer using ``RAJ2000``, ``DECJ2000``, etc.)
+  - Schema generation refactored with separated configuration in ``scripts/db_config.py``
   [Added] Use ``make generate-schema`` to regenerate the schema after datamodel updates.
   (`MR[TBD] <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/[TBD]>`__)
 - Added etcd service to docker-compose setup and updated documentation

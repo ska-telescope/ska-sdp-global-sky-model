@@ -32,7 +32,7 @@ Database Services
 -----------------
 
 **PostgreSQL Database**
-    Stores the global sky model catalog data in a simplified single-table schema:
+    Stores the global sky model catalog data in the following tables:
     
     - Source table: Contains all source properties including position (RA/Dec), flux measurements,
       spectral indices, polarization data, and morphological parameters
@@ -181,27 +181,32 @@ manually edited. Always regenerate it using the ``make generate-schema`` command
 Schema Configuration
 ~~~~~~~~~~~~~~~~~~~~
 
-The schema generator can be configured by modifying the ``MODEL_CONFIG`` dictionary in
-``scripts/generate_db_schema.py``. This allows you to:
+The schema generator is configured using ``scripts/db_config.py``, which separates 
+database-specific settings from the core generation logic. This allows you to:
 
-- Map dataclass names to table names
-- Add additional database-specific fields (e.g., indexes, JSON columns)
-- Add unique constraints
-- Include custom methods on models
+- Map dataclass field names to database column names (``COLUMN_NAME_OVERRIDES``)
+- Map dataclass names to table names (``TABLE_NAME_OVERRIDES``)
+- Add additional database-specific fields (``DB_SPECIFIC_FIELDS``)
+- Add unique constraints (``UNIQUE_FIELDS``)
+- Configure custom JSON serialization (``CUSTOM_JSON_SERIALIZATION``)
+- Skip certain models from generation (``SKIP_MODELS``)
 
-Example configuration:
+Example configuration from ``scripts/db_config.py``:
 
 .. code-block:: python
 
-    MODEL_CONFIG = {
+    DB_SPECIFIC_FIELDS = {
         "SkySource": {
-            "table_name": "Source",
-            "additional_fields": {
-                "heal_pix_position": ("BigInteger", {"index": True, "nullable": False}),
+            "healpix_index": {
+                "type": "BigInteger",
+                "kwargs": {"index": True, "nullable": False},
+                "description": "HEALPix position for spatial indexing",
             },
-            "unique_fields": {"name"},
-            "custom_methods": True,
-        },
+        }
+    }
+
+    UNIQUE_FIELDS = {
+        "SkySource": {"name"},
     }
 
 Creating and Applying Migrations

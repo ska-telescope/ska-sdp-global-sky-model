@@ -112,11 +112,11 @@ The schema stores all source information in a single Source table. Each row repr
 
       id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
       name = mapped_column(String, unique=True, nullable=False)
-      Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
-      RAJ2000 = mapped_column(Float, nullable=False)
-      DECJ2000 = mapped_column(Float, nullable=False)
-      I_Pol = mapped_column(Float)  # Stokes I polarization (flux)
-      Spec_Idx = mapped_column(JSON)  # Spectral index as array
+      ra = mapped_column(Float, nullable=False)
+      dec = mapped_column(Float, nullable=False)
+      i_pol = mapped_column(Float)  # Stokes I polarization (flux)
+      spec_idx = mapped_column(JSON)  # Spectral index as array
+      healpix_index = Column(BigInteger, index=True, nullable=False)
       # ... additional fields for polarization, morphology, etc.
 
 Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sources meeting the criteria of the given parameters are returned as the Local Sky Model.
