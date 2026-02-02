@@ -16,7 +16,7 @@ from ska_sdp_global_sky_model.api.app.db_schema import Source
 logger = logging.getLogger(__name__)
 
 
-class q3c_radial_query(GenericFunction):
+class q3c_radial_query(GenericFunction):  # pylint: disable=abstract-method
     """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
 
     type = Boolean()
