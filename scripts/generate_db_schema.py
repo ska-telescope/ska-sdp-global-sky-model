@@ -7,7 +7,7 @@ the dataclasses defined in ska_sdp_datamodels.global_sky_model.global_sky_model
 and mapping them to appropriate SQLAlchemy models with correct column types.
 
 The script is fully dynamic and will adapt to any changes in the datamodel
-structure without requiring modifications to the generator code.
+structure. Database-specific configurations are maintained in db_config.py.
 """
 
 import argparse
@@ -24,6 +24,18 @@ from typing import get_args, get_origin
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Import database configuration
+from db_config import (
+    get_additional_fields,
+    get_column_name,
+    get_json_mapping,
+    get_table_name,
+    get_unique_fields,
+    has_custom_json,
+    should_skip_model,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -52,44 +64,6 @@ TYPE_MAPPING = {
     "str": "String",
     "bool": "Boolean",
     "list": "JSON",  # For List types like spec_idx
-}
-
-# Special column name mappings for backward compatibility with existing database
-COLUMN_NAME_MAPPING = {
-    "SkySource": {
-        "name": "name",
-        "ra": "RAJ2000",
-        "dec": "DECJ2000",
-        "i_pol": "I_Pol",
-        "major_ax": "Major_Ax",
-        "minor_ax": "Minor_Ax",
-        "pos_ang": "Pos_Ang",
-        "spec_idx": "Spec_Idx",
-        "log_spec_idx": "Log_Spec_Idx",
-        "spec_curv": "Spec_Curv",
-        "q_pol": "Q_Pol",
-        "u_pol": "U_Pol",
-        "v_pol": "V_Pol",
-        "pol_frac": "Pol_Frac",
-        "pol_ang": "Pol_Ang",
-        "rot_meas": "Rot_Meas",
-    }
-}
-
-# Configuration for specific models
-MODEL_CONFIG = {
-    "SkySource": {
-        "table_name": "Source",
-        "skip_fields": set(),  # No container fields in new model
-        "additional_fields": {
-            "RAJ2000_Error": ("Float", {"nullable": True}),
-            "DECJ2000_Error": ("Float", {"nullable": True}),
-            "Heal_Pix_Position": ("BigInteger", {"index": True, "nullable": False}),
-            "json": ("TEXT", {}),
-        },
-        "unique_fields": {"name"},
-        "custom_methods": True,
-    },
 }
 
 
@@ -223,35 +197,6 @@ def python_type_to_sqlalchemy(field_type: type, field_name: str) -> tuple[str, d
     return sqlalchemy_type, column_kwargs
 
 
-def get_column_name(class_name: str, field_name: str, suffix: str = "") -> str:
-    """
-    Get the database column name for a field.
-
-    Args:
-        class_name: Name of the class
-        field_name: Name of the field
-        suffix: Optional suffix to add (e.g., 'narrow', 'wide')
-
-    Returns:
-        The database column name
-    """
-    # Check for explicit mapping
-    if class_name in COLUMN_NAME_MAPPING:
-        if field_name in COLUMN_NAME_MAPPING[class_name]:
-            return COLUMN_NAME_MAPPING[class_name][field_name]
-
-    # Apply suffix if provided with proper capitalization
-    # Convert field_name to PascalCase with underscores (e.g., flux -> Flux, int_flux -> Int_Flux)
-    if suffix:
-        # Split by underscore and capitalize each part
-        parts = field_name.split("_")
-        capitalized = "_".join(part.capitalize() for part in parts)
-        # Capitalize the suffix as well
-        return f"{capitalized}_{suffix.capitalize()}"
-
-    return field_name
-
-
 def should_skip_field(field_name: str, class_name: str, relationships: dict) -> bool:
     """
     Determine if a field should be skipped in SQL generation.
@@ -264,21 +209,9 @@ def should_skip_field(field_name: str, class_name: str, relationships: dict) -> 
     Returns:
         True if field should be skipped
     """
-    # Check config
-    config = MODEL_CONFIG.get(class_name, {})
-    if field_name in config.get("skip_fields", set()):
-        return True
-
-    # Skip if it's in configured foreign keys (we handle those separately)
-    if field_name in config.get("foreign_keys", {}):
-        return True
-
     # Skip container fields (lists, dicts of other dataclasses)
     if field_name in relationships.get(class_name, {}).get("containers", {}):
         return True
-
-    # Don't skip List/dict of primitive types - those can be stored as JSON
-    # Only skip complex types we can't map (list/dict of dataclasses are already handled above)
 
     return False
 
@@ -298,12 +231,10 @@ def generate_model_from_dataclass(  # pylint: disable=too-many-locals,too-many-b
     Returns:
         String containing the model class definition
     """
-    config = MODEL_CONFIG.get(class_name, {})
-    table_name = config.get("table_name", class_name)
-    suffix = config.get("suffix", "")
-    additional_fields = config.get("additional_fields", {})
-    unique_fields = config.get("unique_fields", set())
-    configured_fks = config.get("foreign_keys", {})
+    # Use db_config for all configuration
+    table_name = get_table_name(class_name)
+    additional_fields = get_additional_fields(class_name)
+    unique_fields = get_unique_fields(class_name)
 
     lines = []
     lines.append(f"class {table_name}(Base):")
@@ -349,12 +280,12 @@ def generate_model_from_dataclass(  # pylint: disable=too-many-locals,too-many-b
     for field in fields(dataclass_obj):
         field_name = field.name
 
-        # Skip if configured or if it's a container
+        # Skip if it's a container
         if should_skip_field(field_name, class_name, relationships):
             continue
 
         # Skip foreign key references (handle separately)
-        if field_name in foreign_keys or field_name in configured_fks:
+        if field_name in foreign_keys:
             continue
 
         # Skip base class fields
@@ -364,8 +295,8 @@ def generate_model_from_dataclass(  # pylint: disable=too-many-locals,too-many-b
         metadata = field.metadata or {}
         description = metadata.get("description", "")
 
-        # Get column name
-        column_name = get_column_name(class_name, field_name, suffix)
+        # Get column name using db_config
+        column_name = get_column_name(class_name, field_name)
 
         try:
             sa_type, kwargs = python_type_to_sqlalchemy(field.type, field_name)
@@ -387,26 +318,25 @@ def generate_model_from_dataclass(  # pylint: disable=too-many-locals,too-many-b
             logger.warning("Error processing field %s in %s: %s", field_name, class_name, e)
             continue
 
-    # Add additional fields from configuration
-    for field_name, (sa_type, kwargs) in additional_fields.items():
+    # Add additional fields from db_config
+    for field_name, field_config in additional_fields.items():
+        sa_type = field_config["type"]
+        kwargs = field_config["kwargs"]
+        field_desc = field_config.get("description", "")
+
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         if kwargs_str:
             column_def = f"Column({sa_type}, {kwargs_str})"
         else:
             column_def = f"Column({sa_type})"
-        lines.append(f"    {field_name} = {column_def}")
 
-    # Add foreign key fields from configuration
-    for fk_field, fk_reference in configured_fks.items():
-        lines.append(f"    {fk_field} = mapped_column(ForeignKey({fk_reference}))")
+        if field_desc:
+            lines.append(f"    # {field_desc}")
+        lines.append(f"    {field_name} = {column_def}")
 
     # Add foreign key fields from inferred relationships
     for fk_field, referenced_class in foreign_keys.items():
-        # Skip if already in configured FKs
-        if fk_field in configured_fks:
-            continue
-        ref_config = MODEL_CONFIG.get(referenced_class, {})
-        ref_table_name = ref_config.get("table_name", referenced_class)
+        ref_table_name = get_table_name(referenced_class)
         lines.append(f"    {fk_field} = mapped_column(ForeignKey({ref_table_name}.id))")
 
     # Add standard helper method
@@ -420,36 +350,53 @@ def generate_model_from_dataclass(  # pylint: disable=too-many-locals,too-many-b
     lines.append("            dict_[key] = getattr(self, key)")
     lines.append("        return dict_")
 
+    # Add custom JSON serialization if configured
+    if has_custom_json(class_name):
+        lines.append("")
+        lines.append(generate_to_json_method(class_name))
+
     return "\n".join(lines)
 
 
-def generate_custom_source_methods() -> str:
-    """Generate custom methods for the Source model."""
+def generate_to_json_method(class_name: str) -> str:
+    """
+    Generate a custom to_json() method dynamically from configuration.
+
+    Args:
+        class_name: Name of the dataclass
+
+    Returns:
+        String containing the to_json method definition
+    """
+    json_mapping = get_json_mapping(class_name)
+
     lines = []
-    lines.append("")
-    lines.append("    def to_json(self):")  # No longer needs session parameter
-    lines.append('        """Serializes the source to a JSON dict."""')
+    lines.append("    def to_json(self):")
+    lines.append('        """Serializes the instance to a JSON dict."""')
     lines.append("        return {")
-    lines.append('            "name": self.name,')
-    lines.append('            "coords_J2000": (self.RAJ2000, self.DECJ2000),')
-    lines.append('            "hpx": int(self.Heal_Pix_Position),')
-    lines.append('            "i_pol": self.I_Pol,')
-    lines.append('            "major_ax": self.Major_Ax,')
-    lines.append('            "minor_ax": self.Minor_Ax,')
-    lines.append('            "pos_ang": self.Pos_Ang,')
-    lines.append('            "spec_idx": self.Spec_Idx,')
-    lines.append('            "polarization": {')
-    lines.append('                "q": self.Q_Pol,')
-    lines.append('                "u": self.U_Pol,')
-    lines.append('                "v": self.V_Pol,')
-    lines.append('                "frac": self.Pol_Frac,')
-    lines.append('                "ang": self.Pol_Ang,')
-    lines.append("            },")
+
+    for json_key, db_field in json_mapping.items():
+        if isinstance(db_field, tuple):
+            # Tuple means we're combining multiple fields (e.g., coordinates)
+            field_refs = ", ".join(f"self.{f}" for f in db_field)
+            lines.append(f'            "{json_key}": ({field_refs}),')
+        elif isinstance(db_field, dict):
+            # Nested dictionary
+            lines.append(f'            "{json_key}": {{')
+            for nested_key, nested_field in db_field.items():
+                lines.append(f'                "{nested_key}": self.{nested_field},')
+            lines.append("            },")
+        else:
+            # Simple field mapping
+            # Handle special case for int conversion of healpix_index
+            if json_key == "healpix_index":
+                lines.append(f'            "{json_key}": int(self.{db_field}),')
+            else:
+                lines.append(f'            "{json_key}": self.{db_field},')
+
     lines.append("        }")
+
     return "\n".join(lines)
-
-
-# Supporting models removed - new simplified datamodel only has SkySource
 
 
 def determine_generation_order(dataclasses: dict, relationships: dict) -> list:
@@ -463,13 +410,11 @@ def determine_generation_order(dataclasses: dict, relationships: dict) -> list:
     Returns:
         List of class names in dependency order
     """
-    # Classes we want to generate as SQL models
+    # Classes we want to generate as SQL models (skip those in db_config)
     classes_to_generate = set()
     for class_name in dataclasses.keys():
-        # Skip abstract base classes and pure container classes
-        if class_name in ["GlobalSkyModel", "MeasurementBase"]:
-            continue
-        classes_to_generate.add(class_name)
+        if not should_skip_model(class_name):
+            classes_to_generate.add(class_name)
 
     order = []
     remaining = classes_to_generate.copy()
@@ -538,6 +483,8 @@ def generate_db_schema_file(  # pylint: disable=too-many-statements
     lines.append(f"Source module: {module_name}")
     lines.append(f"ska-sdp-datamodels version: {datamodels_version}")
     lines.append("")
+    lines.append("Database-specific configuration in: scripts/db_config.py")
+    lines.append("")
     lines.append("DO NOT EDIT THIS FILE MANUALLY!")
     lines.append("To regenerate, run: make generate-schema")
     lines.append('"""')
@@ -568,11 +515,6 @@ def generate_db_schema_file(  # pylint: disable=too-many-statements
         model_code = generate_model_from_dataclass(
             class_name, dataclass_obj, relationships, dataclasses
         )
-
-        # Add custom methods if configured
-        config = MODEL_CONFIG.get(class_name, {})
-        if config.get("custom_methods"):
-            model_code += generate_custom_source_methods()
 
         lines.append(model_code)
         lines.append("")

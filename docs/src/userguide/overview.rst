@@ -104,7 +104,7 @@ How It Works:
 
 Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
 
-The simplified schema stores all source information in a single Source table. Each row represents a celestial source with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing:
+The schema stores all source information in a single Source table. Each row represents a celestial source with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing:
 
 .. code-block:: python
 

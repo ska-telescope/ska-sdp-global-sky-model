@@ -167,11 +167,11 @@ def create_source_catalog_entry(
 
     source_catalog = Source(
         name=name,
-        Heal_Pix_Position=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
-        RAJ2000=source["RAJ2000"],
-        RAJ2000_Error=source.get("e_RAJ2000"),
-        DECJ2000=source["DEJ2000"],
-        DECJ2000_Error=source.get("e_DEJ2000"),
+        healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
+        ra=source["RAJ2000"],
+        ra_error=source.get("e_RAJ2000"),
+        dec=source["DEJ2000"],
+        dec_error=source.get("e_DEJ2000"),
     )
     db.add(source_catalog)
     db.commit()
@@ -193,11 +193,11 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     """Construct source structure."""
     return {
         "name": str(source_dict.get(catalog_config["source"])),
-        "Heal_Pix_Position": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
-        "RAJ2000": source_dict["RAJ2000"],
-        "RAJ2000_Error": source_dict.get("e_RAJ2000"),
-        "DECJ2000": source_dict["DEJ2000"],
-        "DECJ2000_Error": source_dict.get("e_DEJ2000"),
+        "healpix_index": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
+        "ra": source_dict["RAJ2000"],
+        "ra_error": source_dict.get("e_RAJ2000"),
+        "dec": source_dict["DEJ2000"],
+        "dec_error": source_dict.get("e_DEJ2000"),
     }
 
 
@@ -269,7 +269,7 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     Downloads and processes a source catalog for a specified telescope.
 
     This function retrieves source data from the specified catalog and processes
-    it into the simplified schema, storing all information directly in the Source table.
+    it into the schema, storing all information directly in the Source table.
 
     Args:
         db: An SQLAlchemy database session object.
