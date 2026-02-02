@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
 
-from ska_sdp_global_sky_model.api.app.db_schema import Source
+from ska_sdp_global_sky_model.api.app.models import Source
 
 logger = logging.getLogger(__name__)
 

@@ -26,13 +26,7 @@ DB_SPECIFIC_FIELDS = {
 # Column name mappings - only override when absolutely necessary
 # Maps dataclass field names to database column names
 # If a field is not listed here, the field name is used directly
-COLUMN_NAME_OVERRIDES = {
-    # SkySource uses field names directly from the data model
-    # No overrides needed - we match the data model exactly
-    
-    # GlobalSkyModelMetadata uses field names directly from the data model
-    # No overrides needed - we match the data model exactly
-}
+COLUMN_NAME_OVERRIDES = {}
 
 # Table name overrides (if different from dataclass name)
 TABLE_NAME_OVERRIDES = {

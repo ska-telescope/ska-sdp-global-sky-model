@@ -1,5 +1,5 @@
 """
-Unit tests for the generated db_schema.py models.
+Unit tests for the generated models.py file.
 
 These tests validate that the generated SQLAlchemy models work correctly,
 including their methods and field configurations.
@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from ska_sdp_global_sky_model.api.app.db_schema import (
+from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
     Source,
 )
