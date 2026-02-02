@@ -67,19 +67,19 @@ def get_local_sky_model(
     """
 
     # Query sources within field of view
-    # Note: In the simplified model, flux is I_Pol field directly on Source
+    # Note: In the simplified model, flux is i_pol field directly on Source
     sources = (
         db.query(Source)
         .where(
             q3c_radial_query(
-                Source.RAJ2000,
-                Source.DECJ2000,
+                Source.ra,
+                Source.dec,
                 float(ra[0]),
                 float(dec[0]),
                 float(fov),
             )
         )
-        .filter(Source.I_Pol > flux_wide)
+        .filter(Source.i_pol > flux_wide)
         .all()
     )
 
@@ -92,12 +92,12 @@ def get_local_sky_model(
 
     for source in sources:
         results["sources"][source.id] = {
-            "ra": source.RAJ2000,
-            "dec": source.DECJ2000,
+            "ra": source.ra,
+            "dec": source.dec,
             "name": source.name,
-            "i_pol": source.I_Pol,
-            "major_ax": source.Major_Ax,
-            "minor_ax": source.Minor_Ax,
+            "i_pol": source.i_pol,
+            "major_ax": source.major_ax,
+            "minor_ax": source.minor_ax,
             "pos_ang": source.Pos_Ang,
             "spec_idx": source.Spec_Idx,
             "polarization": {
@@ -168,7 +168,7 @@ def get_sources_by_criteria(
     This function retrieves all Source entries matching the provided criteria.
 
     Note: In the simplified datamodel, all measurements are stored directly on the Source.
-    The flux_wide parameter maps to I_Pol field.
+    The flux_wide parameter maps to i_pol field.
 
     Args:
         db: A sqlalchemy database session object
@@ -186,11 +186,11 @@ def get_sources_by_criteria(
     # Build filter conditions based on provided arguments
     filters = []
     if ra is not None:
-        filters.append(Source.RAJ2000 == ra)
+        filters.append(Source.ra == ra)
     if dec is not None:
-        filters.append(Source.DECJ2000 == dec)
+        filters.append(Source.dec == dec)
     if flux_wide is not None:
-        filters.append(Source.I_Pol >= flux_wide)
+        filters.append(Source.i_pol >= flux_wide)
 
     # Combine filters using 'and_' if any filters are present
     if filters:

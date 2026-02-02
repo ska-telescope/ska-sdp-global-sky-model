@@ -118,7 +118,7 @@ def get_point_sources(db: Session = Depends(get_db)):
     logger.info("Retrieved all point sources for all %s sources", str(len(sources)))
     source_list = []
     for source in sources:
-        source_list.append([source.name, source.RAJ2000, source.DECJ2000])
+        source_list.append([source.name, source.ra, source.dec])
     return source_list
 
 

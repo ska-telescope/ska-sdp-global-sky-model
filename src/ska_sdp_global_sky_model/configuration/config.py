@@ -74,7 +74,7 @@ def q3c_index():
         conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
-                'ON source (q3c_ang2ipix("RAJ2000","DECJ2000"));'
+                'ON source (q3c_ang2ipix("ra","dec"));'
             )
         )
 

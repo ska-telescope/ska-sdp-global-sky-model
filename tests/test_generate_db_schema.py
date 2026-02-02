@@ -110,7 +110,7 @@ class TestGenerateDBSchemaFile:
 
             content = output_path.read_text()
 
-            # Check for Source model (new simplified schema)
+            # Check for Source model
             assert "class Source(Base):" in content
             # Should not have old measurement tables (no stubs)
             assert "DEPRECATED" not in content
@@ -147,11 +147,11 @@ class TestGenerateDBSchemaFile:
             content = output_path.read_text()
 
             # Check for key fields in Source model
-            assert "RAJ2000 = Column(Float)" in content
-            assert "DECJ2000 = Column(Float)" in content
-            assert "I_Pol = Column(Float)" in content
-            assert "Spec_Idx = Column(JSON" in content
-            assert "Heal_Pix_Position = Column(BigInteger" in content
+            assert "ra = Column(Float)" in content
+            assert "dec = Column(Float)" in content
+            assert "i_pol = Column(Float)" in content
+            assert "spec_idx = Column(JSON" in content
+            assert "healpix_index = Column(BigInteger" in content
 
     def test_generated_schema_has_primary_keys(self):
         """Test that all models have primary key definitions."""
@@ -213,6 +213,6 @@ class TestGenerateDBSchemaFile:
             content = output_path.read_text()
 
             # Check for position fields in Source model
-            assert "RAJ2000 = Column(Float)" in content
-            assert "DECJ2000 = Column(Float)" in content
-            assert "Heal_Pix_Position" in content
+            assert "ra = Column(Float)" in content
+            assert "dec = Column(Float)" in content
+            assert "healpix_index" in content
