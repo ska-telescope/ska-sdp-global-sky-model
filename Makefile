@@ -30,6 +30,9 @@ restore-gsm-db:
 migrate:
 	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi alembic upgrade head
 
+migrate-rollback:
+	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi "alembic upgrade downgrade -1"
+
 MIGRATION_NOTE = "New Migration Note"
 create-migration:
 	docker compose exec -w /usr/src/ska_sdp_global_sky_model/ fastapi bash -c "alembic revision  --autogenerate -m $(MIGRATION_NOTE)"
@@ -37,3 +40,9 @@ create-migration:
 
 generate-schema:
 	poetry run python scripts/generate_db_schema.py
+
+prod-migrate:
+	cd /usr/local/lib/python3.10/dist-packages/ska_sdp_global_sky_model && alembic upgrade head
+
+prod-migrate-rollback:
+	cd /usr/local/lib/python3.10/dist-packages/ska_sdp_global_sky_model && alembic upgrade downgrade -1

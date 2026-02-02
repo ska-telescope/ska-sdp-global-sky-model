@@ -14,6 +14,8 @@ Development
   - Schema generation refactored with separated configuration in ``scripts/db_config.py``
   [Added] Use ``make generate-schema`` to regenerate the schema after datamodel updates.
   (`MR[TBD] <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/[TBD]>`__)
+- [Added] Alembic migrations to ease schema management.
+  (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
 - Added etcd service to docker-compose setup and updated documentation
   (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
 - [Removed]Remove the dependencie on a running PostgreSQL instance for tests
