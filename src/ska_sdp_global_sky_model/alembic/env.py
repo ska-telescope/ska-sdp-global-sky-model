@@ -1,15 +1,15 @@
-# flake8: noqa
-# pylint: disable=all
+# pylint: disable=no-member
 """
 Alembic migrations scripts.
 """
+
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from ska_sdp_global_sky_model.api.app.model import Base
-from ska_sdp_global_sky_model.configuration.config import DB_URL, DB_SCHEMA
+from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, DB_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -30,7 +30,16 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-def include_object(object, name, type_, reflected, compare_to):
+
+# pylint: disable=unused-argument
+def include_object(obj, name, type_, reflected, compare_to):
+    """Insert specific rules when inspecting model schema
+    differences. (True include, False exclude.)
+
+    See function signature in framework documentation:
+    https://alembic.sqlalchemy.org/en/latest/api/runtime.html#
+    alembic.runtime.environment.EnvironmentContext.configure.
+    params.include_object"""
     exclude_indexes = ["idx_source_q3c_ipix"]
     if type_ == "index":
         return name not in exclude_indexes

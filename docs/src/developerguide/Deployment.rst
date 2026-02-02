@@ -37,6 +37,12 @@ This will start all required services in the background. The API will be availab
 
 **Interactive API documentation** is available at ``http://localhost:8000/docs``.
 
+When this setup is running, the database schema should be initialised or migrated by running:
+
+.. code-block:: bash
+
+    $ make migrate
+
 Service Configuration
 ---------------------
 

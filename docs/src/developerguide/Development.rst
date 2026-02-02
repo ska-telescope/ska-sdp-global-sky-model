@@ -153,7 +153,7 @@ command:
 
 .. code-block:: bash
 
-    $ make create-migration
+    $ make create-migration MIGRATION_NOTE="migration_note"
 
 
 The migration files are stored in src/ska_sdp_global_sky_model/alembic/versions. These should be added to the
