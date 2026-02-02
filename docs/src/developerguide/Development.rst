@@ -191,7 +191,10 @@ database-specific settings from the core generation logic. This allows you to:
 - Configure custom JSON serialization (``CUSTOM_JSON_SERIALIZATION``)
 - Skip certain models from generation (``SKIP_MODELS``)
 
-Example configuration from ``scripts/db_config.py``:
+Configuration Examples
+^^^^^^^^^^^^^^^^^^^^^^
+
+**DB_SPECIFIC_FIELDS** - Add database-specific fields not in the data model (e.g., for indexing or optimization):
 
 .. code-block:: python
 
@@ -205,8 +208,58 @@ Example configuration from ``scripts/db_config.py``:
         }
     }
 
+**TABLE_NAME_OVERRIDES** - Map dataclass names to different table names:
+
+.. code-block:: python
+
+    TABLE_NAME_OVERRIDES = {
+        "SkySource": "Source",  # Use 'Source' instead of 'SkySource' as table name
+        # Other classes use their dataclass name as table name
+    }
+
+**COLUMN_NAME_OVERRIDES** - Map dataclass field names to different database column names:
+
+.. code-block:: python
+
+    COLUMN_NAME_OVERRIDES = {
+        "SkySource": {
+            "ra": "right_ascension",  # Map 'ra' field to 'right_ascension' column
+            "dec": "declination",      # Map 'dec' field to 'declination' column
+        }
+    }
+    # Note: Current schema uses field names directly (no overrides)
+
+**UNIQUE_FIELDS** - Specify fields that should have unique constraints:
+
+.. code-block:: python
+
     UNIQUE_FIELDS = {
-        "SkySource": {"name"},
+        "SkySource": {"name"},  # Source name must be unique
+    }
+
+**SKIP_MODELS** - Exclude certain dataclasses from SQL model generation:
+
+.. code-block:: python
+
+    SKIP_MODELS = {
+        "GlobalSkyModel",  # Container class, not a database table
+    }
+
+**CUSTOM_JSON_SERIALIZATION** - Define custom field mappings for JSON output:
+
+.. code-block:: python
+
+    CUSTOM_JSON_SERIALIZATION = {
+        "SkySource": {
+            "name": "name",
+            "coords": ("ra", "dec"),  # Group as coordinate pair
+            "healpix_index": "healpix_index",
+            "polarization": {          # Nested structure for related fields
+                "q": "q_pol",
+                "u": "u_pol",
+                "v": "v_pol",
+            },
+        }
     }
 
 Creating and Applying Migrations

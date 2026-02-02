@@ -15,16 +15,6 @@ from typing import Any
 # These are added for database optimization, indexing, or other database concerns
 DB_SPECIFIC_FIELDS = {
     "SkySource": {
-        "ra_error": {
-            "type": "Float",
-            "kwargs": {"nullable": True},
-            "description": "Error in Right Ascension measurement",
-        },
-        "dec_error": {
-            "type": "Float",
-            "kwargs": {"nullable": True},
-            "description": "Error in Declination measurement",
-        },
         "healpix_index": {
             "type": "BigInteger",
             "kwargs": {"index": True, "nullable": False},

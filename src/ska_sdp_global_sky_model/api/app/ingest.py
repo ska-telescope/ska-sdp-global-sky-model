@@ -157,8 +157,6 @@ def create_source_catalog_entry(
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
             * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-            * `e_RAJ2000` (optional): Uncertainty in Right Ascension (J2000) in degrees.
-            * `e_DEJ2000` (optional): Uncertainty in Declination (J2000) in degrees.
         name: String for the source name.
 
     Returns:
@@ -169,9 +167,7 @@ def create_source_catalog_entry(
         name=name,
         healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         ra=source["RAJ2000"],
-        ra_error=source.get("e_RAJ2000"),
         dec=source["DEJ2000"],
-        dec_error=source.get("e_DEJ2000"),
     )
     db.add(source_catalog)
     db.commit()
@@ -195,9 +191,7 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
         "name": str(source_dict.get(catalog_config["source"])),
         "healpix_index": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
         "ra": source_dict["RAJ2000"],
-        "ra_error": source_dict.get("e_RAJ2000"),
         "dec": source_dict["DEJ2000"],
-        "dec_error": source_dict.get("e_DEJ2000"),
     }
 
 
