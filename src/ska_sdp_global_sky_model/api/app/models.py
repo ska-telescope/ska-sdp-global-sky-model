@@ -2,12 +2,13 @@
 SQLAlchemy ORM Models
 
 This module defines database models using a hybrid approach:
-- Source model: Dynamically generates columns from ska_sdp_datamodels.SkySource dataclass
-  with hardcoded database-specific fields (healpix_index) and methods
-- GlobalSkyModelMetadata: Fully hardcoded model
+- Source model: Dynamically generates columns from ska_sdp_datamodels.SkySource
+  dataclass with hardcoded database-specific fields (healpix_index) and methods
+- GlobalSkyModelMetadata: Dynamically generates columns from
+  ska_sdp_datamodels.GlobalSkyModelMetadata dataclass with hardcoded methods
 
-This ensures automatic adaptation to dataclass changes while maintaining control over
-database-specific concerns like indexing and JSON serialization.
+This ensures automatic adaptation to dataclass changes while maintaining control
+over database-specific concerns like indexing and JSON serialization.
 """
 
 # pylint: disable=too-few-public-methods
@@ -17,7 +18,12 @@ import logging
 import typing
 from typing import get_args, get_origin
 
-from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    GlobalSkyModelMetadata as GSMMetadataDataclass,
+)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    SkySource,
+)
 from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import mapped_column
@@ -97,10 +103,8 @@ class GlobalSkyModelMetadata(Base):
     __tablename__ = "globalskymodelmetadata"
     __table_args__ = {"schema": DB_SCHEMA}
 
+    # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    version = Column(String, nullable=False)
-    ref_freq = Column(Float, nullable=False)
-    epoch = Column(String, nullable=False)
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
@@ -128,34 +132,7 @@ class Source(Base):
         """Return a dictionary representation of a row."""
         return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
 
-    def to_json(self):
-        """
-        Serialize the instance to a JSON dict.
 
-        This method provides a custom JSON representation with grouped fields
-        for better API usability.
-        """
-        return {
-            "name": self.name,
-            "coords": (self.ra, self.dec),
-            "healpix_index": int(self.healpix_index),
-            "i_pol": self.i_pol,
-            "major_ax": self.major_ax,
-            "minor_ax": self.minor_ax,
-            "pos_ang": self.pos_ang,
-            "spec_idx": self.spec_idx,
-            "log_spec_idx": self.log_spec_idx,
-            "spec_curv": self.spec_curv,
-            "polarization": {
-                "q": self.q_pol,
-                "u": self.u_pol,
-                "v": self.v_pol,
-                "frac": self.pol_frac,
-                "ang": self.pol_ang,
-                "rot_meas": self.rot_meas,
-            },
-        }
-
-
-# Apply dynamic column generation to Source model
+# Apply dynamic column generation to models
+_add_dynamic_columns_to_model(GlobalSkyModelMetadata, GSMMetadataDataclass)
 _add_dynamic_columns_to_model(Source, SkySource)

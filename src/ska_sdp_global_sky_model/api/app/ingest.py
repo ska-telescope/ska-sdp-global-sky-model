@@ -5,7 +5,6 @@ Gleam Catalog ingest
 """
 
 import csv
-import json
 import logging
 import os
 from itertools import zip_longest
@@ -298,17 +297,3 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
 
     logger.info("Successfully ingested %s catalog", catalog_name)
     return True
-
-
-def post_process(db):
-    """Not currently used, but the intent is to pre-create the json field in the sources table"""
-    count = 0
-    for source in db.query(Source).all():
-        logger.info("Loading source json: %s", str(count))
-        source.json = json.dumps(source.to_json(db))
-        db.add(source)
-        count += 1
-        if count % 100 == 0:
-            db.commit()
-    db.commit()
-    return db.query(Source).all().count()

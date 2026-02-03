@@ -104,20 +104,14 @@ How It Works:
 
 Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
 
-The schema stores all source information in a single Source table. Each row represents a celestial source with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing:
+The schema stores all source information in a single Source table. Each row represents a celestial source with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
 
-.. code-block:: python
+The Source model uses a hybrid approach where most fields are dynamically generated from the 
+``SkySource`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization 
+with upstream data model changes:
 
-    class Source(Base):
-
-      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-      name = mapped_column(String, unique=True, nullable=False)
-      ra = mapped_column(Float, nullable=False)
-      dec = mapped_column(Float, nullable=False)
-      i_pol = mapped_column(Float)  # Stokes I polarization (flux)
-      spec_idx = mapped_column(JSON)  # Spectral index as array
-      healpix_index = Column(BigInteger, index=True, nullable=False)
-      # ... additional fields for polarization, morphology, etc.
+This approach allows the schema to automatically adapt when new fields are added to the upstream 
+dataclass, while maintaining database-specific concerns like spatial indexing.
 
 Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sources meeting the criteria of the given parameters are returned as the Local Sky Model.
 

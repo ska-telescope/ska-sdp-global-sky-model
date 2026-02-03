@@ -2,15 +2,21 @@
 Unit tests for the database models.
 
 These tests validate that the SQLAlchemy models work correctly,
-including their methods and field configurations. The Source model
-uses a hybrid approach: dynamically generated columns from dataclasses
-with hardcoded database-specific fields.
+including their methods and field configurations. Both Source and
+GlobalSkyModelMetadata models use a hybrid approach: dynamically
+generated columns from dataclasses with hardcoded database-specific
+fields and methods.
 """
 
 # pylint: disable=redefined-outer-name,duplicate-code
 
 import pytest
-from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    GlobalSkyModelMetadata as GSMMetadataDataclass,
+)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    SkySource,
+)
 from sqlalchemy import JSON, create_engine, event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
@@ -198,46 +204,6 @@ class TestSourceModel:
         assert source_dict["healpix_index"] == 33333
         assert source_dict["major_ax"] == 0.002
         assert "id" in source_dict
-
-    def test_source_to_json_method(self, db_session):
-        """Test the to_json method."""
-        source = Source(
-            name="JsonTestSource",
-            ra=150.0,
-            dec=-30.0,
-            i_pol=4.56,
-            healpix_index=44444,
-            major_ax=0.003,
-            minor_ax=0.002,
-            pos_ang=1.2,
-            spec_idx=[0.5, -0.3],
-            q_pol=0.15,
-            u_pol=0.25,
-            v_pol=0.1,
-            pol_frac=0.4,
-            pol_ang=1.5,
-        )
-        db_session.add(source)
-        db_session.commit()
-
-        # Test to_json
-        json_output = source.to_json()
-
-        assert isinstance(json_output, dict)
-        assert json_output["name"] == "JsonTestSource"
-        assert json_output["coords"] == (150.0, -30.0)
-        assert json_output["healpix_index"] == 44444
-        assert json_output["i_pol"] == 4.56
-        assert json_output["major_ax"] == 0.003
-        assert json_output["minor_ax"] == 0.002
-        assert json_output["pos_ang"] == 1.2
-        assert json_output["spec_idx"] == [0.5, -0.3]
-        assert "polarization" in json_output
-        assert json_output["polarization"]["q"] == 0.15
-        assert json_output["polarization"]["u"] == 0.25
-        assert json_output["polarization"]["v"] == 0.1
-        assert json_output["polarization"]["frac"] == 0.4
-        assert json_output["polarization"]["ang"] == 1.5
 
     def test_source_nullable_fields(self, db_session):
         """Test that nullable fields can be None."""
@@ -464,6 +430,77 @@ class TestSourceModelDataclassSync:
         actual_count = 0
         for table_name in inspector.get_table_names():
             if "source" in table_name.lower():
+                actual_count = len(inspector.get_columns(table_name))
+                break
+
+        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
+
+        assert (
+            actual_count == expected_count
+        ), f"Expected {expected_count} columns, but found {actual_count}"
+
+
+class TestGlobalSkyModelMetadataDataclassSync:
+    """Tests to verify GlobalSkyModelMetadata model stays in sync with dataclass."""
+
+    def test_all_dataclass_fields_present_in_model(self):
+        """Test that all fields from GSMMetadataDataclass are present in model."""
+        # Get all field names from the dataclass
+        dataclass_fields = set(GSMMetadataDataclass.__annotations__.keys())
+
+        # Get all column names from the GlobalSkyModelMetadata model
+        inspector = inspect(engine)
+        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
+
+        model_columns = set()
+        for table_name in inspector.get_table_names():
+            if "globalskymodelmetadata" in table_name.lower():
+                model_columns = {col["name"] for col in inspector.get_columns(table_name)}
+                break
+
+        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
+
+        # Check that all dataclass fields are in the model
+        missing_fields = dataclass_fields - model_columns
+        assert (
+            not missing_fields
+        ), f"Fields from GSMMetadataDataclass missing in model: {missing_fields}"
+
+    def test_model_has_only_expected_columns(self):
+        """Test that GlobalSkyModelMetadata model doesn't have unexpected columns."""
+        # Expected columns: dataclass fields + database-specific field (id)
+        expected_columns = set(GSMMetadataDataclass.__annotations__.keys())
+        expected_columns.add("id")
+
+        # Get actual model columns
+        inspector = inspect(engine)
+        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
+
+        actual_columns = set()
+        for table_name in inspector.get_table_names():
+            if "globalskymodelmetadata" in table_name.lower():
+                actual_columns = {col["name"] for col in inspector.get_columns(table_name)}
+                break
+
+        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
+
+        unexpected_columns = actual_columns - expected_columns
+        assert (
+            not unexpected_columns
+        ), f"Unexpected columns in GlobalSkyModelMetadata model: {unexpected_columns}"
+
+    def test_field_count_matches(self):
+        """Test that the number of fields matches expectations."""
+        # Expected: all dataclass fields + 1 database-specific (id)
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 1
+
+        # Get actual count
+        inspector = inspect(engine)
+        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
+
+        actual_count = 0
+        for table_name in inspector.get_table_names():
+            if "globalskymodelmetadata" in table_name.lower():
                 actual_count = len(inspector.get_columns(table_name))
                 break
 
