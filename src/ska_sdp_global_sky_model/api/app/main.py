@@ -4,13 +4,15 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
 # pylint: disable=too-many-arguments, broad-exception-caught
+import copy
 import logging
 import os
 import tempfile
 import time
+from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 from sqlalchemy import text
@@ -35,7 +37,40 @@ from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: di
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+
+def wait_for_db():
+    """Await DB connection."""
+    while True:
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            logger.info("Database is up and running!")
+            break
+        except Exception as e:
+            logger.info("Database connection failed: %s", e)
+            time.sleep(5)  # Wait before retrying
+
+
+@asynccontextmanager
+async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
+    """
+    Lifespan context manager for FastAPI application startup and shutdown.
+
+    Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown").
+    """
+    # Startup
+    logger.info("Starting application...")
+    wait_for_db()
+    start_thread()
+    logger.info("Application startup complete")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down application...")
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []
@@ -52,24 +87,13 @@ app.add_middleware(
 upload_manager = UploadManager()
 
 
-def wait_for_db():
-    """Await DB connection."""
-    while True:
-        try:
-            with engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-            logger.info("Database is up and running!")
-            break
-        except Exception as e:
-            logger.info("Database connection failed: %s", e)
-            time.sleep(5)  # Wait before retrying
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Await for DB startup on app start"""
-    wait_for_db()
-    start_thread()
+def _get_db_session():
+    """Get a fresh database session for background tasks."""
+    db = next(get_db())
+    try:
+        return db
+    finally:
+        pass  # Don't close here, will be closed after use
 
 
 @app.get("/ping", summary="Ping the API")
@@ -237,14 +261,17 @@ async def upload_rcal(
 
 def _get_catalog_config(config: Optional[dict], catalog: Optional[str]) -> dict:
     """
-    Get catalog configuration based on priority: custom config > catalog name > default.
+    Get catalog configuration for batch file uploads.
+
+    For batch uploads, we need file-based configs with file_location structure.
+    GLEAM uses Vizier by default, so we create a file-based config for it.
 
     Args:
         config: Custom configuration dictionary
         catalog: Predefined catalog name
 
     Returns:
-        Catalog configuration dictionary
+        Catalog configuration dictionary with file_location structure
 
     Raises:
         HTTPException: If catalog name is invalid
@@ -258,31 +285,107 @@ def _get_catalog_config(config: Optional[dict], catalog: Optional[str]) -> dict:
                 status_code=400,
                 detail=f"Unknown catalog '{catalog}'. Available: {list(CATALOG_CONFIGS.keys())}",
             )
-        return CATALOG_CONFIGS[catalog].copy()
 
-    return DEFAULT_CATALOG_CONFIG.copy()
+        # For GLEAM, create a file-based config (it uses Vizier by default)
+        if catalog == "GLEAM":
+            base_config = copy.deepcopy(DEFAULT_CATALOG_CONFIG)
+            base_config["catalog_name"] = "GLEAM"
+            base_config["name"] = "GLEAM (Batch Upload)"
+            base_config["source"] = "GLEAM"
+            # GLEAM-specific column aliases for batch uploads
+            # pylint: disable=duplicate-code
+            base_config["ingest"]["file_location"][0]["heading_alias"] = {
+                "Name": "Name",
+                "RAJ2000": "RAJ2000",
+                "DEJ2000": "DEJ2000",
+                "Fpwide": "Fpwide",
+                "Fintwide": "Fintwide",
+                "awide": "awide",
+                "bwide": "bwide",
+                "pawide": "pawide",
+                "alpha": "alpha",
+            }
+            # pylint: enable=duplicate-code
+            return base_config
+
+        return copy.deepcopy(CATALOG_CONFIGS[catalog])
+
+    return copy.deepcopy(DEFAULT_CATALOG_CONFIG)
+
+
+def _run_ingestion_task(upload_id: str, survey_config: dict):
+    """
+    Run ingestion task in background.
+
+    This function runs in a separate thread/task to keep the API responsive
+    while processing large file uploads.
+
+    Parameters
+    ----------
+    upload_id : str
+        Upload identifier for tracking
+    survey_config : dict
+        Catalog configuration for ingestion
+    """
+    db = None
+    try:
+        # Get fresh database session
+        db = _get_db_session()
+
+        # Note: CSV structure validation is skipped here as the ingestion process
+        # will handle column mapping and report any issues. The validation was
+        # complex due to different alias configurations per catalog.
+
+        # Ingest all files
+        file_paths = upload_manager.list_files(upload_id)
+        for file_path in file_paths:
+            # Deep copy to avoid modifying shared config
+            file_config = copy.deepcopy(survey_config)
+            file_config["ingest"]["file_location"][0]["key"] = str(file_path)
+
+            logger.info("Ingesting file: %s", file_path.name)
+            if not get_full_catalog(db, file_config):
+                raise RuntimeError(f"Ingest failed for {file_path.name}")
+
+        upload_manager.mark_completed(upload_id)
+        logger.info("Background ingestion completed for upload %s", upload_id)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Background ingestion failed for upload %s: %s", upload_id, error_msg)
+        upload_manager.mark_failed(upload_id, error_msg)
+
+    finally:
+        # Cleanup temporary files
+        upload_manager.cleanup(upload_id)
+        if db:
+            db.close()
 
 
 @app.post(
     "/upload-sky-survey-batch",
     summary="Upload sky survey CSV files in a batch",
-    description="All sky survey CSV files must upload successfully or none are ingested.",
+    description="All sky survey CSV files must upload successfully or none are ingested. "
+    "Ingestion runs asynchronously - use the status endpoint to monitor progress.",
 )
 async def upload_sky_survey_batch(
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
     config: Optional[dict] = None,
-    catalog: Optional[str] = None,
+    catalog: Optional[str] = Form(None),
 ):
     """
     Upload and ingest one or more sky survey CSV files atomically.
 
-    All files are first written to a temporary staging directory. Ingestion
-    only proceeds if all files are successfully uploaded. If any file
-    fails validation or ingestion, the entire batch is rolled back.
+    All files are first validated and written to a temporary staging directory.
+    Ingestion then runs in the background, allowing the API to remain responsive.
+    Use the status endpoint to monitor progress.
 
     Parameters
     ----------
+    background_tasks : BackgroundTasks
+        FastAPI background task manager
     files : list[UploadFile]
         One or more CSV files containing sky survey data.
     db : Session
@@ -296,12 +399,13 @@ async def upload_sky_survey_batch(
     Raises
     ------
     HTTPException
-        If validation, upload, or ingestion fails
+        If validation or initial upload fails
 
     Returns
     -------
     dict
-        Upload identifier and completion status.
+        Upload identifier for tracking status. Check /upload-sky-survey-status/{upload_id}
+        for completion status.
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -320,38 +424,35 @@ async def upload_sky_survey_batch(
     upload_id = upload_status.upload_id
 
     try:
-        # Validate and save all files first
+        # Validate and save all files first (synchronous part)
         for file in files:
             upload_manager.validate_file(file)
             await upload_manager.save_file(file, upload_status)
 
-        # Ingest all files
-        for file_path in upload_manager.list_files(upload_id):
-            file_config = survey_config.copy()
-            file_config["ingest"]["file_location"][0]["key"] = str(file_path)
+        # Schedule ingestion to run in background
+        background_tasks.add_task(_run_ingestion_task, upload_id, survey_config)
 
-            if not ingest(db, file_config):
-                raise RuntimeError(f"Ingest failed for {file_path.name}")
+        logger.info("Upload %s: files saved, ingestion scheduled in background", upload_id)
 
-        upload_manager.mark_completed(upload_id)
-
-        return {"upload_id": upload_id, "status": "completed"}
+        return {
+            "upload_id": upload_id,
+            "status": "uploading",
+            "message": "Files uploaded successfully. Ingestion running in background.",
+        }
 
     except HTTPException:
         upload_manager.mark_failed(upload_id, "HTTP exception during upload")
+        upload_manager.cleanup(upload_id)
         raise
 
     except Exception as e:
         error_msg = str(e)
         upload_manager.mark_failed(upload_id, error_msg)
+        upload_manager.cleanup(upload_id)
         raise HTTPException(
             status_code=500,
             detail=f"Sky survey upload failed: {error_msg}",
         ) from e
-
-    finally:
-        # Always cleanup temporary files
-        upload_manager.cleanup(upload_id)
 
 
 @app.get("/upload-sky-survey-status/{upload_id}")

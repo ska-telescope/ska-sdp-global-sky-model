@@ -9,6 +9,20 @@ Development
 - [Enhanced] Batch upload functionality with catalog registry system for easier catalog selection.
   Users can now select predefined catalogs (GLEAM, RACS, RCAL, GENERIC) via API parameter
   or provide custom configurations.
+- [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
+  returning immediately with "uploading" status while ingestion proceeds asynchronously.
+  This keeps the API responsive during large file uploads.
+- [Added] Schema-level data validation for uploaded sources. After CSV transformation to the
+  standardized database schema, each source is validated for:
+  
+  - Required fields (name, ra, dec, i_pol)
+  - Coordinate ranges (RA: -360 to 360°, Dec: -90 to 90°)
+  - Positive flux values (i_pol > 0)
+  - Valid numeric field ranges for optional parameters
+  
+  Invalid sources are logged and skipped, with ingestion stopping if more than 100 validation errors occur.
+- [Updated] Migrated from deprecated ``@app.on_event("startup")`` to modern FastAPI lifespan
+  context manager for application startup and shutdown handling.
 - [Updated] Hybrid dynamic database models for automatic synchronization with ska-sdp-datamodels.
   **Breaking Changes:**
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables

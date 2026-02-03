@@ -269,6 +269,86 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     return source_mapping
 
 
+def validate_source_mapping(  # pylint: disable=too-many-return-statements
+    source_mapping: dict, row_num: int = 0
+) -> tuple[bool, Optional[str]]:
+    """
+    Validate a source mapping against the SkySource schema requirements.
+
+    Checks that required fields are present and have valid types and values.
+    This validation happens AFTER CSV transformation, ensuring data integrity
+    before database insertion.
+
+    Args:
+        source_mapping: Dictionary with standardized SkySource fields
+        row_num: Row number for error reporting (0 if unknown)
+
+    Returns:
+        (is_valid, error_message) - True if valid, False with error message otherwise
+    """
+    row_info = f" (row {row_num})" if row_num > 0 else ""
+
+    # Check required fields exist
+    required_fields = {"name": str, "ra": float, "dec": float, "i_pol": float}
+    for field, expected_type in required_fields.items():
+        if field not in source_mapping or source_mapping[field] is None:
+            return False, f"Missing required field '{field}'{row_info}"
+
+        # Type validation
+        if not isinstance(source_mapping[field], expected_type):
+            return (
+                False,
+                f"Field '{field}' has invalid type{row_info}: "
+                f"expected {expected_type.__name__}, got {type(source_mapping[field]).__name__}",
+            )
+
+    # Validate RA range (radians: 0 to 2π, or degrees: 0 to 360)
+    ra = source_mapping["ra"]
+    if not -360 <= ra <= 360:  # Allow both radians and degrees
+        return False, f"RA out of valid range{row_info}: {ra}"
+
+    # Validate DEC range (radians: -π/2 to π/2, or degrees: -90 to 90)
+    dec = source_mapping["dec"]
+    if not -90 <= dec <= 90:  # Allow both radians and degrees
+        return False, f"DEC out of valid range{row_info}: {dec}"
+
+    # Validate i_pol is positive
+    i_pol = source_mapping["i_pol"]
+    if i_pol < 0:
+        return False, f"i_pol (flux) must be positive{row_info}: {i_pol}"
+
+    # Validate optional numeric fields if present
+    optional_numeric = {
+        "major_ax": (0, None),  # Must be positive
+        "minor_ax": (0, None),  # Must be positive
+        "pos_ang": (-180, 360),  # Position angle range
+        "spec_curv": (None, None),  # No range restriction
+        "q_pol": (None, None),  # Can be negative
+        "u_pol": (None, None),  # Can be negative
+        "v_pol": (None, None),  # Can be negative
+        "pol_frac": (0, 1),  # Fraction 0-1
+        "pol_ang": (0, 2 * 3.14159),  # Radians
+        "rot_meas": (None, None),  # No range restriction
+    }
+
+    for field, (min_val, max_val) in optional_numeric.items():
+        if field in source_mapping and source_mapping[field] is not None:
+            value = source_mapping[field]
+            if not isinstance(value, (int, float)):
+                return (
+                    False,
+                    f"Field '{field}' must be numeric{row_info}: got {type(value).__name__}",
+                )
+
+            if min_val is not None and value < min_val:
+                return False, f"Field '{field}' out of range{row_info}: {value} < {min_val}"
+
+            if max_val is not None and value > max_val:
+                return False, f"Field '{field}' out of range{row_info}: {value} > {max_val}"
+
+    return True, None
+
+
 def commit_batch(db: Session, source_objs: list):
     """Commit batches of sources."""
     if not source_objs:
@@ -304,6 +384,7 @@ def process_source_data_batch(
 
     count = 0
     total = len(source_data)
+    validation_errors = 0
 
     for src in source_data:
         source_dict = dict(src) if not hasattr(src, "items") else src
@@ -322,12 +403,30 @@ def process_source_data_batch(
                 calculate_percentage(count, total),
             )
 
-        source_objs.append(build_source_mapping(source_dict, catalog_config))
+        # Build the standardized source mapping
+        source_mapping = build_source_mapping(source_dict, catalog_config)
+
+        # Validate the source mapping before adding to batch
+        is_valid, error_msg = validate_source_mapping(source_mapping, count)
+        if not is_valid:
+            logger.warning("Skipping invalid source %s: %s", name, error_msg)
+            validation_errors += 1
+            if validation_errors > 100:  # Stop if too many errors
+                logger.error(
+                    "Too many validation errors (%d), stopping ingestion", validation_errors
+                )
+                return False
+            continue
+
+        source_objs.append(source_mapping)
 
         if count % batch_size == 0:
             commit_batch(db, source_objs)
 
     commit_batch(db, source_objs)
+
+    if validation_errors > 0:
+        logger.warning("Completed with %d validation errors (sources skipped)", validation_errors)
 
     return True
 

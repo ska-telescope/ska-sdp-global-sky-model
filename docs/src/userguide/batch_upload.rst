@@ -12,6 +12,39 @@ The batch upload feature allows you to:
 - Track upload progress with a unique identifier
 - Query upload status and errors
 - Ensure atomic ingestion (all files succeed or none are ingested)
+- Process uploads asynchronously in the background for optimal API responsiveness
+- Automatic data validation at the schema level after CSV transformation
+
+Asynchronous Processing
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Batch uploads run asynchronously as background tasks. When you submit files:
+
+1. Files are validated for format (CSV, proper MIME type)
+2. Upload is created with a unique ID and status "uploading"
+3. API returns immediately with the upload ID
+4. Ingestion proceeds in the background
+5. Query the status endpoint to monitor progress
+
+This design keeps the API responsive during large uploads and allows multiple concurrent batch operations.
+
+Data Validation
+~~~~~~~~~~~~~~~~
+
+After CSV files are transformed to the standardized database schema, each source undergoes validation:
+
+**Required Fields**:
+    - ``name``: Source identifier (string)
+    - ``ra``: Right ascension (-360 to 360 degrees, converted to radians)
+    - ``dec``: Declination (-90 to 90 degrees, converted to radians)
+    - ``i_pol``: Stokes I flux (must be positive, in Janskys)
+
+**Optional Field Validation**:
+    - Numeric fields validated for appropriate ranges
+    - Invalid sources are logged with warnings and skipped
+    - Ingestion stops if more than 100 validation errors occur
+
+This ensures data quality while providing flexibility for varied catalog formats.
 
 API Endpoints
 -------------
@@ -52,8 +85,11 @@ Upload and ingest one or more sky survey CSV files atomically. All files are val
 
     {
         "upload_id": "550e8400-e29b-41d4-a716-446655440000",
-        "status": "completed"
+        "status": "uploading"
     }
+
+**Note**: The endpoint returns immediately with status "uploading". Ingestion proceeds asynchronously 
+in the background. Use the status endpoint to monitor completion.
 
 **Example Usage**:
 
@@ -94,7 +130,18 @@ Upload and ingest one or more sky survey CSV files atomically. All files are val
     
     result = response.json()
     print(f"Upload ID: {result['upload_id']}")
-    print(f"Status: {result['status']}")
+    print(f"Status: {result['status']}")  # Will be "uploading"
+    
+    # Poll for completion
+    status_url = f"{url.replace('/upload-sky-survey-batch', '')}/upload-sky-survey-status/{result['upload_id']}"
+    while True:
+        status_response = requests.get(status_url)
+        status_data = status_response.json()
+        if status_data['state'] in ['completed', 'failed']:
+            break
+        time.sleep(2)
+    
+    print(f"Final status: {status_data['state']}")
 
 Catalog Configuration Selection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -385,13 +432,24 @@ Architecture
 
 The batch upload system uses a clean separation of concerns:
 
-- **Upload Manager** (``upload_manager.py``): Handles file storage, validation, and state tracking
-- **Main API** (``main.py``): Provides HTTP endpoints and coordinates the upload workflow
-- **Ingest Module** (``ingest.py``): Processes and imports catalog data into the database
+- **Upload Manager** (``upload_manager.py``): Handles file storage, file type validation, and state tracking
+- **Main API** (``main.py``): Provides HTTP endpoints, coordinates workflow, and manages background tasks
+- **Ingest Module** (``ingest.py``): Processes CSV data, validates against schema, and imports into database
 
-This architecture ensures:
+Key Features:
 
+- **Asynchronous Processing**: Background tasks via FastAPI BackgroundTasks keep API responsive
+- **Modern Lifecycle Management**: Uses FastAPI lifespan context manager (not deprecated on_event)
+- **Schema-Level Validation**: Data validated after transformation to standardized format
 - **Atomic Operations**: Either all files are ingested or none are
 - **Clean Temporary Storage**: Temporary files are always cleaned up, even on errors
 - **State Tracking**: Upload status persists across the upload lifecycle
 - **Error Isolation**: Failures are captured and reported without affecting other uploads
+
+Validation Pipeline:
+
+1. File type validation (CSV format, MIME type)
+2. CSV parsing and transformation to schema format
+3. Source-by-source validation (required fields, ranges, types)
+4. Batch database insertion
+5. Cleanup and status update
