@@ -166,12 +166,14 @@ The [models.py](src/ska_sdp_global_sky_model/api/app/models.py) file defines two
       with upstream data model changes
     - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
       spatial indexing and is not part of the scientific data model
-    - **Hardcoded methods**: ``columns_to_dict()`` and ``to_json()`` are maintained manually
-      to provide stable API contracts
+    - **Hardcoded methods**: ``columns_to_dict()`` is maintained manually to provide
+      stable API contracts
 
-**GlobalSkyModelMetadata Model (Fully Hardcoded)**
-    This model is fully specified since it changes infrequently and doesn't need
-    automatic synchronization.
+**GlobalSkyModelMetadata Model (Hybrid)**
+    - **Dynamically generated columns**: Field names and types are read from the
+      ``GlobalSkyModelMetadata`` dataclass at module import time
+    - **Hardcoded methods**: ``columns_to_dict()`` is maintained manually for consistent
+      API behavior
 
 How Dynamic Column Generation Works
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
