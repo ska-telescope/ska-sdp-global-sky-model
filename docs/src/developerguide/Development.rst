@@ -166,14 +166,10 @@ The ``models.py`` file defines two models using a hybrid approach:
       with upstream data model changes
     - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
       spatial indexing and is not part of the scientific data model
-    - **Hardcoded methods**: ``columns_to_dict()`` is maintained manually to provide
-      stable API contracts
 
 **GlobalSkyModelMetadata Model (Hybrid)**
     - **Dynamically generated columns**: Field names and types are read from the
       ``GlobalSkyModelMetadata`` dataclass at module import time
-    - **Hardcoded methods**: ``columns_to_dict()`` is maintained manually for consistent
-      API behavior
 
 Dynamic Column Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
