@@ -6,6 +6,7 @@ import os
 
 import numpy
 import pytest
+import yaml
 
 from ska_sdp_global_sky_model.utilities.local_sky_model import LocalSkyModel
 
@@ -137,16 +138,27 @@ class TestLocalSkyModel:
             )
 
         # Set a couple of header key, value pairs (as comments).
-        model.set_header(
+        header = {
+            "QUERY_PARAM_1": "PARAM_1_VALUE",
+            "QUERY_PARAM_2": 42,
+        }
+        model.set_header(header)
+
+        # Set special metadata values.
+        # These have specific places in the YAML file
+        # (currently, just the execution block ID).
+        execution_block_id = "eb-test-write-lsm"
+        model.set_metadata(
             {
-                "QUERY_PARAM_1": "PARAM_1_VALUE",
-                "QUERY_PARAM_2": 42,
+                "execution_block_id": execution_block_id,
             }
         )
 
         # Write the model to a CSV file.
         csv_file_name = "_temp_test_local_sky_model_save_and_load.csv"
-        model.save(csv_file_name)
+        yaml_dir_name = "_temp_test_yaml_metadata_dir"
+        yaml_path = os.path.join(yaml_dir_name, "ska-data-product.yaml")
+        model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
 
         # Load the CSV file into a new model.
         model2 = LocalSkyModel.load(csv_file_name)
@@ -165,5 +177,17 @@ class TestLocalSkyModel:
             assert model2["u_pol"][i] == pytest.approx(-1.1 * i)
             assert model2["v_pol"][i] == pytest.approx(0.1 * i)
 
+        # Check that the metadata YAML file was written correctly.
+        with open(yaml_path, encoding="utf-8") as stream:
+            metadata = yaml.safe_load(stream)
+        assert metadata["local_sky_model"]["columns"] == column_names
+        assert metadata["local_sky_model"]["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
+        assert metadata["local_sky_model"]["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
+        assert metadata["local_sky_model"]["header"]["number_of_sources"] == num_rows
+        assert metadata["execution_block"] == execution_block_id
+        assert metadata["files"][0]["path"] == csv_file_name
+
         # Clean up.
         os.remove(csv_file_name)
+        os.remove(yaml_path)
+        os.removedirs(yaml_dir_name)
