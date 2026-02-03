@@ -184,14 +184,89 @@ def coerce_floats(source_dict: dict) -> dict:
     return out
 
 
+def _add_optional_field(mapping: dict, source_dict: dict, field_name: str, *csv_aliases):
+    """
+    Add an optional field to the mapping if found in source_dict.
+
+    Args:
+        mapping: Target mapping dictionary
+        source_dict: Source data dictionary
+        field_name: Target field name
+        csv_aliases: One or more CSV column names to check
+    """
+    for alias in csv_aliases:
+        if alias in source_dict:
+            value = to_float(source_dict.get(alias))
+            if value is not None:
+                mapping[field_name] = value
+                return
+
+
 def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
-    """Construct source structure."""
-    return {
+    """
+    Construct source structure mapping CSV columns to SkySource schema.
+
+    Maps all available fields from the CSV to the SkySource dataclass fields.
+    Required fields: name, ra, dec, i_pol
+    Optional fields include source shape, spectral features, and polarization.
+
+    Args:
+        source_dict: Dictionary from CSV row with column names as keys
+        catalog_config: Catalog configuration containing source name field
+
+    Returns:
+        Dictionary mapping to SkySource fields for database insertion
+    """
+    # Build base source mapping with required fields
+    source_mapping = {
         "name": str(source_dict.get(catalog_config["source"])),
         "healpix_index": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
-        "ra": source_dict["RAJ2000"],
-        "dec": source_dict["DEJ2000"],
+        "ra": to_float(source_dict.get("RAJ2000")),
+        "dec": to_float(source_dict.get("DEJ2000")),
+        # I polarization - use wide-band or first available flux measurement
+        "i_pol": to_float(
+            source_dict.get("Fpwide") or source_dict.get("Fintwide") or source_dict.get("i_pol")
+        ),
     }
+
+    # Add optional source shape parameters (Gaussian model)
+    _add_optional_field(source_mapping, source_dict, "major_ax", "major_ax", "awide")
+    _add_optional_field(source_mapping, source_dict, "minor_ax", "minor_ax", "bwide")
+    _add_optional_field(source_mapping, source_dict, "pos_ang", "pos_ang", "pawide")
+
+    # Add spectral index as array if available
+    if "alpha" in source_dict or "spec_idx" in source_dict:
+        # Support either single alpha value or full spec_idx array
+        alpha = to_float(source_dict.get("alpha"))
+        if alpha is not None:
+            source_mapping["spec_idx"] = [alpha, None, None, None, None]
+        elif "spec_idx" in source_dict:
+            source_mapping["spec_idx"] = source_dict.get("spec_idx")
+
+    # Add spectral curvature if available
+    _add_optional_field(source_mapping, source_dict, "spec_curv", "spec_curv")
+
+    # Set log_spec_idx flag (default to None if not specified)
+    if "log_spec_idx" in source_dict:
+        log_val = source_dict.get("log_spec_idx")
+        if isinstance(log_val, bool):
+            source_mapping["log_spec_idx"] = log_val
+        elif isinstance(log_val, str):
+            source_mapping["log_spec_idx"] = log_val.lower() in ("true", "1", "yes")
+
+    # Add Stokes polarization parameters
+    _add_optional_field(source_mapping, source_dict, "q_pol", "q_pol")
+    _add_optional_field(source_mapping, source_dict, "u_pol", "u_pol")
+    _add_optional_field(source_mapping, source_dict, "v_pol", "v_pol")
+
+    # Add polarization fraction and angle if available
+    _add_optional_field(source_mapping, source_dict, "pol_frac", "pol_frac")
+    _add_optional_field(source_mapping, source_dict, "pol_ang", "pol_ang")
+
+    # Add rotation measure
+    _add_optional_field(source_mapping, source_dict, "rot_meas", "rot_meas")
+
+    return source_mapping
 
 
 def commit_batch(db: Session, source_objs: list):

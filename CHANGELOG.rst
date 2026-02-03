@@ -4,6 +4,11 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
+  Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
+- [Enhanced] Batch upload functionality with catalog registry system for easier catalog selection.
+  Users can now select predefined catalogs (GLEAM, RACS, RCAL, GENERIC) via API parameter
+  or provide custom configurations.
 - [Updated] Hybrid dynamic database models for automatic synchronization with ska-sdp-datamodels.
   **Breaking Changes:**
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables

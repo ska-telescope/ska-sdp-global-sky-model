@@ -37,8 +37,12 @@ Upload and ingest one or more sky survey CSV files atomically. All files are val
       - One or more CSV files containing sky survey data
       - list[File]
       - Yes
+    * - ``catalog``
+      - Predefined catalog name: 'GLEAM', 'RACS', 'RCAL', or 'GENERIC' (default)
+      - string
+      - No
     * - ``config``
-      - Optional catalog configuration. If not provided, SKY_SURVEY config is used
+      - Custom catalog configuration dict (overrides catalog parameter)
       - dict (JSON)
       - No
 
@@ -55,10 +59,20 @@ Upload and ingest one or more sky survey CSV files atomically. All files are val
 
 .. code-block:: bash
 
+    # Using default GENERIC catalog configuration
     curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
-      -F "files=@survey1.csv" \\
-      -F "files=@survey2.csv" \\
-      -F "files=@survey3.csv"
+      -F "files=@survey1.csv;type=text/csv" \\
+      -F "files=@survey2.csv;type=text/csv"
+    
+    # Using GLEAM catalog configuration
+    curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
+      -F "catalog=GLEAM" \\
+      -F "files=@gleam_survey.csv;type=text/csv"
+    
+    # Using RACS catalog configuration
+    curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
+      -F "catalog=RACS" \\
+      -F "files=@racs_survey.csv;type=text/csv"
 
 **Python Example**:
 
@@ -68,16 +82,52 @@ Upload and ingest one or more sky survey CSV files atomically. All files are val
 
     url = "http://localhost:8000/upload-sky-survey-batch"
     
+    # Option 1: Use predefined catalog
     files = [
         ("files", ("survey1.csv", open("survey1.csv", "rb"), "text/csv")),
         ("files", ("survey2.csv", open("survey2.csv", "rb"), "text/csv")),
     ]
+    response = requests.post(url, files=files, data={"catalog": "GLEAM"})
     
+    # Option 2: Use default (GENERIC) configuration
     response = requests.post(url, files=files)
-    result = response.json()
     
+    result = response.json()
     print(f"Upload ID: {result['upload_id']}")
     print(f"Status: {result['status']}")
+
+Catalog Configuration Selection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The system provides four predefined catalog configurations:
+
+**GENERIC** (default):
+    - Generic GLEAM-format CSV support
+    - Suitable for most standard sky survey formats
+    - Automatically used if no catalog is specified
+
+**GLEAM**:
+    - Murchison Widefield Array (MWA) GLEAM catalog
+    - Frequency range: 80-300 MHz
+    - Supports 20 frequency bands
+    - Source column: ``GLEAM``
+
+**RACS**:
+    - ASKAP RACS (Rapid ASKAP Continuum Survey)
+    - Frequency range: 700-1800 MHz
+    - Custom column mappings for RACS format
+    - Source column: ``RACS``
+
+**RCAL**:
+    - Realtime calibration test data
+    - GLEAM-format with 20 frequency bands
+    - Frequency range: 80-300 MHz
+    - Source column: ``GLEAM``
+
+Selection Priority:
+    1. **config** parameter (custom dict) - highest priority
+    2. **catalog** parameter (predefined name)
+    3. **GENERIC** - default if neither specified
 
 Get Upload Status
 ~~~~~~~~~~~~~~~~~
@@ -155,22 +205,86 @@ Retrieve the current status of a sky survey batch upload.
 CSV File Format
 ---------------
 
-The uploaded CSV files should follow the standard sky survey catalog format with at minimum the following required columns:
+The uploaded CSV files should follow the sky survey catalog format compatible with the GlobalSkyModel schema. 
+The API automatically maps common column names to the standardized schema fields.
 
-- ``recno``: Record number (unique identifier)
-- ``GLEAM`` or similar source name column
-- ``RAJ2000``: Right ascension (J2000) in degrees
-- ``DECJ2000``: Declination (J2000) in degrees
+Required Columns
+~~~~~~~~~~~~~~~~
 
-Additional columns for flux measurements, errors, and other source properties are supported depending on your catalog configuration.
+At minimum, your CSV must include:
 
-Example CSV structure:
+- **Source identifier**: Column specified by the ``source`` field in config (e.g., ``GLEAM``, ``SOURCE_ID``)
+- **RAJ2000**: Right ascension (J2000) in degrees
+- **DEJ2000**: Declination (J2000) in degrees  
+- **Flux measurement**: At least one of ``Fpwide``, ``Fintwide``, or ``i_pol`` (Stokes I polarization flux in Jy)
+
+Optional Columns
+~~~~~~~~~~~~~~~~
+
+Additional columns that will be automatically ingested if present:
+
+**Source Shape (Gaussian Model)**:
+    - ``awide`` or ``major_ax``: Major axis in arcseconds
+    - ``bwide`` or ``minor_ax``: Minor axis in arcseconds
+    - ``pawide`` or ``pos_ang``: Position angle in degrees
+
+**Spectral Properties**:
+    - ``alpha`` or ``spec_idx``: Spectral index (or array of polynomial coefficients)
+    - ``spec_curv``: Spectral curvature parameter
+    - ``log_spec_idx``: Boolean flag for logarithmic spectral model
+
+**Polarization**:
+    - ``q_pol``: Stokes Q flux in Jy
+    - ``u_pol``: Stokes U flux in Jy
+    - ``v_pol``: Stokes V flux in Jy
+    - ``pol_frac``: Polarized fraction
+    - ``pol_ang``: Polarization angle in radians
+    - ``rot_meas``: Faraday rotation measure in rad/m²
+
+GLEAM Format Example
+~~~~~~~~~~~~~~~~~~~~
+
+The default configuration supports GLEAM-style catalogs:
 
 .. code-block:: text
 
-    recno,GLEAM,RAJ2000,DECJ2000,Fpwide,e_Fpwide
-    1,J000001-350001,0.004,-35.0,0.25,0.01
-    2,J000002-350002,0.008,-35.1,0.23,0.01
+    recno,GLEAM,RAJ2000,DEJ2000,Fpwide,Fintwide,awide,bwide,pawide,alpha
+    1,J000001-350001,0.004,-35.0,0.25,0.26,170,140,-6.2,-0.527
+    2,J000002-350002,0.008,-35.1,0.23,0.24,168,138,-6.0,-0.534
+
+Custom Schema Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your CSV uses different column names, provide a custom configuration with ``heading_alias`` mappings:
+
+.. code-block:: python
+
+    custom_config = {
+        "ingest": {
+            "wideband": True,
+            "agent": "file",
+            "file_location": [{
+                "key": "unset",
+                "heading_alias": {
+                    "RA": "RAJ2000",           # Map your RA column
+                    "DEC": "DEJ2000",          # Map your Dec column
+                    "FLUX_I": "i_pol",         # Map flux column
+                    "SOURCE_NAME": "GLEAM",     # Map source ID column
+                },
+                "heading_missing": [],
+                "bands": [],
+            }]
+        },
+        "name": "My Custom Survey",
+        "catalog_name": "CUSTOM",
+        "frequency_min": 80,
+        "frequency_max": 300,
+        "source": "SOURCE_NAME",  # Column name for source identifier
+        "bands": [],
+    }
+
+Note: Passing custom configurations via curl is not supported due to multipart form-data limitations. 
+Use Python or update the default DEFAULT_CATALOG_CONFIG in ``config.py``.
 
 Error Handling
 --------------
@@ -190,7 +304,7 @@ The API provides detailed error responses for common issues:
 .. code-block:: json
 
     {
-        "detail": "SKY_SURVEY configuration not available. Please provide a config parameter."
+        "detail": "Unknown catalog 'INVALID'. Available: ['GLEAM', 'RACS', 'RCAL', 'GENERIC']"
     }
 
 **Database Connection Error** (500):
@@ -220,7 +334,8 @@ The API provides detailed error responses for common issues:
 Best Practices
 --------------
 
-1. **File Validation**: Ensure all CSV files are properly formatted before upload to avoid batch failures.
+1. **File Validation**: Ensure all CSV files are properly formatted before upload to avoid batch failures. 
+   Required columns are source identifier, RAJ2000, DEJ2000, and at least one flux measurement.
 
 2. **Progress Monitoring**: Use the status endpoint to monitor long-running uploads, especially for large batches.
 
@@ -228,7 +343,42 @@ Best Practices
 
 4. **Batch Size**: Consider breaking very large uploads into smaller batches for better manageability.
 
-5. **Configuration**: Provide a custom configuration if your catalog format differs from the default SKY_SURVEY format.
+5. **Column Naming**: Use standard GLEAM-style column names (RAJ2000, DEJ2000, Fpwide, etc.) for automatic mapping, 
+   or provide custom ``heading_alias`` mappings in your configuration.
+
+6. **Schema Compatibility**: The system automatically maps CSV columns to the GlobalSkyModel schema. 
+   All fields from ``ska_sdp_datamodels.global_sky_model.SkySource`` are supported.
+
+Data Model Schema
+-----------------
+
+The batch upload system conforms to the ``SkySource`` dataclass from ``ska_sdp_datamodels.global_sky_model``. 
+All uploaded sources are stored with the following schema:
+
+**Core Fields** (at least name, ra, dec, i_pol required):
+    - ``name``: Source identifier (string)
+    - ``ra``: Right ascension in radians (float)
+    - ``dec``: Declination in radians (float)
+    - ``i_pol``: Stokes I flux in Janskys (float)
+
+**Gaussian Model** (optional):
+    - ``major_ax``: Semi-major axis in radians (float)
+    - ``minor_ax``: Semi-minor axis in radians (float)  
+    - ``pos_ang``: Position angle in radians (float)
+
+**Spectral Features** (optional):
+    - ``spec_idx``: List of up to 5 spectral index polynomial coefficients (list[float])
+    - ``log_spec_idx``: Logarithmic spectral model flag (bool)
+    - ``spec_curv``: Spectral curvature parameter (float)
+
+**Polarization** (optional):
+    - ``q_pol``, ``u_pol``, ``v_pol``: Stokes parameters in Jy (float)
+    - ``pol_frac``: Polarized fraction (float)
+    - ``pol_ang``: Polarization angle in radians (float)
+    - ``rot_meas``: Faraday rotation measure in rad/m² (float)
+
+**Database-Specific**:
+    - ``healpix_index``: HEALPix index for spatial indexing (computed automatically)
 
 Architecture
 ------------

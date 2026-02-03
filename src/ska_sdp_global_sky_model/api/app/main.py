@@ -23,10 +23,11 @@ from ska_sdp_global_sky_model.api.app.models import Source
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
+    CATALOG_CONFIGS,
+    DEFAULT_CATALOG_CONFIG,
     MWA,
     RACS,
     RCAL,
-    SKY_SURVEY,
     Base,
     engine,
     get_db,
@@ -234,6 +235,34 @@ async def upload_rcal(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+def _get_catalog_config(config: Optional[dict], catalog: Optional[str]) -> dict:
+    """
+    Get catalog configuration based on priority: custom config > catalog name > default.
+
+    Args:
+        config: Custom configuration dictionary
+        catalog: Predefined catalog name
+
+    Returns:
+        Catalog configuration dictionary
+
+    Raises:
+        HTTPException: If catalog name is invalid
+    """
+    if config:
+        return config
+
+    if catalog:
+        if catalog not in CATALOG_CONFIGS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown catalog '{catalog}'. Available: {list(CATALOG_CONFIGS.keys())}",
+            )
+        return CATALOG_CONFIGS[catalog].copy()
+
+    return DEFAULT_CATALOG_CONFIG.copy()
+
+
 @app.post(
     "/upload-sky-survey-batch",
     summary="Upload sky survey CSV files in a batch",
@@ -243,6 +272,7 @@ async def upload_sky_survey_batch(
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
     config: Optional[dict] = None,
+    catalog: Optional[str] = None,
 ):
     """
     Upload and ingest one or more sky survey CSV files atomically.
@@ -255,19 +285,13 @@ async def upload_sky_survey_batch(
     ----------
     files : list[UploadFile]
         One or more CSV files containing sky survey data.
-
-    Raises
-    ------
-    HTTPException
-        If validation, upload, or ingestion fails
-
-    Returns
-    -------
-    dict
     db : Session
         Database session
     config : Optional[dict]
-        Optional catalog configuration. If not provided, SKY_SURVEY config is used.
+        Optional catalog configuration dict. Takes precedence over catalog parameter.
+    catalog : Optional[str]
+        Name of predefined catalog config to use: 'GLEAM', 'RACS', 'RCAL', or 'GENERIC'.
+        Defaults to 'GENERIC' if neither config nor catalog is provided.
 
     Raises
     ------
@@ -288,13 +312,8 @@ async def upload_sky_survey_batch(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Unable to access database") from e
 
-    # Validate configuration
-    survey_config = config if config else SKY_SURVEY.copy()
-    if not survey_config:
-        raise HTTPException(
-            status_code=400,
-            detail="SKY_SURVEY configuration not available. Please provide a config parameter.",
-        )
+    # Select and validate configuration
+    survey_config = _get_catalog_config(config, catalog)
 
     # Create upload tracking
     upload_status = upload_manager.create_upload(len(files))

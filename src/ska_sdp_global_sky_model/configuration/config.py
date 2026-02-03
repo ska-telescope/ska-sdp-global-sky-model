@@ -261,4 +261,47 @@ RCAL = {
     ],
 }
 
-SKY_SURVEY = {}
+DEFAULT_CATALOG_CONFIG = {
+    "ingest": {
+        "wideband": True,
+        "agent": "file",
+        "file_location": [
+            {
+                "key": "unset",
+                # Column name mappings from CSV to expected schema
+                # These map GLEAM-style column names to standardized names
+                "heading_alias": {
+                    "RAJ2000": "RAJ2000",  # Right ascension (J2000)
+                    "DEJ2000": "DEJ2000",  # Declination (J2000)
+                    "Fpwide": "Fpwide",  # Peak flux wide-band
+                    "Fintwide": "Fintwide",  # Integrated flux wide-band
+                    "awide": "awide",  # Major axis
+                    "bwide": "bwide",  # Minor axis
+                    "pawide": "pawide",  # Position angle
+                    "alpha": "alpha",  # Spectral index
+                },
+                "heading_missing": [],
+                "bands": [],
+            }
+        ],
+    },
+    "name": "Generic Sky Survey",
+    "catalog_name": "GENERIC",
+    "frequency_min": 80,
+    "frequency_max": 300,
+    "source": "GLEAM",  # Default source name column
+    "bands": [],
+}
+
+# Catalog configuration registry for batch uploads
+# Users can reference these by name or provide custom configurations
+CATALOG_CONFIGS = {
+    "GLEAM": MWA,  # GLEAM catalog (MWA telescope)
+    "RACS": RACS,  # ASKAP RACS catalog
+    "RCAL": RCAL,  # Realtime calibration test data
+    "GENERIC": DEFAULT_CATALOG_CONFIG,  # Generic/default configuration
+}
+
+# Default catalog config for backward compatibility
+# This is used when no config is specified in batch uploads
+DEFAULT_CATALOG = "GENERIC"

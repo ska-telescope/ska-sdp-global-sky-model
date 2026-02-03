@@ -94,14 +94,14 @@ def get_local_sky_model(
             "i_pol": source.i_pol,
             "major_ax": source.major_ax,
             "minor_ax": source.minor_ax,
-            "pos_ang": source.Pos_Ang,
-            "spec_idx": source.Spec_Idx,
+            "pos_ang": source.pos_ang,
+            "spec_idx": source.spec_idx,
             "polarization": {
-                "q": source.Q_Pol,
-                "u": source.U_Pol,
-                "v": source.V_Pol,
-                "frac": source.Pol_Frac,
-                "ang": source.Pol_Ang,
+                "q": source.q_pol,
+                "u": source.u_pol,
+                "v": source.v_pol,
+                "frac": source.pol_frac,
+                "ang": source.pol_ang,
             },
         }
 
