@@ -231,6 +231,8 @@ class LocalSkyModel:
         :return: List of tokens.
         :rtype: List[str]
         """
+        if line is None:
+            return []
         tokens: List[str] = []
         buf: List[str] = []
         bracket_depth = 0
@@ -384,6 +386,10 @@ class LocalSkyModel:
 
         # Find the format string and split it into a list of column names.
         columns = cls._tokenize_line(cls._find_format_string(lines))
+
+        # Check that columns are defined.
+        if not columns:
+            raise RuntimeError("Columns are not defined: Check the format string")
 
         # Count the number of rows, and create an empty sky model.
         num_rows = sum(1 for line in lines if not line.lstrip().startswith("#"))
