@@ -158,7 +158,7 @@ are hardcoded for maintainability.
 Schema Architecture
 -------------------
 
-The [models.py](src/ska_sdp_global_sky_model/api/app/models.py) file defines two models:
+The ``models.py`` file defines two models using a hybrid approach:
 
 **Source Model (Hybrid)**
     - **Dynamically generated columns**: Field names and types are read from the 
@@ -178,36 +178,39 @@ The [models.py](src/ska_sdp_global_sky_model/api/app/models.py) file defines two
 Dynamic Column Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-At module import time, the ``Source`` class definition:
+The dynamic column generation happens at module import time through the 
+``_add_dynamic_columns_to_model()`` helper function:
 
-1. Imports ``SkySource`` from ``ska_sdp_datamodels.global_sky_model.global_sky_model``
-2. Iterates over ``dataclass_fields(SkySource)``
-3. Converts each field's Python type annotation to an appropriate SQLAlchemy column
-4. Adds these columns as class attributes using the ``locals()`` dictionary
+1. The function iterates over the dataclass's ``__annotations__`` dictionary
+2. Each field's type annotation is converted to an appropriate SQLAlchemy column type
+3. Columns are added as attributes to the model class using ``setattr()``
+4. Special handling ensures the ``name`` field is unique and not nullable
 
-This means when the upstream dataclass changes (e.g., new field added), the database
-model automatically includes that field on the next import—no code generation needed.
+This approach runs once when the module is first imported. Subsequent imports use the
+cached module with fully-formed classes. When the upstream dataclass changes (e.g., 
+new field added), the database model automatically includes that field on the next import—no 
+code generation needed.
 
 **Example:**
 
 .. code-block:: python
 
-    from dataclasses import fields as dataclass_fields
     from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
     
     class Source(Base):
         __tablename__ = "source"
+        
+        # Hardcoded primary key
         id = mapped_column(Integer, primary_key=True, autoincrement=True)
         
-        # Dynamically add fields from SkySource dataclass
-        for field in dataclass_fields(SkySource):
-            if field.name == "name":
-                locals()[field.name] = Column(String, unique=True, nullable=False)
-            else:
-                locals()[field.name] = _python_type_to_column(field.type, field.name)
-        
-        # Hardcoded database-specific field
+        # Hardcoded database-specific field for spatial indexing
         healpix_index = Column(BigInteger, index=True, nullable=False)
+        
+        def columns_to_dict(self):
+            return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
+    
+    # Dynamically add all SkySource fields after class definition
+    _add_dynamic_columns_to_model(Source, SkySource)
 
 Migrations
 ~~~~~~~~~~
