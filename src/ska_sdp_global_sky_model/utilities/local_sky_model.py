@@ -521,7 +521,7 @@ class LocalSkyModel:
         try:
             metadata.write()
         except MetaData.ValidationError as err:
-            LOGGER.error(f"Validation failed with error(s): {err.errors}")
+            LOGGER.error("Validation failed with error(s): %s", err.errors)
             raise err
 
     # --------------------------
