@@ -8,7 +8,7 @@ Running the application database
 ================================
 
 The application expects a PostgreSQL database to be available.
-The database will needs the following environment variables to be set
+The database needs the following environment variables to be set
 correctly:
 
 - POSTGRES_USER: The database user, which should have access to the database
@@ -16,7 +16,7 @@ correctly:
 - POSTGRES_DB_NAME: The database name.
 - POSTGRES_HOST: The host that the database is available on.
     (It is vital that the container has access to this host)
-- POSTGRES_SCHEMA_NAME: The shema that is available to the user for the user.
+- POSTGRES_SCHEMA_NAME: The schema that is available to the user for the user.
 
 Schema management
 -----------------
