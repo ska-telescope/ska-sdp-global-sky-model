@@ -4,6 +4,7 @@ Provides save and load functions for a local sky model.
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 from dataclasses import dataclass, field
@@ -12,6 +13,8 @@ from typing import Any, ClassVar, Dict, List, Literal, Optional, Sequence, Tuple
 
 import numpy
 from ska_sdp_dataproduct_metadata import MetaData
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -518,7 +521,7 @@ class LocalSkyModel:
         try:
             metadata.write()
         except MetaData.ValidationError as err:
-            print("Validation failed with error(s): %s", err.errors)
+            LOGGER.error(f"Validation failed with error(s): {err.errors}")
             raise err
 
     # --------------------------
