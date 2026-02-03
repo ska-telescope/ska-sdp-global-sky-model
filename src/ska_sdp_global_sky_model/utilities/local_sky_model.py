@@ -6,20 +6,13 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import Any, ClassVar, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy
+
+from ska_sdp_dataproduct_metadata import MetaData
 
 
 @dataclass
@@ -68,8 +61,9 @@ class LocalSkyModel:
     # Schema is a dictionary of column specifiers.
     schema: Dict[str, "LocalSkyModel.ColumnSpec"] = field(default_factory=dict)
 
-    # Header key, value pairs.
+    # Header and metadata key, value pairs.
     _header: Dict[str, Any] = field(default_factory=dict)
+    _metadata: Dict[str, Any] = field(default_factory=dict)
 
     # Data are stored here.
     _cols: Dict[str, Union[numpy.ndarray, List[str]]] = field(default_factory=dict)
@@ -417,12 +411,14 @@ class LocalSkyModel:
 
         return model
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata_dir: str = ".") -> None:
         """
         Save this sky model to a CSV text file.
 
         :param path: Path of CSV text file to write.
         :type path: str
+        :param metadata_dir: Directory in which to write YAML metadata file.
+        :type metadata_dir: str
         """
 
         # Open the file.
@@ -475,6 +471,57 @@ class LocalSkyModel:
                 # Write the row data.
                 out.write(",".join(tokens) + "\n")
 
+        # Write the YAML metadata file.
+        if metadata_dir:
+            self.save_metadata(os.path.join(metadata_dir, "ska-data-product.yaml"), path)
+
+    def save_metadata(self, yaml_path: str, lsm_path: str) -> None:
+        """
+        Saves the metadata for this sky model to a YAML file.
+        This is called by save(), so it should not normally be called
+        separately.
+
+        :param yaml_path: Path to YAML file to write.
+        :type yaml_path: str
+        :param lsm_path: Path of local sky model file.
+        :type lsm_path: str
+        """
+        metadata = MetaData()
+        metadata.output_path = yaml_path
+
+        # Write any special values that have been set
+        # (e.g. the execution block ID).
+        if "execution_block_id" in self._metadata:
+            metadata.set_execution_block_id(self._metadata["execution_block_id"])
+
+        # Get a handle to the top-level metadata dictionary.
+        data = metadata.get_data()
+
+        # Create the header dictionary.
+        header = {
+            "number_of_sources": self.num_rows,
+        }
+        header.update(self._header)
+
+        # Update the metadata contents.
+        parent = "local_sky_model"
+        data[parent] = {}
+        data[parent]["header"] = header
+        data[parent]["columns"] = self.column_names
+
+        # Save the LSM file name in the metadata.
+        metadata.new_file(
+            dp_path=lsm_path,
+            description="Local sky model CSV text file",
+        )
+
+        # Write to disk (automatically validates the metadata).
+        try:
+            metadata.write()
+        except MetaData.ValidationError as err:
+            print("Validation failed with error(s): %s", err.errors)
+            raise err
+
     # --------------------------
     # Other public accessors.
     # --------------------------
@@ -505,9 +552,9 @@ class LocalSkyModel:
         :return: List of column names.
         :rtype: List[str]
         """
-        return list(self.schema.keys())
+        return self.columns
 
-    def set_header(self, header: Dict[str, Any]):
+    def set_header(self, header: Dict[str, Any]) -> None:
         """
         Set header key, value pairs. These are written to the file as comments.
 
@@ -516,6 +563,17 @@ class LocalSkyModel:
         """
         for key, value in header.items():
             self._header[key] = value
+
+    def set_metadata(self, metadata: Dict[str, Any]) -> None:
+        """
+        Set metadata key, value pairs.
+        These are written to appropriate sections of the YAML file.
+
+        :param metadata: Metadata values to set.
+        :type metadata: Dict[str, Any]
+        """
+        for key, value in metadata.items():
+            self._metadata[key] = value
 
     def set_row(self, row_index: int, row_data: Dict[str, Any]) -> None:
         """
