@@ -160,10 +160,7 @@ def get_sources_by_criteria(
     ra: float = None,
     dec: float = None,
     flux_wide: float = None,
-    telescope: str = None,
-    fov: float = None,
 ) -> list[Source]:
-    # pylint: disable=unused-argument
     """
     This function retrieves all Source entries matching the provided criteria.
 
@@ -175,8 +172,6 @@ def get_sources_by_criteria(
         ra: Right Ascension (optional)
         dec: Declination (optional)
         flux_wide: Minimum I polarization flux (optional)
-        telescope: Telescope name (optional, not used in simplified model)
-        fov: Field of view (optional, not used in simplified model)
 
     Returns:
         A list of Source objects matching the criteria.
