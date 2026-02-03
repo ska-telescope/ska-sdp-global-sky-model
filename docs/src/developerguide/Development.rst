@@ -175,8 +175,8 @@ The [models.py](src/ska_sdp_global_sky_model/api/app/models.py) file defines two
     - **Hardcoded methods**: ``columns_to_dict()`` is maintained manually for consistent
       API behavior
 
-How Dynamic Column Generation Works
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dynamic Column Generation
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 At module import time, the ``Source`` class definition:
 
@@ -188,8 +188,7 @@ At module import time, the ``Source`` class definition:
 This means when the upstream dataclass changes (e.g., new field added), the database
 model automatically includes that field on the next import—no code generation needed.
 
-Example: The Dynamic Field Loop
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**Example:**
 
 .. code-block:: python
 
@@ -210,9 +209,8 @@ Example: The Dynamic Field Loop
         # Hardcoded database-specific field
         healpix_index = Column(BigInteger, index=True, nullable=False)
 
-
-Creating and Applying Migrations
----------------------------------
+Migrations
+~~~~~~~~~~
 
 After modifying the database models (e.g., adding hardcoded fields or changing methods),
 a migration needs to be created. Alembic can auto-generate these migrations by comparing
