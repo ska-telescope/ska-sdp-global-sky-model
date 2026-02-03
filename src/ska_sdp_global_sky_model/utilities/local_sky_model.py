@@ -5,13 +5,12 @@ Provides save and load functions for a local sky model.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy
-
 from ska_sdp_dataproduct_metadata import MetaData
 
 
