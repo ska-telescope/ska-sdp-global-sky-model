@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Utilities to write a local sky model CSV file and associated metadata.
+  (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__)
 - [Added] Alembic migrations to ease schema management.
   (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
 - Added etcd service to docker-compose setup and updated documentation
