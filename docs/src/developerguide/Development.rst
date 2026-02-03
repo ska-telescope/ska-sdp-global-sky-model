@@ -143,22 +143,3 @@ The test suite implements several key mocking strategies:
            # Test code here
 
 See [test_main.py](tests/test_main.py) for a complete example of the mocking implementation.
-
-Updating the schema
-===================
-
-After updating the schema (models.py) a migration needs to be created. These can either be created manually
-or by auto-generating. Auto generating these is the recommended path. This can be done by running the following
-command:
-
-.. code-block:: bash
-
-    $ make create-migration MIGRATION_NOTE="migration_note"
-
-
-The migration files are stored in src/ska_sdp_global_sky_model/alembic/versions. These should be added to the
-repository. Applying the migrations can be done by running the command:
-
-.. code-block:: bash
-
-    $ make migrate

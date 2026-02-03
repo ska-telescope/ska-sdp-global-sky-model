@@ -16,6 +16,7 @@ The *ska-sdp-global-sky-model* repository contains the code for the SKA Global S
 
   developerguide/Development
   developerguide/Deployment
+  developerguide/Database
 
 .. toctree::
   :maxdepth: 1
