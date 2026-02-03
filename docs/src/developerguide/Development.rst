@@ -32,10 +32,14 @@ Database Services
 -----------------
 
 **PostgreSQL Database**
-    Stores the global sky model catalog data including:
+    Stores the global sky model catalog data in the following tables:
     
-    - Source metadata
-    - Catalog versions and layers
+    - Source table: Contains all source properties including position (RA/Dec), flux measurements,
+      spectral indices, polarization data, and morphological parameters
+    - GlobalSkyModelMetadata table: Stores catalog version information and reference frequency
+    
+    The schema is dynamically generated from the ``ska-sdp-datamodels`` package to ensure
+    consistency with the canonical data model.
 
 **etcd**
     A distributed key-value store used by the SKA SDP configuration system. The application 
@@ -144,16 +148,78 @@ The test suite implements several key mocking strategies:
 
 See [test_main.py](tests/test_main.py) for a complete example of the mocking implementation.
 
-Updating the schema
-===================
+Database Schema Management
+==========================
 
-After updating the schema (models.py) a migration needs to be created. These can either be created manually
-or by auto-generating. Auto generating these is the recommended path. This can be done by running the following
-command:
+The ``Source`` model dynamically generates columns from the dataclasses
+defined in ``ska-sdp-datamodels``, while database-specific concerns (indexes, methods)
+are hardcoded for maintainability.
+
+Schema Architecture
+-------------------
+
+The ``models.py`` file defines two models using a hybrid approach:
+
+**Source Model (Hybrid)**
+    - **Dynamically generated columns**: Field names and types are read from the 
+      ``SkySource`` dataclass at module import time, ensuring automatic synchronization
+      with upstream data model changes
+    - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
+      spatial indexing and is not part of the scientific data model
+
+**GlobalSkyModelMetadata Model (Hybrid)**
+    - **Dynamically generated columns**: Field names and types are read from the
+      ``GlobalSkyModelMetadata`` dataclass at module import time
+
+Dynamic Column Generation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The dynamic column generation happens at module import time through the 
+``_add_dynamic_columns_to_model()`` helper function:
+
+1. The function iterates over the dataclass's ``__annotations__`` dictionary
+2. Each field's type annotation is converted to an appropriate SQLAlchemy column type
+3. Columns are added as attributes to the model class using ``setattr()``
+4. Special handling ensures the ``name`` field is unique and not nullable
+
+This approach runs once when the module is first imported. Subsequent imports use the
+cached module with fully-formed classes. When the upstream dataclass changes (e.g., 
+new field added), the database model automatically includes that field on the next import—no 
+code generation needed.
+
+**Example:**
+
+.. code-block:: python
+
+    from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
+    
+    class Source(Base):
+        __tablename__ = "source"
+        
+        # Hardcoded primary key
+        id = mapped_column(Integer, primary_key=True, autoincrement=True)
+        
+        # Hardcoded database-specific field for spatial indexing
+        healpix_index = Column(BigInteger, index=True, nullable=False)
+        
+        def columns_to_dict(self):
+            return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
+    
+    # Dynamically add all SkySource fields after class definition
+    _add_dynamic_columns_to_model(Source, SkySource)
+
+Migrations
+~~~~~~~~~~
+
+After modifying the database models (e.g., adding hardcoded fields or changing methods),
+a migration needs to be created. Alembic can auto-generate these migrations by comparing
+the current database state to the model definitions.
+
+Create a migration with:
 
 .. code-block:: bash
 
-    $ make create-migration
+    $ make create-migration MIGRATION_NOTE="migration_note"
 
 
 The migration files are stored in src/ska_sdp_global_sky_model/alembic/versions. These should be added to the

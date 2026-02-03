@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog, post_process
-from ska_sdp_global_sky_model.api.app.model import Source
+from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
+from ska_sdp_global_sky_model.api.app.models import Source
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
@@ -103,18 +103,6 @@ def ingest_racs(db: Session = Depends(get_db)):
     return ingest(db, RACS)
 
 
-@app.get("/optimise-json", summary="Create a point source for testing")
-def optimise_json(db: Session = Depends(get_db)):
-    """Optimise the catalogue"""
-    try:
-        logger.debug("Optimising the catalogue...")
-        if post_process(db):
-            return "success"
-        return "Error (catalog already ingested)"
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        return f"Error {e}"
-
-
 @app.get("/sources", summary="See all the point sources")
 def get_point_sources(db: Session = Depends(get_db)):
     """Retrieve all point sources"""
@@ -123,7 +111,7 @@ def get_point_sources(db: Session = Depends(get_db)):
     logger.info("Retrieved all point sources for all %s sources", str(len(sources)))
     source_list = []
     for source in sources:
-        source_list.append([source.name, source.RAJ2000, source.DECJ2000])
+        source_list.append([source.name, source.ra, source.dec])
     return source_list
 
 
