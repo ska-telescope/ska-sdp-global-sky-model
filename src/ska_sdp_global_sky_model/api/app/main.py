@@ -181,7 +181,7 @@ async def upload_rcal(
     try:
         # Accept common CSV mime types
         allowed_types = ["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]
-        if file.content_type not in allowed_types and not file.filename.endswith('.csv'):
+        if file.content_type not in allowed_types and not file.filename.endswith(".csv"):
             raise HTTPException(
                 status_code=400, detail="Invalid file type. Please upload a CSV file."
             )
