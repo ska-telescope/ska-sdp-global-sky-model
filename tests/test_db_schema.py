@@ -134,9 +134,6 @@ class TestSourceModel:
             q_pol=0.1,
             u_pol=0.2,
             v_pol=0.05,
-            pol_frac=0.3,
-            pol_ang=0.78,
-            rot_meas=10.5,
         )
 
         db_session.add(source)
@@ -151,9 +148,6 @@ class TestSourceModel:
         assert retrieved.q_pol == 0.1
         assert retrieved.u_pol == 0.2
         assert retrieved.v_pol == 0.05
-        assert retrieved.pol_frac == 0.3
-        assert retrieved.pol_ang == 0.78
-        assert retrieved.rot_meas == 10.5
 
     def test_source_unique_name_constraint(self, db_session):
         """Test that source names must be unique."""
@@ -183,7 +177,7 @@ class TestSourceModel:
     def test_source_columns_to_dict_method(self, db_session):
         """Test the columns_to_dict method."""
         source = Source(
-            name="DictTestSource",
+            component_id="DictTestSource",
             ra=111.11,
             dec=-22.22,
             i_pol=3.33,
@@ -224,13 +218,9 @@ class TestSourceModel:
         assert retrieved.pos_ang is None
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
-        assert retrieved.spec_curv is None
         assert retrieved.q_pol is None
         assert retrieved.u_pol is None
         assert retrieved.v_pol is None
-        assert retrieved.pol_frac is None
-        assert retrieved.pol_ang is None
-        assert retrieved.rot_meas is None
 
     def test_source_spec_idx_as_json(self, db_session):
         """Test that Spec_Idx field properly stores JSON data."""
