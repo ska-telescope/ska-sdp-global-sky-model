@@ -15,7 +15,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModelMetadata as GSMMetadataDataclass,
 )
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkySource,
+    SkyComponent,
 )
 from sqlalchemy import JSON, create_engine, event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
@@ -371,12 +371,12 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
 
 
 class TestSourceModelDataclassSync:
-    """Tests to verify Source model stays in sync with SkySource dataclass."""
+    """Tests to verify Source model stays in sync with SkyComponent dataclass."""
 
     def test_all_dataclass_fields_present_in_model(self):
-        """Test that all fields from SkySource are present in Source model."""
+        """Test that all fields from SkyComponent are present in Source model."""
         # Get all field names from the dataclass
-        dataclass_fields = set(SkySource.__annotations__.keys())
+        dataclass_fields = set(SkyComponent.__annotations__.keys())
 
         # Get all column names from the Source model
         inspector = inspect(engine)
@@ -395,12 +395,12 @@ class TestSourceModelDataclassSync:
         missing_fields = dataclass_fields - model_columns
         assert (
             not missing_fields
-        ), f"Fields from SkySource dataclass missing in Source model: {missing_fields}"
+        ), f"Fields from SkyComponent dataclass missing in Source model: {missing_fields}"
 
     def test_model_has_only_expected_columns(self):
         """Test that Source model doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
-        expected_columns = set(SkySource.__annotations__.keys())
+        expected_columns = set(SkyComponent.__annotations__.keys())
         expected_columns.update(["id", "healpix_index"])
 
         # Get actual model columns
@@ -421,7 +421,7 @@ class TestSourceModelDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + 2 database-specific (id, healpix_index)
-        expected_count = len(SkySource.__annotations__) + 2
+        expected_count = len(SkyComponent.__annotations__) + 2
 
         # Get actual count
         inspector = inspect(engine)

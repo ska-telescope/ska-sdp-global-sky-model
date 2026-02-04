@@ -61,7 +61,7 @@ def start_thread():  # pragma: no cover
 
 def _db_watcher():  # pragma: no cover
     """Outer watcher function"""
-    while False:
+    while True:
         try:
             config = ska_sdp_config.Config()
             _watcher_process(config)
