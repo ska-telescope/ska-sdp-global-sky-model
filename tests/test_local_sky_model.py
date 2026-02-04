@@ -3,6 +3,7 @@ This module contains tests for local_sky_model.py
 """
 
 import os
+import tempfile
 
 import numpy
 import pytest
@@ -155,39 +156,38 @@ class TestLocalSkyModel:
         )
 
         # Write the model to a CSV file.
-        csv_file_name = "_temp_test_local_sky_model_save_and_load.csv"
-        yaml_dir_name = "_temp_test_yaml_metadata_dir"
-        yaml_path = os.path.join(yaml_dir_name, "ska-data-product.yaml")
-        model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            csv_file_name = os.path.join(
+                temp_dir_name, "_temp_test_local_sky_model_save_and_load.csv"
+            )
+            yaml_dir_name = os.path.join(temp_dir_name, "_temp_test_yaml_metadata_dir")
+            yaml_path = os.path.join(yaml_dir_name, "ska-data-product.yaml")
+            model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
 
-        # Load the CSV file into a new model.
-        model2 = LocalSkyModel.load(csv_file_name)
-        assert model2.num_rows == num_rows
+            # Load the CSV file into a new model.
+            model2 = LocalSkyModel.load(csv_file_name)
+            assert model2.num_rows == num_rows
 
-        # Check that the values were read correctly.
-        for i in range(model2.num_rows):
-            assert model2["component_id"][i] == f"GLEAM J{10 * i:06d}-{i:06d}"
-            assert model2["ra"][i] == pytest.approx(11.0 * i)
-            assert model2["dec"][i] == pytest.approx(-i)
-            assert model2["i_pol"][i] == pytest.approx(10.0 * i)
-            assert bool(model2["log_spec_idx"][i]) == bool(i % 2)
-            assert numpy.allclose(model2["spec_idx"][i], [-0.7, i / 100.0, 0.123])
-            assert model2["ref_freq"][i] == pytest.approx(100e6 + 1e6 * i)
-            assert model2["q_pol"][i] == pytest.approx(2.0 * i)
-            assert model2["u_pol"][i] == pytest.approx(-1.1 * i)
-            assert model2["v_pol"][i] == pytest.approx(0.1 * i)
+            # Check that the values were read correctly.
+            for i in range(model2.num_rows):
+                assert model2["component_id"][i] == f"GLEAM J{10 * i:06d}-{i:06d}"
+                assert model2["ra"][i] == pytest.approx(11.0 * i)
+                assert model2["dec"][i] == pytest.approx(-i)
+                assert model2["i_pol"][i] == pytest.approx(10.0 * i)
+                assert bool(model2["log_spec_idx"][i]) == bool(i % 2)
+                assert numpy.allclose(model2["spec_idx"][i], [-0.7, i / 100.0, 0.123])
+                assert model2["ref_freq"][i] == pytest.approx(100e6 + 1e6 * i)
+                assert model2["q_pol"][i] == pytest.approx(2.0 * i)
+                assert model2["u_pol"][i] == pytest.approx(-1.1 * i)
+                assert model2["v_pol"][i] == pytest.approx(0.1 * i)
 
-        # Check that the metadata YAML file was written correctly.
-        with open(yaml_path, encoding="utf-8") as stream:
-            metadata = yaml.safe_load(stream)
-        assert metadata["local_sky_model"]["columns"] == column_names
-        assert metadata["local_sky_model"]["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
-        assert metadata["local_sky_model"]["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
-        assert metadata["local_sky_model"]["header"]["number_of_sources"] == num_rows
-        assert metadata["execution_block"] == execution_block_id
-        assert metadata["files"][0]["path"] == csv_file_name
-
-        # Clean up.
-        os.remove(csv_file_name)
-        os.remove(yaml_path)
-        os.removedirs(yaml_dir_name)
+            # Check that the metadata YAML file was written correctly.
+            with open(yaml_path, encoding="utf-8") as stream:
+                metadata = yaml.safe_load(stream)
+            lsm_dict = metadata["local_sky_model"]
+            assert lsm_dict["columns"] == column_names
+            assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
+            assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
+            assert lsm_dict["header"]["number_of_sources"] == num_rows
+            assert metadata["execution_block"] == execution_block_id
+            assert metadata["files"][0]["path"] == csv_file_name
