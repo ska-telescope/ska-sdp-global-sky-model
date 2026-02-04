@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from ska_sdp_global_sky_model.api.app.crud import (
     get_coverage_range,
-    get_sources_by_criteria,
+    get_sky_components_by_criteria,
 )
 from ska_sdp_global_sky_model.configuration.config import Base
 
@@ -111,15 +111,15 @@ class TestGetCoverageRange:
         assert str(excinfo.value) == "Declination (Dec) must be between -90 and 90 degrees."
 
 
-class TestGetSourcesByCriteria:  # pylint: disable=too-few-public-methods
-    """Tests for the get_sources_by_criteria function"""
+class TestGetSkyComponentsByCriteria:  # pylint: disable=too-few-public-methods
+    """Tests for the get_sky_components_by_criteria function"""
 
-    def test_get_sources_by_criteria_no_filters(
+    def test_get_sky_components_by_criteria_no_filters(
         self, test_db
     ):  # pylint: disable=redefined-outer-name
-        """Test getting sources without filters."""
-        result = get_sources_by_criteria(test_db)
-        # Should return empty list or all sources
+        """Test getting components without filters."""
+        result = get_sky_components_by_criteria(test_db)
+        # Should return empty list or all components
         assert isinstance(result, list)
 
 

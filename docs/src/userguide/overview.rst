@@ -104,34 +104,32 @@ How It Works:
 
 Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
 
-The schema stores all source information in a single Source table. Each row represents a celestial source with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
+The schema stores all component information in a single SkyComponent table. Each row represents a celestial component with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
 
-The Source model uses a hybrid approach where most fields are dynamically generated from the 
-``SkySource`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization 
+The SkyComponent model uses a hybrid approach where most fields are dynamically generated from the 
+``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization 
 with upstream data model changes:
 
 This approach allows the schema to automatically adapt when new fields are added to the upstream 
 dataclass, while maintaining database-specific concerns like spatial indexing.
 
-Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sources meeting the criteria of the given parameters are returned as the Local Sky Model.
+Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sky components meeting the criteria of the given parameters are returned as the Local Sky Model.
 
 .. code-block:: javascript
   
     {
-      "sources": [
-        {
-          "id": <number>,
-          "name": "<source_name>",
+      "components": {
+        "<component_id>": {
           "ra": <number>,
           "dec": <number>,
           "i_pol": <number>,
-          "spec_idx": [<number>, ...],
           "major_ax": <number>,
           "minor_ax": <number>,
           "pos_ang": <number>,
+          "spec_idx": [<number>, ...],
           "q_pol": <number>,
           "u_pol": <number>,
           "v_pol": <number>
         }
-      ]
+      }
     }

@@ -15,7 +15,7 @@ import numpy as np
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.models import Source
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
@@ -144,8 +144,8 @@ def create_source_catalog_entry(
     db: Session,
     source: Dict[str, float],
     component_id: str,
-) -> Optional[Source]:
-    """Creates a Source object from the provided source data and adds it to the database.
+) -> Optional[SkyComponent]:
+    """Creates a SkyComponent object from the provided source data and adds it to the database.
 
     If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
     the function will return None.
@@ -155,22 +155,22 @@ def create_source_catalog_entry(
         source: A dictionary containing the source information with the following keys:
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-        component_id: String for the source component_id.
+            * `CATALOG_NAME` (optional): Name of the component in the e.g. GLEAM catalog.
+        component_id: String for the sky component_id.
 
     Returns:
-        The created Source object, or None if required keys are missing from the data.
+        The created SkyComponent object, or None if required keys are missing from the data.
     """
 
-    source_catalog = Source(
+    sky_component = SkyComponent(
         component_id=component_id,
         healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         ra=source["RAJ2000"],
         dec=source["DEJ2000"],
     )
-    db.add(source_catalog)
+    db.add(sky_component)
     db.commit()
-    return source_catalog
+    return sky_component
 
 
 def coerce_floats(source_dict: dict) -> dict:
@@ -194,19 +194,19 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     }
 
 
-def commit_batch(db: Session, source_objs: list):
-    """Commit batches of sources."""
-    if not source_objs:
+def commit_batch(db: Session, component_objs: list):
+    """Commit batches of sky components."""
+    if not component_objs:
         return
 
-    db.bulk_insert_mappings(Source, source_objs)
+    db.bulk_insert_mappings(SkyComponent, component_objs)
     db.commit()
-    source_objs.clear()
+    component_objs.clear()
 
 
 def process_source_data_batch(
     db: Session,
-    source_data,
+    catalog_data,
     catalog_config,
     batch_size: int = 500,
 ) -> bool:
@@ -215,7 +215,7 @@ def process_source_data_batch(
 
     Args:
         db: SQLAlchemy session.
-        source_data: List of source dictionaries.
+        catalog_data: List of catalog source dictionaries.
         catalog_config: Catalog configuration.
         batch_size: Number of sources to insert per DB commit.
     Returns:
@@ -223,14 +223,14 @@ def process_source_data_batch(
     """
     logger.info("Processing source data in batches...")
 
-    existing_component_id = set(r[0] for r in db.query(Source.component_id).all())
+    existing_component_id = set(r[0] for r in db.query(SkyComponent.component_id).all())
 
-    source_objs = []
+    component_objs = []
 
     count = 0
-    total = len(source_data)
+    total = len(catalog_data)
 
-    for src in source_data:
+    for src in catalog_data:
         source_dict = dict(src) if not hasattr(src, "items") else src
         component_id = str(source_dict.get(catalog_config["source"]))
 
@@ -247,12 +247,12 @@ def process_source_data_batch(
                 calculate_percentage(count, total),
             )
 
-        source_objs.append(build_source_mapping(source_dict, catalog_config))
+        component_objs.append(build_source_mapping(source_dict, catalog_config))
 
         if count % batch_size == 0:
-            commit_batch(db, source_objs)
+            commit_batch(db, component_objs)
 
-    commit_batch(db, source_objs)
+    commit_batch(db, component_objs)
 
     return True
 
@@ -262,7 +262,7 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     Downloads and processes a source catalog for a specified telescope.
 
     This function retrieves source data from the specified catalog and processes
-    it into the schema, storing all information directly in the Source table.
+    it into the schema, storing all information directly in the SkyComponent table.
 
     Args:
         db: An SQLAlchemy database session object.
@@ -280,17 +280,17 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
     # Get catalog data
-    source_data = get_data_catalog_selector(catalog_config["ingest"])
+    catalog_data = get_data_catalog_selector(catalog_config["ingest"])
 
-    for sources, _ingest_bands in source_data:
-        if not sources:
+    for components, _ingest_bands in catalog_data:
+        if not components:
             logger.error("No data-sources found for %s", catalog_name)
             return False
-        logger.info("Processing %s sources", str(len(sources)))
+        logger.info("Processing %s components", str(len(components)))
         # Process source data
         if not process_source_data_batch(
             db,
-            sources,
+            components,
             catalog_config,
         ):
             return False

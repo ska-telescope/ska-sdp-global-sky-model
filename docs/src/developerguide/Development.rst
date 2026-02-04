@@ -34,7 +34,7 @@ Database Services
 **PostgreSQL Database**
     Stores the global sky model catalog data in the following tables:
     
-    - Source table: Contains all source properties including position (RA/Dec), flux measurements,
+    - SkyComponent table: Contains all sky component properties including position (RA/Dec), flux measurements,
       spectral indices, polarization data, and morphological parameters
     - GlobalSkyModelMetadata table: Stores catalog version information and reference frequency
     

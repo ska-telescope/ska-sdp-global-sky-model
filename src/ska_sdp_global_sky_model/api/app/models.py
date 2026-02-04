@@ -2,7 +2,7 @@
 SQLAlchemy ORM Models
 
 This module defines database models using a hybrid approach:
-- Source model: Dynamically generates columns from ska_sdp_datamodels.SkyComponent
+- SkyComponent model: Dynamically generates columns from ska_sdp_datamodels.SkyComponent
   dataclass with hardcoded database-specific fields (healpix_index) and methods
 - GlobalSkyModelMetadata: Dynamically generates columns from
   ska_sdp_datamodels.GlobalSkyModelMetadata dataclass with hardcoded methods
@@ -22,7 +22,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModelMetadata as GSMMetadataDataclass,
 )
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkyComponent,
+    SkyComponent as SkyComponentDataclass,
 )
 from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String
 from sqlalchemy.dialects.postgresql import JSON
@@ -111,15 +111,15 @@ class GlobalSkyModelMetadata(Base):
         return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
 
 
-class Source(Base):
+class SkyComponent(Base):
     """
-    Represents a source in the sky model.
+    Represents a sky component in the sky model.
 
     This model dynamically generates columns from the SkyComponent dataclass,
     ensuring automatic synchronization with upstream data model changes.
     """
 
-    __tablename__ = "source"
+    __tablename__ = "sky_component"
     __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
@@ -135,4 +135,4 @@ class Source(Base):
 
 # Apply dynamic column generation to models
 _add_dynamic_columns_to_model(GlobalSkyModelMetadata, GSMMetadataDataclass)
-_add_dynamic_columns_to_model(Source, SkyComponent)
+_add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
