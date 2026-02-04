@@ -223,7 +223,7 @@ def process_source_data_batch(
     """
     logger.info("Processing source data in batches...")
 
-    existing_component_id = set(r[0] for r in db.query(SkyComponent.component_id).all())
+    existing_component_id = {r[0] for r in db.query(SkyComponent.component_id).all()}
 
     component_objs = []
 
