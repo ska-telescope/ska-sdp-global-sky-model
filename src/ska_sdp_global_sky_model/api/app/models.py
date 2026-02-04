@@ -89,7 +89,7 @@ def _add_dynamic_columns_to_model(model_class, dataclass):
         dataclass: The dataclass whose fields will be mapped to columns
     """
     for col, dtype in dataclass.__annotations__.items():
-        if col == "name" or col == "component_id":
+        if col in ("name", "component_id"):
             # Special handling for name field - make it unique and not nullable
             setattr(model_class, col, Column(String, unique=True, nullable=False))
         else:
