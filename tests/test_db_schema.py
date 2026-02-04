@@ -88,7 +88,7 @@ class TestSourceModel:
 
         # Check for essential columns
         assert "id" in columns
-        assert "name" in columns
+        assert "component_id" in columns
         assert "ra" in columns
         assert "dec" in columns
         assert "i_pol" in columns
@@ -99,7 +99,7 @@ class TestSourceModel:
     def test_source_create_instance(self, db_session):
         """Test creating a Source instance."""
         source = Source(
-            name="TestSource1",
+            component_id="TestSource1",
             ra=123.45,
             dec=-67.89,
             i_pol=1.23,
@@ -110,9 +110,9 @@ class TestSourceModel:
         db_session.commit()
 
         # Verify it was created
-        retrieved = db_session.query(Source).filter_by(name="TestSource1").first()
+        retrieved = db_session.query(Source).filter_by(component_id="TestSource1").first()
         assert retrieved is not None
-        assert retrieved.name == "TestSource1"
+        assert retrieved.component_id == "TestSource1"
         assert retrieved.ra == 123.45
         assert retrieved.dec == -67.89
         assert retrieved.i_pol == 1.23
@@ -121,7 +121,7 @@ class TestSourceModel:
     def test_source_with_optional_fields(self, db_session):
         """Test creating a Source with optional fields."""
         source = Source(
-            name="TestSource2",
+            component_id="TestSource2",
             ra=45.67,
             dec=12.34,
             i_pol=5.67,
@@ -142,7 +142,7 @@ class TestSourceModel:
         db_session.add(source)
         db_session.commit()
 
-        retrieved = db_session.query(Source).filter_by(name="TestSource2").first()
+        retrieved = db_session.query(Source).filter_by(component_id="TestSource2").first()
         assert retrieved.major_ax == 0.001
         assert retrieved.minor_ax == 0.0005
         assert retrieved.pos_ang == 1.57
@@ -158,7 +158,7 @@ class TestSourceModel:
     def test_source_unique_name_constraint(self, db_session):
         """Test that source names must be unique."""
         source1 = Source(
-            name="UniqueSource",
+            component_id="UniqueSource",
             ra=100.0,
             dec=50.0,
             i_pol=1.0,
@@ -169,7 +169,7 @@ class TestSourceModel:
 
         # Try to create another source with the same name
         source2 = Source(
-            name="UniqueSource",
+            component_id="UniqueSource",
             ra=200.0,
             dec=60.0,
             i_pol=2.0,
@@ -197,7 +197,7 @@ class TestSourceModel:
         source_dict = source.columns_to_dict()
 
         assert isinstance(source_dict, dict)
-        assert source_dict["name"] == "DictTestSource"
+        assert source_dict["component_id"] == "DictTestSource"
         assert source_dict["ra"] == 111.11
         assert source_dict["dec"] == -22.22
         assert source_dict["i_pol"] == 3.33
@@ -208,7 +208,7 @@ class TestSourceModel:
     def test_source_nullable_fields(self, db_session):
         """Test that nullable fields can be None."""
         source = Source(
-            name="NullTestSource",
+            component_id="NullTestSource",
             ra=180.0,
             dec=0.0,
             i_pol=1.0,
@@ -218,7 +218,7 @@ class TestSourceModel:
         db_session.add(source)
         db_session.commit()
 
-        retrieved = db_session.query(Source).filter_by(name="NullTestSource").first()
+        retrieved = db_session.query(Source).filter_by(component_id="NullTestSource").first()
         assert retrieved.major_ax is None
         assert retrieved.minor_ax is None
         assert retrieved.pos_ang is None
@@ -236,7 +236,7 @@ class TestSourceModel:
         """Test that Spec_Idx field properly stores JSON data."""
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
         source = Source(
-            name="SpecIdxSource",
+            component_id="SpecIdxSource",
             ra=90.0,
             dec=45.0,
             i_pol=2.0,
@@ -246,7 +246,7 @@ class TestSourceModel:
         db_session.add(source)
         db_session.commit()
 
-        retrieved = db_session.query(Source).filter_by(name="SpecIdxSource").first()
+        retrieved = db_session.query(Source).filter_by(component_id="SpecIdxSource").first()
         assert retrieved.spec_idx == spec_idx_values
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
@@ -346,14 +346,14 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
 
         # Create sources
         source1 = Source(
-            name="IntegrationSource1",
+            component_id="IntegrationSource1",
             ra=100.0,
             dec=50.0,
             i_pol=1.5,
             healpix_index=77777,
         )
         source2 = Source(
-            name="IntegrationSource2",
+            component_id="IntegrationSource2",
             ra=200.0,
             dec=-30.0,
             i_pol=2.5,

@@ -143,7 +143,7 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
 def create_source_catalog_entry(
     db: Session,
     source: Dict[str, float],
-    name: str,
+    component_id: str,
 ) -> Optional[Source]:
     """Creates a Source object from the provided source data and adds it to the database.
 
@@ -156,14 +156,14 @@ def create_source_catalog_entry(
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
             * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-        name: String for the source name.
+        component_id: String for the source component_id.
 
     Returns:
         The created Source object, or None if required keys are missing from the data.
     """
 
     source_catalog = Source(
-        name=name,
+        component_id=component_id,
         healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         ra=source["RAJ2000"],
         dec=source["DEJ2000"],
@@ -187,7 +187,7 @@ def coerce_floats(source_dict: dict) -> dict:
 def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     """Construct source structure."""
     return {
-        "name": str(source_dict.get(catalog_config["source"])),
+        "component_id": str(source_dict.get(catalog_config["source"])),
         "healpix_index": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
         "ra": source_dict["RAJ2000"],
         "dec": source_dict["DEJ2000"],
@@ -223,7 +223,7 @@ def process_source_data_batch(
     """
     logger.info("Processing source data in batches...")
 
-    existing_names = set(r[0] for r in db.query(Source.name).all())
+    existing_component_id = set(r[0] for r in db.query(Source.component_id).all())
 
     source_objs = []
 
@@ -232,13 +232,13 @@ def process_source_data_batch(
 
     for src in source_data:
         source_dict = dict(src) if not hasattr(src, "items") else src
-        name = str(source_dict.get(catalog_config["source"]))
+        component_id = str(source_dict.get(catalog_config["source"]))
 
-        if name in existing_names:
+        if component_id in existing_component_id:
             continue
-        existing_names.add(name)
+        existing_component_id.add(component_id)
 
-        source_dict["name"] = name
+        source_dict["component_id"] = component_id
         count += 1
 
         if count % 100 == 0:

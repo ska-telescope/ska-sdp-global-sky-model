@@ -94,7 +94,7 @@ def get_local_sky_model(
         results["sources"][source.id] = {
             "ra": source.ra,
             "dec": source.dec,
-            "name": source.name,
+            "component_id": source.component_id,
             "i_pol": source.i_pol,
             "major_ax": source.major_ax,
             "minor_ax": source.minor_ax,
