@@ -39,9 +39,6 @@ def get_local_sky_model(
     This function extracts this information from a database based on the provided
     right ascension (RA) and declination (Dec) coordinates.
 
-    Note: The new simplified datamodel stores all source information in the Source table,
-    including flux measurements that were previously in separate tables.
-
     Args:
         db (Any): A database object containing the global sky model.
         ra (list[float]): A list containing right ascension values (in degrees).
@@ -67,7 +64,6 @@ def get_local_sky_model(
     """
 
     # Query sources within field of view
-    # Note: In the simplified model, flux is i_pol field directly on Source
     sources = (
         db.query(Source)
         .where(
@@ -163,9 +159,6 @@ def get_sources_by_criteria(
 ) -> list[Source]:
     """
     This function retrieves all Source entries matching the provided criteria.
-
-    Note: In the simplified datamodel, all measurements are stored directly on the Source.
-    The flux_wide parameter maps to i_pol field.
 
     Args:
         db: A sqlalchemy database session object

@@ -4,16 +4,16 @@ CHANGELOG
 Development
 -----------
 
-- [Updated] Complete refactoring for simplified ska-sdp-datamodels v1.0.2+ schema.
+- [Updated] Hybrid dynamic database models for automatic synchronization with ska-sdp-datamodels.
   **Breaking Changes:**
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
-  - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables only
-  - All measurements and properties stored directly on source records
-  - List-type fields (e.g., ``spec_idx``) stored as JSON columns
-  - Field names now match data model exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index`` (no longer using ``RAJ2000``, ``DECJ2000``, etc.)
-  - Schema generation refactored with separated configuration in ``scripts/db_config.py``
-  [Added] Use ``make generate-schema`` to regenerate the schema after datamodel updates.
-  (`MR[TBD] <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/[TBD]>`__)
+  - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables
+  - Both models dynamically generate columns from their respective dataclasses at module import time
+  - Field names match ska-sdp-datamodels exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index``
+- [Removed] Code generation scripts (``generate_models.py``, ``db_config.py``) in favor of runtime dynamic generation
+- [Removed] Unused ``post_process`` function and ``to_json`` method from Source model
+- [Removed] Unused ``/optimise-json`` API endpoint
+  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
 - [Added] Alembic migrations to ease schema management.
   (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
 - Added etcd service to docker-compose setup and updated documentation
