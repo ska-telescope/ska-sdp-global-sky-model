@@ -7,9 +7,10 @@ from __future__ import annotations
 import logging
 import math
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, ClassVar, Literal
 
 import numpy
 from ska_sdp_dataproduct_metadata import MetaData
@@ -23,7 +24,7 @@ class LocalSkyModel:
     Sky model data class as a structure of numpy.ndarray arrays.
     """
 
-    columns: List[str]
+    columns: list[str]
     num_rows: int
     max_vector_len: int
 
@@ -35,12 +36,12 @@ class LocalSkyModel:
     ColumnType = Literal["float", "str", "int", "bool", "vector_float"]
 
     # Names of non-float column types (anything else is treated as a float):
-    _STR_COLUMNS: ClassVar[Dict] = {"component_id", "name"}
-    _INT_COLUMNS: ClassVar[Dict] = {}
-    _BOOL_COLUMNS: ClassVar[Dict] = {"log_spec_idx", "logarithmicsi"}
+    _STR_COLUMNS: ClassVar[dict] = {"component_id", "name"}
+    _INT_COLUMNS: ClassVar[dict] = {}
+    _BOOL_COLUMNS: ClassVar[dict] = {"log_spec_idx", "logarithmicsi"}
 
     # Names of default-vector-float columns:
-    _VECTOR_FLOAT_COLUMNS: ClassVar[Dict] = {"spec_idx", "spectralindex"}
+    _VECTOR_FLOAT_COLUMNS: ClassVar[dict] = {"spec_idx", "spectralindex"}
     _NUM_TERMS: ClassVar[str] = "_num_terms"  # Key suffix for vector length.
 
     # Sentinel values for null "missing" entries. (Using NaN for floats.)
@@ -61,14 +62,14 @@ class LocalSkyModel:
         column_type: "LocalSkyModel.ColumnType"
 
     # Schema is a dictionary of column specifiers.
-    schema: Dict[str, "LocalSkyModel.ColumnSpec"] = field(default_factory=dict)
+    schema: dict[str, "LocalSkyModel.ColumnSpec"] = field(default_factory=dict)
 
     # Header and metadata key, value pairs.
-    _header: Dict[str, Any] = field(default_factory=dict)
-    _metadata: Dict[str, Any] = field(default_factory=dict)
+    _header: dict[str, Any] = field(default_factory=dict)
+    _metadata: dict[str, Any] = field(default_factory=dict)
 
     # Data are stored here.
-    _cols: Dict[str, Union[numpy.ndarray, List[str]]] = field(default_factory=dict)
+    _cols: dict[str, numpy.ndarray | list[str]] = field(default_factory=dict)
 
     # --------------------------
     # Column wrapper.
@@ -112,7 +113,7 @@ class LocalSkyModel:
     # --------------------------
 
     @staticmethod
-    def _convert_to_float_array(value: Any, max_len: int) -> Tuple[numpy.ndarray, int]:
+    def _convert_to_float_array(value: Any, max_len: int) -> tuple[numpy.ndarray, int]:
         """
         Converts input to a numpy float array.
 
@@ -121,7 +122,7 @@ class LocalSkyModel:
         :param max_len: Length of vector to return as a numpy array.
         :type max_len: int
         :return: Tuple containing the array, and the number of valid entries.
-        :rtype: Tuple[ndarray, int]
+        :rtype: tuple[ndarray, int]
         """
         out = numpy.full((max_len,), numpy.nan, dtype=numpy.float64)
         if value is None:
@@ -151,7 +152,7 @@ class LocalSkyModel:
         return out, num_elements
 
     @staticmethod
-    def _find_format_string(lines: Sequence[str]) -> Optional[str]:
+    def _find_format_string(lines: Sequence[str]) -> str | None:
         """
         Returns the core part (the column specifiers) of the format string.
         This removes outer brackets and the "format" identifier.
@@ -189,7 +190,7 @@ class LocalSkyModel:
             return "[]"
         if num_terms == 1:
             return str(vec_row[0])
-        parts: List[str] = []
+        parts: list[str] = []
         for i in range(num_terms):
             value = float(vec_row[i])
             if math.isnan(value):
@@ -198,14 +199,14 @@ class LocalSkyModel:
         return "[]" if not parts else "[" + ",".join(parts) + "]"
 
     @staticmethod
-    def _get_column_type(name: str, vector_columns_lower: List[str]) -> "LocalSkyModel.ColumnType":
+    def _get_column_type(name: str, vector_columns_lower: list[str]) -> "LocalSkyModel.ColumnType":
         """
         Returns the column type for the given column name.
 
         :param name: Name of column.
         :type name: str
         :param vector_columns_lower: Names of columns containing vectors.
-        :type vector_columns_lower: List[str]
+        :type vector_columns_lower: list[str]
         :return: Column type of specified column, as a string.
         :rtype: ColumnType
         """
@@ -221,7 +222,7 @@ class LocalSkyModel:
         return "float"
 
     @staticmethod
-    def _tokenize_line(line: str) -> List[str]:
+    def _tokenize_line(line: str) -> list[str]:
         """
         Split a line into tokens, assuming commas as separators,
         while respecting quotes and bracketed vectors.
@@ -229,15 +230,15 @@ class LocalSkyModel:
         :param line: String to split up.
         :type line: str
         :return: List of tokens.
-        :rtype: List[str]
+        :rtype: list[str]
         """
         if line is None:
             return []
-        tokens: List[str] = []
-        buf: List[str] = []
+        tokens: list[str] = []
+        buf: list[str] = []
         bracket_depth = 0
         in_quotes = False
-        quote_char: Optional[str] = None
+        quote_char: str | None = None
 
         index = 0
         length = len(line)
@@ -290,22 +291,22 @@ class LocalSkyModel:
     @classmethod
     def empty(
         cls,
-        column_names: List[str],
+        column_names: list[str],
         num_rows: int,
         max_vector_len: int = 5,
-        vector_columns: Optional[Sequence[str]] = None,
+        vector_columns: Sequence[str] | None = None,
     ) -> "LocalSkyModel":
         """
         Create a sized, empty sky model containing the specified columns.
 
         :param column_names: List of column names.
-        :type column_names: List[str]
+        :type column_names: list[str]
         :param num_rows: Number of empty rows to create.
         :type num_rows: int
         :param max_vector_len: Maximum length of vector in vector columns.
         :type max_vector_len: int
         :param vector_columns: Names of columns containing vectors.
-        :type vector_columns: Optional[Sequence[str]]
+        :type vector_columns: Sequence[str] or None
         :return: An empty sky model.
         :rtype: LocalSkyModel
         """
@@ -316,7 +317,7 @@ class LocalSkyModel:
         vector_columns_lower = [column.lower() for column in vector_columns]
 
         # Construct the schema based on the supplied columns.
-        schema: Dict[str, LocalSkyModel.ColumnSpec] = {}
+        schema: dict[str, LocalSkyModel.ColumnSpec] = {}
         for column in column_names:
             schema[column] = cls.ColumnSpec(
                 column, cls._get_column_type(column, vector_columns_lower)
@@ -324,7 +325,7 @@ class LocalSkyModel:
 
         # Create empty dictionary for column data.
         # The dictionary key is the column name.
-        cols: Dict[str, Union[numpy.ndarray, List[str]]] = {}
+        cols: dict[str, numpy.ndarray | list[str]] = {}
 
         # Loop over each item in the schema and create the appropriate array.
         # Fill each array with the "missing" sentinel value.
@@ -361,7 +362,7 @@ class LocalSkyModel:
         cls,
         path: str,
         max_vector_len: int = 5,
-        vector_columns: Optional[Sequence[str]] = None,
+        vector_columns: Sequence[str] | None = None,
     ) -> "LocalSkyModel":
         """
         Load a sky model CSV text file into the data model.
@@ -371,7 +372,7 @@ class LocalSkyModel:
         :param max_vector_len: Maximum vector length for vector column types.
         :type max_vector_len: int
         :param vector_columns: Names of columns that may contain vectors.
-        :type vector_columns: Optional[Sequence[str]]
+        :type vector_columns: Sequence[str] or None
         :return: Sky model data structure.
         :rtype: LocalSkyModel
         """
@@ -445,7 +446,7 @@ class LocalSkyModel:
             for row_index in range(self.num_rows):
 
                 # Construct string tokens for the line.
-                tokens: List[str] = []
+                tokens: list[str] = []
 
                 # Loop over columns.
                 for name in self.columns:
@@ -553,44 +554,44 @@ class LocalSkyModel:
         raise KeyError(column_name)
 
     @property
-    def column_names(self) -> List[str]:
+    def column_names(self) -> list[str]:
         """
         Return a list of column names in the sky model.
 
         :return: List of column names.
-        :rtype: List[str]
+        :rtype: list[str]
         """
         return self.columns
 
-    def set_header(self, header: Dict[str, Any]) -> None:
+    def set_header(self, header: dict[str, Any]) -> None:
         """
         Set header key, value pairs. These are written to the file as comments.
 
         :param header: Header data to set.
-        :type header: Dict[str, Any]
+        :type header: dict[str, Any]
         """
         for key, value in header.items():
             self._header[key] = value
 
-    def set_metadata(self, metadata: Dict[str, Any]) -> None:
+    def set_metadata(self, metadata: dict[str, Any]) -> None:
         """
         Set metadata key, value pairs.
         These are written to appropriate sections of the YAML file.
 
         :param metadata: Metadata values to set.
-        :type metadata: Dict[str, Any]
+        :type metadata: dict[str, Any]
         """
         for key, value in metadata.items():
             self._metadata[key] = value
 
-    def set_row(self, row_index: int, row_data: Dict[str, Any]) -> None:
+    def set_row(self, row_index: int, row_data: dict[str, Any]) -> None:
         """
         Sets all parameters for a single source.
 
         :param row_index: Row index of source to set.
         :type row_index: int
         :param row_data: Data to set for this row.
-        :type row_data: Dict[str, Any]
+        :type row_data: dict[str, Any]
         """
         for name, value in row_data.items():
             if name not in self.schema:
