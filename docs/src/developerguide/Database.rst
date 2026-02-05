@@ -27,16 +27,16 @@ are hardcoded for maintainability.
 Schema Architecture
 -------------------
 
-The ``models.py`` file defines two models using a hybrid approach:
+The ``models.py`` file defines two models:
 
-**SkyComponent Model (Hybrid)**
+**SkyComponent Model**
     - **Dynamically generated columns**: Field names and types are read from the 
       ``SkyComponent`` dataclass at module import time, ensuring automatic synchronization
       with upstream data model changes
     - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
       spatial indexing and is not part of the scientific data model
 
-**GlobalSkyModelMetadata Model (Hybrid)**
+**GlobalSkyModelMetadata Model**
     - **Dynamically generated columns**: Field names and types are read from the
       ``GlobalSkyModelMetadata`` dataclass at module import time
 

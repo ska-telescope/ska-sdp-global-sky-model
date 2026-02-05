@@ -1,7 +1,7 @@
 """
 SQLAlchemy ORM Models
 
-This module defines database models using a hybrid approach:
+This module defines database models:
 - SkyComponent model: Dynamically generates columns from ska_sdp_datamodels.SkyComponent
   dataclass with hardcoded database-specific fields (healpix_index) and methods
 - GlobalSkyModelMetadata: Dynamically generates columns from

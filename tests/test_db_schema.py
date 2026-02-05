@@ -3,9 +3,8 @@ Unit tests for the database models.
 
 These tests validate that the SQLAlchemy models work correctly,
 including their methods and field configurations. Both SkyComponent and
-GlobalSkyModelMetadata models use a hybrid approach: dynamically
-generated columns from dataclasses with hardcoded database-specific
-fields and methods.
+GlobalSkyModelMetadata models: dynamically generated columns from dataclasses
+with hardcoded database-specific fields and methods.
 """
 
 # pylint: disable=redefined-outer-name,duplicate-code

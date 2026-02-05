@@ -4,7 +4,7 @@ CHANGELOG
 Development
 -----------
 
-- [Updated] Hybrid dynamic database models for automatic synchronization with ska-sdp-datamodels.
+- [Updated] Dynamic database models for automatic synchronization with ska-sdp-datamodels.
   **Breaking Changes:**
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
   - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables
