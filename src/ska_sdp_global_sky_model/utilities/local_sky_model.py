@@ -438,7 +438,7 @@ class LocalSkyModel:
             out.write(f"# ({format_string}) = format\n")
 
             # Write the header.
-            out.write(f"# NUMBER_OF_SOURCES: {self.num_rows}\n")
+            out.write(f"# NUMBER_OF_COMPONENTS: {self.num_rows}\n")
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")
 
@@ -508,7 +508,7 @@ class LocalSkyModel:
 
         # Create the header dictionary.
         header = {
-            "number_of_sources": self.num_rows,
+            "NUMBER_OF_COMPONENTS": self.num_rows,
         }
         header.update(self._header)
 
@@ -586,9 +586,9 @@ class LocalSkyModel:
 
     def set_row(self, row_index: int, row_data: dict[str, Any]) -> None:
         """
-        Sets all parameters for a single source.
+        Sets all parameters for a single component.
 
-        :param row_index: Row index of source to set.
+        :param row_index: Row index of component to set.
         :type row_index: int
         :param row_data: Data to set for this row.
         :type row_data: dict[str, Any]
@@ -600,11 +600,11 @@ class LocalSkyModel:
 
     def set_value(self, name: str, row_index: int, value: Any) -> None:
         """
-        Sets a single parameter for a single source.
+        Sets a single parameter for a single component.
 
         :param name: Column name to set.
         :type name: str
-        :param row_index: Row index of source to set.
+        :param row_index: Row index of component to set.
         :type row_index: int
         :param value: Value to set for parameter. Use 'None' for 'missing'.
         :type value: Any
