@@ -4,7 +4,7 @@ Basic testing of the API
 """
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,7 +13,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from ska_sdp_global_sky_model.api.app.main import Base, app, get_db
+from ska_sdp_global_sky_model.api.app.main import (
+    Base,
+    app,
+    get_db,
+    ingest,
+    wait_for_db,
+)
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -476,3 +482,110 @@ def test_upload_batch_default_catalog(myclient, monkeypatch):
     response_data = response.json()
     assert response_data["status"] == "uploading"
     assert "upload_id" in response_data
+
+
+def test_wait_for_db_success():
+    """Test wait_for_db succeeds on first try."""
+    mock_engine = MagicMock()
+    mock_connection = MagicMock()
+    mock_engine.connect.return_value.__enter__.return_value = mock_connection
+
+    with patch("ska_sdp_global_sky_model.api.app.main.engine", mock_engine):
+        wait_for_db()
+
+    # Verify connection was attempted
+    mock_engine.connect.assert_called_once()
+
+
+def test_wait_for_db_retry():
+    """Test wait_for_db retries on failure then succeeds."""
+    mock_engine = MagicMock()
+    # Fail once, then succeed
+    mock_engine.connect.side_effect = [
+        Exception("Connection failed"),
+        MagicMock(),
+    ]
+
+    with (
+        patch("ska_sdp_global_sky_model.api.app.main.engine", mock_engine),
+        patch("time.sleep") as mock_sleep,
+    ):
+        wait_for_db()
+
+    # Verify retry occurred
+    assert mock_engine.connect.call_count == 2
+    mock_sleep.assert_called_once_with(5)
+
+
+def test_ingest_success():
+    """Test ingest function with successful catalog ingestion."""
+    mock_db = MagicMock()
+    test_config = {"name": "test_catalog", "ingest": {}}
+
+    with patch(
+        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", return_value=True
+    ) as mock_get_catalog:
+        result = ingest(mock_db, test_config)
+
+    assert result is True
+    mock_get_catalog.assert_called_once_with(mock_db, test_config)
+
+
+def test_ingest_failure():
+    """Test ingest function with failed catalog ingestion."""
+    mock_db = MagicMock()
+    test_config = {"name": "test_catalog", "ingest": {}}
+
+    with patch(
+        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", return_value=False
+    ) as mock_get_catalog:
+        result = ingest(mock_db, test_config)
+
+    assert result is False
+    mock_get_catalog.assert_called_once_with(mock_db, test_config)
+
+
+def test_ingest_exception():
+    """Test ingest function with exception."""
+    mock_db = MagicMock()
+    test_config = {"name": "test_catalog", "ingest": {}}
+
+    with patch(
+        "ska_sdp_global_sky_model.api.app.main.get_full_catalog",
+        side_effect=Exception("Test error"),
+    ):
+        with pytest.raises(Exception, match="Test error"):
+            ingest(mock_db, test_config)
+
+
+def test_ingest_gleam_endpoint(myclient):
+    """Test the ingest-gleam-catalog endpoint."""
+    with patch("ska_sdp_global_sky_model.api.app.main.ingest", return_value=True):
+        response = myclient.get("/ingest-gleam-catalog")
+
+    assert response.status_code == 200
+    assert response.json() is True
+
+
+def test_ingest_racs_endpoint(myclient):
+    """Test the ingest-racs-catalog endpoint."""
+    with patch("ska_sdp_global_sky_model.api.app.main.ingest", return_value=True):
+        response = myclient.get("/ingest-racs-catalog")
+
+    assert response.status_code == 200
+    assert response.json() is True
+
+
+def test_upload_rcal_ingest_failure(myclient):
+    """Test upload_rcal when catalog ingest fails."""
+    file_path = "tests/data/rcal.csv"
+
+    with (
+        open(file_path, "rb") as file,
+        patch("ska_sdp_global_sky_model.api.app.main.ingest", return_value=False),
+    ):
+        files = {"file": ("rcal.csv", file, "text/csv")}
+        response = myclient.post("/upload-rcal", files=files)
+
+    assert response.status_code == 500
+    assert "Error ingesting the catalogue" in response.json()["message"]

@@ -21,7 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
-from ska_sdp_global_sky_model.api.app.models import Source
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
@@ -132,12 +132,12 @@ def ingest_racs(db: Session = Depends(get_db)):
 def get_point_sources(db: Session = Depends(get_db)):
     """Retrieve all point sources"""
     logger.info("Retrieving all point sources...")
-    sources = db.query(Source).all()
-    logger.info("Retrieved all point sources for all %s sources", str(len(sources)))
-    source_list = []
-    for source in sources:
-        source_list.append([source.name, source.ra, source.dec])
-    return source_list
+    components = db.query(SkyComponent).all()
+    logger.info("Retrieved all point sources for all %s components", str(len(components)))
+    component_list = []
+    for component in components:
+        component_list.append([component.component_id, component.ra, component.dec])
+    return component_list
 
 
 @app.get("/local_sky_model", response_class=ORJSONResponse)

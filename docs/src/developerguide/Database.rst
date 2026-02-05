@@ -20,7 +20,7 @@ correctly:
 Database Schema Management
 ==========================
 
-The ``Source`` model dynamically generates columns from the dataclasses
+The ``SkyComponent`` model dynamically generates columns from the dataclasses
 defined in ``ska-sdp-datamodels``, while database-specific concerns (indexes, methods)
 are hardcoded for maintainability.
 
@@ -29,9 +29,9 @@ Schema Architecture
 
 The ``models.py`` file defines two models using a hybrid approach:
 
-**Source Model (Hybrid)**
+**SkyComponent Model (Hybrid)**
     - **Dynamically generated columns**: Field names and types are read from the 
-      ``SkySource`` dataclass at module import time, ensuring automatic synchronization
+      ``SkyComponent`` dataclass at module import time, ensuring automatic synchronization
       with upstream data model changes
     - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
       spatial indexing and is not part of the scientific data model
@@ -60,10 +60,12 @@ code generation needed.
 
 .. code-block:: python
 
-    from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
+    from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+        SkyComponent as SkyComponentDataclass,
+    )
     
-    class Source(Base):
-        __tablename__ = "source"
+    class SkyComponent(Base):
+        __tablename__ = "sky_component"
         
         # Hardcoded primary key
         id = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -74,8 +76,8 @@ code generation needed.
         def columns_to_dict(self):
             return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
     
-    # Dynamically add all SkySource fields after class definition
-    _add_dynamic_columns_to_model(Source, SkySource)
+    # Dynamically add all fields from the SkyComponent dataclass to the model
+    _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
 
 Schema management with Alembic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

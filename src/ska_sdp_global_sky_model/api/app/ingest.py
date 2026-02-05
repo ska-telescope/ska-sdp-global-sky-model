@@ -15,7 +15,7 @@ import numpy as np
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.models import Source
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
@@ -143,9 +143,9 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
 def create_source_catalog_entry(
     db: Session,
     source: Dict[str, float],
-    name: str,
-) -> Optional[Source]:
-    """Creates a Source object from the provided source data and adds it to the database.
+    component_id: str,
+) -> Optional[SkyComponent]:
+    """Creates a SkyComponent object from the provided source data and adds it to the database.
 
     If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
     the function will return None.
@@ -155,22 +155,22 @@ def create_source_catalog_entry(
         source: A dictionary containing the source information with the following keys:
             * `RAJ2000`: Right Ascension (J2000) in degrees (required).
             * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `CATALOG_NAME` (optional): Name of the source in the e.g. GLEAM catalog.
-        name: String for the source name.
+            * `CATALOG_NAME` (optional): Name of the component in the e.g. GLEAM catalog.
+        component_id: String for the sky component_id.
 
     Returns:
-        The created Source object, or None if required keys are missing from the data.
+        The created SkyComponent object, or None if required keys are missing from the data.
     """
 
-    source_catalog = Source(
-        name=name,
+    sky_component = SkyComponent(
+        component_id=component_id,
         healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
         ra=source["RAJ2000"],
         dec=source["DEJ2000"],
     )
-    db.add(source_catalog)
+    db.add(sky_component)
     db.commit()
-    return source_catalog
+    return sky_component
 
 
 def coerce_floats(source_dict: dict) -> dict:
@@ -207,7 +207,7 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     Construct source structure mapping CSV columns to SkySource schema.
 
     Maps all available fields from the CSV to the SkySource dataclass fields.
-    Required fields: name, ra, dec, i_pol
+    Required fields: component_id, ra, dec, i_pol
     Optional fields include source shape, spectral features, and polarization.
 
     Args:
@@ -219,7 +219,7 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     """
     # Build base source mapping with required fields
     source_mapping = {
-        "name": str(source_dict.get(catalog_config["source"])),
+        "component_id": str(source_dict.get(catalog_config["source"])),
         "healpix_index": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
         "ra": to_float(source_dict.get("RAJ2000")),
         "dec": to_float(source_dict.get("DEJ2000")),
@@ -289,7 +289,7 @@ def validate_source_mapping(  # pylint: disable=too-many-return-statements
     row_info = f" (row {row_num})" if row_num > 0 else ""
 
     # Check required fields exist
-    required_fields = {"name": str, "ra": float, "dec": float, "i_pol": float}
+    required_fields = {"component_id": str, "ra": float, "dec": float, "i_pol": float}
     for field, expected_type in required_fields.items():
         if field not in source_mapping or source_mapping[field] is None:
             return False, f"Missing required field '{field}'{row_info}"
@@ -349,19 +349,19 @@ def validate_source_mapping(  # pylint: disable=too-many-return-statements
     return True, None
 
 
-def commit_batch(db: Session, source_objs: list):
-    """Commit batches of sources."""
-    if not source_objs:
+def commit_batch(db: Session, component_objs: list):
+    """Commit batches of sky components."""
+    if not component_objs:
         return
 
-    db.bulk_insert_mappings(Source, source_objs)
+    db.bulk_insert_mappings(SkyComponent, component_objs)
     db.commit()
-    source_objs.clear()
+    component_objs.clear()
 
 
 def process_source_data_batch(
     db: Session,
-    source_data,
+    catalog_data,
     catalog_config,
     batch_size: int = 500,
 ) -> bool:
@@ -370,7 +370,7 @@ def process_source_data_batch(
 
     Args:
         db: SQLAlchemy session.
-        source_data: List of source dictionaries.
+        catalog_data: List of catalog source dictionaries.
         catalog_config: Catalog configuration.
         batch_size: Number of sources to insert per DB commit.
     Returns:
@@ -378,23 +378,23 @@ def process_source_data_batch(
     """
     logger.info("Processing source data in batches...")
 
-    existing_names = set(r[0] for r in db.query(Source.name).all())
+    existing_component_id = {r[0] for r in db.query(SkyComponent.component_id).all()}
 
-    source_objs = []
+    component_objs = []
 
     count = 0
-    total = len(source_data)
+    total = len(catalog_data)
     validation_errors = 0
 
-    for src in source_data:
+    for src in catalog_data:
         source_dict = dict(src) if not hasattr(src, "items") else src
-        name = str(source_dict.get(catalog_config["source"]))
+        component_id = str(source_dict.get(catalog_config["source"]))
 
-        if name in existing_names:
+        if component_id in existing_component_id:
             continue
-        existing_names.add(name)
+        existing_component_id.add(component_id)
 
-        source_dict["name"] = name
+        source_dict["component_id"] = component_id
         count += 1
 
         if count % 100 == 0:
@@ -409,7 +409,7 @@ def process_source_data_batch(
         # Validate the source mapping before adding to batch
         is_valid, error_msg = validate_source_mapping(source_mapping, count)
         if not is_valid:
-            logger.warning("Skipping invalid source %s: %s", name, error_msg)
+            logger.warning("Skipping invalid source %s: %s", component_id, error_msg)
             validation_errors += 1
             if validation_errors > 100:  # Stop if too many errors
                 logger.error(
@@ -418,12 +418,12 @@ def process_source_data_batch(
                 return False
             continue
 
-        source_objs.append(source_mapping)
+        component_objs.append(source_mapping)
 
         if count % batch_size == 0:
-            commit_batch(db, source_objs)
+            commit_batch(db, component_objs)
 
-    commit_batch(db, source_objs)
+    commit_batch(db, component_objs)
 
     if validation_errors > 0:
         logger.warning("Completed with %d validation errors (sources skipped)", validation_errors)
@@ -436,7 +436,7 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     Downloads and processes a source catalog for a specified telescope.
 
     This function retrieves source data from the specified catalog and processes
-    it into the schema, storing all information directly in the Source table.
+    it into the schema, storing all information directly in the SkyComponent table.
 
     Args:
         db: An SQLAlchemy database session object.
@@ -454,17 +454,17 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
     # Get catalog data
-    source_data = get_data_catalog_selector(catalog_config["ingest"])
+    catalog_data = get_data_catalog_selector(catalog_config["ingest"])
 
-    for sources, _ingest_bands in source_data:
-        if not sources:
+    for components, _ingest_bands in catalog_data:
+        if not components:
             logger.error("No data-sources found for %s", catalog_name)
             return False
-        logger.info("Processing %s sources", str(len(sources)))
+        logger.info("Processing %s components", str(len(components)))
         # Process source data
         if not process_source_data_batch(
             db,
-            sources,
+            components,
             catalog_config,
         ):
             return False

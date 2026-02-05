@@ -11,12 +11,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
 
-from ska_sdp_global_sky_model.api.app.models import Source
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 
 logger = logging.getLogger(__name__)
 
 
-class q3c_radial_query(GenericFunction):  # pylint: disable=abstract-method
+class q3c_radial_query(GenericFunction):
     """SQLAlchemy function for h3c_radial_query(hpx, center, radius) -> BOOLEAN"""
 
     type = Boolean()
@@ -50,8 +50,8 @@ def get_local_sky_model(
     Returns:
         dict: A dictionary containing the LSM data with structure:
             {
-                "sources": {
-                    source_id: {
+                "components": {
+                    component_id: {
                         "ra": float,
                         "dec": float,
                         "i_pol": float,
@@ -63,46 +63,41 @@ def get_local_sky_model(
             }
     """
 
-    # Query sources within field of view
-    sources = (
-        db.query(Source)
+    # Query sky components within field of view
+    components = (
+        db.query(SkyComponent)
         .where(
             q3c_radial_query(
-                Source.ra,
-                Source.dec,
+                SkyComponent.ra,
+                SkyComponent.dec,
                 float(ra[0]),
                 float(dec[0]),
                 float(fov),
             )
         )
-        .filter(Source.i_pol > flux_wide)
+        .filter(SkyComponent.i_pol > flux_wide)
         .all()
     )
 
-    # Return if no sources were found
-    if not sources:
-        return {"sources": {}}
+    # Return if no components were found
+    if not components:
+        return {"components": {}}
 
-    # Build results using the simplified Source model
-    results = {"sources": {}}
+    # Build results using the SkyComponent model
+    results = {"components": {}}
 
-    for source in sources:
-        results["sources"][source.id] = {
-            "ra": source.ra,
-            "dec": source.dec,
-            "name": source.name,
-            "i_pol": source.i_pol,
-            "major_ax": source.major_ax,
-            "minor_ax": source.minor_ax,
-            "pos_ang": source.pos_ang,
-            "spec_idx": source.spec_idx,
-            "polarization": {
-                "q": source.q_pol,
-                "u": source.u_pol,
-                "v": source.v_pol,
-                "frac": source.pol_frac,
-                "ang": source.pol_ang,
-            },
+    for component in components:
+        results["components"][component.component_id] = {
+            "ra": component.ra,
+            "dec": component.dec,
+            "i_pol": component.i_pol,
+            "major_ax": component.major_ax,
+            "minor_ax": component.minor_ax,
+            "pos_ang": component.pos_ang,
+            "spec_idx": component.spec_idx,
+            "q_pol": component.q_pol,
+            "u_pol": component.u_pol,
+            "v_pol": component.v_pol,
         }
 
     return results
@@ -151,14 +146,14 @@ def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float,
 # pylint: disable=too-many-arguments
 
 
-def get_sources_by_criteria(
+def get_sky_components_by_criteria(
     db: Session,
     ra: float = None,
     dec: float = None,
     flux_wide: float = None,
-) -> list[Source]:
+) -> list[SkyComponent]:
     """
-    This function retrieves all Source entries matching the provided criteria.
+    This function retrieves all SkyComponent entries matching the provided criteria.
 
     Args:
         db: A sqlalchemy database session object
@@ -167,18 +162,18 @@ def get_sources_by_criteria(
         flux_wide: Minimum I polarization flux (optional)
 
     Returns:
-        A list of Source objects matching the criteria.
+        A list of SkyComponent objects matching the criteria.
     """
-    query = db.query(Source)
+    query = db.query(SkyComponent)
 
     # Build filter conditions based on provided arguments
     filters = []
     if ra is not None:
-        filters.append(Source.ra == ra)
+        filters.append(SkyComponent.ra == ra)
     if dec is not None:
-        filters.append(Source.dec == dec)
+        filters.append(SkyComponent.dec == dec)
     if flux_wide is not None:
-        filters.append(Source.i_pol >= flux_wide)
+        filters.append(SkyComponent.i_pol >= flux_wide)
 
     # Combine filters using 'and_' if any filters are present
     if filters:

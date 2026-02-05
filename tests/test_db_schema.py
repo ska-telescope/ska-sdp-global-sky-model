@@ -2,7 +2,7 @@
 Unit tests for the database models.
 
 These tests validate that the SQLAlchemy models work correctly,
-including their methods and field configurations. Both Source and
+including their methods and field configurations. Both SkyComponent and
 GlobalSkyModelMetadata models use a hybrid approach: dynamically
 generated columns from dataclasses with hardcoded database-specific
 fields and methods.
@@ -15,7 +15,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModelMetadata as GSMMetadataDataclass,
 )
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkySource,
+    SkyComponent,
 )
 from sqlalchemy import JSON, create_engine, event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
@@ -24,8 +24,8 @@ from sqlalchemy.pool import StaticPool
 
 from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
-    Source,
 )
+from ska_sdp_global_sky_model.api.app.models import SkyComponent as SkyComponentModel
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Use in-memory SQLite for testing
@@ -63,32 +63,32 @@ def db_session():
     Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
 
-class TestSourceModel:
-    """Tests for the Source SQLAlchemy model."""
+class TestSkyComponentModel:
+    """Tests for the SkyComponent SQLAlchemy model."""
 
-    def test_source_table_exists(self):
-        """Test that Source table can be created."""
+    def test_sky_component_table_exists(self):
+        """Test that SkyComponent table can be created."""
         Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
         tables = inspector.get_table_names()
-        assert "Source" in tables or any("source" in t.lower() for t in tables)
+        assert "sky_component" in tables or any("sky_component" in t.lower() for t in tables)
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
-    def test_source_has_required_columns(self):
-        """Test that Source model has all required columns."""
+    def test_sky_component_has_required_columns(self):
+        """Test that SkyComponent model has all required columns."""
         Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
 
         # Get column names (handle both with and without schema)
         columns = []
         for table_name in inspector.get_table_names():
-            if "source" in table_name.lower():
+            if "sky_component" in table_name.lower():
                 columns = [col["name"] for col in inspector.get_columns(table_name)]
                 break
 
         # Check for essential columns
         assert "id" in columns
-        assert "name" in columns
+        assert "component_id" in columns
         assert "ra" in columns
         assert "dec" in columns
         assert "i_pol" in columns
@@ -96,32 +96,34 @@ class TestSourceModel:
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
-    def test_source_create_instance(self, db_session):
-        """Test creating a Source instance."""
-        source = Source(
-            name="TestSource1",
+    def test_sky_component_create_instance(self, db_session):
+        """Test creating a SkyComponent instance."""
+        component = SkyComponentModel(
+            component_id="TestSource1",
             ra=123.45,
             dec=-67.89,
             i_pol=1.23,
             healpix_index=12345,
         )
 
-        db_session.add(source)
+        db_session.add(component)
         db_session.commit()
 
         # Verify it was created
-        retrieved = db_session.query(Source).filter_by(name="TestSource1").first()
+        retrieved = (
+            db_session.query(SkyComponentModel).filter_by(component_id="TestSource1").first()
+        )
         assert retrieved is not None
-        assert retrieved.name == "TestSource1"
+        assert retrieved.component_id == "TestSource1"
         assert retrieved.ra == 123.45
         assert retrieved.dec == -67.89
         assert retrieved.i_pol == 1.23
         assert retrieved.healpix_index == 12345
 
-    def test_source_with_optional_fields(self, db_session):
-        """Test creating a Source with optional fields."""
-        source = Source(
-            name="TestSource2",
+    def test_sky_component_with_optional_fields(self, db_session):
+        """Test creating a SkyComponent with optional fields."""
+        component = SkyComponentModel(
+            component_id="TestSource2",
             ra=45.67,
             dec=12.34,
             i_pol=5.67,
@@ -134,15 +136,14 @@ class TestSourceModel:
             q_pol=0.1,
             u_pol=0.2,
             v_pol=0.05,
-            pol_frac=0.3,
-            pol_ang=0.78,
-            rot_meas=10.5,
         )
 
-        db_session.add(source)
+        db_session.add(component)
         db_session.commit()
 
-        retrieved = db_session.query(Source).filter_by(name="TestSource2").first()
+        retrieved = (
+            db_session.query(SkyComponentModel).filter_by(component_id="TestSource2").first()
+        )
         assert retrieved.major_ax == 0.001
         assert retrieved.minor_ax == 0.0005
         assert retrieved.pos_ang == 1.57
@@ -151,53 +152,50 @@ class TestSourceModel:
         assert retrieved.q_pol == 0.1
         assert retrieved.u_pol == 0.2
         assert retrieved.v_pol == 0.05
-        assert retrieved.pol_frac == 0.3
-        assert retrieved.pol_ang == 0.78
-        assert retrieved.rot_meas == 10.5
 
-    def test_source_unique_name_constraint(self, db_session):
-        """Test that source names must be unique."""
-        source1 = Source(
-            name="UniqueSource",
+    def test_sky_component_unique_name_constraint(self, db_session):
+        """Test that component names must be unique."""
+        component1 = SkyComponentModel(
+            component_id="UniqueSource",
             ra=100.0,
             dec=50.0,
             i_pol=1.0,
             healpix_index=11111,
         )
-        db_session.add(source1)
+        db_session.add(component1)
         db_session.commit()
 
-        # Try to create another source with the same name
-        source2 = Source(
-            name="UniqueSource",
+        # Try to create another component with the same name
+        component2 = SkyComponentModel(
+            component_id="UniqueSource",
             ra=200.0,
             dec=60.0,
             i_pol=2.0,
             healpix_index=22222,
         )
-        db_session.add(source2)
+        db_session.add(component2)
 
         with pytest.raises(Exception):  # Should raise IntegrityError
             db_session.commit()
 
-    def test_source_columns_to_dict_method(self, db_session):
+    def test_sky_component_columns_to_dict_method(self, db_session):
         """Test the columns_to_dict method."""
-        source = Source(
-            name="DictTestSource",
+        component = SkyComponentModel(
+            component_id="DictTestSource",
             ra=111.11,
             dec=-22.22,
             i_pol=3.33,
             healpix_index=33333,
             major_ax=0.002,
         )
-        db_session.add(source)
+        db_session.add(component)
         db_session.commit()
 
         # Test columns_to_dict
-        source_dict = source.columns_to_dict()
+        source_dict = component.columns_to_dict()
 
         assert isinstance(source_dict, dict)
-        assert source_dict["name"] == "DictTestSource"
+        assert source_dict["component_id"] == "DictTestSource"
         assert source_dict["ra"] == 111.11
         assert source_dict["dec"] == -22.22
         assert source_dict["i_pol"] == 3.33
@@ -205,48 +203,48 @@ class TestSourceModel:
         assert source_dict["major_ax"] == 0.002
         assert "id" in source_dict
 
-    def test_source_nullable_fields(self, db_session):
+    def test_sky_component_nullable_fields(self, db_session):
         """Test that nullable fields can be None."""
-        source = Source(
-            name="NullTestSource",
+        component = SkyComponentModel(
+            component_id="NullTestSource",
             ra=180.0,
             dec=0.0,
             i_pol=1.0,
             healpix_index=55555,
             # All optional fields left as None
         )
-        db_session.add(source)
+        db_session.add(component)
         db_session.commit()
 
-        retrieved = db_session.query(Source).filter_by(name="NullTestSource").first()
+        retrieved = (
+            db_session.query(SkyComponentModel).filter_by(component_id="NullTestSource").first()
+        )
         assert retrieved.major_ax is None
         assert retrieved.minor_ax is None
         assert retrieved.pos_ang is None
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
-        assert retrieved.spec_curv is None
         assert retrieved.q_pol is None
         assert retrieved.u_pol is None
         assert retrieved.v_pol is None
-        assert retrieved.pol_frac is None
-        assert retrieved.pol_ang is None
-        assert retrieved.rot_meas is None
 
-    def test_source_spec_idx_as_json(self, db_session):
-        """Test that Spec_Idx field properly stores JSON data."""
+    def test_sky_component_spec_idx_as_json(self, db_session):
+        """Test that spec_idx field properly stores JSON data."""
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
-        source = Source(
-            name="SpecIdxSource",
+        component = SkyComponentModel(
+            component_id="SpecIdxSource",
             ra=90.0,
             dec=45.0,
             i_pol=2.0,
             healpix_index=66666,
             spec_idx=spec_idx_values,
         )
-        db_session.add(source)
+        db_session.add(component)
         db_session.commit()
 
-        retrieved = db_session.query(Source).filter_by(name="SpecIdxSource").first()
+        retrieved = (
+            db_session.query(SkyComponentModel).filter_by(component_id="SpecIdxSource").first()
+        )
         assert retrieved.spec_idx == spec_idx_values
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
@@ -338,53 +336,53 @@ class TestGlobalSkyModelMetadataModel:
 class TestModelIntegration:  # pylint: disable=too-few-public-methods
     """Integration tests for models working together."""
 
-    def test_source_and_metadata_coexist(self, db_session):
-        """Test that Source and Metadata can both be stored in the same database."""
+    def test_sky_component_and_metadata_coexist(self, db_session):
+        """Test that SkyComponent and Metadata can both be stored in the same database."""
         # Create metadata
         metadata = GlobalSkyModelMetadata(version="1.0.0", ref_freq=1.4e9, epoch="J2000")
         db_session.add(metadata)
 
-        # Create sources
-        source1 = Source(
-            name="IntegrationSource1",
+        # Create components
+        component1 = SkyComponentModel(
+            component_id="IntegrationSource1",
             ra=100.0,
             dec=50.0,
             i_pol=1.5,
             healpix_index=77777,
         )
-        source2 = Source(
-            name="IntegrationSource2",
+        component2 = SkyComponentModel(
+            component_id="IntegrationSource2",
             ra=200.0,
             dec=-30.0,
             i_pol=2.5,
             healpix_index=88888,
         )
-        db_session.add_all([source1, source2])
+        db_session.add_all([component1, component2])
         db_session.commit()
 
         # Verify both types of records exist
         metadata_count = db_session.query(GlobalSkyModelMetadata).count()
-        source_count = db_session.query(Source).count()
+        component_count = db_session.query(SkyComponentModel).count()
 
         assert metadata_count == 1
-        assert source_count == 2
+        assert component_count == 2
 
 
-class TestSourceModelDataclassSync:
-    """Tests to verify Source model stays in sync with SkySource dataclass."""
+class TestSkyComponentModelDataclassSync:
+    """Tests to verify SkyComponent model stays in sync with SkyComponent dataclass."""
 
     def test_all_dataclass_fields_present_in_model(self):
-        """Test that all fields from SkySource are present in Source model."""
+        """Test that all fields from SkyComponent are present in SkyComponentModel."""
         # Get all field names from the dataclass
-        dataclass_fields = set(SkySource.__annotations__.keys())
+        dataclass_fields = set(SkyComponent.__annotations__.keys())
 
-        # Get all column names from the Source model
+        # Get all column names from the SkyComponent model
         inspector = inspect(engine)
         Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         model_columns = set()
         for table_name in inspector.get_table_names():
-            if "source" in table_name.lower():
+            if "sky_component" in table_name.lower():
                 model_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
 
@@ -395,12 +393,12 @@ class TestSourceModelDataclassSync:
         missing_fields = dataclass_fields - model_columns
         assert (
             not missing_fields
-        ), f"Fields from SkySource dataclass missing in Source model: {missing_fields}"
+        ), f"Fields from SkyComponent dataclass missing in SkyComponentModel: {missing_fields}"
 
     def test_model_has_only_expected_columns(self):
-        """Test that Source model doesn't have unexpected columns."""
+        """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
-        expected_columns = set(SkySource.__annotations__.keys())
+        expected_columns = set(SkyComponent.__annotations__.keys())
         expected_columns.update(["id", "healpix_index"])
 
         # Get actual model columns
@@ -409,19 +407,21 @@ class TestSourceModelDataclassSync:
 
         actual_columns = set()
         for table_name in inspector.get_table_names():
-            if "source" in table_name.lower():
+            if "sky_component" in table_name.lower():
                 actual_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         unexpected_columns = actual_columns - expected_columns
-        assert not unexpected_columns, f"Unexpected columns in Source model: {unexpected_columns}"
+        assert (
+            not unexpected_columns
+        ), f"Unexpected columns in SkyComponentModel: {unexpected_columns}"
 
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + 2 database-specific (id, healpix_index)
-        expected_count = len(SkySource.__annotations__) + 2
+        expected_count = len(SkyComponent.__annotations__) + 2
 
         # Get actual count
         inspector = inspect(engine)
@@ -429,7 +429,7 @@ class TestSourceModelDataclassSync:
 
         actual_count = 0
         for table_name in inspector.get_table_names():
-            if "source" in table_name.lower():
+            if "sky_component" in table_name.lower():
                 actual_count = len(inspector.get_columns(table_name))
                 break
 
