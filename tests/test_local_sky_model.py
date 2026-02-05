@@ -188,6 +188,6 @@ class TestLocalSkyModel:
             assert lsm_dict["columns"] == column_names
             assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
             assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
-            assert lsm_dict["header"]["number_of_sources"] == num_rows
+            assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
             assert metadata["execution_block"] == execution_block_id
             assert metadata["files"][0]["path"] == csv_file_name
