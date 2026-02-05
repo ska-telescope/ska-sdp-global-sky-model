@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.execute(
         text(
             "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
-            'ON source (q3c_ang2ipix("ra","dec"));'
+            'ON sky_component (q3c_ang2ipix("ra","dec"));'
         )
     )
 
