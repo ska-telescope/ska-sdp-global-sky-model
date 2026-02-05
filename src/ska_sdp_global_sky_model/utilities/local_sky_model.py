@@ -36,12 +36,12 @@ class LocalSkyModel:
     ColumnType = Literal["float", "str", "int", "bool", "vector_float"]
 
     # Names of non-float column types (anything else is treated as a float):
-    _STR_COLUMNS: ClassVar[dict] = {"component_id", "name"}
-    _INT_COLUMNS: ClassVar[dict] = {}
-    _BOOL_COLUMNS: ClassVar[dict] = {"log_spec_idx", "logarithmicsi"}
+    _STR_COLUMNS: ClassVar[set] = {"component_id", "name"}
+    _INT_COLUMNS: ClassVar[set] = {}
+    _BOOL_COLUMNS: ClassVar[set] = {"log_spec_idx", "logarithmicsi"}
 
     # Names of default-vector-float columns:
-    _VECTOR_FLOAT_COLUMNS: ClassVar[dict] = {"spec_idx", "spectralindex"}
+    _VECTOR_FLOAT_COLUMNS: ClassVar[set] = {"spec_idx", "spectralindex"}
     _NUM_TERMS: ClassVar[str] = "_num_terms"  # Key suffix for vector length.
 
     # Sentinel values for null "missing" entries. (Using NaN for floats.)
