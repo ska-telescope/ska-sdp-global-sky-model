@@ -90,6 +90,32 @@ The file `alembic/env.py` is generated when initialising the tool,
 and has been extended to add functionality adapting to translate schema names as well as
 avoiding manual indexes.
 
+Running Migration in Kubernetes
+===============================
+
+When the GSM is deployed within a kubernetes environment the database will need
+to get the migrations run manually, there are 2 ways of doing this.
+
+Migrating Directly from GSM Container
+-------------------------------------
+
+Running a console/shell into a running instance you can run:
+
+.. code-block:: bash
+
+    $ bash /db_migrate.sh
+
+If for some reason you need to downgrade the database (which shouldn't be needed), you can run:
+
+.. code-block:: bash
+
+    $ bash /db_downgrade.sh
+
+Using a Job
+-----------
+
+A Job can be used, refer to the `SKA Testing chart <https://gitlab.com/ska-telescope/sdp/ska-sdp-integration/-/blob/master/charts/ska-sdp-testing/templates/gsm-postgres.yaml?ref_type=heads>`_ for an example.
+
 Development Environment
 =======================
 

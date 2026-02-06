@@ -42,10 +42,10 @@ generate-schema:
 	poetry run python scripts/generate_db_schema.py
 
 k8s-migrate:
-	cd /usr/local/lib/python3.10/dist-packages/ska_sdp_global_sky_model && alembic upgrade head
+	@echo "Run 'bash /db_migrate.sh' inside container"
 
 k8s-migrate-rollback:
-	cd /usr/local/lib/python3.10/dist-packages/ska_sdp_global_sky_model && alembic downgrade -1
+	@echo "Run 'bash /db_downgrade.sh' inside container"
 
 MIGRATION_NOTE = "New Migration Note"
 k8s-create-migration:
