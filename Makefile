@@ -42,7 +42,7 @@ generate-schema:
 	poetry run python scripts/generate_db_schema.py
 
 k8s-migrate:
-	@echo "Run 'bash /db_init.sh' inside container"
+	@echo "Run 'bash /db_migrate.sh' inside container"
 
 k8s-migrate-rollback:
 	@echo "Run 'bash /db_downgrade.sh' inside container"
