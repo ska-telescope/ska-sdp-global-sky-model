@@ -32,10 +32,14 @@ Database Services
 -----------------
 
 **PostgreSQL Database**
-    Stores the global sky model catalog data including:
+    Stores the global sky model catalog data in the following tables:
     
-    - Source metadata
-    - Catalog versions and layers
+    - SkyComponent table: Contains all sky component properties including position (RA/Dec), flux measurements,
+      spectral indices, polarization data, and morphological parameters
+    - GlobalSkyModelMetadata table: Stores catalog version information and reference frequency
+    
+    The schema is dynamically generated from the ``ska-sdp-datamodels`` package to ensure
+    consistency with the canonical data model.
 
 **etcd**
     A distributed key-value store used by the SKA SDP configuration system. The application 

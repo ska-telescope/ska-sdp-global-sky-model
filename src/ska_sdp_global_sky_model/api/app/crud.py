@@ -5,14 +5,13 @@ CRUD functionality goes here.
 """
 
 import logging
-from collections import defaultdict
 
 from sqlalchemy import and_
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import GenericFunction
 from sqlalchemy.types import Boolean
 
-from ska_sdp_global_sky_model.api.app.model import NarrowBandData, Source, WideBandData
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 
 logger = logging.getLogger(__name__)
 
@@ -36,88 +35,70 @@ def get_local_sky_model(
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
 
-    The LSM contains information about celestial sources within a designated region of the sky. \
-        This function extracts this information from a database (`db`) based on the provided \
-        right ascension (RA) and declination (Dec) coordinates.
+    The LSM contains information about celestial sources within a designated region of the sky.
+    This function extracts this information from a database based on the provided
+    right ascension (RA) and declination (Dec) coordinates.
 
     Args:
-        db (Any): A database object containing the global sky model. The specific type of \
-            database object will depend on the implementation.
-        ra (list[float]): A list containing two right ascension values (in degrees) that define \
-            the boundaries of the desired LSM region.
-        dec (list[float]): A list containing two declination values (in degrees) that define the \
-            boundaries of the desired LSM region.
-        flux_wide (float): Placeholder for future implementation of wide-field flux \
-            of the observation (in Jy). Currently not used.
-        _telescope (str): Placeholder for future implementation of the telescope name \
-            being used for the observation. Currently not used.
-        fov (float): Placeholder for future implementation of the telescope's field of\
-            view (in arcminutes). Currently not used.
+        db (Any): A database object containing the global sky model.
+        ra (list[float]): A list containing right ascension values (in degrees).
+        dec (list[float]): A list containing declination values (in degrees).
+        flux_wide (float): Minimum wide-field flux threshold (in Jy).
+        _telescope (str): Telescope name (currently unused in simplified model).
+        fov (float): Field of view (in arcminutes).
 
     Returns:
-        dict: A dictionary containing the LSM data. The structure of the dictionary is:
-
+        dict: A dictionary containing the LSM data with structure:
             {
-                "region": {
-                    "ra": List of RA coordinates (same as input `ra`).
-                    "dec": List of Dec coordinates (same as input `dec`).
-                },
-                "count": Number of celestial sources found within the LSM region.
-                "sources_in_area_of_interest": List of dictionaries, each representing a \
-                    celestial source within the LSM region.
-                    The structure of each source dictionary depends on the data model stored \
-                        in the database (`db`).
+                "components": {
+                    component_id: {
+                        "ra": float,
+                        "dec": float,
+                        "i_pol": float,
+                        "major_ax": float,
+                        "minor_ax": float,
+                        ...
+                    }
+                }
             }
     """
 
-    # Aliases for narrowband and wideband data
-    wideband = aliased(WideBandData)
-
-    sources = (
-        db.query(Source.id, Source.RAJ2000, Source.DECJ2000)
-        .join(wideband, Source.id == wideband.source)
+    # Query sky components within field of view
+    components = (
+        db.query(SkyComponent)
         .where(
             q3c_radial_query(
-                Source.RAJ2000,
-                Source.DECJ2000,
+                SkyComponent.ra,
+                SkyComponent.dec,
                 float(ra[0]),
                 float(dec[0]),
                 float(fov),
             )
         )
-        .filter(wideband.Flux_Wide > flux_wide)
-        .distinct(Source.id)
+        .filter(SkyComponent.i_pol > flux_wide)
         .all()
     )
 
-    # return if no sources were found
-    if not sources:
-        return {"sources": {}}
+    # Return if no components were found
+    if not components:
+        return {"components": {}}
 
-    source_ids = [s.id for s in sources]
+    # Build results using the SkyComponent model
+    results = {"components": {}}
 
-    wide_rows = (
-        db.query(WideBandData)
-        .filter(WideBandData.source.in_(source_ids))
-        .filter(WideBandData.Flux_Wide > flux_wide)
-        .all()
-    )
-
-    narrow_rows = db.query(NarrowBandData).filter(NarrowBandData.source.in_(source_ids)).all()
-
-    results = {
-        "sources": defaultdict(lambda: {"ra": None, "dec": None, "narrowband": [], "wideband": []})
-    }
-
-    for s in sources:
-        results["sources"][s.id]["ra"] = s.RAJ2000
-        results["sources"][s.id]["dec"] = s.DECJ2000
-
-    for wb_row in wide_rows:
-        results["sources"][wb_row.source]["wideband"].append(wb_row.columns_to_dict())
-
-    for nb_row in narrow_rows:
-        results["sources"][nb_row.source]["narrowband"].append(nb_row.columns_to_dict())
+    for component in components:
+        results["components"][component.component_id] = {
+            "ra": component.ra,
+            "dec": component.dec,
+            "i_pol": component.i_pol,
+            "major_ax": component.major_ax,
+            "minor_ax": component.minor_ax,
+            "pos_ang": component.pos_ang,
+            "spec_idx": component.spec_idx,
+            "q_pol": component.q_pol,
+            "u_pol": component.u_pol,
+            "v_pol": component.v_pol,
+        }
 
     return results
 
@@ -165,42 +146,34 @@ def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float,
 # pylint: disable=too-many-arguments
 
 
-def get_sources_by_criteria(
+def get_sky_components_by_criteria(
     db: Session,
     ra: float = None,
     dec: float = None,
     flux_wide: float = None,
-    telescope: str = None,
-    fov: float = None,
-) -> list[Source]:
+) -> list[SkyComponent]:
     """
-    This function retrieves all Source entries matching the provided criteria.
+    This function retrieves all SkyComponent entries matching the provided criteria.
 
     Args:
         db: A sqlalchemy database session object
         ra: Right Ascension (optional)
         dec: Declination (optional)
-        flux_wide: Wideband flux (optional)
-        telescope: Telescope name (optional)
-        fov: Field of view (optional)
+        flux_wide: Minimum I polarization flux (optional)
 
     Returns:
-        A list of Source objects matching the criteria.
+        A list of SkyComponent objects matching the criteria.
     """
-    query = db.query(Source)
+    query = db.query(SkyComponent)
 
     # Build filter conditions based on provided arguments
     filters = []
     if ra is not None:
-        filters.append(Source.RAJ2000 == ra)
+        filters.append(SkyComponent.ra == ra)
     if dec is not None:
-        filters.append(Source.DECJ2000 == dec)
+        filters.append(SkyComponent.dec == dec)
     if flux_wide is not None:
-        filters.append(Source.Flux_Wide == flux_wide)  # Replace with actual column name
-    if telescope is not None:
-        filters.append(Source.telescope == telescope)
-    if fov is not None:
-        filters.append(Source.fov == fov)  # Replace with actual column name
+        filters.append(SkyComponent.i_pol >= flux_wide)
 
     # Combine filters using 'and_' if any filters are present
     if filters:
