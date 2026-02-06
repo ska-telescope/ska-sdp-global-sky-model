@@ -104,39 +104,30 @@ How It Works:
 
 Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
 
-Each row in the Source table, represents a point in our catalog, with an associated HEALPix position:
+The schema stores all component information in a single SkyComponent table. Each row represents a celestial component with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
 
-.. code-block:: python
+The SkyComponent model where most fields are dynamically generated from the ``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization with upstream data model changes:
 
-    class Source(Base):
+This approach allows the schema to automatically adapt when new fields are added to the upstream 
+dataclass, while maintaining database-specific concerns like spatial indexing.
 
-      id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-      Heal_Pix_Position = Column(BigInteger, index=True, nullable=False)
-
-Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sources meeting the criteria of the given parameters are returned as the Local Sky Model.
+Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sky components meeting the criteria of the given parameters are returned as the Local Sky Model.
 
 .. code-block:: javascript
   
     {
-      "sources": {
-        "<source_id>": {
+      "components": {
+        "<component_id>": {
           "ra": <number>,
           "dec": <number>,
-          "narrowband": [
-            {
-              "id": <number>,
-              "band": <number>,
-              "source": <number>,
-              "...": ...
-            }
-          ],
-          "wideband": [
-            {
-              "id": <number>,
-              "source": <number>,
-              "...": ...
-            }
-          ]
+          "i_pol": <number>,
+          "major_ax": <number>,
+          "minor_ax": <number>,
+          "pos_ang": <number>,
+          "spec_idx": [<number>, ...],
+          "q_pol": <number>,
+          "u_pol": <number>,
+          "v_pol": <number>
         }
       }
     }

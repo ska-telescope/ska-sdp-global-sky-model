@@ -1,6 +1,8 @@
 # sky_model_client.py
 import asyncio
+
 import httpx
+
 
 async def main():
     """
@@ -42,7 +44,8 @@ async def main():
     except httpx.RequestError as e:
         print(f"Error making request: {e}")
 
+
 if __name__ == "__main__":
-    #initialise
-    
+    # initialise
+
     asyncio.run(main())

@@ -14,12 +14,73 @@ correctly:
 - POSTGRES_USER: The database user, which should have access to the database
 - POSTGRES_PASSWORD: The database's user password.
 - POSTGRES_DB_NAME: The database name.
-- POSTGRES_HOST: The host that the database is available on.
-    (It is vital that the container has access to this host)
+- POSTGRES_HOST: The host that the database is available on. (It is vital that the container has access to this host)
 - POSTGRES_SCHEMA_NAME: The schema that is available to the user for the user.
 
-Schema management
------------------
+Database Schema Management
+==========================
+
+The ``SkyComponent`` model dynamically generates columns from the dataclasses
+defined in ``ska-sdp-datamodels``, while database-specific concerns (indexes, methods)
+are hardcoded for maintainability.
+
+Schema Architecture
+-------------------
+
+The ``models.py`` file defines two models:
+
+**SkyComponent Model**
+    - **Dynamically generated columns**: Field names and types are read from the 
+      ``SkyComponent`` dataclass at module import time, ensuring automatic synchronization
+      with upstream data model changes
+    - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
+      spatial indexing and is not part of the scientific data model
+
+**GlobalSkyModelMetadata Model**
+    - **Dynamically generated columns**: Field names and types are read from the
+      ``GlobalSkyModelMetadata`` dataclass at module import time
+
+Dynamic Column Generation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The dynamic column generation happens at module import time through the 
+``_add_dynamic_columns_to_model()`` helper function:
+
+1. The function iterates over the dataclass's ``__annotations__`` dictionary
+2. Each field's type annotation is converted to an appropriate SQLAlchemy column type
+3. Columns are added as attributes to the model class using ``setattr()``
+4. Special handling ensures the ``name`` field is unique and not nullable
+
+This approach runs once when the module is first imported. Subsequent imports use the
+cached module with fully-formed classes. When the upstream dataclass changes (e.g., 
+new field added), the database model automatically includes that field on the next import—no 
+code generation needed.
+
+**Example:**
+
+.. code-block:: python
+
+    from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+        SkyComponent as SkyComponentDataclass,
+    )
+    
+    class SkyComponent(Base):
+        __tablename__ = "sky_component"
+        
+        # Hardcoded primary key
+        id = mapped_column(Integer, primary_key=True, autoincrement=True)
+        
+        # Hardcoded database-specific field for spatial indexing
+        healpix_index = Column(BigInteger, index=True, nullable=False)
+        
+        def columns_to_dict(self):
+            return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
+    
+    # Dynamically add all fields from the SkyComponent dataclass to the model
+    _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
+
+Schema management with Alembic
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The database schema is being managed by alembic `<https://alembic.sqlalchemy.org/en/latest/>`_
 
