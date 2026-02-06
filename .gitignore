@@ -2,6 +2,7 @@
 /.vscode
 *__pycache__*
 *.idea*
+.github/copilot-instructions.md
 
 ### project specific dir ###
 log
@@ -258,7 +259,10 @@ dmypy.json
 [Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
+# Note: This matches virtualenv Scripts directory but not project scripts/
+.venv/[Ss]cripts
+venv/[Ss]cripts
+ENV/[Ss]cripts
 pyvenv.cfg
 .venv
 env/
