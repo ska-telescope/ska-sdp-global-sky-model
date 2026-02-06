@@ -20,5 +20,6 @@ WORKDIR /
 COPY --from=build /usr/local/ /usr/local/
 
 COPY scripts/db_init.sh /db_init.sh
+COPY scripts/db_downgrade.sh /db_downgrade.sh
 
 CMD ["uvicorn", "ska_sdp_global_sky_model.api.app.main:app", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]

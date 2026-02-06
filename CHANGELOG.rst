@@ -18,6 +18,8 @@ Development
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 - [Modified] Logger ENV variable has changed behaviour, and remove links to Redis
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
+- [Added] Scripts to upgrade/downgrade from migrations into scripts in container
+  (`MR72 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/72>`__)
 
 Note
 ----
