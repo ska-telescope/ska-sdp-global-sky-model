@@ -8,11 +8,10 @@ import csv
 import logging
 import os
 from itertools import zip_longest
-from typing import Dict, Optional
+from typing import Optional
 
 import healpy as hp
 import numpy as np
-from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
@@ -90,35 +89,21 @@ class SourceFile:
         return self.len
 
 
-def get_data_catalog_vizier(key):
-    """Get the catalog from vizier
-    Args:
-        key: The catalog key as per vizier.
-    """
-    Vizier.ROW_LIMIT = -1
-    Vizier.columns = ["**"]
-    catalog = Vizier.get_catalogs(key)
-    return catalog[1]
-
-
 def get_data_catalog_selector(ingest: dict):
-    """Factory function to select the vizier vs file ingestor.
+    """Get file-based catalog data sources.
     Args:
         ingest: The catalog ingest configurations.
     """
-    if ingest["agent"] == "vizier":
-        yield get_data_catalog_vizier(ingest["key"]), ingest["bands"]
-    elif ingest["agent"] == "file":
-        for ingest_set in ingest["file_location"]:
-            logger.info("Opening file: %s", ingest_set["key"])
-            yield (
-                SourceFile(
-                    ingest_set["key"],
-                    heading_alias=ingest_set["heading_alias"],
-                    heading_missing=ingest_set["heading_missing"],
-                ),
-                ingest_set["bands"],
-            )
+    for ingest_set in ingest["file_location"]:
+        logger.info("Opening file: %s", ingest_set["key"])
+        yield (
+            SourceFile(
+                ingest_set["key"],
+                heading_alias=ingest_set["heading_alias"],
+                heading_missing=ingest_set["heading_missing"],
+            ),
+            ingest_set["bands"],
+        )
 
 
 def to_float(val):
@@ -138,39 +123,6 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
     theta = np.radians(90.0 - dec_deg)
     phi = np.radians(ra_deg)
     return int(hp.ang2pix(nside, theta, phi, nest=nest))
-
-
-def create_source_catalog_entry(
-    db: Session,
-    source: Dict[str, float],
-    component_id: str,
-) -> Optional[SkyComponent]:
-    """Creates a SkyComponent object from the provided source data and adds it to the database.
-
-    If any of the required keys (`RAJ2000`, `DEJ2000`) are missing from the source data,
-    the function will return None.
-
-    Args:
-        db: An SQLAlchemy database session object.
-        source: A dictionary containing the source information with the following keys:
-            * `RAJ2000`: Right Ascension (J2000) in degrees (required).
-            * `DEJ2000`: Declination (J2000) in degrees (required).
-            * `CATALOG_NAME` (optional): Name of the component in the e.g. GLEAM catalog.
-        component_id: String for the sky component_id.
-
-    Returns:
-        The created SkyComponent object, or None if required keys are missing from the data.
-    """
-
-    sky_component = SkyComponent(
-        component_id=component_id,
-        healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
-        ra=source["RAJ2000"],
-        dec=source["DEJ2000"],
-    )
-    db.add(sky_component)
-    db.commit()
-    return sky_component
 
 
 def coerce_floats(source_dict: dict) -> dict:
@@ -217,16 +169,14 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     Returns:
         Dictionary mapping to SkySource fields for database insertion
     """
-    # Build base source mapping with required fields
+    # Build base source mapping with required fields using standardized column names
     source_mapping = {
         "component_id": str(source_dict.get(catalog_config["source"])),
-        "healpix_index": compute_hpx_healpy(source_dict["RAJ2000"], source_dict["DEJ2000"]),
-        "ra": to_float(source_dict.get("RAJ2000")),
-        "dec": to_float(source_dict.get("DEJ2000")),
-        # I polarization - use wide-band or first available flux measurement
-        "i_pol": to_float(
-            source_dict.get("Fpwide") or source_dict.get("Fintwide") or source_dict.get("i_pol")
-        ),
+        "healpix_index": compute_hpx_healpy(source_dict["ra"], source_dict["dec"]),
+        "ra": to_float(source_dict.get("ra")),
+        "dec": to_float(source_dict.get("dec")),
+        # I polarization - standardized column name
+        "i_pol": to_float(source_dict.get("i_pol")),
     }
 
     # Add optional source shape parameters (Gaussian model)

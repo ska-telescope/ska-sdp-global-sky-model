@@ -13,17 +13,18 @@ Development
   returning immediately with "uploading" status while ingestion proceeds asynchronously.
   This keeps the API responsive during large file uploads.
 - [Added] Schema-level data validation for uploaded sources. After CSV transformation to the
-  standardized database schema, each source is validated for:
-  
+  standardized database schema, each source is validated for:  
   - Required fields (name, ra, dec, i_pol)
   - Coordinate ranges (RA: -360 to 360°, Dec: -90 to 90°)
   - Positive flux values (i_pol > 0)
-  - Valid numeric field ranges for optional parameters
-  
+  - Valid numeric field ranges for optional parameters  
   Invalid sources are logged and skipped, with ingestion stopping if more than 100 validation errors occur.
 - [Updated] Migrated from deprecated ``@app.on_event("startup")`` to modern FastAPI lifespan
   context manager for application startup and shutdown handling.
 - [Updated] Hybrid dynamic database models for automatic synchronization with ska-sdp-datamodels.
+- [Added] Utilities to write a local sky model CSV file and associated metadata.
+  (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__)
+- [Updated] Dynamic database models for automatic synchronization with ska-sdp-datamodels.
   **Breaking Changes:**
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
   - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables
@@ -47,6 +48,8 @@ Development
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 - [Modified] Logger ENV variable has changed behaviour, and remove links to Redis
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
+- [Added] Scripts to upgrade/downgrade from migrations into scripts in container
+  (`MR72 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/72>`__)
 
 Note
 ----

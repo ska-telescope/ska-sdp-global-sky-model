@@ -106,9 +106,7 @@ Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension
 
 The schema stores all component information in a single SkyComponent table. Each row represents a celestial component with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
 
-The SkyComponent model uses a hybrid approach where most fields are dynamically generated from the 
-``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization 
-with upstream data model changes:
+The SkyComponent model where most fields are dynamically generated from the ``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization with upstream data model changes:
 
 This approach allows the schema to automatically adapt when new fields are added to the upstream 
 dataclass, while maintaining database-specific concerns like spatial indexing.

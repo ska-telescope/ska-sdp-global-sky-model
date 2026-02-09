@@ -97,8 +97,8 @@ in the background. Use the status endpoint to monitor completion.
 
     # Using default GENERIC catalog configuration
     curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
-      -F "files=@survey1.csv;type=text/csv" \\
-      -F "files=@survey2.csv;type=text/csv"
+      -F "files=@test_catalog_1.csv;type=text/csv" \\
+      -F "files=@test_catalog_2.csv;type=text/csv"
     
     # Using GLEAM catalog configuration
     curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
@@ -120,8 +120,8 @@ in the background. Use the status endpoint to monitor completion.
     
     # Option 1: Use predefined catalog
     files = [
-        ("files", ("survey1.csv", open("survey1.csv", "rb"), "text/csv")),
-        ("files", ("survey2.csv", open("survey2.csv", "rb"), "text/csv")),
+        ("files", ("test_catalog_1.csv", open("test_catalog_1.csv", "rb"), "text/csv")),
+        ("files", ("test_catalog_2.csv", open("test_catalog_2.csv", "rb"), "text/csv")),
     ]
     response = requests.post(url, files=files, data={"catalog": "GLEAM"})
     
@@ -288,16 +288,30 @@ Additional columns that will be automatically ingested if present:
     - ``pol_ang``: Polarization angle in radians
     - ``rot_meas``: Faraday rotation measure in rad/m²
 
-GLEAM Format Example
+CSV Format Examples
 ~~~~~~~~~~~~~~~~~~~~
 
-The default configuration supports GLEAM-style catalogs:
+**GLEAM Format** (Full catalog with frequency bands):
 
 .. code-block:: text
 
     recno,GLEAM,RAJ2000,DEJ2000,Fpwide,Fintwide,awide,bwide,pawide,alpha
     1,J000001-350001,0.004,-35.0,0.25,0.26,170,140,-6.2,-0.527
     2,J000002-350002,0.008,-35.1,0.23,0.24,168,138,-6.0,-0.534
+
+**Standardized Format** (used by test catalogs):
+
+The ``test_catalog_1.csv`` and ``test_catalog_2.csv`` files in the test data directory demonstrate 
+the standardized format with explicit column names:
+
+.. code-block:: text
+
+    component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
+    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,-0.419238,False
+    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,-1.074094,False
+
+These test catalogs contain 100 sources each derived from GLEAM data and are used throughout 
+the test suite as reference examples.
 
 Custom Schema Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -367,7 +381,7 @@ The API provides detailed error responses for common issues:
 .. code-block:: json
 
     {
-        "detail": "Sky survey upload failed: Ingest failed for survey1.csv"
+        "detail": "Sky survey upload failed: Ingest failed for test_catalog_1.csv"
     }
 
 **Upload Not Found** (404):
