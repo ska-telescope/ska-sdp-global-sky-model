@@ -306,7 +306,7 @@ def commit_batch(db: Session, component_objs: list, model_class=None):
 
     if model_class is None:
         model_class = SkyComponent
-    
+
     db.bulk_insert_mappings(model_class, component_objs)
     db.commit()
     component_objs.clear()
@@ -337,12 +337,12 @@ def process_source_data_batch(
 
     # Choose appropriate model
     model_class = SkyComponentStaging if staging else SkyComponent
-    
+
     # For staging, only check duplicates within this batch (not global)
     # For main table, check all existing IDs
     if staging:
         # Empty set for staging - allow duplicates across uploads
-        existing_component_id = set()  
+        existing_component_id = set()
     else:
         existing_component_id = {r[0] for r in db.query(model_class.component_id).all()}
 
@@ -387,12 +387,12 @@ def process_source_data_batch(
         # Add upload_id for staging table
         if staging and upload_id:
             source_mapping["upload_id"] = upload_id
-            
+
         component_objs.append(source_mapping)
 
         if count % batch_size == 0:
             commit_batch(db, component_objs, model_class)
-    
+
     commit_batch(db, component_objs, model_class)
 
     if validation_errors > 0:
@@ -425,9 +425,13 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     catalog_name = catalog_config["catalog_name"]
     staging = catalog_config.get("staging", False)
     upload_id = catalog_config.get("upload_id")
-    
-    logger.info("Loading the %s catalog for the %s telescope (staging=%s)...", 
-               catalog_name, telescope_name, staging)
+
+    logger.info(
+        "Loading the %s catalog for the %s telescope (staging=%s)...",
+        catalog_name,
+        telescope_name,
+        staging,
+    )
 
     # Get catalog data
     catalog_data = get_data_catalog_selector(catalog_config["ingest"])

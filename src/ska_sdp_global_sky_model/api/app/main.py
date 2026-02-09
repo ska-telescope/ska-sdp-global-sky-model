@@ -22,11 +22,7 @@ from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
 from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import (
-    STANDARD_CATALOG_CONFIG,
-    engine,
-    get_db,
-)
+from ska_sdp_global_sky_model.configuration.config import STANDARD_CATALOG_CONFIG, engine, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -350,28 +346,33 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         Sample of staged data and statistics
     """
     status = upload_manager.get_status(upload_id)
-    
+
     if status.state != "completed":
         raise HTTPException(
-            status_code=400,
-            detail=f"Upload not ready for review. Current state: {status.state}"
+            status_code=400, detail=f"Upload not ready for review. Current state: {status.state}"
         )
-    
+
     # Get count and sample of staged data
     from sqlalchemy import func
-    count = db.query(func.count(SkyComponentStaging.id)).filter(
-        SkyComponentStaging.upload_id == upload_id
-    ).scalar()
-    
+
+    count = (
+        db.query(func.count(SkyComponentStaging.id))
+        .filter(SkyComponentStaging.upload_id == upload_id)
+        .scalar()
+    )
+
     # Get first 10 rows as sample
-    sample = db.query(SkyComponentStaging).filter(
-        SkyComponentStaging.upload_id == upload_id
-    ).limit(10).all()
-    
+    sample = (
+        db.query(SkyComponentStaging)
+        .filter(SkyComponentStaging.upload_id == upload_id)
+        .limit(10)
+        .all()
+    )
+
     return {
         "upload_id": upload_id,
         "total_records": count,
-        "sample": [row.columns_to_dict() for row in sample]
+        "sample": [row.columns_to_dict() for row in sample],
     }
 
 
@@ -393,37 +394,38 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         Result of commit operation
     """
     status = upload_manager.get_status(upload_id)
-    
+
     if status.state != "completed":
         raise HTTPException(
-            status_code=400,
-            detail=f"Upload not ready for commit. Current state: {status.state}"
+            status_code=400, detail=f"Upload not ready for commit. Current state: {status.state}"
         )
-    
+
     try:
         # Get all staged records
-        staged_records = db.query(SkyComponentStaging).filter(
-            SkyComponentStaging.upload_id == upload_id
-        ).all()
-        
+        staged_records = (
+            db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).all()
+        )
+
         if not staged_records:
             raise HTTPException(status_code=404, detail="No staged data found")
-        
+
         # Get current max versions for all component_ids being committed
         component_ids = [r.component_id for r in staged_records]
         max_versions = {}
-        
+
         if component_ids:
             # Query max version for each component_id (semantic version strings)
-            version_results = db.query(
-                SkyComponent.component_id,
-                func.max(SkyComponent.version).label('max_version')
-            ).filter(
-                SkyComponent.component_id.in_(component_ids)
-            ).group_by(SkyComponent.component_id).all()
-            
+            version_results = (
+                db.query(
+                    SkyComponent.component_id, func.max(SkyComponent.version).label("max_version")
+                )
+                .filter(SkyComponent.component_id.in_(component_ids))
+                .group_by(SkyComponent.component_id)
+                .all()
+            )
+
             max_versions = {r.component_id: r.max_version for r in version_results}
-        
+
         # Helper function to increment minor version
         def increment_minor_version(version_str):
             """Increment minor version in semantic versioning (major.minor.patch).
@@ -434,50 +436,49 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             if not version_str:
                 return "0.0.0"
             try:
-                parts = version_str.split('.')
+                parts = version_str.split(".")
                 major = int(parts[0]) if len(parts) > 0 else 0
                 minor = int(parts[1]) if len(parts) > 1 else 0
                 patch = int(parts[2]) if len(parts) > 2 else 0
                 return f"{major}.{minor + 1}.{patch}"
             except (ValueError, IndexError):
                 return "0.0.0"
-        
+
         # Copy from staging to main table with semantic version tracking
         for staged in staged_records:
             # Get next version for this component_id
             current_version = max_versions.get(staged.component_id, None)
             next_version = increment_minor_version(current_version)
-            
+
             # Create main table record from staged data
             # Exclude 'id' and 'upload_id' from staging table fields
-            record_data = {k: v for k, v in staged.columns_to_dict().items() 
-                          if k not in ['id', 'upload_id']}
-            record_data['version'] = next_version
-            
+            record_data = {
+                k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
+            }
+            record_data["version"] = next_version
+
             main_record = SkyComponent(**record_data)
             db.add(main_record)
-            
+
             # Update max_versions for this component_id for subsequent records in same batch
             max_versions[staged.component_id] = next_version
-        
+
         # Delete from staging
-        db.query(SkyComponentStaging).filter(
-            SkyComponentStaging.upload_id == upload_id
-        ).delete()
-        
+        db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()
+
         db.commit()
-        
+
         # Cleanup temp files
         upload_manager.cleanup(upload_id)
-        
+
         logger.info("Successfully committed upload %s", upload_id)
-        
+
         return {
             "status": "success",
             "message": f"Committed {len(staged_records)} records to main database",
-            "records_committed": len(staged_records)
+            "records_committed": len(staged_records),
         }
-        
+
     except Exception as e:
         db.rollback()
         logger.error("Failed to commit upload %s: %s", upload_id, e)
@@ -502,40 +503,40 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
         Result of reject operation
     """
     status = upload_manager.get_status(upload_id)
-    
+
     if status.state != "completed":
         raise HTTPException(
             status_code=400,
-            detail=f"Upload not ready for rejection. Current state: {status.state}"
+            detail=f"Upload not ready for rejection. Current state: {status.state}",
         )
-    
+
     try:
         # Count records to be deleted
-        count = db.query(SkyComponentStaging).filter(
-            SkyComponentStaging.upload_id == upload_id
-        ).count()
-        
+        count = (
+            db.query(SkyComponentStaging)
+            .filter(SkyComponentStaging.upload_id == upload_id)
+            .count()
+        )
+
         # Delete staged data
-        db.query(SkyComponentStaging).filter(
-            SkyComponentStaging.upload_id == upload_id
-        ).delete()
-        
+        db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()
+
         db.commit()
-        
+
         # Mark upload as failed
         upload_manager.mark_failed(upload_id, "Rejected by user")
-        
+
         # Cleanup temp files
         upload_manager.cleanup(upload_id)
-        
+
         logger.info("Rejected and deleted %d staged records for upload %s", count, upload_id)
-        
+
         return {
             "status": "success",
             "message": f"Rejected and deleted {count} staged records",
-            "records_deleted": count
+            "records_deleted": count,
         }
-        
+
     except Exception as e:
         db.rollback()
         logger.error("Failed to reject upload %s: %s", upload_id, e)

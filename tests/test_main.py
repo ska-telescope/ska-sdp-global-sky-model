@@ -13,11 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from ska_sdp_global_sky_model.api.app.main import (
-    app,
-    get_db,
-    wait_for_db,
-)
+from ska_sdp_global_sky_model.api.app.main import app, get_db, wait_for_db
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.configuration.config import Base
 

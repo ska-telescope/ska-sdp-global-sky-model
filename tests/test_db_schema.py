@@ -13,17 +13,13 @@ import pytest
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModelMetadata as GSMMetadataDataclass,
 )
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkyComponent,
-)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import SkyComponent
 from sqlalchemy import JSON, create_engine, event, inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from ska_sdp_global_sky_model.api.app.models import (
-    GlobalSkyModelMetadata,
-)
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.models import SkyComponent as SkyComponentModel
 from ska_sdp_global_sky_model.configuration.config import Base
 
