@@ -79,229 +79,29 @@ def q3c_index():
         )
 
 
-MWA = {
-    "ingest": {
-        "agent": "vizier",
-        "key": "VIII/100",
-        "wideband": True,
-        "bands": [
-            76,
-            84,
-            92,
-            99,
-            107,
-            115,
-            122,
-            130,
-            143,
-            151,
-            158,
-            166,
-            174,
-            181,
-            189,
-            197,
-            204,
-            212,
-            220,
-            227,
-        ],
-    },
-    "name": "Murchison Widefield Array",
-    "catalog_name": "GLEAM",
-    "frequency_min": 80,
-    "frequency_max": 300,
-    "source": "GLEAM",
-    "bands": [
-        76,
-        84,
-        92,
-        99,
-        107,
-        115,
-        122,
-        130,
-        143,
-        151,
-        158,
-        166,
-        174,
-        181,
-        189,
-        197,
-        204,
-        212,
-        220,
-        227,
-    ],
-}
-
-
-RACS = {
-    "ingest": {
-        "wideband": False,
-        "agent": "file",
-        "file_location": [
-            {
-                "key": "./datasets/AS110_Derived_Catalogue_racs_mid_components_v01_15373.csv",
-                "bands": [1367],
-                "heading_alias": {
-                    "ra": "RAJ2000",
-                    "e_ra": "e_RAJ2000",
-                    "dec": "DEJ2000",
-                    "e_dec": "e_DEJ2000",
-                    "catalogue_id": "RACS",
-                    "noise": "lrms1367",
-                    "psf_pa": "psfPA1367",
-                    "psf_min": "psfb1367",
-                    "maj_axis": "a1367",
-                    "min_axis": "b1367",
-                    "psf_maj": "psfa1367",
-                    "peak_flux": "Fp1367",
-                    "e_peak_flux": "e_Fp1367",
-                    "total_flux": "Fint1367",
-                    "e_total_flux": "e_Fint1367",
-                    "pa": "pa1367",
-                },
-                "heading_missing": ["resm1367", "resstd1367", "bck1367"],
-            },
-            {
-                "key": "./datasets/AS110_Derived_Catalogue_racs_dr1_gaussians"
-                "_galacticcut_v2021_08_v02_5723.csv",
-                "bands": [887],
-                "heading_alias": {
-                    "ra": "RAJ2000",
-                    "e_ra": "e_RAJ2000",
-                    "dec": "DEJ2000",
-                    "e_dec": "e_DEJ2000",
-                    "catalogue_id": "RACS",
-                    "noise": "lrms1367",
-                    "psf_pa": "psfPA1367",
-                    "psf_min": "psfb1367",
-                    "maj_axis": "a1367",
-                    "min_axis": "b1367",
-                    "psf_maj": "psfa1367",
-                    "peak_flux": "Fp1367",
-                    "e_peak_flux": "e_Fp1367",
-                    "total_flux": "Fint1367",
-                    "e_total_flux": "e_Fint1367",
-                    "pa": "pa1367",
-                },
-                "heading_missing": ["resm1367", "resstd1367", "bck1367"],
-            },
-        ],
-    },
-    "name": "ASKAP",
-    "catalog_name": "RACS",
-    "frequency_min": 700,
-    "frequency_max": 1800,
-    "source": "RACS",
-    "bands": [887, 1367, 1632],
-}
-RCAL = {
+# Standard catalog configuration for all uploads
+# Uses the standardized format with explicit column names
+STANDARD_CATALOG_CONFIG = {
     "ingest": {
         "wideband": True,
         "agent": "file",
         "file_location": [
             {
                 "key": "unset",
+                # No column aliasing - expect standardized column names
                 "heading_alias": {},
-                "heading_missing": [],
-                "bands": [
-                    76,
-                    84,
-                    92,
-                    99,
-                    107,
-                    115,
-                    122,
-                    130,
-                    143,
-                    151,
-                    158,
-                    166,
-                    174,
-                    181,
-                    189,
-                    197,
-                    204,
-                    212,
-                    220,
-                    227,
-                ],
-            }
-        ],
-    },
-    "name": "Realtime Calibration test data",
-    "catalog_name": "RCAL",
-    "frequency_min": 80,
-    "frequency_max": 300,
-    "source": "GLEAM",
-    "bands": [
-        76,
-        84,
-        92,
-        99,
-        107,
-        115,
-        122,
-        130,
-        143,
-        151,
-        158,
-        166,
-        174,
-        181,
-        189,
-        197,
-        204,
-        212,
-        220,
-        227,
-    ],
-}
-
-DEFAULT_CATALOG_CONFIG = {
-    "ingest": {
-        "wideband": True,
-        "agent": "file",
-        "file_location": [
-            {
-                "key": "unset",
-                # Column name mappings from CSV to expected schema
-                # These map GLEAM-style column names to standardized names
-                "heading_alias": {
-                    "RAJ2000": "RAJ2000",  # Right ascension (J2000)
-                    "DEJ2000": "DEJ2000",  # Declination (J2000)
-                    "Fpwide": "Fpwide",  # Peak flux wide-band
-                    "Fintwide": "Fintwide",  # Integrated flux wide-band
-                    "awide": "awide",  # Major axis
-                    "bwide": "bwide",  # Minor axis
-                    "pawide": "pawide",  # Position angle
-                    "alpha": "alpha",  # Spectral index
-                },
                 "heading_missing": [],
                 "bands": [],
             }
         ],
     },
-    "name": "Generic Sky Survey",
-    "catalog_name": "GENERIC",
+    "name": "Standard Sky Survey",
+    "catalog_name": "STANDARD",
     "frequency_min": 80,
     "frequency_max": 300,
-    "source": "GLEAM",  # Default source name column
+    "source": "component_id",  # Standardized source identifier column
     "bands": [],
 }
 
-# Catalog configuration registry for batch uploads
-# Users can reference these by name or provide custom configurations
-CATALOG_CONFIGS = {
-    "GLEAM": MWA,  # GLEAM catalog (MWA telescope)
-    "RACS": RACS,  # ASKAP RACS catalog
-    "RCAL": RCAL,  # Realtime calibration test data
-    "GENERIC": DEFAULT_CATALOG_CONFIG,  # Generic/default configuration
-}
-
-# Default catalog config for backward compatibility
-# This is used when no config is specified in batch uploads
-DEFAULT_CATALOG = "GENERIC"
+# Backward compatibility alias
+DEFAULT_CATALOG_CONFIG = STANDARD_CATALOG_CONFIG

@@ -6,16 +6,13 @@ A simple fastAPI to obtain a local sky model from a global sky model.
 # pylint: disable=too-many-arguments, broad-exception-caught
 import copy
 import logging
-import os
-import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
+from fastapi.responses import FileResponse, ORJSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -25,13 +22,8 @@ from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
 from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
-    CATALOG_CONFIGS,
-    DEFAULT_CATALOG_CONFIG,
-    MWA,
-    RACS,
-    RCAL,
-    Base,
+from ska_sdp_global_sky_model.configuration.config import (
+    STANDARD_CATALOG_CONFIG,
     engine,
     get_db,
 )
@@ -124,20 +116,6 @@ def ingest(db: Session, catalog_config: dict):
         raise e
 
 
-@app.get("/ingest-gleam-catalog", summary="Ingest GLEAM {used in development}")
-def ingest_gleam(db: Session = Depends(get_db)):
-    """Ingesting the Gleam catalogue"""
-    logger.info("Ingesting the Gleam catalogue...")
-    return ingest(db, MWA)
-
-
-@app.get("/ingest-racs-catalog", summary="Ingest RACS {used in development}")
-def ingest_racs(db: Session = Depends(get_db)):
-    """Ingesting the RACS catalogue"""
-    logger.info("Ingesting the RACS catalogue...")
-    return ingest(db, RACS)
-
-
 @app.get("/sources", summary="See all the point sources")
 def get_point_sources(db: Session = Depends(get_db)):
     """Retrieve all point sources"""
@@ -191,136 +169,6 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
     )
     local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
     return ORJSONResponse(local_model)
-
-
-@app.post("/upload-rcal", summary="Ingest RCAL from a CSV {used in development}")
-async def upload_rcal(
-    file: UploadFile = File(...), db: Session = Depends(get_db), config: Optional[dict] = None
-):
-    """
-    Uploads and processes an RCAL catalog file. This is a development endpoint.
-    The file is expected to be a CSV file as exported from the GLEAM catalog.
-    There is an example in the `tests/data` directory of this package.
-
-    Parameters:
-        file (UploadFile): The RCAL file to upload.
-
-    Raises:
-        HTTPException: If the file type is invalid or there is an error with the
-        database session or disk space.
-
-    Returns:
-        JSONResponse: A success message if the RCAL file is uploaded and ingested successfully,
-        or an error message if there is an issue with the catalog ingest.
-    """
-    try:
-        # Accept common CSV mime types
-        allowed_types = ["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]
-        if file.content_type not in allowed_types and not file.filename.endswith(".csv"):
-            raise HTTPException(
-                status_code=400, detail="Invalid file type. Please upload a CSV file."
-            )
-
-        try:
-            db.execute(text("SELECT 1"))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Unable to access database") from e
-
-        # Check if there is sufficient disk space to write the file
-        statvfs = os.statvfs("/")
-        free_space = statvfs.f_frsize * statvfs.f_bavail
-
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
-            temp_file_path = temp_file.name
-
-            # Write the uploaded file to the temporary file
-            contents = await file.read()
-            file_size = len(contents)
-            if file_size > free_space:
-                raise HTTPException(status_code=400, detail="Insufficient disk space.")
-
-            temp_file.write(contents)
-            temp_file.flush()
-            temp_file.close()
-            # Process the CSV data (example: print the path of the temporary file)
-            logger.info("Temporary file created at: %s, size: %d", temp_file_path, file_size)
-            rcal_config = config
-            if not rcal_config:
-                rcal_config = RCAL.copy()
-
-            rcal_config["ingest"]["file_location"][0]["key"] = temp_file_path
-            logger.info("Ingesting the catalogue...")
-
-            if ingest(db, rcal_config):
-                return JSONResponse(
-                    content={"message": "RCAL uploaded and ingested successfully"},
-                    status_code=200,
-                )
-
-            os.remove(temp_file_path)
-
-            return JSONResponse(
-                content={"message": "Error ingesting the catalogue (already present?)"},
-                status_code=500,
-            )
-    except Exception as e:
-        logger.error("Error on file upload: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-def _get_catalog_config(config: Optional[dict], catalog: Optional[str]) -> dict:
-    """
-    Get catalog configuration for batch file uploads.
-
-    For batch uploads, we need file-based configs with file_location structure.
-    GLEAM uses Vizier by default, so we create a file-based config for it.
-
-    Args:
-        config: Custom configuration dictionary
-        catalog: Predefined catalog name
-
-    Returns:
-        Catalog configuration dictionary with file_location structure
-
-    Raises:
-        HTTPException: If catalog name is invalid
-    """
-    if config:
-        return config
-
-    if catalog:
-        if catalog not in CATALOG_CONFIGS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown catalog '{catalog}'. Available: {list(CATALOG_CONFIGS.keys())}",
-            )
-
-        # For GLEAM, create a file-based config (it uses Vizier by default)
-        if catalog == "GLEAM":
-            base_config = copy.deepcopy(DEFAULT_CATALOG_CONFIG)
-            base_config["catalog_name"] = "GLEAM"
-            base_config["name"] = "GLEAM (Batch Upload)"
-            base_config["source"] = "GLEAM"
-            # GLEAM-specific column aliases for batch uploads
-            # pylint: disable=duplicate-code
-            base_config["ingest"]["file_location"][0]["heading_alias"] = {
-                "Name": "Name",
-                "RAJ2000": "RAJ2000",
-                "DEJ2000": "DEJ2000",
-                "Fpwide": "Fpwide",
-                "Fintwide": "Fintwide",
-                "awide": "awide",
-                "bwide": "bwide",
-                "pawide": "pawide",
-                "alpha": "alpha",
-            }
-            # pylint: enable=duplicate-code
-            return base_config
-
-        return copy.deepcopy(CATALOG_CONFIGS[catalog])
-
-    return copy.deepcopy(DEFAULT_CATALOG_CONFIG)
 
 
 def _run_ingestion_task(upload_id: str, survey_config: dict):
@@ -382,8 +230,6 @@ async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
-    config: Optional[dict] = None,
-    catalog: Optional[str] = Form(None),
 ):
     """
     Upload and ingest one or more sky survey CSV files atomically.
@@ -397,14 +243,10 @@ async def upload_sky_survey_batch(
     background_tasks : BackgroundTasks
         FastAPI background task manager
     files : list[UploadFile]
-        One or more CSV files containing sky survey data.
+        One or more CSV files containing standardized sky survey data.
+        Expected format: component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
     db : Session
         Database session
-    config : Optional[dict]
-        Optional catalog configuration dict. Takes precedence over catalog parameter.
-    catalog : Optional[str]
-        Name of predefined catalog config to use: 'GLEAM', 'RACS', 'RCAL', or 'GENERIC'.
-        Defaults to 'GENERIC' if neither config nor catalog is provided.
 
     Raises
     ------
@@ -426,8 +268,8 @@ async def upload_sky_survey_batch(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Unable to access database") from e
 
-    # Select and validate configuration
-    survey_config = _get_catalog_config(config, catalog)
+    # Use standard catalog configuration
+    survey_config = copy.deepcopy(STANDARD_CATALOG_CONFIG)
 
     # Create upload tracking
     upload_status = upload_manager.create_upload(len(files))
