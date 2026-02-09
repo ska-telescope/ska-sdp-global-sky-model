@@ -133,6 +133,31 @@ class SkyComponent(Base):
         return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
 
 
+class SkyComponentStaging(Base):
+    """
+    Staging table for sky components awaiting manual verification.
+    
+    Data is first ingested here, then moved to SkyComponent after user commits.
+    """
+
+    __tablename__ = "sky_component_staging"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    # Hardcoded primary key
+    id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    # Hardcoded database-specific field for spatial indexing
+    healpix_index = Column(BigInteger, index=True, nullable=False)
+    
+    # Track which upload batch this belongs to
+    upload_id = Column(String, index=True, nullable=False)
+
+    def columns_to_dict(self):
+        """Return a dictionary representation of a row."""
+        return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
+
+
 # Apply dynamic column generation to models
 _add_dynamic_columns_to_model(GlobalSkyModelMetadata, GSMMetadataDataclass)
 _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
+_add_dynamic_columns_to_model(SkyComponentStaging, SkyComponentDataclass)

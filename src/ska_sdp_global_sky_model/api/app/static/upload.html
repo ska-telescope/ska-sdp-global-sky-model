@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Survey Data Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 500;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .drop-zone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+
+        .drop-zone.dragover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .review-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff5f5;
+            border: 2px solid #feb2b2;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-approve {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-reject {
+            background: #f56565;
+            color: white;
+        }
+
+        .sample-data {
+            max-height: 300px;
+            overflow: auto;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌌 Sky Survey Data Upload</h1>
+
+        <div id="alert"></div>
+
+        <form id="uploadForm">
+            <div class="form-group">
+                <label>Catalog Type</label>
+                <select id="catalog">
+                    <option value="GENERIC">GENERIC</option>
+                    <option value="GLEAM">GLEAM</option>
+                    <option value="RACS">RACS</option>
+                    <option value="RCAL">RCAL</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Sky Survey Files (CSV)</label>
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📁</div>
+                    <div>Drag and drop CSV files or click to browse</div>
+                </div>
+                <input type="file" id="fileInput" accept=".csv" multiple />
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+            <button type="submit" class="btn btn-primary" id="uploadBtn">
+                Upload Files
+            </button>
+        </form>
+
+        <div class="status" id="status"></div>
+
+        <div class="review-section" id="reviewSection">
+            <h3>Review Staged Data</h3>
+            <div id="reviewInfo"></div>
+            <div class="sample-data" id="sampleData"></div>
+            <div class="review-actions">
+                <button class="btn btn-approve" id="commitBtn">
+                    ✓ Commit to Database
+                </button>
+                <button class="btn btn-reject" id="rejectBtn">
+                    ✗ Reject and Discard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const alertDiv = document.getElementById('alert');
+        const statusDiv = document.getElementById('status');
+        const reviewSection = document.getElementById('reviewSection');
+        const reviewInfo = document.getElementById('reviewInfo');
+        const sampleData = document.getElementById('sampleData');
+        const commitBtn = document.getElementById('commitBtn');
+        const rejectBtn = document.getElementById('rejectBtn');
+
+        let selectedFiles = [];
+        let currentUploadId = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            const csvFiles = Array.from(files).filter(f => f.name.endsWith('.csv'));
+            if (csvFiles.length === 0) {
+                showAlert('error', 'Please select CSV files only');
+                return;
+            }
+            selectedFiles = [...selectedFiles, ...csvFiles];
+            updateFileList();
+        }
+
+        function updateFileList() {
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+            fileList.innerHTML = selectedFiles.map((f, i) => `
+                <div class="file-item">
+                    <span>📄 ${f.name}</span>
+                    <button type="button" onclick="removeFile(${i})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (selectedFiles.length === 0) {
+                showAlert('error', 'Please select at least one file');
+                return;
+            }
+
+            const formData = new FormData();
+            selectedFiles.forEach(f => formData.append('files', f));
+            
+            const catalog = document.getElementById('catalog').value;
+            if (catalog) formData.append('catalog', catalog);
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            reviewSection.style.display = 'none';
+            
+            try {
+                const response = await fetch('/upload-sky-survey-batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentUploadId = data.upload_id;
+                    showAlert('success', `Upload started! ID: ${data.upload_id}`);
+                    monitorStatus(data.upload_id);
+                } else {
+                    showAlert('error', `Failed: ${data.detail || 'Unknown error'}`);
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload Files';
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Files';
+            }
+        });
+
+        async function monitorStatus(uploadId) {
+            statusDiv.style.display = 'block';
+            
+            const check = async () => {
+                try {
+                    const response = await fetch(`/upload-sky-survey-status/${uploadId}`);
+                    const status = await response.json();
+
+                    statusDiv.innerHTML = `
+                        <strong>Status:</strong> ${status.state}<br>
+                        <strong>Files:</strong> ${status.uploaded_files} / ${status.total_files}
+                        ${status.errors.length > 0 ? `<br><strong>Errors:</strong> ${status.errors.join(', ')}` : ''}
+                    `;
+
+                    if (status.state === 'completed') {
+                        showAlert('success', 'Upload to staging complete! Please review before committing.');
+                        await loadReviewData(uploadId);
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                    } else if (status.state === 'failed') {
+                        showAlert('error', 'Upload failed');
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                    } else {
+                        setTimeout(check, 2000);
+                    }
+                } catch (error) {
+                    setTimeout(check, 2000);
+                }
+            };
+
+            check();
+        }
+
+        async function loadReviewData(uploadId) {
+            try {
+                const response = await fetch(`/review-upload/${uploadId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    reviewInfo.innerHTML = `
+                        <strong>Total Records:</strong> ${data.total_records}<br>
+                        <strong>Upload ID:</strong> ${data.upload_id}<br>
+                        <em>Review sample data below before committing to main database:</em>
+                    `;
+
+                    sampleData.innerHTML = `<pre>${JSON.stringify(data.sample, null, 2)}</pre>`;
+                    reviewSection.style.display = 'block';
+                } else {
+                    showAlert('error', 'Failed to load review data');
+                }
+            } catch (error) {
+                showAlert('error', `Error loading review: ${error.message}`);
+            }
+        }
+
+        commitBtn.addEventListener('click', async () => {
+            if (!currentUploadId) return;
+
+            if (!confirm('Are you sure you want to commit this data to the main database?')) {
+                return;
+            }
+
+            commitBtn.disabled = true;
+            commitBtn.textContent = 'Committing...';
+
+            try {
+                const response = await fetch(`/commit-upload/${currentUploadId}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', `Success! ${data.records_committed} records committed to database.`);
+                    reviewSection.style.display = 'none';
+                    selectedFiles = [];
+                    fileInput.value = '';
+                    updateFileList();
+                    statusDiv.style.display = 'none';
+                    currentUploadId = null;
+                } else {
+                    showAlert('error', `Commit failed: ${data.detail}`);
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+            } finally {
+                commitBtn.disabled = false;
+                commitBtn.textContent = '✓ Commit to Database';
+            }
+        });
+
+        rejectBtn.addEventListener('click', async () => {
+            if (!currentUploadId) return;
+
+            if (!confirm('Are you sure you want to reject and discard this data?')) {
+                return;
+            }
+
+            rejectBtn.disabled = true;
+            rejectBtn.textContent = 'Rejecting...';
+
+            try {
+                const response = await fetch(`/reject-upload/${currentUploadId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', `Rejected. ${data.records_deleted} records discarded.`);
+                    reviewSection.style.display = 'none';
+                    selectedFiles = [];
+                    fileInput.value = '';
+                    updateFileList();
+                    statusDiv.style.display = 'none';
+                    currentUploadId = null;
+                } else {
+                    showAlert('error', `Reject failed: ${data.detail}`);
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+            } finally {
+                rejectBtn.disabled = false;
+                rejectBtn.textContent = '✗ Reject and Discard';
+            }
+        });
+
+        function showAlert(type, message) {
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .drop-zone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+
+        .drop-zone.dragover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .drop-zone-text {
+            color: #4a5568;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .drop-zone-hint {
+            color: #a0aec0;
+            font-size: 13px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .file-name {
+            flex: 1;
+            color: #2d3748;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-size {
+            color: #718096;
+            margin-left: 15px;
+            font-size: 13px;
+        }
+
+        .remove-file {
+            background: #fc8181;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 15px;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+
+        .remove-file:hover {
+            background: #f56565;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #38a169;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2c5282;
+            border-left: 4px solid #3182ce;
+        }
+
+        .status-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .status-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            color: #2c5282;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌌 Sky Survey Data Upload</h1>
+        <p class="subtitle">Upload sky survey CSV files to the Global Sky Model database</p>
+
+        <div class="info-box">
+            <strong>Upload Requirements:</strong>
+            • CSV files only • All files must have valid schema • All files uploaded together form a single version • Upload is atomic - all files succeed or none are ingested
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="telescope">Telescope (Required)</label>
+                <input 
+                    type="text" 
+                    id="telescope" 
+                    name="telescope" 
+                    placeholder="e.g., SKA, MWA, ASKAP"
+                    required
+                />
+                <small style="color: #718096; font-size: 12px; margin-top: 5px; display: block;">
+                    Identifies which telescope this data is for
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="catalog">Catalog Type</label>
+                <select id="catalog" name="catalog">
+                    <option value="GENERIC">GENERIC</option>
+                    <option value="GLEAM">GLEAM</option>
+                    <option value="RACS">RACS</option>
+                    <option value="RCAL">RCAL</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="version">Version (Optional)</label>
+                <input 
+                    type="number" 
+                    id="version" 
+                    name="version" 
+                    placeholder="Leave empty for auto-increment"
+                    min="1"
+                />
+                <small style="color: #718096; font-size: 12px; margin-top: 5px; display: block;">
+                    Version number for this upload. Auto-increments if not specified.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label>Sky Survey Files (CSV)</label>
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📁</div>
+                    <div class="drop-zone-text">Drag and drop CSV files here</div>
+                    <div class="drop-zone-hint">or click to browse</div>
+                </div>
+                <input 
+                    type="file" 
+                    id="fileInput" 
+                    class="file-input" 
+                    accept=".csv" 
+                    multiple 
+                />
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary" id="uploadBtn">
+                    Upload Files
+                </button>
+                <button type="button" class="btn btn-secondary" id="clearBtn">
+                    Clear All
+                </button>
+            </div>
+        </form>
+
+        <div class="status-container" id="statusContainer">
+            <div class="status-title">Upload Status</div>
+            <div id="statusContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusContainer = document.getElementById('statusContainer');
+        const statusContent = document.getElementById('statusContent');
+        const alertContainer = document.getElementById('alertContainer');
+
+        let selectedFiles = [];
+
+        // Drag and drop handlers
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            const csvFiles = Array.from(files).filter(file => file.name.endsWith('.csv'));
+            
+            if (csvFiles.length === 0) {
+                showAlert('error', 'Please select CSV files only.');
+                return;
+            }
+
+            selectedFiles = [...selectedFiles, ...csvFiles];
+            updateFileList();
+            showAlert('info', `${csvFiles.length} file(s) added.`);
+        }
+
+        function updateFileList() {
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <div class="file-item">
+                    <span class="file-name">📄 ${file.name}</span>
+                    <span class="file-size">${formatFileSize(file.size)}</span>
+                    <button type="button" class="remove-file" onclick="removeFile(${index})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        clearBtn.addEventListener('click', () => {
+            selectedFiles = [];
+            fileInput.value = '';
+            updateFileList();
+            hideAlert();
+            statusContainer.style.display = 'none';
+        });
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const telescope = document.getElementById('telescope').value.trim();
+            if (!telescope) {
+                showAlert('error', 'Please specify a telescope.');
+                return;
+            }
+
+            if (selectedFiles.length === 0) {
+                showAlert('error', 'Please select at least one CSV file.');
+                return;
+            }
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => formData.append('files', file));
+            formData.append('telescope', telescope);
+            
+            const catalog = document.getElementById('catalog').value;
+            if (catalog) formData.append('catalog', catalog);
+            
+            const version = document.getElementById('version').value;
+            if (version) formData.append('version', version);
+
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = 'Uploading... <span class="loading"></span>';
+            
+            try {
+                const response = await fetch('/upload-sky-survey-batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', `Upload initiated successfully! Upload ID: ${data.upload_id}`);
+                    monitorUploadStatus(data.upload_id);
+                } else {
+                    showAlert('error', `Upload failed: ${data.detail || 'Unknown error'}`);
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload Files';
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Files';
+            }
+        });
+
+        async function monitorUploadStatus(uploadId) {
+            statusContainer.style.display = 'block';
+            
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(`/upload-sky-survey-status/${uploadId}`);
+                    const status = await response.json();
+
+                    statusContent.innerHTML = `
+                        <div class="status-item"><strong>State:</strong> ${status.state}</div>
+                        <div class="status-item"><strong>Files:</strong> ${status.uploaded_files} / ${status.total_files}</div>
+                        <div class="status-item"><strong>Version:</strong> ${status.version || 'N/A'}</div>
+                        <div class="status-item"><strong>Telescope:</strong> ${status.telescope || 'N/A'}</div>
+                        ${status.errors && status.errors.length > 0 ? 
+                            `<div class="status-item" style="color: #e53e3e;"><strong>Errors:</strong> ${status.errors.join(', ')}</div>` 
+                            : ''}
+                    `;
+
+                    if (status.state === 'completed') {
+                        showAlert('success', 'Upload completed successfully! All files have been ingested.');
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                        selectedFiles = [];
+                        fileInput.value = '';
+                        updateFileList();
+                    } else if (status.state === 'failed') {
+                        showAlert('error', 'Upload failed. Please check the errors above and try again.');
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                    } else {
+                        // Continue monitoring
+                        setTimeout(checkStatus, 2000);
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                    setTimeout(checkStatus, 2000);
+                }
+            };
+
+            checkStatus();
+        }
+
+        function showAlert(type, message) {
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            alertContainer.querySelector('.alert').style.display = 'block';
+        }
+
+        function hideAlert() {
+            alertContainer.innerHTML = '';
+        }
+    </script>
+</body>
+</html>

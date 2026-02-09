@@ -10,18 +10,19 @@ import os
 import tempfile
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (  # noqa # pylint: disable=unused-import
@@ -101,6 +102,15 @@ def ping():
     """Returns {"ping": "live"} when called"""
     logger.debug("Ping: alive")
     return {"ping": "live"}
+
+
+@app.get("/", summary="Browser upload interface")
+def root():
+    """Serve the HTML upload interface"""
+    upload_page = Path(__file__).parent / "static" / "upload.html"
+    if upload_page.exists():
+        return FileResponse(upload_page)
+    return {"message": "Upload interface not available. Use API endpoints directly."}
 
 
 def ingest(db: Session, catalog_config: dict):
@@ -315,10 +325,11 @@ def _get_catalog_config(config: Optional[dict], catalog: Optional[str]) -> dict:
 
 def _run_ingestion_task(upload_id: str, survey_config: dict):
     """
-    Run ingestion task in background.
+    Run ingestion task in background to staging table.
 
     This function runs in a separate thread/task to keep the API responsive
-    while processing large file uploads.
+    while processing large file uploads. Data is ingested to staging table
+    and requires manual commit to move to main table.
 
     Parameters
     ----------
@@ -332,23 +343,22 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
         # Get fresh database session
         db = _get_db_session()
 
-        # Note: CSV structure validation is skipped here as the ingestion process
-        # will handle column mapping and report any issues. The validation was
-        # complex due to different alias configurations per catalog.
-
-        # Ingest all files
+        # Ingest all files to staging table
         file_paths = upload_manager.list_files(upload_id)
         for file_path in file_paths:
             # Deep copy to avoid modifying shared config
             file_config = copy.deepcopy(survey_config)
             file_config["ingest"]["file_location"][0]["key"] = str(file_path)
+            file_config["staging"] = True  # Flag to ingest to staging
+            file_config["upload_id"] = upload_id  # Track upload batch
 
-            logger.info("Ingesting file: %s", file_path.name)
+            logger.info("Ingesting file to staging: %s", file_path.name)
             if not get_full_catalog(db, file_config):
                 raise RuntimeError(f"Ingest failed for {file_path.name}")
 
+        # Mark as completed ingestion (still in UPLOADING, awaiting commit)
         upload_manager.mark_completed(upload_id)
-        logger.info("Background ingestion completed for upload %s", upload_id)
+        logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
     except Exception as e:
         error_msg = str(e)
@@ -477,3 +487,178 @@ def upload_sky_survey_status(upload_id: str):
     """
     status = upload_manager.get_status(upload_id)
     return status.to_dict()
+
+
+@app.get("/review-upload/{upload_id}")
+def review_upload(upload_id: str, db: Session = Depends(get_db)):
+    """
+    Review staged data before committing to main database.
+
+    Parameters
+    ----------
+    upload_id : str
+        Upload identifier
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Sample of staged data and statistics
+    """
+    status = upload_manager.get_status(upload_id)
+    
+    if status.state != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Upload not ready for review. Current state: {status.state}"
+        )
+    
+    # Get count and sample of staged data
+    from sqlalchemy import func
+    count = db.query(func.count(SkyComponentStaging.id)).filter(
+        SkyComponentStaging.upload_id == upload_id
+    ).scalar()
+    
+    # Get first 10 rows as sample
+    sample = db.query(SkyComponentStaging).filter(
+        SkyComponentStaging.upload_id == upload_id
+    ).limit(10).all()
+    
+    return {
+        "upload_id": upload_id,
+        "total_records": count,
+        "sample": [row.columns_to_dict() for row in sample]
+    }
+
+
+@app.post("/commit-upload/{upload_id}")
+def commit_upload(upload_id: str, db: Session = Depends(get_db)):
+    """
+    Commit staged data to main database.
+
+    Parameters
+    ----------
+    upload_id : str
+        Upload identifier
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Result of commit operation
+    """
+    status = upload_manager.get_status(upload_id)
+    
+    if status.state != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Upload not ready for commit. Current state: {status.state}"
+        )
+    
+    try:
+        # Get all staged records
+        staged_records = db.query(SkyComponentStaging).filter(
+            SkyComponentStaging.upload_id == upload_id
+        ).all()
+        
+        if not staged_records:
+            raise HTTPException(status_code=404, detail="No staged data found")
+        
+        logger.info("Committing %d records from upload %s", len(staged_records), upload_id)
+        
+        # Copy to main table
+        for staged in staged_records:
+            # Create main table record from staged data
+            main_record = SkyComponent(
+                component_id=staged.component_id,
+                healpix_index=staged.healpix_index,
+                ra=staged.ra,
+                dec=staged.dec,
+                # Copy all other dynamic fields
+                **{k: v for k, v in staged.columns_to_dict().items() 
+                   if k not in ['id', 'upload_id']}
+            )
+            db.add(main_record)
+        
+        # Delete from staging
+        db.query(SkyComponentStaging).filter(
+            SkyComponentStaging.upload_id == upload_id
+        ).delete()
+        
+        db.commit()
+        
+        # Cleanup temp files
+        upload_manager.cleanup(upload_id)
+        
+        logger.info("Successfully committed upload %s", upload_id)
+        
+        return {
+            "status": "success",
+            "message": f"Committed {len(staged_records)} records to main database",
+            "records_committed": len(staged_records)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error("Failed to commit upload %s: %s", upload_id, e)
+        raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}")
+
+
+@app.delete("/reject-upload/{upload_id}")
+def reject_upload(upload_id: str, db: Session = Depends(get_db)):
+    """
+    Reject and discard staged data.
+
+    Parameters
+    ----------
+    upload_id : str
+        Upload identifier
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Result of reject operation
+    """
+    status = upload_manager.get_status(upload_id)
+    
+    if status.state != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Upload not ready for rejection. Current state: {status.state}"
+        )
+    
+    try:
+        # Count records to be deleted
+        count = db.query(SkyComponentStaging).filter(
+            SkyComponentStaging.upload_id == upload_id
+        ).count()
+        
+        # Delete staged data
+        db.query(SkyComponentStaging).filter(
+            SkyComponentStaging.upload_id == upload_id
+        ).delete()
+        
+        db.commit()
+        
+        # Mark upload as failed
+        upload_manager.mark_failed(upload_id, "Rejected by user")
+        
+        # Cleanup temp files
+        upload_manager.cleanup(upload_id)
+        
+        logger.info("Rejected and deleted %d staged records for upload %s", count, upload_id)
+        
+        return {
+            "status": "success",
+            "message": f"Rejected and deleted {count} staged records",
+            "records_deleted": count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error("Failed to reject upload %s: %s", upload_id, e)
+        raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}")

@@ -15,7 +15,7 @@ import numpy as np
 from astroquery.vizier import Vizier
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
@@ -144,6 +144,8 @@ def create_source_catalog_entry(
     db: Session,
     source: Dict[str, float],
     component_id: str,
+    staging: bool = False,
+    upload_id: Optional[str] = None,
 ) -> Optional[SkyComponent]:
     """Creates a SkyComponent object from the provided source data and adds it to the database.
 
@@ -157,17 +159,28 @@ def create_source_catalog_entry(
             * `DEJ2000`: Declination (J2000) in degrees (required).
             * `CATALOG_NAME` (optional): Name of the component in the e.g. GLEAM catalog.
         component_id: String for the sky component_id.
+        staging: If True, insert to staging table instead of main table.
+        upload_id: Upload identifier for staging records.
 
     Returns:
         The created SkyComponent object, or None if required keys are missing from the data.
     """
 
-    sky_component = SkyComponent(
-        component_id=component_id,
-        healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
-        ra=source["RAJ2000"],
-        dec=source["DEJ2000"],
-    )
+    if staging:
+        sky_component = SkyComponentStaging(
+            component_id=component_id,
+            healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
+            ra=source["RAJ2000"],
+            dec=source["DEJ2000"],
+            upload_id=upload_id,
+        )
+    else:
+        sky_component = SkyComponent(
+            component_id=component_id,
+            healpix_index=compute_hpx_healpy(source["RAJ2000"], source["DEJ2000"]),
+            ra=source["RAJ2000"],
+            dec=source["DEJ2000"],
+        )
     db.add(sky_component)
     db.commit()
     return sky_component
@@ -349,12 +362,15 @@ def validate_source_mapping(  # pylint: disable=too-many-return-statements
     return True, None
 
 
-def commit_batch(db: Session, component_objs: list):
+def commit_batch(db: Session, component_objs: list, model_class=None):
     """Commit batches of sky components."""
     if not component_objs:
         return
 
-    db.bulk_insert_mappings(SkyComponent, component_objs)
+    if model_class is None:
+        model_class = SkyComponent
+        
+    db.bulk_insert_mappings(model_class, component_objs)
     db.commit()
     component_objs.clear()
 
@@ -364,6 +380,8 @@ def process_source_data_batch(
     catalog_data,
     catalog_config,
     batch_size: int = 500,
+    staging: bool = False,
+    upload_id: Optional[str] = None,
 ) -> bool:
     """
     Processes source data and inserts into DB using batch operations for speed.
@@ -373,12 +391,17 @@ def process_source_data_batch(
         catalog_data: List of catalog source dictionaries.
         catalog_config: Catalog configuration.
         batch_size: Number of sources to insert per DB commit.
+        staging: If True, insert to staging table.
+        upload_id: Upload identifier for staging records.
     Returns:
         True if successful, False otherwise.
     """
-    logger.info("Processing source data in batches...")
+    logger.info("Processing source data in batches (staging=%s)...", staging)
 
-    existing_component_id = {r[0] for r in db.query(SkyComponent.component_id).all()}
+    # Choose appropriate model
+    model_class = SkyComponentStaging if staging else SkyComponent
+    
+    existing_component_id = {r[0] for r in db.query(model_class.component_id).all()}
 
     component_objs = []
 
@@ -418,12 +441,16 @@ def process_source_data_batch(
                 return False
             continue
 
+        # Add upload_id for staging table
+        if staging and upload_id:
+            source_mapping["upload_id"] = upload_id
+            
         component_objs.append(source_mapping)
 
         if count % batch_size == 0:
-            commit_batch(db, component_objs)
+            commit_batch(db, component_objs, model_class)
 
-    commit_batch(db, component_objs)
+    commit_batch(db, component_objs, model_class)
 
     if validation_errors > 0:
         logger.warning("Completed with %d validation errors (sources skipped)", validation_errors)
@@ -436,7 +463,7 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     Downloads and processes a source catalog for a specified telescope.
 
     This function retrieves source data from the specified catalog and processes
-    it into the schema, storing all information directly in the SkyComponent table.
+    it into the schema, storing information in SkyComponent table (or staging table).
 
     Args:
         db: An SQLAlchemy database session object.
@@ -445,13 +472,19 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
             - catalog_name: Name of the catalog
             - ingest: Ingest configuration
             - source: Source name field
+            - staging: (optional) If True, ingest to staging table
+            - upload_id: (optional) Upload identifier for staging
 
     Returns:
         True if the catalog data is downloaded and processed successfully, False otherwise.
     """
     telescope_name = catalog_config["name"]
     catalog_name = catalog_config["catalog_name"]
-    logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
+    staging = catalog_config.get("staging", False)
+    upload_id = catalog_config.get("upload_id")
+    
+    logger.info("Loading the %s catalog for the %s telescope (staging=%s)...", 
+               catalog_name, telescope_name, staging)
 
     # Get catalog data
     catalog_data = get_data_catalog_selector(catalog_config["ingest"])
@@ -466,6 +499,8 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
             db,
             components,
             catalog_config,
+            staging=staging,
+            upload_id=upload_id,
         ):
             return False
 
