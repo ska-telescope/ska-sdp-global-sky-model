@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Utilities to write a local sky model CSV file and associated metadata.
+  (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__)
 - [Updated] Dynamic database models for automatic synchronization with ska-sdp-datamodels.
   **Breaking Changes:**
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
