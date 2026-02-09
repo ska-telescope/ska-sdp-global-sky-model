@@ -24,7 +24,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
-from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String
+from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import mapped_column
 
@@ -77,7 +77,7 @@ def _python_type_to_column(field_type: type) -> Column:
     return Column(sa_type, nullable=True)
 
 
-def _add_dynamic_columns_to_model(model_class, dataclass):
+def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
     """
     Dynamically add columns from a dataclass to a SQLAlchemy model.
 
@@ -87,10 +87,17 @@ def _add_dynamic_columns_to_model(model_class, dataclass):
     Args:
         model_class: The SQLAlchemy model class to add columns to
         dataclass: The dataclass whose fields will be mapped to columns
+        skip_columns: Set of column names to skip (already defined in the model)
     """
+    if skip_columns is None:
+        skip_columns = set()
+    
     for col, dtype in dataclass.__annotations__.items():
+        if col in skip_columns:
+            continue  # Skip columns already defined in the model
+            
         if col in ("name", "component_id"):
-            # Special handling for name field - make it unique and not nullable
+            # Special handling for name/component_id - make unique and not nullable
             setattr(model_class, col, Column(String, unique=True, nullable=False))
         else:
             # All other fields are nullable to support partial data insertion
@@ -117,16 +124,29 @@ class SkyComponent(Base):
 
     This model dynamically generates columns from the SkyComponent dataclass,
     ensuring automatic synchronization with upstream data model changes.
+    
+    Supports versioning - same component_id can have multiple versions.
     """
 
     __tablename__ = "sky_component"
-    __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
+    
+    # Version tracking - semantic versioning
+    # Minor version incremented on each update.
+    version = Column(String, nullable=False, default="0.0.0", server_default="0.0.0")
+    
+    # Add component_id explicitly so we can reference it in __table_args__
+    component_id = Column(String, nullable=False, index=True)
+    
+    __table_args__ = (
+        UniqueConstraint('component_id', 'version', name='uq_component_version'),
+        {"schema": DB_SCHEMA}
+    )
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
@@ -138,10 +158,10 @@ class SkyComponentStaging(Base):
     Staging table for sky components awaiting manual verification.
     
     Data is first ingested here, then moved to SkyComponent after user commits.
+    Each upload is independent - same component_id can exist in different uploads.
     """
 
     __tablename__ = "sky_component_staging"
-    __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -151,6 +171,14 @@ class SkyComponentStaging(Base):
     
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)
+    
+    # Add component_id explicitly so we can reference it in __table_args__
+    component_id = Column(String, nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint('component_id', 'upload_id', name='uq_component_upload'),
+        {"schema": DB_SCHEMA}
+    )
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
@@ -159,5 +187,7 @@ class SkyComponentStaging(Base):
 
 # Apply dynamic column generation to models
 _add_dynamic_columns_to_model(GlobalSkyModelMetadata, GSMMetadataDataclass)
-_add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
-_add_dynamic_columns_to_model(SkyComponentStaging, SkyComponentDataclass)
+# For main table, skip component_id since it's defined explicitly for the composite constraint with version
+_add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass, skip_columns={'component_id'})
+# For staging, skip component_id since it's defined explicitly for the composite constraint
+_add_dynamic_columns_to_model(SkyComponentStaging, SkyComponentDataclass, skip_columns={'component_id'})

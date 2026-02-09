@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, ORJSONResponse
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
@@ -200,7 +200,6 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
             file_config["staging"] = True  # Flag to ingest to staging
             file_config["upload_id"] = upload_id  # Track upload batch
 
-            logger.info("Ingesting file to staging: %s", file_path.name)
             if not get_full_catalog(db, file_config):
                 raise RuntimeError(f"Ingest failed for {file_path.name}")
 
@@ -211,6 +210,7 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
     except Exception as e:
         error_msg = str(e)
         logger.error("Background ingestion failed for upload %s: %s", upload_id, error_msg)
+        logger.exception("Full traceback for upload %s:", upload_id)
         upload_manager.mark_failed(upload_id, error_msg)
 
     finally:
@@ -285,6 +285,7 @@ async def upload_sky_survey_batch(
         background_tasks.add_task(_run_ingestion_task, upload_id, survey_config)
 
         logger.info("Upload %s: files saved, ingestion scheduled in background", upload_id)
+        logger.info("===== Background task SCHEDULED for upload %s =====", upload_id)
 
         return {
             "upload_id": upload_id,
@@ -408,21 +409,56 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         if not staged_records:
             raise HTTPException(status_code=404, detail="No staged data found")
         
-        logger.info("Committing %d records from upload %s", len(staged_records), upload_id)
+        # Get current max versions for all component_ids being committed
+        component_ids = [r.component_id for r in staged_records]
+        max_versions = {}
         
-        # Copy to main table
+        if component_ids:
+            # Query max version for each component_id (semantic version strings)
+            version_results = db.query(
+                SkyComponent.component_id,
+                func.max(SkyComponent.version).label('max_version')
+            ).filter(
+                SkyComponent.component_id.in_(component_ids)
+            ).group_by(SkyComponent.component_id).all()
+            
+            max_versions = {r.component_id: r.max_version for r in version_results}
+        
+        # Helper function to increment minor version
+        def increment_minor_version(version_str):
+            """Increment minor version in semantic versioning (major.minor.patch).
+
+            - If no existing version, start at 0.0.0 for first commit.
+            - Subsequent commits increment the minor part: 0.0.0 -> 0.1.0 -> 0.2.0
+            """
+            if not version_str:
+                return "0.0.0"
+            try:
+                parts = version_str.split('.')
+                major = int(parts[0]) if len(parts) > 0 else 0
+                minor = int(parts[1]) if len(parts) > 1 else 0
+                patch = int(parts[2]) if len(parts) > 2 else 0
+                return f"{major}.{minor + 1}.{patch}"
+            except (ValueError, IndexError):
+                return "0.0.0"
+        
+        # Copy from staging to main table with semantic version tracking
         for staged in staged_records:
+            # Get next version for this component_id
+            current_version = max_versions.get(staged.component_id, None)
+            next_version = increment_minor_version(current_version)
+            
             # Create main table record from staged data
-            main_record = SkyComponent(
-                component_id=staged.component_id,
-                healpix_index=staged.healpix_index,
-                ra=staged.ra,
-                dec=staged.dec,
-                # Copy all other dynamic fields
-                **{k: v for k, v in staged.columns_to_dict().items() 
-                   if k not in ['id', 'upload_id']}
-            )
+            # Exclude 'id' and 'upload_id' from staging table fields
+            record_data = {k: v for k, v in staged.columns_to_dict().items() 
+                          if k not in ['id', 'upload_id']}
+            record_data['version'] = next_version
+            
+            main_record = SkyComponent(**record_data)
             db.add(main_record)
+            
+            # Update max_versions for this component_id for subsequent records in same batch
+            max_versions[staged.component_id] = next_version
         
         # Delete from staging
         db.query(SkyComponentStaging).filter(
