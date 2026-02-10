@@ -8,7 +8,6 @@ import csv
 import io
 import logging
 from itertools import zip_longest
-from typing import Optional
 
 import healpy as hp
 import numpy as np
@@ -145,7 +144,7 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     # Build base source mapping with required fields using standardized column names
     source_mapping = {
         "component_id": str(source_dict.get(catalog_config["source"])),
-        "healpix_index": compute_hpx_healpy(source_dict["ra"], source_dict["dec"]),
+        "healpix_index": compute_hpx_healpy(source_dict.get("ra"), source_dict.get("dec")),
         "ra": to_float(source_dict.get("ra")),
         "dec": to_float(source_dict.get("dec")),
         # I polarization - standardized column name
@@ -199,7 +198,7 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
 
 def _validate_required_field(
     source_mapping: dict, field: str, expected_type: type, row_info: str
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """Validate a single required field exists and has correct type."""
     if field not in source_mapping or source_mapping[field] is None:
         return False, f"Missing required field '{field}'{row_info}"
@@ -214,8 +213,8 @@ def _validate_required_field(
 
 
 def _validate_numeric_range(
-    value: float, field: str, min_val: Optional[float], max_val: Optional[float], row_info: str
-) -> tuple[bool, Optional[str]]:
+    value: float, field: str, min_val: float | None, max_val: float | None, row_info: str
+) -> tuple[bool, str | None]:
     """Validate a numeric value is within specified range."""
     if not isinstance(value, (int, float)):
         return False, f"Field '{field}' must be numeric{row_info}: got {type(value).__name__}"
@@ -231,7 +230,7 @@ def _validate_numeric_range(
 
 def _validate_optional_numeric_fields(
     source_mapping: dict, row_info: str
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """Validate all optional numeric fields if present."""
     optional_numeric = {
         "major_ax": (0, None),
@@ -257,7 +256,7 @@ def _validate_optional_numeric_fields(
     return True, None
 
 
-def validate_source_mapping(source_mapping: dict, row_num: int = 0) -> tuple[bool, Optional[str]]:
+def validate_source_mapping(source_mapping: dict, row_num: int = 0) -> tuple[bool, str | None]:
     """
     Validate a source mapping against the SkySource schema requirements.
 
