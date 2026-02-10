@@ -23,6 +23,7 @@ from sqlalchemy.pool import StaticPool
 
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.models import SkyComponent as SkyComponentModel
+from ska_sdp_global_sky_model.api.app.models import SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Use in-memory SQLite for testing
@@ -150,25 +151,27 @@ class TestSkyComponentModel:
         assert retrieved.u_pol == 0.2
         assert retrieved.v_pol == 0.05
 
-    def test_sky_component_unique_name_constraint(self, db_session):
-        """Test that component names must be unique."""
+    def test_sky_component_versioning_constraint(self, db_session):
+        """Test that duplicate component_id + version raises constraint error."""
         component1 = SkyComponentModel(
-            component_id="UniqueSource",
+            component_id="VersionedSource",
             ra=100.0,
             dec=50.0,
             i_pol=1.0,
             healpix_index=11111,
+            version="0.0.0",
         )
         db_session.add(component1)
         db_session.commit()
 
-        # Try to create another component with the same name
+        # Try to create duplicate component_id + version
         component2 = SkyComponentModel(
-            component_id="UniqueSource",
+            component_id="VersionedSource",
             ra=200.0,
             dec=60.0,
             i_pol=2.0,
             healpix_index=22222,
+            version="0.0.0",  # Duplicate version
         )
         db_session.add(component2)
 
@@ -245,6 +248,118 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx == spec_idx_values
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
+
+    def test_sky_component_versioning(self, db_session):
+        """Test versioning support, same component_id can have multiple versions."""
+        # Create two versions of the same component
+        component_v1 = SkyComponentModel(
+            component_id="VersionedSource",
+            ra=100.0,
+            dec=50.0,
+            i_pol=1.0,
+            healpix_index=11111,
+            version="0.0.0",
+        )
+        component_v2 = SkyComponentModel(
+            component_id="VersionedSource",
+            ra=100.1,
+            dec=50.1,
+            i_pol=1.1,
+            healpix_index=11111,
+            version="0.1.0",
+        )
+        db_session.add_all([component_v1, component_v2])
+        db_session.commit()
+
+        # Both versions should exist
+        all_versions = (
+            db_session.query(SkyComponentModel).filter_by(component_id="VersionedSource").all()
+        )
+        assert len(all_versions) == 2
+        assert {v.version for v in all_versions} == {"0.0.0", "0.1.0"}
+
+
+class TestSkyComponentStagingModel:
+    """Tests for the SkyComponentStaging SQLAlchemy model."""
+
+    def test_staging_basic_functionality(self, db_session):
+        """Test basic SkyComponentStaging CRUD operations."""
+        staged = SkyComponentStaging(
+            component_id="StagedSource1",
+            upload_id="test-upload-123",
+            ra=123.45,
+            dec=-67.89,
+            i_pol=1.23,
+            healpix_index=12345,
+        )
+        db_session.add(staged)
+        db_session.commit()
+
+        retrieved = (
+            db_session.query(SkyComponentStaging)
+            .filter_by(component_id="StagedSource1", upload_id="test-upload-123")
+            .first()
+        )
+        assert retrieved is not None
+        assert retrieved.component_id == "StagedSource1"
+        assert retrieved.upload_id == "test-upload-123"
+
+    def test_staging_allows_same_component_different_uploads(self, db_session):
+        """Test that same component_id can exist in different uploads."""
+        staged1 = SkyComponentStaging(
+            component_id="TestSource",
+            upload_id="upload-001",
+            ra=100.0,
+            dec=50.0,
+            i_pol=1.0,
+            healpix_index=11111,
+        )
+        db_session.add(staged1)
+        db_session.commit()
+
+        # Same component_id in different upload - should succeed
+        staged2 = SkyComponentStaging(
+            component_id="TestSource",
+            upload_id="upload-002",
+            ra=200.0,
+            dec=60.0,
+            i_pol=2.0,
+            healpix_index=22222,
+        )
+        db_session.add(staged2)
+        db_session.commit()
+
+        # Both should exist
+        all_records = (
+            db_session.query(SkyComponentStaging).filter_by(component_id="TestSource").all()
+        )
+        assert len(all_records) == 2
+
+    def test_staging_unique_constraint_violation(self, db_session):
+        """Test that duplicate component_id + upload_id raises constraint error."""
+        staged1 = SkyComponentStaging(
+            component_id="TestSource",
+            upload_id="upload-001",
+            ra=100.0,
+            dec=50.0,
+            i_pol=1.0,
+            healpix_index=11111,
+        )
+        db_session.add(staged1)
+        db_session.commit()
+
+        # Duplicate component_id + upload_id - should fail
+        staged2 = SkyComponentStaging(
+            component_id="TestSource",
+            upload_id="upload-001",
+            ra=200.0,
+            dec=60.0,
+            i_pol=2.0,
+            healpix_index=22222,
+        )
+        db_session.add(staged2)
+        with pytest.raises(Exception):
+            db_session.commit()
 
 
 class TestGlobalSkyModelMetadataModel:
@@ -396,7 +511,7 @@ class TestSkyComponentModelDataclassSync:
         """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
         expected_columns = set(SkyComponent.__annotations__.keys())
-        expected_columns.update(["id", "healpix_index"])
+        expected_columns.update(["id", "healpix_index", "version"])
 
         # Get actual model columns
         inspector = inspect(engine)
@@ -417,8 +532,8 @@ class TestSkyComponentModelDataclassSync:
 
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
-        # Expected: all dataclass fields + 2 database-specific (id, healpix_index)
-        expected_count = len(SkyComponent.__annotations__) + 2
+        # Expected: all dataclass fields + 3 database-specific (id, healpix_index, version)
+        expected_count = len(SkyComponent.__annotations__) + 3
 
         # Get actual count
         inspector = inspect(engine)
