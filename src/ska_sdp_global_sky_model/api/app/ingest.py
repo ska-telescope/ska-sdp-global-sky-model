@@ -88,9 +88,17 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
     ra_deg = to_float(ra_deg)
     dec_deg = to_float(dec_deg)
 
-    theta = np.radians(90.0 - dec_deg)
-    phi = np.radians(ra_deg)
-    return int(hp.ang2pix(nside, theta, phi, nest=nest))
+    # Return None if coordinates are invalid (will be caught by validation)
+    if ra_deg is None or dec_deg is None:
+        return None
+
+    try:
+        theta = np.radians(90.0 - dec_deg)
+        phi = np.radians(ra_deg)
+        return int(hp.ang2pix(nside, theta, phi, nest=nest))
+    except (ValueError, RuntimeError):
+        # Invalid coordinates - will be caught by validation
+        return None
 
 
 def coerce_floats(source_dict: dict) -> dict:
@@ -308,23 +316,27 @@ def process_source_data_batch(
     """
     Processes source data and inserts into DB using batch operations for speed.
 
+    This function performs validation in two phases:
+    1. Validate all sources and collect errors
+    2. Only ingest if all sources are valid
+
     Args:
         db: SQLAlchemy session.
         catalog_data: List of catalog source dictionaries.
         catalog_config: Catalog configuration.
         batch_size: Number of sources to insert per DB commit.
     Returns:
-        True if successful, False otherwise.
+        True if successful, False if validation errors occurred.
     """
-    logger.info("Processing source data in batches...")
+    logger.info("Validating all source data before ingestion...")
 
     existing_component_id = {r[0] for r in db.query(SkyComponent.component_id).all()}
 
+    # Phase 1: Validate all data and collect valid sources
     component_objs = []
-
+    validation_errors = []
     count = 0
     total = len(catalog_data)
-    validation_errors = 0
 
     for src in catalog_data:
         source_dict = dict(src) if not hasattr(src, "items") else src
@@ -339,35 +351,49 @@ def process_source_data_batch(
 
         if count % 100 == 0:
             logger.info(
-                "Progress: %s%%",
+                "Validation progress: %s%%",
                 calculate_percentage(count, total),
             )
 
         # Build the standardized source mapping
         source_mapping = build_source_mapping(source_dict, catalog_config)
 
-        # Validate the source mapping before adding to batch
+        # Validate the source mapping
         is_valid, error_msg = validate_source_mapping(source_mapping, count)
         if not is_valid:
-            logger.warning("Skipping invalid source %s: %s", component_id, error_msg)
-            validation_errors += 1
-            if validation_errors > 100:  # Stop if too many errors
-                logger.error(
-                    "Too many validation errors (%d), stopping ingestion", validation_errors
-                )
-                return False
-            continue
+            error_entry = f"Row {count} (component_id: {component_id}): {error_msg}"
+            validation_errors.append(error_entry)
+            logger.warning("Validation error: %s", error_entry)
+        else:
+            component_objs.append(source_mapping)
 
-        component_objs.append(source_mapping)
+    # Phase 2: Check if any validation errors occurred
+    if validation_errors:
+        logger.error(
+            "Validation failed with %d errors. No data will be ingested.",
+            len(validation_errors),
+        )
+        logger.error("All validation errors:")
+        for error in validation_errors:
+            logger.error("  - %s", error)
+        return False
 
-        if count % batch_size == 0:
-            commit_batch(db, component_objs)
+    # Phase 3: All validation passed, proceed with ingestion
+    logger.info(
+        "All %d sources validated successfully. Starting ingestion...", len(component_objs)
+    )
 
-    commit_batch(db, component_objs)
+    # Batch insert for efficiency
+    total_to_ingest = len(component_objs)
+    for i in range(0, total_to_ingest, batch_size):
+        batch = component_objs[i : i + batch_size]  # noqa: E203
+        commit_batch(db, batch)
+        logger.info(
+            "Ingestion progress: %s%%",
+            calculate_percentage(min(i + batch_size, total_to_ingest), total_to_ingest),
+        )
 
-    if validation_errors > 0:
-        logger.warning("Completed with %d validation errors (sources skipped)", validation_errors)
-
+    logger.info("Successfully ingested %d sources", total_to_ingest)
     return True
 
 

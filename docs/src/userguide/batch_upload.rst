@@ -39,10 +39,11 @@ After CSV files are loaded, each source undergoes validation:
     - ``dec``: Declination (J2000) in degrees (float, -90 to 90)
     - ``i_pol``: I polarization flux at reference frequency (float, must be positive, in Janskys)
 
-**Optional Field Validation**:
-    - Numeric fields validated for appropriate ranges
-    - Invalid sources are logged with warnings and skipped
-    - Ingestion stops if more than 100 validation errors occur
+**Validation Process**:
+    - All sources are validated before any data is ingested
+    - Validation errors are collected and logged for all sources
+    - If ANY validation errors occur, NO data is ingested (all-or-nothing)
+    - Only if ALL sources pass validation will ingestion proceed
 
 API Endpoints
 -------------

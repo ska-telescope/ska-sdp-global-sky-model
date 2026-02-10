@@ -3,6 +3,7 @@
 Tests for catalog ingestion functionality
 """
 
+import logging
 import tempfile
 from pathlib import Path
 
@@ -421,6 +422,140 @@ class TestProcessSourceDataBatch:
         count2 = test_db.query(SkyComponent).count()
 
         assert count1 == count2  # No new components added
+
+    def test_validation_errors_prevent_ingestion(self, test_db):
+        """Test that validation errors prevent any data from being ingested (all-or-nothing)"""
+        # Create CSV with mix of valid and invalid sources
+        invalid_csv = (
+            b"component_id,ra,dec,i_pol\n"
+            b"J001122-334455,10.5,45.2,1.5\n"  # Valid
+            b"J112233-445566,400.0,30.1,2.3\n"  # Invalid RA (out of range)
+            b"J223344-556677,30.1,-20.5,0.8\n"  # Valid
+        )
+
+        sf = SourceFile(invalid_csv)
+        catalog_config = {"source": "component_id"}
+
+        result = process_source_data_batch(test_db, sf, catalog_config)
+
+        # Should fail due to validation errors
+        assert result is False
+        # NO data should be ingested (all-or-nothing)
+        count = test_db.query(SkyComponent).count()
+        assert count == 0
+
+    def test_all_validation_errors_collected(self, test_db, caplog):
+        """Test that all validation errors are collected and logged"""
+        caplog.set_level(logging.ERROR)
+
+        # Create CSV with multiple invalid sources
+        invalid_csv = (
+            b"component_id,ra,dec,i_pol\n"
+            b"J001122-334455,10.5,45.2,1.5\n"  # Valid
+            b"J112233-445566,400.0,30.1,2.3\n"  # Invalid RA
+            b"J223344-556677,30.1,95.0,0.8\n"  # Invalid DEC
+            b"J334455-667788,20.0,10.0,-1.0\n"  # Invalid i_pol (negative)
+            b"J445566-778899,50.0,20.0,2.0\n"  # Valid
+        )
+
+        sf = SourceFile(invalid_csv)
+        catalog_config = {"source": "component_id"}
+
+        result = process_source_data_batch(test_db, sf, catalog_config)
+
+        # Should fail
+        assert result is False
+
+        # Check that all 3 validation errors were logged
+        error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
+
+        # Should have summary + all errors logged
+        validation_summary = [log for log in error_logs if "Validation failed with" in log]
+        assert len(validation_summary) == 1
+        assert "3 errors" in validation_summary[0]
+
+        # All errors should be logged (not just first 10)
+        all_errors_log = [log for log in error_logs if "All validation errors:" in log]
+        assert len(all_errors_log) == 1
+
+        # Check individual error messages are present
+        error_messages = [log for log in error_logs if "Row" in log and "component_id:" in log]
+        assert len(error_messages) == 3  # All 3 validation errors
+
+    def test_validation_phase_before_ingestion(self, test_db, caplog):
+        """Test that all validation happens before any ingestion"""
+        caplog.set_level(logging.INFO)
+
+        # Create CSV with invalid data at the end
+        invalid_csv = (
+            b"component_id,ra,dec,i_pol\n"
+            b"J001122-334455,10.5,45.2,1.5\n"  # Valid
+            b"J112233-445566,20.0,30.1,2.3\n"  # Valid
+            b"J223344-556677,400.0,-20.5,0.8\n"  # Invalid RA (last row)
+        )
+
+        sf = SourceFile(invalid_csv)
+        catalog_config = {"source": "component_id"}
+
+        result = process_source_data_batch(test_db, sf, catalog_config)
+
+        # Should fail
+        assert result is False
+
+        # NO data should be ingested, even though first 2 rows were valid
+        count = test_db.query(SkyComponent).count()
+        assert count == 0
+
+        # Check that validation message appeared before any ingestion message
+        log_messages = [record.message for record in caplog.records]
+        validation_msg_found = False
+        ingestion_msg_found = False
+
+        for msg in log_messages:
+            if "Validating all source data" in msg:
+                validation_msg_found = True
+            if "Starting ingestion" in msg:
+                ingestion_msg_found = True
+
+        assert validation_msg_found is True
+        # Should NOT have ingestion message since validation failed
+        assert ingestion_msg_found is False
+
+    def test_successful_ingestion_after_validation(self, test_db, caplog):
+        """Test that ingestion proceeds only after all validation passes"""
+        caplog.set_level(logging.INFO)
+
+        valid_csv = (
+            b"component_id,ra,dec,i_pol\n"
+            b"J001122-334455,10.5,45.2,1.5\n"
+            b"J112233-445566,20.0,30.1,2.3\n"
+        )
+
+        sf = SourceFile(valid_csv)
+        catalog_config = {"source": "component_id"}
+
+        result = process_source_data_batch(test_db, sf, catalog_config)
+
+        # Should succeed
+        assert result is True
+        count = test_db.query(SkyComponent).count()
+        assert count == 2
+
+        # Check log sequence
+        log_messages = [record.message for record in caplog.records]
+
+        # Find validation and ingestion messages
+        validation_complete = False
+        ingestion_started = False
+
+        for msg in log_messages:
+            if "validated successfully" in msg:
+                validation_complete = True
+            if "Starting ingestion" in msg and validation_complete:
+                ingestion_started = True
+
+        assert validation_complete is True
+        assert ingestion_started is True
 
 
 class TestGetFullCatalog:
