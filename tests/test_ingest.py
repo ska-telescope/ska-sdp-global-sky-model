@@ -137,12 +137,6 @@ class TestSourceFile:
         assert sf.file_location == str(sample_csv_file)
         assert sf.len == 4  # Header + 3 data rows
 
-    def test_source_file_with_alias(self, sample_csv_file):
-        """Test SourceFile with column aliasing"""
-        heading_alias = {"ra": "RAJ2000", "dec": "DEJ2000"}
-        sf = SourceFile(str(sample_csv_file), heading_alias=heading_alias)
-        assert sf.heading_alias == heading_alias
-
     def test_source_file_iteration(self, sample_csv_file):
         """Test iterating through SourceFile"""
         sf = SourceFile(str(sample_csv_file))
@@ -375,8 +369,6 @@ class TestGetDataCatalogSelector:  # pylint: disable=too-few-public-methods
             "file_location": [
                 {
                     "key": str(sample_csv_file),
-                    "heading_alias": {},
-                    "heading_missing": [],
                     "bands": [150],
                 }
             ]
@@ -433,8 +425,6 @@ class TestGetFullCatalog:
                 "file_location": [
                     {
                         "key": str(sample_csv_file),
-                        "heading_alias": {},
-                        "heading_missing": [],
                         "bands": [],
                     }
                 ]
@@ -463,8 +453,6 @@ class TestGetFullCatalog:
                     "file_location": [
                         {
                             "key": str(empty_file),
-                            "heading_alias": {},
-                            "heading_missing": [],
                             "bands": [],
                         }
                     ]

@@ -88,9 +88,6 @@ STANDARD_CATALOG_CONFIG = {
         "file_location": [
             {
                 "key": "unset",
-                # No column aliasing - expect standardized column names
-                "heading_alias": {},
-                "heading_missing": [],
                 "bands": [],
             }
         ],

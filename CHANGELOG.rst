@@ -12,8 +12,7 @@ Development
 - [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
   returning immediately with "uploading" status while ingestion proceeds asynchronously.
   This keeps the API responsive during large file uploads.
-- [Added] Schema-level data validation for uploaded sources. After CSV transformation to the
-  standardized database schema, each source is validated for:  
+- [Added] Schema-level data validation for uploaded sources. Each source is validated for:  
   - Required fields (name, ra, dec, i_pol)
   - Coordinate ranges (RA: -360 to 360°, Dec: -90 to 90°)
   - Positive flux values (i_pol > 0)

@@ -204,9 +204,7 @@ def test_upload_sky_survey_batch_invalid_file_type(myclient, monkeypatch):
         "ingest": {
             "wideband": True,
             "agent": "file",
-            "file_location": [
-                {"key": "unset", "heading_alias": {}, "heading_missing": [], "bands": []}
-            ],
+            "file_location": [{"key": "unset", "bands": []}],
         },
         "name": "Test",
         "catalog_name": "TEST",

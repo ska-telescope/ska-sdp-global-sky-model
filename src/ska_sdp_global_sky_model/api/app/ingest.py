@@ -22,24 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class SourceFile:
-    """SourceFile cerates an iterator object which yields source dicts."""
+    """SourceFile creates an iterator object which yields source dicts."""
 
-    def __init__(
-        self,
-        file_location: str,
-        heading_alias: dict | None = None,
-        heading_missing: list | None = None,
-    ):
+    def __init__(self, file_location: str):
         """Source file init method
         Args:
             file_location: A path to the file to be ingested.
-            heading_alias: Alter headers to match our expected input.
-            heading_missing: A list of headings to be padded onto the dataset
         """
         logger.info("Creating SourceFile object")
         self.file_location = file_location
-        self.heading_missing = heading_missing or []
-        self.heading_alias = heading_alias or {}
 
         # Get the file size in bytes
         file_size = os.path.getsize(self.file_location)
@@ -63,24 +54,13 @@ class SourceFile:
 
         logger.info("SourceFile object created")
 
-    def header(self, header) -> list:
-        """Apply header aliasing
-        Args:
-            header: The header to be processed.
-        """
-        for item in self.heading_alias.items():
-            for i, n in enumerate(header):
-                if n == item[0]:
-                    header[i] = item[1]
-        return header + self.heading_missing
-
     def __iter__(self) -> iter:
         """Iterate through the sources"""
         logger.info("In the iterator opening %s", self.file_location)
         with open(self.file_location, newline="", encoding="utf-8") as csvfile:
             logger.info("opened")
             csv_file = csv.reader(csvfile, delimiter=",")
-            heading = self.header(next(csv_file))
+            heading = next(csv_file)
             for row in csv_file:
                 yield dict(zip_longest(heading, row, fillvalue=None))
 
@@ -97,11 +77,7 @@ def get_data_catalog_selector(ingest: dict):
     for ingest_set in ingest["file_location"]:
         logger.info("Opening file: %s", ingest_set["key"])
         yield (
-            SourceFile(
-                ingest_set["key"],
-                heading_alias=ingest_set["heading_alias"],
-                heading_missing=ingest_set["heading_missing"],
-            ),
+            SourceFile(ingest_set["key"]),
             ingest_set["bands"],
         )
 
@@ -225,9 +201,8 @@ def validate_source_mapping(  # pylint: disable=too-many-return-statements
     """
     Validate a source mapping against the SkySource schema requirements.
 
-    Checks that required fields are present and have valid types and values.
-    This validation happens AFTER CSV transformation, ensuring data integrity
-    before database insertion.
+    Checks that required fields are present and have valid types and values,
+    ensuring data integrity before database insertion.
 
     Args:
         source_mapping: Dictionary with standardized SkySource fields
