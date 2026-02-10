@@ -112,22 +112,19 @@ def coerce_floats(source_dict: dict) -> dict:
     return out
 
 
-def _add_optional_field(mapping: dict, source_dict: dict, field_name: str, *csv_aliases):
+def _add_optional_field(mapping: dict, source_dict: dict, field_name: str):
     """
     Add an optional field to the mapping if found in source_dict.
 
     Args:
         mapping: Target mapping dictionary
         source_dict: Source data dictionary
-        field_name: Target field name
-        csv_aliases: One or more CSV column names to check
+        field_name: Field name to check and add
     """
-    for alias in csv_aliases:
-        if alias in source_dict:
-            value = to_float(source_dict.get(alias))
-            if value is not None:
-                mapping[field_name] = value
-                return
+    if field_name in source_dict:
+        value = to_float(source_dict.get(field_name))
+        if value is not None:
+            mapping[field_name] = value
 
 
 def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
@@ -156,21 +153,26 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     }
 
     # Add optional source shape parameters (Gaussian model)
-    _add_optional_field(source_mapping, source_dict, "major_ax", "major_ax", "awide")
-    _add_optional_field(source_mapping, source_dict, "minor_ax", "minor_ax", "bwide")
-    _add_optional_field(source_mapping, source_dict, "pos_ang", "pos_ang", "pawide")
+    _add_optional_field(source_mapping, source_dict, "major_ax")
+    _add_optional_field(source_mapping, source_dict, "minor_ax")
+    _add_optional_field(source_mapping, source_dict, "pos_ang")
 
     # Add spectral index as array if available
-    if "alpha" in source_dict or "spec_idx" in source_dict:
-        # Support either single alpha value or full spec_idx array
-        alpha = to_float(source_dict.get("alpha"))
-        if alpha is not None:
-            source_mapping["spec_idx"] = [alpha, None, None, None, None]
-        elif "spec_idx" in source_dict:
-            source_mapping["spec_idx"] = source_dict.get("spec_idx")
+    if "spec_idx" in source_dict:
+        spec_idx_val = source_dict.get("spec_idx")
+        # Handle single numeric value (convert to array) or existing array
+        if isinstance(spec_idx_val, str):
+            # Try to convert string to float
+            float_val = to_float(spec_idx_val)
+            if float_val is not None:
+                source_mapping["spec_idx"] = [float_val, None, None, None, None]
+        elif isinstance(spec_idx_val, (int, float)):
+            source_mapping["spec_idx"] = [float(spec_idx_val), None, None, None, None]
+        elif isinstance(spec_idx_val, list):
+            source_mapping["spec_idx"] = spec_idx_val
 
     # Add spectral curvature if available
-    _add_optional_field(source_mapping, source_dict, "spec_curv", "spec_curv")
+    _add_optional_field(source_mapping, source_dict, "spec_curv")
 
     # Set log_spec_idx flag (default to None if not specified)
     if "log_spec_idx" in source_dict:
@@ -181,16 +183,16 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
             source_mapping["log_spec_idx"] = log_val.lower() in ("true", "1", "yes")
 
     # Add Stokes polarization parameters
-    _add_optional_field(source_mapping, source_dict, "q_pol", "q_pol")
-    _add_optional_field(source_mapping, source_dict, "u_pol", "u_pol")
-    _add_optional_field(source_mapping, source_dict, "v_pol", "v_pol")
+    _add_optional_field(source_mapping, source_dict, "q_pol")
+    _add_optional_field(source_mapping, source_dict, "u_pol")
+    _add_optional_field(source_mapping, source_dict, "v_pol")
 
     # Add polarization fraction and angle if available
-    _add_optional_field(source_mapping, source_dict, "pol_frac", "pol_frac")
-    _add_optional_field(source_mapping, source_dict, "pol_ang", "pol_ang")
+    _add_optional_field(source_mapping, source_dict, "pol_frac")
+    _add_optional_field(source_mapping, source_dict, "pol_ang")
 
     # Add rotation measure
-    _add_optional_field(source_mapping, source_dict, "rot_meas", "rot_meas")
+    _add_optional_field(source_mapping, source_dict, "rot_meas")
 
     return source_mapping
 

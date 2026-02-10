@@ -203,7 +203,7 @@ class TestBuildSourceMapping:
             "ra": "10.5",
             "dec": "45.2",
             "i_pol": "1.5",
-            "alpha": "-0.7",
+            "spec_idx": "-0.7",
         }
         catalog_config = {"source": "component_id"}
 
