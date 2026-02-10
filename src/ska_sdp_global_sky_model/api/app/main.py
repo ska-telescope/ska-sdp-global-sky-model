@@ -353,8 +353,6 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         )
 
     # Get count and sample of staged data
-    from sqlalchemy import func
-
     count = (
         db.query(func.count(SkyComponentStaging.id))
         .filter(SkyComponentStaging.upload_id == upload_id)
@@ -482,7 +480,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         logger.error("Failed to commit upload %s: %s", upload_id, e)
-        raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}") from e
 
 
 @app.delete("/reject-upload/{upload_id}")
@@ -540,4 +538,4 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         logger.error("Failed to reject upload %s: %s", upload_id, e)
-        raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}") from e
