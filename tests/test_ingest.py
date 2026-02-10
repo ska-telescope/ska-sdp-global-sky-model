@@ -377,16 +377,14 @@ class TestGetDataCatalogSelector:  # pylint: disable=too-few-public-methods
             "file_location": [
                 {
                     "content": content,
-                    "bands": [150],
                 }
             ]
         }
 
         results = list(get_data_catalog_selector(ingest_config))
         assert len(results) == 1
-        source_file, bands = results[0]
+        source_file = results[0]
         assert isinstance(source_file, SourceFile)
-        assert bands == [150]
 
 
 class TestProcessSourceDataBatch:
@@ -441,7 +439,6 @@ class TestGetFullCatalog:
                 "file_location": [
                     {
                         "content": content,
-                        "bands": [],
                     }
                 ]
             },
@@ -466,7 +463,6 @@ class TestGetFullCatalog:
                 "file_location": [
                     {
                         "content": empty_content,
-                        "bands": [],
                     }
                 ]
             },

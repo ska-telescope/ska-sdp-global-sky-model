@@ -88,7 +88,6 @@ STANDARD_CATALOG_CONFIG = {
         "file_location": [
             {
                 "key": "unset",
-                "bands": [],
             }
         ],
     },
@@ -96,8 +95,7 @@ STANDARD_CATALOG_CONFIG = {
     "catalog_name": "STANDARD",
     "frequency_min": 80,
     "frequency_max": 300,
-    "source": "component_id",  # Standardized source identifier column
-    "bands": [],
+    "source": "component_id",
 }
 
 # Backward compatibility alias

@@ -149,7 +149,6 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
                     "key": "unset",
                     "heading_alias": {},
                     "heading_missing": [],
-                    "bands": [],
                 }
             ],
         },
@@ -158,7 +157,6 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
         "frequency_min": 80,
         "frequency_max": 300,
         "source": "GLEAM",  # Column name for source identifier in test CSV
-        "bands": [],
     }
 
     # Patch the config in main module where it's imported
@@ -204,14 +202,13 @@ def test_upload_sky_survey_batch_invalid_file_type(myclient, monkeypatch):
         "ingest": {
             "wideband": True,
             "agent": "file",
-            "file_location": [{"key": "unset", "bands": []}],
+            "file_location": [{"key": "unset"}],
         },
         "name": "Test",
         "catalog_name": "TEST",
         "frequency_min": 80,
         "frequency_max": 300,
         "source": "GLEAM",
-        "bands": [],
     }
 
     monkeypatch.setattr(

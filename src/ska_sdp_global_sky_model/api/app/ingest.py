@@ -60,7 +60,7 @@ def get_data_catalog_selector(ingest: dict):
         ingest: The catalog ingest configurations.
 
     Yields:
-        Tuple of (SourceFile, bands) for each content item in the configuration.
+        SourceFile object for each content item in the configuration.
     """
     for ingest_set in ingest["file_location"]:
         content = ingest_set.get("content")
@@ -71,10 +71,7 @@ def get_data_catalog_selector(ingest: dict):
             )
 
         logger.info("Processing in-memory content for API bulk upload")
-        yield (
-            SourceFile(content=content),
-            ingest_set["bands"],
-        )
+        yield SourceFile(content=content)
 
 
 def to_float(val):
@@ -378,7 +375,7 @@ def get_full_catalog(db: Session, catalog_config) -> bool:
     # Get catalog data
     catalog_data = get_data_catalog_selector(catalog_config["ingest"])
 
-    for components, _ingest_bands in catalog_data:
+    for components in catalog_data:
         if not components:
             logger.error("No data-sources found for %s", catalog_name)
             return False
