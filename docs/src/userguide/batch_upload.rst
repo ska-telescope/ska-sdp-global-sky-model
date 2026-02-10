@@ -1,19 +1,81 @@
-Batch Upload API
-================
+Uploading Sky Survey Data
+=========================
 
-The SKA Global Sky Model API provides endpoints for uploading multiple sky survey catalog files in a single atomic batch operation.
+The SKA Global Sky Model provides both a browser interface and API endpoints for uploading sky survey catalog files with staging, review, and versioning capabilities.
 
 Overview
 --------
 
 The batch upload feature allows you to:
 
-- Upload multiple CSV files simultaneously
+- Upload multiple CSV files simultaneously via API or browser interface
+- Stage uploads for review before committing to the main database
 - Track upload progress with a unique identifier
 - Query upload status and errors
 - Ensure atomic ingestion (all files succeed or none are ingested)
 - Process uploads asynchronously in the background for optimal API responsiveness
 - Automatic data validation at the schema level after CSV transformation
+- Version control with semantic versioning for updated components
+
+Browser Upload Interface
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+A browser interface is available at the root URL (``http://localhost:8000/``). The interface provides:
+
+- **Drag-and-drop file upload**: Simply drag CSV files onto the upload zone
+- **Multiple file selection**: Upload multiple catalogs simultaneously
+- **Real-time status monitoring**: Track upload progress with automatic polling
+- **Staging table preview**: Review uploaded data before committing
+- **Commit/Reject workflow**: Approve or discard staged uploads
+- **Version information**: Visual indicators for versioning behavior
+
+**Using the Browser Interface**:
+
+1. Navigate to ``http://localhost:8000/`` in your web browser
+2. Drag and drop CSV files onto the upload zone (or click to browse)
+3. Click "Upload Files" to begin the upload
+4. Monitor the upload progress - status updates automatically
+5. Review the staged data including a sample preview
+6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
+
+The browser interface automatically handles:
+    - File validation (CSV format only)
+    - Upload tracking with unique IDs
+    - Status polling every 2 seconds
+    - Error display if uploads fail
+
+Staging and Versioning Workflow
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Two-Stage Upload Process**:
+
+All uploads now use a staging workflow for safety and review:
+
+1. **Upload to Staging**: Files are first uploaded to ``sky_component_staging`` table
+2. **Review Data**: Use ``/review-upload/{upload_id}`` to inspect a sample of staged data
+3. **Commit or Reject**: 
+   - Commit: Move data to main table with automatic versioning
+   - Reject: Discard all staged data for that upload
+
+**Automatic Versioning**:
+
+When committing staged data, the system automatically handles versioning:
+
+- **New components**: Start at version ``0.0.0``
+- **Updated components**: Increment minor version (e.g., ``0.0.0`` → ``0.1.0``, ``0.1.0`` → ``0.2.0``)
+- **Version tracking**: Each component_id can have multiple versions
+- **Unique constraint**: ``component_id + version`` must be unique
+
+This allows you to:
+    - Update existing sky sources without losing historical data
+    - Track changes to sources over time
+    - Query specific versions or always get the latest version
+
+**Staging Table Schema**:
+
+The ``sky_component_staging`` table mirrors the main ``sky_component`` table but includes:
+    - ``upload_id``: Links all sources in a batch upload
+    - Unique constraint: ``component_id + upload_id`` (allows same source in different uploads)
 
 Asynchronous Processing
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -23,8 +85,9 @@ Batch uploads run asynchronously as background tasks. When you submit files:
 1. Files are validated for format (CSV, proper MIME type)
 2. Upload is created with a unique ID and status "uploading"
 3. API returns immediately with the upload ID
-4. Ingestion proceeds in the background
+4. Data is ingested to staging table in the background
 5. Query the status endpoint to monitor progress
+6. Once complete, review and commit (or reject) the staged data
 
 This design keeps the API responsive during large uploads and allows multiple concurrent batch operations.
 
@@ -54,7 +117,7 @@ Upload Sky Survey Batch
 
 **Endpoint**: ``POST /upload-sky-survey-batch``
 
-Upload and ingest one or more sky survey CSV files atomically. All files are validated and uploaded to a temporary directory before ingestion begins. If any file fails validation or ingestion, the entire batch is rolled back.
+Upload and ingest one or more sky survey CSV files to the staging table. All files are validated and uploaded to a temporary directory before ingestion begins. Data is placed in the staging table for review.
 
 **Parameters**:
 
@@ -88,8 +151,8 @@ Upload and ingest one or more sky survey CSV files atomically. All files are val
         "status": "uploading"
     }
 
-**Note**: The endpoint returns immediately with status "uploading". Ingestion proceeds asynchronously 
-in the background. Use the status endpoint to monitor completion.
+**Note**: The endpoint returns immediately with status "uploading". Ingestion to staging table proceeds 
+asynchronously in the background. Use the status endpoint to monitor completion, then review and commit.
 
 **Example Usage**:
 
@@ -249,6 +312,174 @@ Retrieve the current status of a sky survey batch upload.
     if status['state'] == 'failed':
         print(f"Errors: {status['errors']}")
 
+Review Staged Upload
+~~~~~~~~~~~~~~~~~~~~
+
+**Endpoint**: ``GET /review-upload/{upload_id}``
+
+Review staged data before committing to the main database. Returns a summary and sample of the staged records.
+
+**Parameters**:
+
+.. list-table::
+    :widths: 20, 50, 20, 10
+    :header-rows: 1
+
+    * - Parameter
+      - Description
+      - Data Type
+      - Required
+    * - ``upload_id``
+      - Unique identifier returned when the upload was initiated
+      - string (UUID)
+      - Yes
+
+**Response**:
+
+.. code-block:: json
+
+    {
+        "upload_id": "550e8400-e29b-41d4-a716-446655440000",
+        "total_records": 200,
+        "sample": [
+            {
+                "component_id": "J025837+035057",
+                "ra": 0.7793,
+                "dec": 0.0672,
+                "i_pol": 0.8354,
+                "version": null
+            }
+        ]
+    }
+
+**Example Usage**:
+
+.. code-block:: bash
+
+    curl "http://localhost:8000/review-upload/550e8400-e29b-41d4-a716-446655440000"
+
+**Python Example**:
+
+.. code-block:: python
+
+    import requests
+
+    upload_id = "550e8400-e29b-41d4-a716-446655440000"
+    url = f"http://localhost:8000/review-upload/{upload_id}"
+    
+    response = requests.get(url)
+    review = response.json()
+    
+    print(f"Total records: {review['total_records']}")
+    print(f"Sample data: {review['sample'][:3]}")  # First 3 records
+
+Commit Staged Upload
+~~~~~~~~~~~~~~~~~~~~
+
+**Endpoint**: ``POST /commit-upload/{upload_id}``
+
+Commit staged data to the main database with automatic versioning. New components get version ``0.0.0``, 
+existing components get their minor version incremented.
+
+**Parameters**:
+
+.. list-table::
+    :widths: 20, 50, 20, 10
+    :header-rows: 1
+
+    * - Parameter
+      - Description
+      - Data Type
+      - Required
+    * - ``upload_id``
+      - Unique identifier of the staged upload to commit
+      - string (UUID)
+      - Yes
+
+**Response**:
+
+.. code-block:: json
+
+    {
+        "message": "Upload committed successfully",
+        "records_committed": 200,
+        "upload_id": "550e8400-e29b-41d4-a716-446655440000"
+    }
+
+**Example Usage**:
+
+.. code-block:: bash
+
+    curl -X POST "http://localhost:8000/commit-upload/550e8400-e29b-41d4-a716-446655440000"
+
+**Python Example**:
+
+.. code-block:: python
+
+    import requests
+
+    upload_id = "550e8400-e29b-41d4-a716-446655440000"
+    url = f"http://localhost:8000/commit-upload/{upload_id}"
+    
+    response = requests.post(url)
+    result = response.json()
+    
+    print(f"Committed {result['records_committed']} records")
+    print(f"Message: {result['message']}")
+
+Reject Staged Upload
+~~~~~~~~~~~~~~~~~~~~~
+
+**Endpoint**: ``DELETE /reject-upload/{upload_id}``
+
+Reject and discard staged data. All records associated with this upload_id are permanently deleted from the staging table.
+
+**Parameters**:
+
+.. list-table::
+    :widths: 20, 50, 20, 10
+    :header-rows: 1
+
+    * - Parameter
+      - Description
+      - Data Type
+      - Required
+    * - ``upload_id``
+      - Unique identifier of the staged upload to reject
+      - string (UUID)
+      - Yes
+
+**Response**:
+
+.. code-block:: json
+
+    {
+        "message": "Upload rejected successfully",
+        "records_deleted": 200,
+        "upload_id": "550e8400-e29b-41d4-a716-446655440000"
+    }
+
+**Example Usage**:
+
+.. code-block:: bash
+
+    curl -X DELETE "http://localhost:8000/reject-upload/550e8400-e29b-41d4-a716-446655440000"
+
+**Python Example**:
+
+.. code-block:: python
+
+    import requests
+
+    upload_id = "550e8400-e29b-41d4-a716-446655440000"
+    url = f"http://localhost:8000/reject-upload/{upload_id}"
+    
+    response = requests.delete(url)
+    result = response.json()
+    
+    print(f"Rejected and deleted {result['records_deleted']} records")
+    print(f"Message: {result['message']}")
+
 CSV File Format
 ---------------
 
@@ -400,15 +631,18 @@ Best Practices
 
 2. **Progress Monitoring**: Use the status endpoint to monitor long-running uploads, especially for large batches.
 
-3. **Error Handling**: Always check the response status code and handle errors appropriately in your application.
+3. **Review Before Commit**: Always review staged data using ``/review-upload/{upload_id}`` before committing to ensure data quality.
 
-4. **Batch Size**: Consider breaking very large uploads into smaller batches for better manageability.
+4. **Versioning Awareness**: Understand that committing data with existing component_ids will create new versions, not replace existing data.
 
-5. **Column Naming**: Use standard GLEAM-style column names (RAJ2000, DEJ2000, Fpwide, etc.) for automatic mapping, 
+5. **Error Handling**: Always check the response status code and handle errors appropriately in your application.
+
+6. **Batch Size**: Consider breaking very large uploads into smaller batches for better manageability.
+
+7. **Column Naming**: Use standard GLEAM-style column names (RAJ2000, DEJ2000, Fpwide, etc.) for automatic mapping, 
    or provide custom ``heading_alias`` mappings in your configuration.
 
-6. **Schema Compatibility**: The system automatically maps CSV columns to the GlobalSkyModel schema. 
-   All fields from ``ska_sdp_datamodels.global_sky_model.SkySource`` are supported.
+8. **Cleanup**: Both rejected and committed uploads are removed from the staging table.
 
 Data Model Schema
 -----------------
@@ -447,15 +681,18 @@ Architecture
 The batch upload system uses a clean separation of concerns:
 
 - **Upload Manager** (``upload_manager.py``): Handles file storage, file type validation, and state tracking
-- **Main API** (``main.py``): Provides HTTP endpoints, coordinates workflow, and manages background tasks
-- **Ingest Module** (``ingest.py``): Processes CSV data, validates against schema, and imports into database
+- **Main API** (``main.py``): Provides HTTP endpoints, coordinates workflow, manages background tasks, and handles staging/commit/reject operations
+- **Ingest Module** (``ingest.py``): Processes CSV data, validates against schema, and imports into staging or main database
+- **Models** (``models.py``): Defines database schema including ``SkyComponent`` (main table with versioning) and ``SkyComponentStaging`` (staging table)
 
 Key Features:
 
+- **Two-Stage Workflow**: Upload to staging → review → commit or reject
+- **Automatic Versioning**: Semantic versioning applied during commit (0.0.0, 0.1.0, 0.2.0, ...)
+- **Browser Interface**: HTML interface for interactive uploads
 - **Asynchronous Processing**: Background tasks via FastAPI BackgroundTasks keep API responsive
 - **Modern Lifecycle Management**: Uses FastAPI lifespan context manager (not deprecated on_event)
 - **Schema-Level Validation**: Data validated after transformation to standardized format
-- **Atomic Operations**: Either all files are ingested or none are
 - **Clean Temporary Storage**: Temporary files are always cleaned up, even on errors
 - **State Tracking**: Upload status persists across the upload lifecycle
 - **Error Isolation**: Failures are captured and reported without affecting other uploads
@@ -465,5 +702,7 @@ Validation Pipeline:
 1. File type validation (CSV format, MIME type)
 2. CSV parsing and transformation to schema format
 3. Source-by-source validation (required fields, ranges, types)
-4. Batch database insertion
-5. Cleanup and status update
+4. Batch insertion to staging table
+5. User review of staged data
+6. Commit with version assignment or reject to discard
+7. Cleanup and status update
