@@ -292,7 +292,7 @@ class TestValidateSourceMapping:
         }
         is_valid, error = validate_source_mapping(mapping)
         assert is_valid is False
-        assert "RA" in error
+        assert "ra" in error and "out of range" in error
 
     def test_invalid_dec_range(self):
         """Test validation fails for DEC out of range"""
@@ -304,7 +304,7 @@ class TestValidateSourceMapping:
         }
         is_valid, error = validate_source_mapping(mapping)
         assert is_valid is False
-        assert "DEC" in error
+        assert "dec" in error and "out of range" in error
 
     def test_negative_flux(self):
         """Test validation fails for negative flux"""

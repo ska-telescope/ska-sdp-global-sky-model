@@ -10,16 +10,86 @@ import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, Union, get_args, get_origin
 
 import numpy
-
-try:
-    from ska_sdp_dataproduct_metadata import MetaData
-except ImportError:
-    MetaData = None  # type: ignore  # pylint: disable=invalid-name
+from ska_sdp_datamodels.global_sky_model.global_sky_model import SkyComponent
+from ska_sdp_dataproduct_metadata import MetaData
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _get_str_columns() -> set[str]:
+    """
+    Determine string column names from SkyComponent dataclass.
+
+    Returns:
+        Set of column names that should be treated as strings
+    """
+    str_cols = set()
+    for field_name, field_type in SkyComponent.__annotations__.items():
+        # Handle Optional types (Union[type, None])
+        origin = get_origin(field_type)
+        if origin is Union:
+            args = get_args(field_type)
+            if args and len(args) >= 1 and args[0] is str:
+                str_cols.add(field_name)
+        elif field_type is str:
+            str_cols.add(field_name)
+
+    # Ensure known string columns are always included
+    str_cols.update({"component_id", "name"})
+    return str_cols
+
+
+def _get_bool_columns() -> set[str]:
+    """
+    Determine boolean column names from SkyComponent dataclass.
+
+    Returns:
+        Set of column names that should be treated as booleans
+    """
+    bool_cols = set()
+    for field_name, field_type in SkyComponent.__annotations__.items():
+        # Handle Optional types (Union[type, None])
+        origin = get_origin(field_type)
+        if origin is Union:
+            args = get_args(field_type)
+            if args and len(args) >= 1 and args[0] is bool:
+                bool_cols.add(field_name)
+        elif field_type is bool:
+            bool_cols.add(field_name)
+
+    # Include alternate names for backwards compatibility
+    bool_cols.add("logarithmicsi")
+    return bool_cols
+
+
+def _get_vector_float_columns() -> set[str]:
+    """
+    Determine vector float column names from SkyComponent dataclass.
+
+    Returns:
+        Set of column names that should be treated as vector floats
+    """
+    vector_cols = set()
+    for field_name, field_type in SkyComponent.__annotations__.items():
+        # Handle Optional types (Union[type, None])
+        origin = get_origin(field_type)
+
+        # Check for list types
+        if origin is list:
+            vector_cols.add(field_name)
+        elif origin is Union:
+            args = get_args(field_type)
+            if args and len(args) >= 1:
+                inner_origin = get_origin(args[0])
+                if inner_origin is list:
+                    vector_cols.add(field_name)
+
+    # Include alternate names for backwards compatibility
+    vector_cols.add("spectralindex")
+    return vector_cols
 
 
 @dataclass
@@ -40,12 +110,14 @@ class LocalSkyModel:
     column_type = Literal["float", "str", "int", "bool", "vector_float"]
 
     # Names of non-float column types (anything else is treated as a float):
-    _STR_COLUMNS: ClassVar[set] = {"component_id", "name"}
+    # Dynamically determined from SkyComponent dataclass if available
+    _STR_COLUMNS: ClassVar[set] = _get_str_columns()
     _INT_COLUMNS: ClassVar[set] = {}
-    _BOOL_COLUMNS: ClassVar[set] = {"log_spec_idx", "logarithmicsi"}
+    _BOOL_COLUMNS: ClassVar[set] = _get_bool_columns()
 
     # Names of default-vector-float columns:
-    _VECTOR_FLOAT_COLUMNS: ClassVar[set] = {"spec_idx", "spectralindex"}
+    # Dynamically determined from SkyComponent dataclass if available
+    _VECTOR_FLOAT_COLUMNS: ClassVar[set] = _get_vector_float_columns()
     _NUM_TERMS: ClassVar[str] = "_num_terms"  # Key suffix for vector length.
 
     # Sentinel values for null "missing" entries. (Using NaN for floats.)
@@ -529,10 +601,6 @@ class LocalSkyModel:
         :param lsm_path: Path of local sky model file.
         :type lsm_path: str
         """
-        if MetaData is None:
-            logging.warning("ska_sdp_dataproduct_metadata not available, skipping metadata save")
-            return
-
         metadata = MetaData()
         metadata.output_path = yaml_path
 
