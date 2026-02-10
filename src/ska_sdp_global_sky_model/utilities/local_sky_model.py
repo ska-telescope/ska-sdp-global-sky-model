@@ -60,8 +60,6 @@ def _get_bool_columns() -> set[str]:
         elif field_type is bool:
             bool_cols.add(field_name)
 
-    # Include alternate names for backwards compatibility
-    bool_cols.add("logarithmicsi")
     return bool_cols
 
 
@@ -87,8 +85,6 @@ def _get_vector_float_columns() -> set[str]:
                 if inner_origin is list:
                     vector_cols.add(field_name)
 
-    # Include alternate names for backwards compatibility
-    vector_cols.add("spectralindex")
     return vector_cols
 
 

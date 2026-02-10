@@ -70,9 +70,7 @@ def get_data_catalog_selector(ingest: dict):
         content = ingest_set.get("content")
 
         if not content:
-            raise ValueError(
-                "Content (bytes) must be provided. File-based ingestion is not supported."
-            )
+            raise ValueError("Content (bytes) must be provided.")
 
         logger.info("Processing in-memory content for API bulk upload")
         yield SourceFile(content=content)
