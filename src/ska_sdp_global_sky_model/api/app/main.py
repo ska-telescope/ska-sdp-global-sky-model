@@ -47,8 +47,6 @@ def wait_for_db():
 async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     """
     Lifespan context manager for FastAPI application startup and shutdown.
-
-    Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown").
     """
     # Startup
     logger.info("Starting application...")
@@ -169,20 +167,21 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
         # Get fresh database session
         db = _get_db_session()
 
-        # Note: CSV structure validation is skipped here as the ingestion process
-        # will handle column mapping and report any issues. The validation was
-        # complex due to different alias configurations per catalog.
+        # Get files from memory
+        files_data = upload_manager.get_files(upload_id)
 
-        # Ingest all files
-        file_paths = upload_manager.list_files(upload_id)
-        for file_path in file_paths:
+        # Ingest all files from memory
+        for filename, content in files_data:
             # Deep copy to avoid modifying shared config
             file_config = copy.deepcopy(survey_config)
-            file_config["ingest"]["file_location"][0]["key"] = str(file_path)
+            # Pass content directly instead of file path
+            file_config["ingest"]["file_location"][0]["content"] = content
+            # Remove key since we're using content
+            file_config["ingest"]["file_location"][0].pop("key", None)
 
-            logger.info("Ingesting file: %s", file_path.name)
+            logger.info("Ingesting file from memory: %s", filename)
             if not get_full_catalog(db, file_config):
-                raise RuntimeError(f"Ingest failed for {file_path.name}")
+                raise RuntimeError(f"Ingest failed for {filename}")
 
         upload_manager.mark_completed(upload_id)
         logger.info("Background ingestion completed for upload %s", upload_id)
@@ -193,8 +192,9 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
         upload_manager.mark_failed(upload_id, error_msg)
 
     finally:
-        # Cleanup temporary files
+        # Cleanup memory
         upload_manager.cleanup(upload_id)
+
         if db:
             db.close()
 

@@ -5,9 +5,10 @@ Gleam Catalog ingest
 """
 
 import csv
+import io
 import logging
-import os
 from itertools import zip_longest
+from pathlib import Path
 from typing import Optional
 
 import healpy as hp
@@ -24,45 +25,65 @@ logger = logging.getLogger(__name__)
 class SourceFile:
     """SourceFile creates an iterator object which yields source dicts."""
 
-    def __init__(self, file_location: str):
+    def __init__(self, file_location: str = None, content: bytes = None):
         """Source file init method
         Args:
-            file_location: A path to the file to be ingested.
+            file_location: A path to the file to be ingested (optional if content provided).
+            content: In-memory file content as bytes.
         """
         logger.info("Creating SourceFile object")
         self.file_location = file_location
+        self.content = content
 
-        # Get the file size in bytes
-        file_size = os.path.getsize(self.file_location)
+        if content is not None:
+            # Count lines from in-memory content
+            text_content = content.decode("utf-8")
+            self.len = text_content.count("\n")
+            logger.info("File length (rows) from memory: %s", self.len)
+        elif file_location:
+            # Get the file size in bytes
+            file_size = Path(self.file_location).stat().st_size
 
-        # Print the file size
-        logger.info("File size: %d bytes", file_size)
-        try:
-            with open(self.file_location, newline="", encoding="utf-8") as csvfile:
-                logger.info("Opened file: %s", self.file_location)
-                self.len = sum(1 for row in csvfile)
-                logger.info("File length (rows): %s", self.len)
+            # Print the file size
+            logger.info("File size: %d bytes", file_size)
+            try:
+                with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+                    logger.info("Opened file: %s", self.file_location)
+                    self.len = sum(1 for row in csvfile)
+                    logger.info("File length (rows): %s", self.len)
 
-        except FileNotFoundError as f:
-            logger.error("File not found: %s", self.file_location)
-            self.len = 0
-            raise RuntimeError from f
-        except Exception as e:
-            logger.error("Error opening file: %s", e)
-            self.len = 0
-            raise RuntimeError from e
+            except FileNotFoundError as f:
+                logger.error("File not found: %s", self.file_location)
+                self.len = 0
+                raise RuntimeError from f
+            except Exception as e:
+                logger.error("Error opening file: %s", e)
+                self.len = 0
+                raise RuntimeError from e
+        else:
+            raise ValueError("Either file_location or content must be provided")
 
         logger.info("SourceFile object created")
 
     def __iter__(self) -> iter:
         """Iterate through the sources"""
-        logger.info("In the iterator opening %s", self.file_location)
-        with open(self.file_location, newline="", encoding="utf-8") as csvfile:
-            logger.info("opened")
-            csv_file = csv.reader(csvfile, delimiter=",")
+        if self.content is not None:
+            # Process from in-memory content
+            logger.info("Iterating over in-memory CSV content")
+            text_content = self.content.decode("utf-8")
+            csv_file = csv.reader(io.StringIO(text_content), delimiter=",")
             heading = next(csv_file)
             for row in csv_file:
                 yield dict(zip_longest(heading, row, fillvalue=None))
+        else:
+            # Process from file
+            logger.info("In the iterator opening %s", self.file_location)
+            with open(self.file_location, newline="", encoding="utf-8") as csvfile:
+                logger.info("opened")
+                csv_file = csv.reader(csvfile, delimiter=",")
+                heading = next(csv_file)
+                for row in csv_file:
+                    yield dict(zip_longest(heading, row, fillvalue=None))
 
     def __len__(self) -> int:
         """Get the file length count."""
@@ -75,11 +96,23 @@ def get_data_catalog_selector(ingest: dict):
         ingest: The catalog ingest configurations.
     """
     for ingest_set in ingest["file_location"]:
-        logger.info("Opening file: %s", ingest_set["key"])
-        yield (
-            SourceFile(ingest_set["key"]),
-            ingest_set["bands"],
-        )
+        key = ingest_set.get("key")
+        content = ingest_set.get("content")
+
+        if content:
+            logger.info("Processing in-memory content")
+            yield (
+                SourceFile(content=content),
+                ingest_set["bands"],
+            )
+        elif key:
+            logger.info("Opening file: %s", key)
+            yield (
+                SourceFile(key),
+                ingest_set["bands"],
+            )
+        else:
+            raise ValueError("Either 'key' (file path) or 'content' (bytes) must be provided")
 
 
 def to_float(val):
