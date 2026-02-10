@@ -75,32 +75,10 @@ def get_local_sky_model(
                 float(fov),
             )
         )
-        .filter(SkyComponent.i_pol > flux_wide)
+        # .filter(SkyComponent.i_pol > flux_wide)
         .all()
     )
-
-    # Return if no components were found
-    if not components:
-        return {"components": {}}
-
-    # Build results using the SkyComponent model
-    results = {"components": {}}
-
-    for component in components:
-        results["components"][component.component_id] = {
-            "ra": component.ra,
-            "dec": component.dec,
-            "i_pol": component.i_pol,
-            "major_ax": component.major_ax,
-            "minor_ax": component.minor_ax,
-            "pos_ang": component.pos_ang,
-            "spec_idx": component.spec_idx,
-            "q_pol": component.q_pol,
-            "u_pol": component.u_pol,
-            "v_pol": component.v_pol,
-        }
-
-    return results
+    return components
 
 
 def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float, float, float]:
