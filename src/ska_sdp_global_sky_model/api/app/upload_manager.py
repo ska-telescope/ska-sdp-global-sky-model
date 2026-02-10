@@ -125,11 +125,20 @@ class UploadManager:
                 status_code=400, detail=f"Invalid file type for {file.filename}. Must be CSV."
             )
 
-        # Check content type (allow common CSV MIME types)
-        allowed_types = ["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]
-        if file.content_type not in allowed_types:
+        # Check content type (allow common CSV MIME types or application/octet-stream)
+        # Note: Some clients send application/octet-stream by default
+        allowed_types = [
+            "text/csv",
+            "application/csv",
+            "text/plain",
+            "application/vnd.ms-excel",
+            "application/octet-stream",
+        ]
+        if file.content_type and file.content_type not in allowed_types:
             raise HTTPException(
-                status_code=400, detail=f"Invalid file type for {file.filename}. Must be CSV."
+                status_code=400,
+                detail=f"Invalid content type '{file.content_type}' for {file.filename}. "
+                f"Must be CSV.",
             )
 
     async def save_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
