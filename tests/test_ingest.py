@@ -132,27 +132,32 @@ class TestSourceFile:
     """Tests for SourceFile class"""
 
     def test_source_file_init(self, sample_csv_file):
-        """Test SourceFile initialization"""
-        sf = SourceFile(str(sample_csv_file))
-        assert sf.file_location == str(sample_csv_file)
+        """Test SourceFile initialization with in-memory content"""
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+        sf = SourceFile(content)
         assert sf.len == 4  # Header + 3 data rows
 
     def test_source_file_iteration(self, sample_csv_file):
-        """Test iterating through SourceFile"""
-        sf = SourceFile(str(sample_csv_file))
+        """Test iterating through SourceFile with in-memory content"""
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+        sf = SourceFile(content)
         rows = list(sf)
         assert len(rows) == 3
         assert rows[0]["component_id"] == "J001122-334455"
         assert rows[0]["ra"] == "10.5"
 
-    def test_source_file_not_found(self):
-        """Test SourceFile with non-existent file"""
-        with pytest.raises(FileNotFoundError):
-            SourceFile("/nonexistent/file.csv")
+    def test_source_file_invalid_content(self):
+        """Test SourceFile with invalid content"""
+        with pytest.raises(Exception):  # Will raise UnicodeDecodeError or similar
+            SourceFile(b"\x80\x81\x82")  # Invalid UTF-8
 
     def test_source_file_length(self, sample_csv_file):
-        """Test __len__ method"""
-        sf = SourceFile(str(sample_csv_file))
+        """Test __len__ method with in-memory content"""
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+        sf = SourceFile(content)
         assert len(sf) == 4
 
 
@@ -363,12 +368,15 @@ class TestCommitBatch:
 class TestGetDataCatalogSelector:  # pylint: disable=too-few-public-methods
     """Tests for get_data_catalog_selector function"""
 
-    def test_file_based_selector(self, sample_csv_file):
-        """Test file-based catalog selector"""
+    def test_content_based_selector(self, sample_csv_file):
+        """Test content-based catalog selector for API bulk upload"""
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+
         ingest_config = {
             "file_location": [
                 {
-                    "key": str(sample_csv_file),
+                    "content": content,
                     "bands": [150],
                 }
             ]
@@ -385,8 +393,10 @@ class TestProcessSourceDataBatch:
     """Tests for process_source_data_batch function"""
 
     def test_process_valid_sources(self, test_db, sample_csv_file):
-        """Test processing valid source data"""
-        sf = SourceFile(str(sample_csv_file))
+        """Test processing valid source data from in-memory content"""
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+        sf = SourceFile(content)
         catalog_config = {"source": "component_id"}
 
         result = process_source_data_batch(test_db, sf, catalog_config)
@@ -397,7 +407,10 @@ class TestProcessSourceDataBatch:
 
     def test_skip_duplicate_component_id(self, test_db, sample_csv_file):
         """Test that duplicate component IDs are skipped"""
-        sf = SourceFile(str(sample_csv_file))
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+
+        sf = SourceFile(content)
         catalog_config = {"source": "component_id"}
 
         # First ingestion
@@ -405,7 +418,7 @@ class TestProcessSourceDataBatch:
         count1 = test_db.query(SkyComponent).count()
 
         # Second ingestion - should skip duplicates
-        sf2 = SourceFile(str(sample_csv_file))
+        sf2 = SourceFile(content)
         process_source_data_batch(test_db, sf2, catalog_config)
         count2 = test_db.query(SkyComponent).count()
 
@@ -416,7 +429,10 @@ class TestGetFullCatalog:
     """Tests for get_full_catalog function"""
 
     def test_successful_ingestion(self, test_db, sample_csv_file):
-        """Test successful full catalog ingestion"""
+        """Test successful full catalog ingestion with in-memory content"""
+        with open(sample_csv_file, "rb") as f:
+            content = f.read()
+
         catalog_config = {
             "name": "Test Catalog",
             "catalog_name": "TEST",
@@ -424,7 +440,7 @@ class TestGetFullCatalog:
             "ingest": {
                 "file_location": [
                     {
-                        "key": str(sample_csv_file),
+                        "content": content,
                         "bands": [],
                     }
                 ]
@@ -438,29 +454,24 @@ class TestGetFullCatalog:
         assert count == 3
 
     def test_empty_catalog(self, test_db):
-        """Test handling of empty catalog"""
-        # Create empty CSV file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write("component_id,ra,dec,i_pol\n")
-            empty_file = Path(f.name)
+        """Test handling of empty catalog with in-memory content"""
+        # Create empty CSV content
+        empty_content = b"component_id,ra,dec,i_pol\n"
 
-        try:
-            catalog_config = {
-                "name": "Empty Catalog",
-                "catalog_name": "EMPTY",
-                "source": "component_id",
-                "ingest": {
-                    "file_location": [
-                        {
-                            "key": str(empty_file),
-                            "bands": [],
-                        }
-                    ]
-                },
-            }
+        catalog_config = {
+            "name": "Empty Catalog",
+            "catalog_name": "EMPTY",
+            "source": "component_id",
+            "ingest": {
+                "file_location": [
+                    {
+                        "content": empty_content,
+                        "bands": [],
+                    }
+                ]
+            },
+        }
 
-            result = get_full_catalog(test_db, catalog_config)
-            # Should succeed with empty catalog
-            assert result is True
-        finally:
-            empty_file.unlink()
+        result = get_full_catalog(test_db, catalog_config)
+        # Should succeed with empty catalog
+        assert result is True

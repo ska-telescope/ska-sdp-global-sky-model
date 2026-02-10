@@ -1,5 +1,15 @@
 Steve Ord (stephen.ord@csiro.au)
 
-Just a few utility scripts I found helpful when working with this. 
-Including a script to write the gleam catalog as a CSV file. 
-And example python clients to get the local sky model and to post the gleam model into the database. They are just meant as pointers to what I found works. 
+⚠️  DEPRECATED - These scripts are no longer supported ⚠️
+
+As of February 2026, file-based ingestion has been removed from the application.
+The application now ONLY supports ingestion through the API REST endpoint for bulk uploads.
+
+These scripts are kept for historical reference but will not function with the current codebase:
+- gleam_to_csv.py - Legacy script to write GLEAM catalog as CSV
+- post_rcal_file.py - Legacy script to post files to the database
+- sky_model_client.py - Legacy client example
+
+For current usage, please use the /upload-sky-survey-batch API endpoint with in-memory content.
+See the documentation in docs/src/userguide/batch_upload.rst for details.
+ 
