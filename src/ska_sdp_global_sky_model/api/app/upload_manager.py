@@ -5,6 +5,8 @@ This module provides functionality for managing batch uploads of sky survey data
 including file validation, in-memory storage, and upload state tracking.
 """
 
+import csv
+import io
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
@@ -105,45 +107,9 @@ class UploadManager:
 
         return self._uploads[upload_id]
 
-    def validate_file(self, file: UploadFile) -> None:
-        """
-        Validate that a file is a CSV.
-
-        Parameters
-        ----------
-        file : UploadFile
-            File to validate
-
-        Raises
-        ------
-        HTTPException
-            If the file is not a CSV
-        """
-        # Check filename extension
-        if not file.filename.endswith(".csv"):
-            raise HTTPException(
-                status_code=400, detail=f"Invalid file type for {file.filename}. Must be CSV."
-            )
-
-        # Check content type (allow common CSV MIME types or application/octet-stream)
-        # Note: Some clients send application/octet-stream by default
-        allowed_types = [
-            "text/csv",
-            "application/csv",
-            "text/plain",
-            "application/vnd.ms-excel",
-            "application/octet-stream",
-        ]
-        if file.content_type and file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid content type '{file.content_type}' for {file.filename}. "
-                f"Must be CSV.",
-            )
-
     async def save_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
         """
-        Save an uploaded file to memory.
+        Save an uploaded file to memory after validating CSV structure.
 
         Parameters
         ----------
@@ -151,17 +117,65 @@ class UploadManager:
             File to save
         upload_status : UploadStatus
             Upload status tracking object
+
+        Raises
+        ------
+        HTTPException
+            If file content is not valid CSV
         """
         contents = await file.read()
         file_size = len(contents)
+
+        # Validate CSV structure
+        try:
+            text_content = contents.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {file.filename} is not valid UTF-8 text. "
+                f"CSV files must be text-based.",
+            ) from exc
+
+        try:
+            csv_reader = csv.reader(io.StringIO(text_content), strict=True)
+            rows = list(csv_reader)
+
+            if not rows:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {file.filename} is empty. Must contain header and data rows.",
+                )
+
+            if len(rows) < 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {file.filename} has no data rows. "
+                    f"Must contain at least one header row and one data row.",
+                )
+
+            # Validate header row is not empty
+            header = rows[0]
+            if not header or all(cell.strip() == "" for cell in header):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {file.filename} has empty header row. "
+                    f"First row must contain column names.",
+                )
+
+        except csv.Error as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {file.filename} is not valid CSV: {str(e)}",
+            ) from e
 
         upload_status.files.append((file.filename, contents))
         upload_status.uploaded += 1
 
         logger.info(
-            "Stored file %s (%d bytes) in memory",
+            "Validated and stored file %s (%d bytes, %d rows) in memory",
             file.filename,
             file_size,
+            len(rows),
         )
 
     def mark_completed(self, upload_id: str) -> None:

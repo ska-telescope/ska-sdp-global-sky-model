@@ -255,9 +255,8 @@ async def upload_sky_survey_batch(
     upload_id = upload_status.upload_id
 
     try:
-        # Validate and save all files first (synchronous part)
+        # Validate and save all files (validation happens in save_file)
         for file in files:
-            upload_manager.validate_file(file)
             await upload_manager.save_file(file, upload_status)
 
         # Schedule ingestion to run in background

@@ -225,7 +225,8 @@ def test_upload_sky_survey_batch_invalid_file_type(myclient, monkeypatch):
     response = myclient.post("/upload-sky-survey-batch", files=files)
 
     assert response.status_code == 400
-    assert "Invalid file type" in response.json()["detail"]
+    # Now validates actual content structure rather than file extension
+    assert "data rows" in response.json()["detail"] or "not valid CSV" in response.json()["detail"]
 
 
 def test_upload_sky_survey_batch_no_files(myclient):
@@ -542,3 +543,75 @@ def test_upload_batch_ingest_failure(myclient):
         assert status_response.status_code == 200
         status_data = status_response.json()
         assert status_data["state"] == "failed"
+
+
+def test_upload_sky_survey_batch_empty_file(myclient):
+    """Test uploading an empty file."""
+    empty_content = b""
+    files = [("files", ("empty.csv", empty_content, "text/csv"))]
+    response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 400
+    assert "empty" in response.json()["detail"].lower()
+    assert "empty.csv" in response.json()["detail"]
+
+
+def test_upload_sky_survey_batch_header_only(myclient):
+    """Test uploading a CSV with only header row."""
+    header_only = b"name,ra,dec\n"
+    files = [("files", ("header_only.csv", header_only, "text/csv"))]
+    response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 400
+    assert "no data rows" in response.json()["detail"].lower()
+    assert "header_only.csv" in response.json()["detail"]
+
+
+def test_upload_sky_survey_batch_empty_header(myclient):
+    """Test uploading a CSV with empty header row."""
+    empty_header = b",,\ndata1,data2,data3\n"
+    files = [("files", ("empty_header.csv", empty_header, "text/csv"))]
+    response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 400
+    assert "empty header" in response.json()["detail"].lower()
+    assert "empty_header.csv" in response.json()["detail"]
+
+
+def test_upload_sky_survey_batch_invalid_utf8(myclient):
+    """Test uploading a file with invalid UTF-8 encoding."""
+    invalid_utf8 = b"\x80\x81\x82\x83"  # Invalid UTF-8 bytes
+    files = [("files", ("binary.dat", invalid_utf8, "application/octet-stream"))]
+    response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 400
+    assert "not valid UTF-8" in response.json()["detail"]
+    assert "binary.dat" in response.json()["detail"]
+
+
+def test_upload_sky_survey_batch_malformed_csv(myclient):
+    """Test uploading a file with malformed CSV structure."""
+    malformed_csv = b'name,ra,dec\n"unclosed quote,10.5,45.2\n'
+    files = [("files", ("malformed.csv", malformed_csv, "text/csv"))]
+    response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 400
+    assert "not valid CSV" in response.json()["detail"]
+    assert "malformed.csv" in response.json()["detail"]
+
+
+def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
+    """Test uploading a valid CSV file without .csv extension."""
+    file_path = Path("tests/data/test_catalog_1.csv")
+
+    with (
+        file_path.open("rb") as f,
+        patch("ska_sdp_global_sky_model.api.app.main.get_full_catalog", return_value=True),
+    ):
+        # Use .txt extension but valid CSV content
+        files = [("files", ("data.txt", f, "text/plain"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+        # Should succeed because validation is content-based, not extension-based
+        assert response.status_code == 200
+        assert "upload_id" in response.json()
