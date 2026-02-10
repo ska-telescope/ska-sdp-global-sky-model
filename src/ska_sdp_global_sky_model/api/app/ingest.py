@@ -189,9 +189,67 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     return source_mapping
 
 
-def validate_source_mapping(  # pylint: disable=too-many-return-statements
-    source_mapping: dict, row_num: int = 0
+def _validate_required_field(
+    source_mapping: dict, field: str, expected_type: type, row_info: str
 ) -> tuple[bool, Optional[str]]:
+    """Validate a single required field exists and has correct type."""
+    if field not in source_mapping or source_mapping[field] is None:
+        return False, f"Missing required field '{field}'{row_info}"
+
+    if not isinstance(source_mapping[field], expected_type):
+        return (
+            False,
+            f"Field '{field}' has invalid type{row_info}: "
+            f"expected {expected_type.__name__}, got {type(source_mapping[field]).__name__}",
+        )
+    return True, None
+
+
+def _validate_numeric_range(
+    value: float, field: str, min_val: Optional[float], max_val: Optional[float], row_info: str
+) -> tuple[bool, Optional[str]]:
+    """Validate a numeric value is within specified range."""
+    if not isinstance(value, (int, float)):
+        return False, f"Field '{field}' must be numeric{row_info}: got {type(value).__name__}"
+
+    if min_val is not None and value < min_val:
+        return False, f"Field '{field}' out of range{row_info}: {value} < {min_val}"
+
+    if max_val is not None and value > max_val:
+        return False, f"Field '{field}' out of range{row_info}: {value} > {max_val}"
+
+    return True, None
+
+
+def _validate_optional_numeric_fields(
+    source_mapping: dict, row_info: str
+) -> tuple[bool, Optional[str]]:
+    """Validate all optional numeric fields if present."""
+    optional_numeric = {
+        "major_ax": (0, None),
+        "minor_ax": (0, None),
+        "pos_ang": (-180, 360),
+        "spec_curv": (None, None),
+        "q_pol": (None, None),
+        "u_pol": (None, None),
+        "v_pol": (None, None),
+        "pol_frac": (0, 1),
+        "pol_ang": (0, 2 * 3.14159),
+        "rot_meas": (None, None),
+    }
+
+    for field, (min_val, max_val) in optional_numeric.items():
+        if field in source_mapping and source_mapping[field] is not None:
+            is_valid, error = _validate_numeric_range(
+                source_mapping[field], field, min_val, max_val, row_info
+            )
+            if not is_valid:
+                return False, error
+
+    return True, None
+
+
+def validate_source_mapping(source_mapping: dict, row_num: int = 0) -> tuple[bool, Optional[str]]:
     """
     Validate a source mapping against the SkySource schema requirements.
 
@@ -207,65 +265,28 @@ def validate_source_mapping(  # pylint: disable=too-many-return-statements
     """
     row_info = f" (row {row_num})" if row_num > 0 else ""
 
-    # Check required fields exist
+    # Validate required fields
     required_fields = {"component_id": str, "ra": float, "dec": float, "i_pol": float}
     for field, expected_type in required_fields.items():
-        if field not in source_mapping or source_mapping[field] is None:
-            return False, f"Missing required field '{field}'{row_info}"
+        is_valid, error = _validate_required_field(source_mapping, field, expected_type, row_info)
+        if not is_valid:
+            return False, error
 
-        # Type validation
-        if not isinstance(source_mapping[field], expected_type):
-            return (
-                False,
-                f"Field '{field}' has invalid type{row_info}: "
-                f"expected {expected_type.__name__}, got {type(source_mapping[field]).__name__}",
-            )
-
-    # Validate RA range (radians: 0 to 2π, or degrees: 0 to 360)
+    # Validate coordinate ranges
     ra = source_mapping["ra"]
-    if not -360 <= ra <= 360:  # Allow both radians and degrees
+    if not -360 <= ra <= 360:
         return False, f"RA out of valid range{row_info}: {ra}"
 
-    # Validate DEC range (radians: -π/2 to π/2, or degrees: -90 to 90)
     dec = source_mapping["dec"]
-    if not -90 <= dec <= 90:  # Allow both radians and degrees
+    if not -90 <= dec <= 90:
         return False, f"DEC out of valid range{row_info}: {dec}"
 
     # Validate i_pol is positive
-    i_pol = source_mapping["i_pol"]
-    if i_pol < 0:
-        return False, f"i_pol (flux) must be positive{row_info}: {i_pol}"
+    if source_mapping["i_pol"] < 0:
+        return False, f"i_pol (flux) must be positive{row_info}: {source_mapping['i_pol']}"
 
-    # Validate optional numeric fields if present
-    optional_numeric = {
-        "major_ax": (0, None),  # Must be positive
-        "minor_ax": (0, None),  # Must be positive
-        "pos_ang": (-180, 360),  # Position angle range
-        "spec_curv": (None, None),  # No range restriction
-        "q_pol": (None, None),  # Can be negative
-        "u_pol": (None, None),  # Can be negative
-        "v_pol": (None, None),  # Can be negative
-        "pol_frac": (0, 1),  # Fraction 0-1
-        "pol_ang": (0, 2 * 3.14159),  # Radians
-        "rot_meas": (None, None),  # No range restriction
-    }
-
-    for field, (min_val, max_val) in optional_numeric.items():
-        if field in source_mapping and source_mapping[field] is not None:
-            value = source_mapping[field]
-            if not isinstance(value, (int, float)):
-                return (
-                    False,
-                    f"Field '{field}' must be numeric{row_info}: got {type(value).__name__}",
-                )
-
-            if min_val is not None and value < min_val:
-                return False, f"Field '{field}' out of range{row_info}: {value} < {min_val}"
-
-            if max_val is not None and value > max_val:
-                return False, f"Field '{field}' out of range{row_info}: {value} > {max_val}"
-
-    return True, None
+    # Validate optional numeric fields
+    return _validate_optional_numeric_fields(source_mapping, row_info)
 
 
 def commit_batch(db: Session, component_objs: list):
