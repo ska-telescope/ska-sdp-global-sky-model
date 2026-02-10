@@ -3,7 +3,7 @@
 A simple fastAPI to obtain a local sky model from a global sky model.
 """
 
-# pylint: disable=too-many-arguments, broad-exception-caught
+# pylint: disable=too-many-arguments, broad-exception-caught, not-callable
 import copy
 import logging
 import time
