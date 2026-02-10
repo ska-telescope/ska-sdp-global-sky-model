@@ -282,35 +282,17 @@ def _get_required_fields() -> dict[str, type]:
 
 def _get_field_validation_rules() -> dict[str, tuple[float | None, float | None]]:
     """
-    Define validation rules for numeric fields based on physical constraints.
+    Define validation rules for fields that can be queried by the GSM.
+
+    Only validates ranges for queryable coordinate fields.
 
     Returns:
         Dictionary mapping field names to (min_val, max_val) tuples
     """
-    # These rules are based on physical/astronomical constraints
     return {
-        # Source shape - must be positive
-        "major_ax": (0, None),
-        "minor_ax": (0, None),
-        # Position angle - standard angular range
-        "pos_ang": (-180, 360),
-        # Spectral properties - no specific constraints
-        "spec_curv": (None, None),
-        # Stokes parameters - can be negative (signed quantities)
-        "q_pol": (None, None),
-        "u_pol": (None, None),
-        "v_pol": (None, None),
-        # Polarization fraction - 0 to 1 (fraction/percentage)
-        "pol_frac": (0, 1),
-        # Polarization angle - radians 0 to 2π
-        "pol_ang": (0, 2 * 3.14159),
-        # Rotation measure - no specific constraints
-        "rot_meas": (None, None),
-        # Coordinates
-        "ra": (-360, 360),
+        # Coordinates - queryable fields
+        "ra": (0, 360),
         "dec": (-90, 90),
-        # Flux must be positive
-        "i_pol": (0, None),
     }
 
 

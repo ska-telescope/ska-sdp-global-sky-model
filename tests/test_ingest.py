@@ -306,18 +306,6 @@ class TestValidateSourceMapping:
         assert is_valid is False
         assert "dec" in error and "out of range" in error
 
-    def test_negative_flux(self):
-        """Test validation fails for negative flux"""
-        mapping = {
-            "component_id": "J001122-334455",
-            "ra": 10.5,
-            "dec": 45.2,
-            "i_pol": -1.5,  # Invalid
-        }
-        is_valid, error = validate_source_mapping(mapping)
-        assert is_valid is False
-        assert "i_pol" in error
-
     def test_invalid_type(self):
         """Test validation fails for wrong type"""
         mapping = {
@@ -454,7 +442,7 @@ class TestProcessSourceDataBatch:
             b"J001122-334455,10.5,45.2,1.5\n"  # Valid
             b"J112233-445566,400.0,30.1,2.3\n"  # Invalid RA
             b"J223344-556677,30.1,95.0,0.8\n"  # Invalid DEC
-            b"J334455-667788,20.0,10.0,-1.0\n"  # Invalid i_pol (negative)
+            b"J334455-667788,20.0,10.0,-1.0\n"  # Valid (i_pol no longer validated)
             b"J445566-778899,50.0,20.0,2.0\n"  # Valid
         )
 
@@ -466,13 +454,13 @@ class TestProcessSourceDataBatch:
         # Should fail
         assert result is False
 
-        # Check that all 3 validation errors were logged
+        # Check that all 2 validation errors were logged (only RA and DEC are validated)
         error_logs = [record.message for record in caplog.records if record.levelname == "ERROR"]
 
         # Should have summary + all errors logged
         validation_summary = [log for log in error_logs if "Validation failed with" in log]
         assert len(validation_summary) == 1
-        assert "3 errors" in validation_summary[0]
+        assert "2 errors" in validation_summary[0]
 
         # All errors should be logged (not just first 10)
         all_errors_log = [log for log in error_logs if "All validation errors:" in log]
@@ -480,7 +468,7 @@ class TestProcessSourceDataBatch:
 
         # Check individual error messages are present
         error_messages = [log for log in error_logs if "Row" in log and "component_id:" in log]
-        assert len(error_messages) == 3  # All 3 validation errors
+        assert len(error_messages) == 2  # Only RA and DEC validation errors
 
     def test_validation_phase_before_ingestion(self, test_db, caplog):
         """Test that all validation happens before any ingestion"""
