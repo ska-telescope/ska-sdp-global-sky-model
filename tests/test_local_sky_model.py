@@ -166,8 +166,8 @@ class TestLocalSkyModel:
             yaml_path = os.path.join(yaml_dir_name, "ska-data-product.yaml")
 
             # Save two copies of the LSM so we have two entries in the YAML.
-            model.save(path=csv_file_names[0], metadata_dir=yaml_dir_name)
-            model.save(path=csv_file_names[1], metadata_dir=yaml_dir_name)
+            for csv_file_name in csv_file_names:
+                model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
 
             # Load the CSV file into a new model.
             model2 = LocalSkyModel.load(csv_file_names[0])
