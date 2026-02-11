@@ -324,6 +324,18 @@
         let selectedFiles = [];
         let currentUploadId = null;
 
+        // Detect base path from current URL (handles /gsm/ prefix in cluster)
+        const basePath = window.location.pathname.endsWith('/') 
+            ? window.location.pathname 
+            : window.location.pathname + '/';
+        
+        function apiUrl(endpoint) {
+            // Remove leading slash from endpoint if present
+            const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+            // Construct URL: basePath already has trailing /, so just append endpoint
+            return basePath + cleanEndpoint;
+        }
+
         dropZone.addEventListener('click', () => fileInput.click());
 
         dropZone.addEventListener('dragover', (e) => {
@@ -389,7 +401,7 @@
             reviewSection.style.display = 'none';
             
             try {
-                const response = await fetch('/upload-sky-survey-batch', {
+                const response = await fetch(apiUrl('upload-sky-survey-batch'), {
                     method: 'POST',
                     body: formData
                 });
@@ -417,7 +429,7 @@
             
             const check = async () => {
                 try {
-                    const response = await fetch(`/upload-sky-survey-status/${uploadId}`);
+                    const response = await fetch(apiUrl(`upload-sky-survey-status/${uploadId}`));
                     const status = await response.json();
 
                     const stateBadge = `<span class="status-badge ${status.state.toLowerCase()}">${status.state.toUpperCase()}</span>`;
@@ -471,7 +483,7 @@
 
         async function loadReviewData(uploadId) {
             try {
-                const response = await fetch(`/review-upload/${uploadId}`);
+                const response = await fetch(apiUrl(`review-upload/${uploadId}`));
                 const data = await response.json();
 
                 if (response.ok) {
@@ -515,7 +527,7 @@
             commitBtn.textContent = 'Committing...';
 
             try {
-                const response = await fetch(`/commit-upload/${currentUploadId}`, {
+                const response = await fetch(apiUrl(`commit-upload/${currentUploadId}`), {
                     method: 'POST'
                 });
 
@@ -551,7 +563,7 @@
             rejectBtn.textContent = 'Rejecting...';
 
             try {
-                const response = await fetch(`/reject-upload/${currentUploadId}`, {
+                const response = await fetch(apiUrl(`reject-upload/${currentUploadId}`), {
                     method: 'DELETE'
                 });
 
