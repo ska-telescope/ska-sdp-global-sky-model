@@ -530,10 +530,15 @@ class LocalSkyModel:
         root = "local_sky_model"
         if root not in data:
             data[root] = []  # Ensure we have a list under the root item.
-        data[root].append({})  # Create entry for new file in the list.
-        data[root][-1]["header"] = header
-        data[root][-1]["file_path"] = lsm_path
-        data[root][-1]["columns"] = self.column_names
+
+        # Create entry for new file in the list.
+        data[root].append(
+            {
+                "header": header,
+                "file_path": lsm_path,
+                "columns": self.column_names,
+            }
+        )
 
         # Save the LSM file name in the metadata.
         # An error will be raised during validation if the LSM file already
