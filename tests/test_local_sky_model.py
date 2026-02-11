@@ -97,6 +97,7 @@ class TestLocalSkyModel:
             assert model["u_pol"][i] == -1.1 * i
             assert model["v_pol"][i] == 0.1 * i
 
+    # pylint: disable=too-many-locals
     def test_save_and_load(self):
         """
         Test that we can save values to a CSV file and load them back.
@@ -190,12 +191,12 @@ class TestLocalSkyModel:
                 metadata = yaml.safe_load(stream)
 
             # Check the entry for each file.
-            for i in range(len(csv_file_names)):
+            for i, csv_file_name in enumerate(csv_file_names):
                 lsm_dict = metadata["local_sky_model"][i]
                 assert lsm_dict["columns"] == column_names
-                assert lsm_dict["file_path"] == csv_file_names[i]
+                assert lsm_dict["file_path"] == csv_file_name
                 assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
                 assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
                 assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
                 assert metadata["execution_block"] == execution_block_id
-                assert metadata["files"][i]["path"] == csv_file_names[i]
+                assert metadata["files"][i]["path"] == csv_file_name
