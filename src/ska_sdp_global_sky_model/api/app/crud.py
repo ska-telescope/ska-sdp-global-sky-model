@@ -35,7 +35,7 @@ def get_local_sky_model(
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
 
-    The LSM contains information about celestial sources within a designated region of the sky.
+    The LSM contains information about celestial components within a designated region of the sky.
     This function extracts this information from a database based on the provided
     right ascension (RA) and declination (Dec) coordinates.
 
@@ -106,11 +106,11 @@ def get_local_sky_model(
 def get_coverage_range(ra: float, dec: float, fov: float) -> tuple[float, float, float, float]:
     """
     This function calculates the minimum and maximum RA and Dec values
-    covering a circular field of view around a given source position.
+    covering a circular field of view around a given component position.
 
     Args:
-        ra: Right Ascension of the source (in arcminutes)
-        dec: Declination of the source (in arcminutes)
+        ra: Right Ascension of the component (in arcminutes)
+        dec: Declination of the component (in arcminutes)
         fov: Diameter of the field of view (in arcminutes)
 
     Returns:

@@ -168,7 +168,7 @@ class UploadManager:
                 detail=f"File {file.filename} is not valid CSV: {str(e)}",
             ) from e
 
-        upload_status.files.append((file.filename, contents))
+        upload_status.files.append((file.filename, text_content))
         upload_status.uploaded += 1
 
         logger.info(

@@ -244,8 +244,8 @@ def test_upload_sky_survey_status_not_found(myclient):
     assert "Upload ID not found" in response.json()["detail"]
 
 
-def test_sources(myclient):  # pylint: disable=unused-argument,redefined-outer-name
-    """Unit test for the /sources endpoint"""
+def test_components(myclient):  # pylint: disable=unused-argument,redefined-outer-name
+    """Unit test for the /components endpoint"""
 
     # Add a test component directly to the test database using override_get_db
     # Use the overridden database session
@@ -263,9 +263,9 @@ def test_sources(myclient):  # pylint: disable=unused-argument,redefined-outer-n
     finally:
         db.close()
 
-    response = myclient.get("/sources")
+    response = myclient.get("/components")
     assert response.status_code == 200
-    # Verify we have sources
+    # Verify we have components
     assert len(response.json()) > 0
     assert response.json()[0][0].startswith("J")
 

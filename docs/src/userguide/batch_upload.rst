@@ -1,7 +1,7 @@
 Batch Upload API
 ================
 
-The SKA Global Sky Model API provides endpoints for uploading multiple sky survey catalog files in a single atomic batch operation.
+The SKA Global Sky Model (GSM) API provides endpoints for uploading multiple sky survey catalog files in a single atomic batch operation into the GSM database.
 
 Overview
 --------
@@ -28,22 +28,125 @@ Batch uploads run asynchronously as background tasks. When you submit files:
 
 This design keeps the API responsive during large uploads and allows multiple concurrent batch operations.
 
+CSV File Format
+---------------
+
+The uploaded CSV files must follow the standardized sky survey catalog format compatible with the 
+`ska_sdp_datamodels <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py?ref_type=heads>`_ package. CSV files should use the standardized column names.
+
+Required Columns
+~~~~~~~~~~~~~~~~
+
+Your CSV must include these standardized columns:
+
+- **component_id**: Unique component identifier (string)
+- **ra**: Right ascension (J2000) in degrees (float)
+- **dec**: Declination (J2000) in degrees (float)
+- **i_pol**: I polarization flux at reference frequency in Janskys (float)
+
+Optional Columns
+~~~~~~~~~~~~~~~~
+
+Additional standardized columns that will be automatically ingested if present:
+
+**Source Shape (Gaussian Model)**:
+    - ``major_ax``: Major axis in arcseconds (float)
+    - ``minor_ax``: Minor axis in arcseconds (float)
+    - ``pos_ang``: Position angle in degrees (float)
+
+**Spectral Properties**:
+    - ``spec_idx``: Spectral index (float or array of polynomial coefficients)
+    - ``log_spec_idx``: Boolean flag for logarithmic spectral model (bool)
+
+**Polarization**:
+    - ``q_pol``: Q polarization flux in Jy (float)
+    - ``u_pol``: U polarization flux in Jy (float)
+    - ``v_pol``: V polarization flux in Jy (float)
+    - ``pol_frac``: Polarized fraction (float)
+    - ``pol_ang``: Polarization angle in radians (float)
+    - ``rot_meas``: Faraday rotation measure in rad/m² (float)
+
+CSV Format Examples
+~~~~~~~~~~~~~~~~~~~~
+
+**Standardized Format**:
+
+The ``test_catalog_1.csv`` and ``test_catalog_2.csv`` files in the test data directory demonstrate 
+the required standardized format:
+
+.. code-block:: text
+
+    component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
+    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,-0.419238,False
+    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,-1.074094,False
+
+These test catalogs contain 100 components each and are used throughout the test suite as reference examples.
+
+**Minimal Format**:
+
+At minimum, you need the four required columns:
+
+.. code-block:: text
+
+    component_id,ra,dec,i_pol
+    J000001-350001,0.004,-35.0,0.25
+    J000002-350002,0.008,-35.1,0.23
+
 Data Validation
 ~~~~~~~~~~~~~~~~
 
-After CSV files are loaded, each source undergoes validation:
+**Important**: The API performs only basic technical validation (data types, required fields, coordinate ranges). 
+No scientific validation is performed - users are responsible for ensuring their data is scientifically accurate, including correct flux values, proper component positions, and appropriate units.
 
-**Required Fields**:
-    - ``component_id``: Source identifier (string)
-    - ``ra``: Right ascension (J2000) in degrees (float, -360 to 360)
-    - ``dec``: Declination (J2000) in degrees (float, -90 to 90)
-    - ``i_pol``: I polarization flux at reference frequency (float, must be positive, in Janskys)
+After CSV files are loaded, each component undergoes validation. The following checks are performed:
+
+**Field Validation**:
+
+.. list-table::
+    :widths: 20, 15, 15, 50
+    :header-rows: 1
+
+    * - Field
+      - Data Type
+      - Required
+      - Validation Checks
+    * - ``component_id``
+      - string
+      - Yes
+      - Must be present, non-empty, and unique (across all files in batch)
+    * - ``ra``
+      - float
+      - Yes
+      - Must be numeric, range: 0 to 360 degrees
+    * - ``dec``
+      - float
+      - Yes
+      - Must be numeric, range: -90 to 90 degrees
+    * - ``i_pol``
+      - float
+      - Yes
+      - Must be numeric
 
 **Validation Process**:
-    - All sources are validated before any data is ingested
-    - Validation errors are collected and logged for all sources
+    - All components are validated before any data is ingested
+    - Validation errors are collected and logged for all components
     - If ANY validation errors occur, NO data is ingested (all-or-nothing)
-    - Only if ALL sources pass validation will ingestion proceed
+    - Only if ALL components pass validation will ingestion proceed
+
+Best Practices
+--------------
+
+1. **Data Preparation**: Verify the scientific accuracy of your data before upload. The API does not validate 
+   flux values, component identifications, or other scientific properties - only basic technical requirements.
+
+2. **File Validation**: Ensure all CSV files are properly formatted with standardized column names before upload 
+   to avoid batch failures. Required columns are component_id, ra, dec, and i_pol.
+
+3. **Progress Monitoring**: Use the status endpoint to monitor long-running uploads, especially for large batches.
+
+4. **Error Handling**: Always check the response status code and handle errors appropriately in your application.
+
+5. **Batch Size**: Consider breaking very large uploads into smaller batches for better manageability.
 
 API Endpoints
 -------------
@@ -195,70 +298,6 @@ Retrieve the current status of a sky survey batch upload.
     if status['state'] == 'failed':
         print(f"Errors: {status['errors']}")
 
-CSV File Format
----------------
-
-The uploaded CSV files must follow the standardized sky survey catalog format compatible with the 
-``ska_sdp_datamodels`` package. CSV files should use the standardized column names.
-
-Required Columns
-~~~~~~~~~~~~~~~~
-
-Your CSV must include these standardized columns:
-
-- **component_id**: Unique source identifier (string)
-- **ra**: Right ascension (J2000) in degrees (float)
-- **dec**: Declination (J2000) in degrees (float)
-- **i_pol**: I polarization flux at reference frequency in Janskys (float, must be positive)
-
-Optional Columns
-~~~~~~~~~~~~~~~~
-
-Additional standardized columns that will be automatically ingested if present:
-
-**Source Shape (Gaussian Model)**:
-    - ``major_ax``: Major axis in arcseconds (float)
-    - ``minor_ax``: Minor axis in arcseconds (float)
-    - ``pos_ang``: Position angle in degrees (float)
-
-**Spectral Properties**:
-    - ``spec_idx``: Spectral index (float or array of polynomial coefficients)
-    - ``log_spec_idx``: Boolean flag for logarithmic spectral model (bool)
-
-**Polarization**:
-    - ``q_pol``: Q polarization flux in Jy (float)
-    - ``u_pol``: U polarization flux in Jy (float)
-    - ``v_pol``: V polarization flux in Jy (float)
-    - ``pol_frac``: Polarized fraction (float)
-    - ``pol_ang``: Polarization angle in radians (float)
-    - ``rot_meas``: Faraday rotation measure in rad/m² (float)
-
-CSV Format Examples
-~~~~~~~~~~~~~~~~~~~~
-
-**Standardized Format**:
-
-The ``test_catalog_1.csv`` and ``test_catalog_2.csv`` files in the test data directory demonstrate 
-the required standardized format:
-
-.. code-block:: text
-
-    component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
-    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,-0.419238,False
-    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,-1.074094,False
-
-These test catalogs contain 100 sources each and are used throughout the test suite as reference examples.
-
-**Minimal Format**:
-
-At minimum, you need the four required columns:
-
-.. code-block:: text
-
-    component_id,ra,dec,i_pol
-    J000001-350001,0.004,-35.0,0.25
-    J000002-350002,0.008,-35.1,0.23
-
 Error Handling
 --------------
 
@@ -295,15 +334,3 @@ The API provides detailed error responses for common issues:
     {
         "detail": "Upload ID not found"
     }
-
-Best Practices
---------------
-
-1. **File Validation**: Ensure all CSV files are properly formatted with standardized column names before upload 
-   to avoid batch failures. Required columns are component_id, ra, dec, and i_pol.
-
-2. **Progress Monitoring**: Use the status endpoint to monitor long-running uploads, especially for large batches.
-
-3. **Error Handling**: Always check the response status code and handle errors appropriately in your application.
-
-4. **Batch Size**: Consider breaking very large uploads into smaller batches for better manageability.

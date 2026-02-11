@@ -1,6 +1,7 @@
 # pylint: disable=no-member, too-many-positional-arguments
 """
-A simple fastAPI to obtain a local sky model from a global sky model.
+A simple fastAPI to ingest data into the global sky model database and to obtain a local sky
+model from it.
 """
 
 # pylint: disable=too-many-arguments, broad-exception-caught
@@ -93,12 +94,12 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/sources", summary="See all the point sources")
-def get_point_sources(db: Session = Depends(get_db)):
-    """Retrieve all point sources"""
-    logger.info("Retrieving all point sources...")
+@app.get("/components", summary="See all the point components")
+def get_point_components(db: Session = Depends(get_db)):
+    """Retrieve all point components"""
+    logger.info("Retrieving all point components...")
     components = db.query(SkyComponent).all()
-    logger.info("Retrieved all point sources for all %s components", str(len(components)))
+    logger.info("Retrieved all point components: %s components", str(len(components)))
     component_list = []
     for component in components:
         component_list.append([component.component_id, component.ra, component.dec])
@@ -208,7 +209,6 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
-    db: Session = Depends(get_db),
 ):
     """
     Upload and ingest one or more sky survey CSV files atomically.
@@ -224,8 +224,6 @@ async def upload_sky_survey_batch(
     files : list[UploadFile]
         One or more CSV files containing standardized sky survey data.
         Expected format: component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
-    db : Session
-        Database session
 
     Raises
     ------
@@ -240,12 +238,6 @@ async def upload_sky_survey_batch(
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
-
-    # Validate database connection
-    try:
-        db.execute(text("SELECT 1"))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Unable to access database") from e
 
     # Use standard catalog configuration
     survey_config = copy.deepcopy(STANDARD_CATALOG_CONFIG)

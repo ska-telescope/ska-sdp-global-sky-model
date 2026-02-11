@@ -25,29 +25,28 @@ from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percen
 logger = logging.getLogger(__name__)
 
 
-class SourceFile:
-    """SourceFile creates an iterator object which yields source dicts from in-memory content."""
+class ComponentFile:
+    """ComponentFile creates an iterator object which yields component
+    dicts from in-memory CSV text content."""
 
-    def __init__(self, content: bytes):
-        """Source file init method.
+    def __init__(self, content: str):
+        """Component file init method.
 
         Args:
-            content: In-memory file content as bytes.
+            content: In-memory file content as string.
         """
-        logger.info("Creating SourceFile object from in-memory content")
+        logger.debug("Creating ComponentFile object from in-memory content")
         self.content = content
 
         # Count lines from in-memory content
-        text_content = content.decode("utf-8")
-        self.len = text_content.count("\n")
-        logger.info("File length (rows) from memory: %s", self.len)
-        logger.info("SourceFile object created")
+        self.len = content.count("\n")
+        logger.debug("File length (rows) from memory: %s", self.len)
+        logger.debug("ComponentFile object created")
 
     def __iter__(self) -> iter:
-        """Iterate through the sources from in-memory content."""
-        logger.info("Iterating over in-memory CSV content")
-        text_content = self.content.decode("utf-8")
-        csv_file = csv.reader(io.StringIO(text_content), delimiter=",")
+        """Iterate through the components from in-memory content."""
+        logger.debug("Iterating over in-memory CSV content")
+        csv_file = csv.reader(io.StringIO(self.content), delimiter=",")
         heading = next(csv_file)
         for row in csv_file:
             yield dict(zip_longest(heading, row, fillvalue=None))
@@ -57,18 +56,18 @@ class SourceFile:
         return self.len
 
 
-def parse_catalog_sources(ingest: dict):
-    """Parse catalog sources from in-memory CSV content.
+def parse_catalog_components(ingest: dict):
+    """Parse catalog components from in-memory CSV content.
 
-    Converts the catalog configuration containing file content into SourceFile
+    Converts the catalog configuration containing file content into ComponentFile
     objects that can be iterated over for data ingestion.
 
     Args:
         ingest: Ingest configuration dictionary containing:
-            - file_location: List of dicts with 'content' key (bytes)
+            - file_location: List of dicts with 'content' key (str)
 
     Yields:
-        SourceFile: Iterator object for each CSV file's content.
+        ComponentFile: Iterator object for each CSV file's content.
 
     Raises:
         ValueError: If content is missing from configuration.
@@ -77,10 +76,10 @@ def parse_catalog_sources(ingest: dict):
         content = ingest_set.get("content")
 
         if not content:
-            raise ValueError("Content (bytes) must be provided.")
+            raise ValueError("Content (string) must be provided.")
 
-        logger.info("Processing in-memory content for catalog ingestion")
-        yield SourceFile(content=content)
+        logger.debug("Processing in-memory content for catalog ingestion")
+        yield ComponentFile(content=content)
 
 
 def to_float(val):
@@ -126,22 +125,20 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
         return None
 
 
-def coerce_floats(source_dict: dict) -> dict:
+def coerce_floats(component_dict: dict) -> dict:
     """Convert all numeric values in dictionary to floats where possible.
 
     Args:
-        source_dict: Dictionary with string or numeric values.
+        component_dict: Dictionary with string or numeric values.
 
     Returns:
         New dictionary with values converted to float where possible,
         original values preserved if conversion fails.
     """
     out = {}
-    for k, v in source_dict.items():
-        try:
-            out[k] = float(v)
-        except (ValueError, TypeError):
-            out[k] = v
+    for k, v in component_dict.items():
+        float_val = to_float(v)
+        out[k] = float_val if float_val is not None else v
     return out
 
 
@@ -164,7 +161,7 @@ def _get_dataclass_fields() -> dict[str, type]:
     return dict(SkyComponentDataclass.__annotations__.items())
 
 
-def _process_special_field(field_name: str, value, source_mapping: dict) -> bool:
+def _process_special_field(field_name: str, value, component_mapping: dict) -> bool:
     """
     Process special fields that need custom handling.
 
@@ -175,28 +172,30 @@ def _process_special_field(field_name: str, value, source_mapping: dict) -> bool
     if field_name == "spec_idx":
         if isinstance(value, str):
             float_val = to_float(value)
-            if float_val is not None:
-                source_mapping[field_name] = [float_val, None, None, None, None]
+            component_mapping[field_name] = [float_val, None, None, None, None]
         elif isinstance(value, (int, float)):
-            source_mapping[field_name] = [float(value), None, None, None, None]
+            component_mapping[field_name] = [float(value), None, None, None, None]
         elif isinstance(value, list):
-            source_mapping[field_name] = value
+            component_mapping[field_name] = value
+        else:
+            # Field present but invalid type - store as None
+            component_mapping[field_name] = [None, None, None, None, None]
         return True
 
     # Special handling for log_spec_idx (bool type)
     if field_name == "log_spec_idx":
         if isinstance(value, bool):
-            source_mapping[field_name] = value
+            component_mapping[field_name] = value
         elif isinstance(value, str):
-            source_mapping[field_name] = value.lower() in ("true", "1", "yes")
+            component_mapping[field_name] = value.lower() in ("true", "1", "yes")
         return True
 
     return False
 
 
-def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
+def build_component_mapping(component_dict: dict, catalog_config: dict) -> dict:
     """
-    Construct source structure mapping CSV columns to SkySource schema dynamically.
+    Construct component structure mapping CSV columns to SkyComponent schema dynamically.
 
     Automatically maps all fields from the SkyComponent dataclass, handling:
     - Required vs optional fields based on type annotations
@@ -204,21 +203,21 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
     - Database-specific fields (healpix_index)
 
     Args:
-        source_dict: Dictionary from CSV row with column names as keys
+        component_dict: Dictionary from CSV row with column names as keys
         catalog_config: Catalog configuration containing source name field
 
     Returns:
-        Dictionary mapping to SkySource fields for database insertion
+        Dictionary mapping to SkyComponent fields for database insertion
     """
-    source_mapping = {}
+    component_mapping = {}
     dataclass_fields = _get_dataclass_fields()
 
     # Special handling for component_id (comes from config, not direct field name)
-    source_mapping["component_id"] = str(source_dict.get(catalog_config["source"]))
+    component_mapping["component_id"] = str(component_dict.get(catalog_config["source"]))
 
     # Database-specific field (not in dataclass)
-    source_mapping["healpix_index"] = compute_hpx_healpy(
-        source_dict.get("ra"), source_dict.get("dec")
+    component_mapping["healpix_index"] = compute_hpx_healpy(
+        component_dict.get("ra"), component_dict.get("dec")
     )
 
     # Dynamically map all dataclass fields
@@ -226,12 +225,12 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
         if field_name == "component_id":
             continue  # Already handled above
 
-        value = source_dict.get(field_name)
+        value = component_dict.get(field_name)
         if value is None:
             continue  # Skip missing optional fields
 
         # Handle special fields with custom processing
-        if _process_special_field(field_name, value, source_mapping):
+        if _process_special_field(field_name, value, component_mapping):
             continue
 
         # Standard numeric field conversion (skip list types)
@@ -240,24 +239,23 @@ def build_source_mapping(source_dict: dict, catalog_config: dict) -> dict:
             continue
 
         float_val = to_float(value)
-        if float_val is not None:
-            source_mapping[field_name] = float_val
+        component_mapping[field_name] = float_val
 
-    return source_mapping
+    return component_mapping
 
 
 def _validate_required_field(
-    source_mapping: dict, field: str, expected_type: type, row_info: str
+    component_mapping: dict, field: str, expected_type: type, row_info: str
 ) -> tuple[bool, str | None]:
     """Validate a single required field exists and has correct type."""
-    if field not in source_mapping or source_mapping[field] is None:
+    if field not in component_mapping or component_mapping[field] is None:
         return False, f"Missing required field '{field}'{row_info}"
 
-    if not isinstance(source_mapping[field], expected_type):
+    if not isinstance(component_mapping[field], expected_type):
         return (
             False,
             f"Field '{field}' has invalid type{row_info}: "
-            f"expected {expected_type.__name__}, got {type(source_mapping[field]).__name__}",
+            f"expected {expected_type.__name__}, got {type(component_mapping[field]).__name__}",
         )
     return True, None
 
@@ -328,7 +326,7 @@ def _get_field_validation_rules() -> dict[str, tuple[float | None, float | None]
 
 
 def _validate_optional_numeric_fields(
-    source_mapping: dict, row_info: str
+    component_mapping: dict, row_info: str
 ) -> tuple[bool, str | None]:
     """Validate numeric fields based on dynamic validation rules."""
     validation_rules = _get_field_validation_rules()
@@ -336,7 +334,7 @@ def _validate_optional_numeric_fields(
 
     for field_name, field_type in dataclass_fields.items():
         # Skip if field not in mapping
-        if field_name not in source_mapping or source_mapping[field_name] is None:
+        if field_name not in component_mapping or component_mapping[field_name] is None:
             continue
 
         # Skip non-numeric types (lists, bools, strings)
@@ -348,7 +346,7 @@ def _validate_optional_numeric_fields(
         if field_name in validation_rules:
             min_val, max_val = validation_rules[field_name]
             is_valid, error = _validate_numeric_range(
-                source_mapping[field_name], field_name, min_val, max_val, row_info
+                component_mapping[field_name], field_name, min_val, max_val, row_info
             )
             if not is_valid:
                 return False, error
@@ -356,15 +354,17 @@ def _validate_optional_numeric_fields(
     return True, None
 
 
-def validate_source_mapping(source_mapping: dict, row_num: int = 0) -> tuple[bool, str | None]:
+def validate_component_mapping(
+    component_mapping: dict, row_num: int = 0
+) -> tuple[bool, str | None]:
     """
-    Validate a source mapping against the SkySource schema requirements.
+    Validate a component mapping against the SkyComponent schema requirements.
 
     Dynamically determines required fields from SkyComponent dataclass and
     validates types and value ranges.
 
     Args:
-        source_mapping: Dictionary with standardized SkySource fields
+        component_mapping: Dictionary with standardized SkyComponent fields
         row_num: Row number for error reporting (0 if unknown)
 
     Returns:
@@ -376,13 +376,13 @@ def validate_source_mapping(source_mapping: dict, row_num: int = 0) -> tuple[boo
     # Validate required fields are present and have correct types
     for field_name, expected_type in required_fields.items():
         is_valid, error = _validate_required_field(
-            source_mapping, field_name, expected_type, row_info
+            component_mapping, field_name, expected_type, row_info
         )
         if not is_valid:
             return False, error
 
     # Validate optional numeric fields (includes coordinate and flux ranges)
-    return _validate_optional_numeric_fields(source_mapping, row_info)
+    return _validate_optional_numeric_fields(component_mapping, row_info)
 
 
 def commit_batch(db: Session, component_objs: list):
@@ -402,47 +402,53 @@ def commit_batch(db: Session, component_objs: list):
     component_objs.clear()
 
 
-def process_source_data_batch(
+def process_component_data_batch(
     db: Session,
     catalog_data,
     catalog_config,
     batch_size: int = 500,
 ) -> bool:
     """
-    Processes source data and inserts into DB using batch operations for speed.
+    Processes component data and inserts into DB using batch operations for speed.
 
     This function performs validation in two phases:
-    1. Validate all sources and collect errors
-    2. Only ingest if all sources are valid
+    1. Validate all components and collect errors
+    2. Only ingest if all components are valid
 
     Args:
         db: SQLAlchemy session.
-        catalog_data: List of catalog source dictionaries.
+        catalog_data: List of catalog component dictionaries.
         catalog_config: Catalog configuration.
-        batch_size: Number of sources to insert per DB commit.
+        batch_size: Number of components to insert per DB commit.
     Returns:
         True if successful, False if validation errors occurred.
     """
-    logger.info("Validating all source data before ingestion...")
+    logger.info("Validating all component data before ingestion...")
 
     existing_component_id = {r[0] for r in db.query(SkyComponent.component_id).all()}
 
-    # Phase 1: Validate all data and collect valid sources
+    # Phase 1: Validate all data and collect valid components
     component_objs = []
     validation_errors = []
     count = 0
     total = len(catalog_data)
 
     for src in catalog_data:
-        source_dict = dict(src) if not hasattr(src, "items") else src
-        component_id = str(source_dict.get(catalog_config["source"]))
+        component_dict = dict(src) if not hasattr(src, "items") else src
+        component_id = str(component_dict.get(catalog_config["source"]))
 
+        count += 1
+        component_dict["component_id"] = component_id
+
+        # Check for duplicate component_id
         if component_id in existing_component_id:
+            error_entry = (
+                f"Row {count} (component_id: {component_id}): Duplicate component_id found"
+            )
+            validation_errors.append(error_entry)
+            logger.warning("Validation error: %s", error_entry)
             continue
         existing_component_id.add(component_id)
-
-        source_dict["component_id"] = component_id
-        count += 1
 
         if count % 100 == 0:
             logger.info(
@@ -450,17 +456,16 @@ def process_source_data_batch(
                 calculate_percentage(count, total),
             )
 
-        # Build the standardized source mapping
-        source_mapping = build_source_mapping(source_dict, catalog_config)
+        # Build the standardized component mapping
+        component_mapping = build_component_mapping(component_dict, catalog_config)
 
-        # Validate the source mapping
-        is_valid, error_msg = validate_source_mapping(source_mapping, count)
+        # Validate the component mapping
+        is_valid, error_msg = validate_component_mapping(component_mapping, count)
         if not is_valid:
             error_entry = f"Row {count} (component_id: {component_id}): {error_msg}"
             validation_errors.append(error_entry)
-            logger.warning("Validation error: %s", error_entry)
         else:
-            component_objs.append(source_mapping)
+            component_objs.append(component_mapping)
 
     # Phase 2: Check if any validation errors occurred
     if validation_errors:
@@ -475,7 +480,7 @@ def process_source_data_batch(
 
     # Phase 3: All validation passed, proceed with ingestion
     logger.info(
-        "All %d sources validated successfully. Starting ingestion...", len(component_objs)
+        "All %d components validated successfully. Starting ingestion...", len(component_objs)
     )
 
     # Batch insert for efficiency
@@ -488,14 +493,14 @@ def process_source_data_batch(
             calculate_percentage(min(i + batch_size, total_to_ingest), total_to_ingest),
         )
 
-    logger.info("Successfully ingested %d sources", total_to_ingest)
+    logger.info("Successfully ingested %d components", total_to_ingest)
     return True
 
 
 def ingest_catalog(db: Session, catalog_config) -> bool:
     """Ingest catalog data from in-memory CSV content into the database.
 
-    Processes source data from CSV content provided in the catalog configuration,
+    Processes component data from CSV content provided in the catalog configuration,
     validates all records, and inserts them into the SkyComponent table.
     No data is downloaded - all content must be provided in the configuration.
 
@@ -504,7 +509,7 @@ def ingest_catalog(db: Session, catalog_config) -> bool:
         catalog_config: Catalog configuration dictionary containing:
             - name: Telescope/catalog name for logging
             - catalog_name: Display name of the catalog
-            - ingest: Configuration with file_location containing CSV content (bytes)
+            - ingest: Configuration with file_location containing CSV content (str)
             - source: Column name to use as component_id
 
     Returns:
@@ -514,16 +519,16 @@ def ingest_catalog(db: Session, catalog_config) -> bool:
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
-    # Parse catalog sources from configuration
-    catalog_data = parse_catalog_sources(catalog_config["ingest"])
+    # Parse catalog components from configuration
+    catalog_data = parse_catalog_components(catalog_config["ingest"])
 
     for components in catalog_data:
         if not components:
-            logger.error("No data-sources found for %s", catalog_name)
+            logger.error("No data-components found for %s", catalog_name)
             return False
         logger.info("Processing %s components", str(len(components)))
-        # Process source data
-        if not process_source_data_batch(
+        # Process component data
+        if not process_component_data_batch(
             db,
             components,
             catalog_config,

@@ -14,16 +14,16 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from ska_sdp_global_sky_model.api.app.ingest import (
-    SourceFile,
-    build_source_mapping,
+    ComponentFile,
+    build_component_mapping,
     coerce_floats,
     commit_batch,
     compute_hpx_healpy,
     ingest_catalog,
-    parse_catalog_sources,
-    process_source_data_batch,
+    parse_catalog_components,
+    process_component_data_batch,
     to_float,
-    validate_source_mapping,
+    validate_component_mapping,
 )
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.configuration.config import Base
@@ -129,45 +129,50 @@ class TestCoerceFloats:
         assert result["c"] == ""
 
 
-class TestSourceFile:
-    """Tests for SourceFile class"""
+class TestComponentFile:
+    """Tests for ComponentFile class"""
 
     def test_source_file_init(self, sample_csv_file):
-        """Test SourceFile initialization with in-memory content"""
-        with open(sample_csv_file, "rb") as f:
+        """Test ComponentFile initialization with in-memory content"""
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = SourceFile(content)
+        sf = ComponentFile(content)
         assert sf.len == 4  # Header + 3 data rows
 
     def test_source_file_iteration(self, sample_csv_file):
-        """Test iterating through SourceFile with in-memory content"""
-        with open(sample_csv_file, "rb") as f:
+        """Test iterating through ComponentFile with in-memory content"""
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = SourceFile(content)
+        sf = ComponentFile(content)
         rows = list(sf)
         assert len(rows) == 3
         assert rows[0]["component_id"] == "J001122-334455"
         assert rows[0]["ra"] == "10.5"
 
     def test_source_file_invalid_content(self):
-        """Test SourceFile with invalid content"""
-        with pytest.raises(Exception):  # Will raise UnicodeDecodeError or similar
-            SourceFile(b"\x80\x81\x82")  # Invalid UTF-8
+        """Test ComponentFile with invalid CSV format"""
+        # CSV reader will handle empty or invalid CSV format gracefully
+        invalid_csv = "Just some random text without CSV structure"
+        sf = ComponentFile(invalid_csv)
+        # File can be created, but iterating won't produce valid rows
+        rows = list(sf)
+        # No valid CSV rows are extracted
+        assert len(rows) <= 1  # Might have header row with wrong structure
 
     def test_source_file_length(self, sample_csv_file):
         """Test __len__ method with in-memory content"""
-        with open(sample_csv_file, "rb") as f:
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = SourceFile(content)
+        sf = ComponentFile(content)
         assert len(sf) == 4
 
 
-class TestBuildSourceMapping:
-    """Tests for build_source_mapping function"""
+class TestBuildComponentMapping:
+    """Tests for build_component_mapping function"""
 
     def test_minimal_mapping(self):
         """Test building mapping with minimal required fields"""
-        source_dict = {
+        component_dict = {
             "component_id": "J001122-334455",
             "ra": "10.5",
             "dec": "45.2",
@@ -175,7 +180,7 @@ class TestBuildSourceMapping:
         }
         catalog_config = {"source": "component_id"}
 
-        mapping = build_source_mapping(source_dict, catalog_config)
+        mapping = build_component_mapping(component_dict, catalog_config)
 
         assert mapping["component_id"] == "J001122-334455"
         assert mapping["ra"] == 10.5
@@ -185,7 +190,7 @@ class TestBuildSourceMapping:
 
     def test_mapping_with_shape_params(self):
         """Test mapping with source shape parameters"""
-        source_dict = {
+        component_dict = {
             "component_id": "J001122-334455",
             "ra": "10.5",
             "dec": "45.2",
@@ -196,7 +201,7 @@ class TestBuildSourceMapping:
         }
         catalog_config = {"source": "component_id"}
 
-        mapping = build_source_mapping(source_dict, catalog_config)
+        mapping = build_component_mapping(component_dict, catalog_config)
 
         assert mapping["major_ax"] == 0.01
         assert mapping["minor_ax"] == 0.008
@@ -204,7 +209,7 @@ class TestBuildSourceMapping:
 
     def test_mapping_with_spectral_index(self):
         """Test mapping with spectral index"""
-        source_dict = {
+        component_dict = {
             "component_id": "J001122-334455",
             "ra": "10.5",
             "dec": "45.2",
@@ -213,13 +218,13 @@ class TestBuildSourceMapping:
         }
         catalog_config = {"source": "component_id"}
 
-        mapping = build_source_mapping(source_dict, catalog_config)
+        mapping = build_component_mapping(component_dict, catalog_config)
 
         assert mapping["spec_idx"] == [-0.7, None, None, None, None]
 
     def test_mapping_with_polarization(self):
         """Test mapping with polarization parameters"""
-        source_dict = {
+        component_dict = {
             "component_id": "J001122-334455",
             "ra": "10.5",
             "dec": "45.2",
@@ -230,7 +235,7 @@ class TestBuildSourceMapping:
         }
         catalog_config = {"source": "component_id"}
 
-        mapping = build_source_mapping(source_dict, catalog_config)
+        mapping = build_component_mapping(component_dict, catalog_config)
 
         assert mapping["q_pol"] == 0.1
         assert mapping["u_pol"] == 0.2
@@ -238,7 +243,7 @@ class TestBuildSourceMapping:
 
     def test_mapping_with_log_spec_idx(self):
         """Test log_spec_idx boolean conversion"""
-        source_dict = {
+        component_dict = {
             "component_id": "J001122-334455",
             "ra": "10.5",
             "dec": "45.2",
@@ -247,16 +252,16 @@ class TestBuildSourceMapping:
         }
         catalog_config = {"source": "component_id"}
 
-        mapping = build_source_mapping(source_dict, catalog_config)
+        mapping = build_component_mapping(component_dict, catalog_config)
         assert mapping["log_spec_idx"] is True
 
-        source_dict["log_spec_idx"] = "false"
-        mapping = build_source_mapping(source_dict, catalog_config)
+        component_dict["log_spec_idx"] = "false"
+        mapping = build_component_mapping(component_dict, catalog_config)
         assert mapping["log_spec_idx"] is False
 
 
-class TestValidateSourceMapping:
-    """Tests for validate_source_mapping function"""
+class TestValidateComponentMapping:
+    """Tests for validate_component_mapping function"""
 
     def test_valid_minimal_mapping(self):
         """Test validation of minimal valid mapping"""
@@ -266,7 +271,7 @@ class TestValidateSourceMapping:
             "dec": 45.2,
             "i_pol": 1.5,
         }
-        is_valid, error = validate_source_mapping(mapping)
+        is_valid, error = validate_component_mapping(mapping)
         assert is_valid is True
         assert error is None
 
@@ -278,7 +283,7 @@ class TestValidateSourceMapping:
             # Missing dec
             "i_pol": 1.5,
         }
-        is_valid, error = validate_source_mapping(mapping)
+        is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
         assert "dec" in error
 
@@ -290,7 +295,7 @@ class TestValidateSourceMapping:
             "dec": 45.2,
             "i_pol": 1.5,
         }
-        is_valid, error = validate_source_mapping(mapping)
+        is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
         assert "ra" in error and "out of range" in error
 
@@ -302,7 +307,7 @@ class TestValidateSourceMapping:
             "dec": 95.0,  # Invalid
             "i_pol": 1.5,
         }
-        is_valid, error = validate_source_mapping(mapping)
+        is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
         assert "dec" in error and "out of range" in error
 
@@ -314,7 +319,7 @@ class TestValidateSourceMapping:
             "dec": 45.2,
             "i_pol": 1.5,
         }
-        is_valid, error = validate_source_mapping(mapping)
+        is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
         assert "type" in error.lower()
 
@@ -354,12 +359,12 @@ class TestCommitBatch:
         assert len(component_objs) == 0  # Should be cleared
 
 
-class TestParseCatalogSources:  # pylint: disable=too-few-public-methods
-    """Tests for parse_catalog_sources function"""
+class TestParseCatalogComponents:  # pylint: disable=too-few-public-methods
+    """Tests for parse_catalog_components function"""
 
     def test_content_based_selector(self, sample_csv_file):
         """Test content-based catalog parsing for in-memory CSV data"""
-        with open(sample_csv_file, "rb") as f:
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         ingest_config = {
@@ -370,23 +375,23 @@ class TestParseCatalogSources:  # pylint: disable=too-few-public-methods
             ]
         }
 
-        results = list(parse_catalog_sources(ingest_config))
+        results = list(parse_catalog_components(ingest_config))
         assert len(results) == 1
-        source_file = results[0]
-        assert isinstance(source_file, SourceFile)
+        component_file = results[0]
+        assert isinstance(component_file, ComponentFile)
 
 
-class TestProcessSourceDataBatch:
-    """Tests for process_source_data_batch function"""
+class TestProcessComponentDataBatch:
+    """Tests for process_component_data_batch function"""
 
-    def test_process_valid_sources(self, test_db, sample_csv_file):
-        """Test processing valid source data from in-memory content"""
-        with open(sample_csv_file, "rb") as f:
+    def test_process_valid_components(self, test_db, sample_csv_file):
+        """Test processing valid component data from in-memory content"""
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = SourceFile(content)
+        sf = ComponentFile(content)
         catalog_config = {"source": "component_id"}
 
-        result = process_source_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, sf, catalog_config)
 
         assert result is True
         count = test_db.query(SkyComponent).count()
@@ -394,37 +399,37 @@ class TestProcessSourceDataBatch:
 
     def test_skip_duplicate_component_id(self, test_db, sample_csv_file):
         """Test that duplicate component IDs are skipped"""
-        with open(sample_csv_file, "rb") as f:
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        sf = SourceFile(content)
+        sf = ComponentFile(content)
         catalog_config = {"source": "component_id"}
 
         # First ingestion
-        process_source_data_batch(test_db, sf, catalog_config)
+        process_component_data_batch(test_db, sf, catalog_config)
         count1 = test_db.query(SkyComponent).count()
 
         # Second ingestion - should skip duplicates
-        sf2 = SourceFile(content)
-        process_source_data_batch(test_db, sf2, catalog_config)
+        sf2 = ComponentFile(content)
+        process_component_data_batch(test_db, sf2, catalog_config)
         count2 = test_db.query(SkyComponent).count()
 
         assert count1 == count2  # No new components added
 
     def test_validation_errors_prevent_ingestion(self, test_db):
         """Test that validation errors prevent any data from being ingested (all-or-nothing)"""
-        # Create CSV with mix of valid and invalid sources
+        # Create CSV with mix of valid and invalid components
         invalid_csv = (
-            b"component_id,ra,dec,i_pol\n"
-            b"J001122-334455,10.5,45.2,1.5\n"  # Valid
-            b"J112233-445566,400.0,30.1,2.3\n"  # Invalid RA (out of range)
-            b"J223344-556677,30.1,-20.5,0.8\n"  # Valid
+            "component_id,ra,dec,i_pol\n"
+            "J001122-334455,10.5,45.2,1.5\n"  # Valid
+            "J112233-445566,400.0,30.1,2.3\n"  # Invalid RA (out of range)
+            "J223344-556677,30.1,-20.5,0.8\n"  # Valid
         )
 
-        sf = SourceFile(invalid_csv)
+        sf = ComponentFile(invalid_csv)
         catalog_config = {"source": "component_id"}
 
-        result = process_source_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, sf, catalog_config)
 
         # Should fail due to validation errors
         assert result is False
@@ -436,20 +441,20 @@ class TestProcessSourceDataBatch:
         """Test that all validation errors are collected and logged"""
         caplog.set_level(logging.ERROR)
 
-        # Create CSV with multiple invalid sources
+        # Create CSV with multiple invalid components
         invalid_csv = (
-            b"component_id,ra,dec,i_pol\n"
-            b"J001122-334455,10.5,45.2,1.5\n"  # Valid
-            b"J112233-445566,400.0,30.1,2.3\n"  # Invalid RA
-            b"J223344-556677,30.1,95.0,0.8\n"  # Invalid DEC
-            b"J334455-667788,20.0,10.0,-1.0\n"  # Valid (i_pol no longer validated)
-            b"J445566-778899,50.0,20.0,2.0\n"  # Valid
+            "component_id,ra,dec,i_pol\n"
+            "J001122-334455,10.5,45.2,1.5\n"  # Valid
+            "J112233-445566,400.0,30.1,2.3\n"  # Invalid RA
+            "J223344-556677,30.1,95.0,0.8\n"  # Invalid DEC
+            "J334455-667788,20.0,10.0,-1.0\n"  # Valid (i_pol no longer validated)
+            "J445566-778899,50.0,20.0,2.0\n"  # Valid
         )
 
-        sf = SourceFile(invalid_csv)
+        sf = ComponentFile(invalid_csv)
         catalog_config = {"source": "component_id"}
 
-        result = process_source_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, sf, catalog_config)
 
         # Should fail
         assert result is False
@@ -476,16 +481,16 @@ class TestProcessSourceDataBatch:
 
         # Create CSV with invalid data at the end
         invalid_csv = (
-            b"component_id,ra,dec,i_pol\n"
-            b"J001122-334455,10.5,45.2,1.5\n"  # Valid
-            b"J112233-445566,20.0,30.1,2.3\n"  # Valid
-            b"J223344-556677,400.0,-20.5,0.8\n"  # Invalid RA (last row)
+            "component_id,ra,dec,i_pol\n"
+            "J001122-334455,10.5,45.2,1.5\n"  # Valid
+            "J112233-445566,20.0,30.1,2.3\n"  # Valid
+            "J223344-556677,400.0,-20.5,0.8\n"  # Invalid RA (last row)
         )
 
-        sf = SourceFile(invalid_csv)
+        sf = ComponentFile(invalid_csv)
         catalog_config = {"source": "component_id"}
 
-        result = process_source_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, sf, catalog_config)
 
         # Should fail
         assert result is False
@@ -500,7 +505,7 @@ class TestProcessSourceDataBatch:
         ingestion_msg_found = False
 
         for msg in log_messages:
-            if "Validating all source data" in msg:
+            if "Validating all component data" in msg:
                 validation_msg_found = True
             if "Starting ingestion" in msg:
                 ingestion_msg_found = True
@@ -514,15 +519,15 @@ class TestProcessSourceDataBatch:
         caplog.set_level(logging.INFO)
 
         valid_csv = (
-            b"component_id,ra,dec,i_pol\n"
-            b"J001122-334455,10.5,45.2,1.5\n"
-            b"J112233-445566,20.0,30.1,2.3\n"
+            "component_id,ra,dec,i_pol\n"
+            "J001122-334455,10.5,45.2,1.5\n"
+            "J112233-445566,20.0,30.1,2.3\n"
         )
 
-        sf = SourceFile(valid_csv)
+        sf = ComponentFile(valid_csv)
         catalog_config = {"source": "component_id"}
 
-        result = process_source_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, sf, catalog_config)
 
         # Should succeed
         assert result is True
@@ -551,7 +556,7 @@ class TestIngestCatalog:
 
     def test_successful_ingestion(self, test_db, sample_csv_file):
         """Test successful full catalog ingestion with in-memory content"""
-        with open(sample_csv_file, "rb") as f:
+        with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         catalog_config = {
@@ -576,7 +581,7 @@ class TestIngestCatalog:
     def test_empty_catalog(self, test_db):
         """Test handling of empty catalog with in-memory content"""
         # Create empty CSV content
-        empty_content = b"component_id,ra,dec,i_pol\n"
+        empty_content = "component_id,ra,dec,i_pol\n"
 
         catalog_config = {
             "name": "Empty Catalog",
