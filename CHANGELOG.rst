@@ -4,14 +4,28 @@ CHANGELOG
 Development
 -----------
 
-- [Added] Implemented ``_query_gsm_for_lsm`` function to query the Global Sky Model 
+- [Added] Implemented ``_query_gsm_for_lsm`` function to query the Global Sky Model
   database and return sources within a specified field of view as ``GlobalSkyModel`` objects.
   (`MR55 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/55>`__)
+- [Added] Utilities to write a local sky model CSV file and associated metadata.
+  (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__)
+- [Updated] Dynamic database models for automatic synchronization with ska-sdp-datamodels.
+  **Breaking Changes:**
+  - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
+  - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables
+  - Both models dynamically generate columns from their respective dataclasses at module import time
+  - Field names match ska-sdp-datamodels exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index``
+- [Removed] Code generation scripts (``generate_models.py``, ``db_config.py``) in favor of runtime dynamic generation
+- [Removed] Unused ``post_process`` function and ``to_json`` method from Source model
+- [Removed] Unused ``/optimise-json`` API endpoint
+  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
+- [Added] Alembic migrations to ease schema management.
+  (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
 - Added etcd service to docker-compose setup and updated documentation
   (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
-- Remove the dependencie on a running PostgreSQL instance for tests
+- [Removed]Remove the dependencie on a running PostgreSQL instance for tests
   (`MR59 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/59>`__)
-- Re-instated postgres backend storage starting from version 0.1.4.
+- [Added] Re-instated postgres backend storage starting from version 0.1.4.
   (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
 - [Added] Watcher for creating local sky models from Flow entries
   (`MR51 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/51>`__)
@@ -19,6 +33,8 @@ Development
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 - [Modified] Logger ENV variable has changed behaviour, and remove links to Redis
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
+- [Added] Scripts to upgrade/downgrade from migrations into scripts in container
+  (`MR72 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/72>`__)
 
 Note
 ----

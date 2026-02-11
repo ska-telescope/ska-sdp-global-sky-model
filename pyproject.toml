@@ -46,9 +46,10 @@ python-multipart = "^0.0.9"
 healpy = "^1.19.0"
 alembic = "^1.13.2"
 ska-sdp-config = "^1.4.0"
-ska-sdp-datamodels = "1.0.2+dev.cf31ee643"
+ska-sdp-datamodels = "1.0.2+dev.c2a771380"
+ska-sdp-dataproduct-metadata = "^1.1.0"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
-
+PyYAML = "^6.0.0"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.0"
@@ -68,16 +69,20 @@ sphinx-new-tab-link = "^0.6.1"
 
 [tool.isort]
 # auto generated files.
-skip = ["src/ska_sdp_global_sky_model/alembic"]
+skip = ["src/ska_sdp_global_sky_model/alembic/versions"]
 profile = "black"
 line_length = 99
 
 [tool.black]
 # auto generated files.
 force-exclude = '''
-src/ska_sdp_global_sky_model/alembic
+src/ska_sdp_global_sky_model/alembic/versions
 '''
 line-length = 99
+
+[tool.pylint.main]
+# auto generated files.
+ignore-paths = ["src/ska_sdp_global_sky_model/alembic/versions"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

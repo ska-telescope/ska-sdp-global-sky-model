@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
-DB_NAME: str = config("DB_NAME", default="postgres")
+DB_NAME: str = config("POSTGRES_DB_NAME", default="postgres")
 POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
-DB: str = config("DB", default="db")
-DB_SCHEMA: str = config("DB_SCHEMA", default="public")
+DB: str = config("POSTGRES_HOST", default="db")
+DB_SCHEMA: str = config("POSTGRES_SCHEMA_NAME", default="public")
 DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 
 # HEALPix
@@ -74,7 +74,7 @@ def q3c_index():
         conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
-                'ON source (q3c_ang2ipix("RAJ2000","DECJ2000"));'
+                'ON source (q3c_ang2ipix("ra","dec"));'
             )
         )
 
