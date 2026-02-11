@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
+from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
@@ -180,7 +180,7 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
             file_config["ingest"]["file_location"][0].pop("key", None)
 
             logger.info("Ingesting file from memory: %s", filename)
-            if not get_full_catalog(db, file_config):
+            if not ingest_catalog(db, file_config):
                 raise RuntimeError(f"Ingest failed for {filename}")
 
         upload_manager.mark_completed(upload_id)

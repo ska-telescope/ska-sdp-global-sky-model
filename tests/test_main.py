@@ -117,11 +117,11 @@ def test_upload_rcal(myclient, monkeypatch):
     file_path = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -164,12 +164,12 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
         "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_CONFIG", test_config
     )
 
-    # Mock the get_full_catalog function to always return True
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    # Mock the ingest_catalog function to always return True
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with first_file.open("rb") as f1, second_file.open("rb") as f2:
@@ -304,11 +304,11 @@ def test_upload_batch_gleam_catalog(myclient, monkeypatch):
     file_path = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -337,11 +337,11 @@ def test_upload_batch_racs_catalog(myclient, monkeypatch):
     file_path = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -368,11 +368,11 @@ def test_upload_batch_rcal_catalog(myclient, monkeypatch):
     file_path = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -399,11 +399,11 @@ def test_upload_batch_generic_catalog(myclient, monkeypatch):
     file_path = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -434,11 +434,11 @@ def test_upload_batch_mixed_catalogs(myclient, monkeypatch):
     third_file = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     # Test uploading multiple files with GLEAM catalog
@@ -472,11 +472,11 @@ def test_upload_batch_default_catalog(myclient, monkeypatch):
     file_path = Path("tests/data/test_catalog_1.csv")
 
     # Mock the ingest function
-    def mock_get_full_catalog(db, config):  # pylint: disable=unused-argument
+    def mock_ingest_catalog(db, config):  # pylint: disable=unused-argument
         return True
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.get_full_catalog", mock_get_full_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -529,7 +529,7 @@ def test_upload_batch_ingest_failure(myclient):
 
     with (
         file_path.open("rb") as f,
-        patch("ska_sdp_global_sky_model.api.app.main.get_full_catalog", return_value=False),
+        patch("ska_sdp_global_sky_model.api.app.main.ingest_catalog", return_value=False),
     ):
         files = [("files", (file_path.name, f, "text/csv"))]
         response = myclient.post("/upload-sky-survey-batch", files=files)
@@ -606,7 +606,7 @@ def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
 
     with (
         file_path.open("rb") as f,
-        patch("ska_sdp_global_sky_model.api.app.main.get_full_catalog", return_value=True),
+        patch("ska_sdp_global_sky_model.api.app.main.ingest_catalog", return_value=True),
     ):
         # Use .txt extension but valid CSV content
         files = [("files", ("data.txt", f, "text/plain"))]

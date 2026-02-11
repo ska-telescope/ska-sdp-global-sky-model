@@ -19,8 +19,8 @@ from ska_sdp_global_sky_model.api.app.ingest import (
     coerce_floats,
     commit_batch,
     compute_hpx_healpy,
-    get_data_catalog_selector,
-    get_full_catalog,
+    ingest_catalog,
+    parse_catalog_sources,
     process_source_data_batch,
     to_float,
     validate_source_mapping,
@@ -354,11 +354,11 @@ class TestCommitBatch:
         assert len(component_objs) == 0  # Should be cleared
 
 
-class TestGetDataCatalogSelector:  # pylint: disable=too-few-public-methods
-    """Tests for get_data_catalog_selector function"""
+class TestParseCatalogSources:  # pylint: disable=too-few-public-methods
+    """Tests for parse_catalog_sources function"""
 
     def test_content_based_selector(self, sample_csv_file):
-        """Test content-based catalog selector for API bulk upload"""
+        """Test content-based catalog parsing for in-memory CSV data"""
         with open(sample_csv_file, "rb") as f:
             content = f.read()
 
@@ -370,7 +370,7 @@ class TestGetDataCatalogSelector:  # pylint: disable=too-few-public-methods
             ]
         }
 
-        results = list(get_data_catalog_selector(ingest_config))
+        results = list(parse_catalog_sources(ingest_config))
         assert len(results) == 1
         source_file = results[0]
         assert isinstance(source_file, SourceFile)
@@ -546,8 +546,8 @@ class TestProcessSourceDataBatch:
         assert ingestion_started is True
 
 
-class TestGetFullCatalog:
-    """Tests for get_full_catalog function"""
+class TestIngestCatalog:
+    """Tests for ingest_catalog function"""
 
     def test_successful_ingestion(self, test_db, sample_csv_file):
         """Test successful full catalog ingestion with in-memory content"""
@@ -567,7 +567,7 @@ class TestGetFullCatalog:
             },
         }
 
-        result = get_full_catalog(test_db, catalog_config)
+        result = ingest_catalog(test_db, catalog_config)
 
         assert result is True
         count = test_db.query(SkyComponent).count()
@@ -591,6 +591,6 @@ class TestGetFullCatalog:
             },
         }
 
-        result = get_full_catalog(test_db, catalog_config)
+        result = ingest_catalog(test_db, catalog_config)
         # Should succeed with empty catalog
         assert result is True

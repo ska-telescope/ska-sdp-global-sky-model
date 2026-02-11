@@ -57,14 +57,21 @@ class SourceFile:
         return self.len
 
 
-def get_data_catalog_selector(ingest: dict):
-    """Get in-memory catalog data sources for API bulk upload.
+def parse_catalog_sources(ingest: dict):
+    """Parse catalog sources from in-memory CSV content.
+
+    Converts the catalog configuration containing file content into SourceFile
+    objects that can be iterated over for data ingestion.
 
     Args:
-        ingest: The catalog ingest configurations.
+        ingest: Ingest configuration dictionary containing:
+            - file_location: List of dicts with 'content' key (bytes)
 
     Yields:
-        SourceFile object for each content item in the configuration.
+        SourceFile: Iterator object for each CSV file's content.
+
+    Raises:
+        ValueError: If content is missing from configuration.
     """
     for ingest_set in ingest["file_location"]:
         content = ingest_set.get("content")
@@ -72,12 +79,19 @@ def get_data_catalog_selector(ingest: dict):
         if not content:
             raise ValueError("Content (bytes) must be provided.")
 
-        logger.info("Processing in-memory content for API bulk upload")
+        logger.info("Processing in-memory content for catalog ingestion")
         yield SourceFile(content=content)
 
 
 def to_float(val):
-    """Coerce to float."""
+    """Convert value to float, returning None if conversion fails.
+
+    Args:
+        val: Value to convert (string, number, etc.).
+
+    Returns:
+        Float value, or None if conversion is not possible.
+    """
     try:
         return float(val)
     except (TypeError, ValueError):
@@ -85,8 +99,17 @@ def to_float(val):
 
 
 def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
-    """Computes the healpix position of a given source with particular NSIDE."""
+    """Compute HEALPix index for given sky coordinates.
 
+    Args:
+        ra_deg: Right ascension in degrees.
+        dec_deg: Declination in degrees.
+        nside: HEALPix NSIDE parameter (default from config).
+        nest: HEALPix ordering scheme (default from config).
+
+    Returns:
+        HEALPix pixel index as integer, or None if coordinates are invalid.
+    """
     ra_deg = to_float(ra_deg)
     dec_deg = to_float(dec_deg)
 
@@ -104,7 +127,15 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
 
 
 def coerce_floats(source_dict: dict) -> dict:
-    """Coerce values to floats."""
+    """Convert all numeric values in dictionary to floats where possible.
+
+    Args:
+        source_dict: Dictionary with string or numeric values.
+
+    Returns:
+        New dictionary with values converted to float where possible,
+        original values preserved if conversion fails.
+    """
     out = {}
     for k, v in source_dict.items():
         try:
@@ -355,7 +386,14 @@ def validate_source_mapping(source_mapping: dict, row_num: int = 0) -> tuple[boo
 
 
 def commit_batch(db: Session, component_objs: list):
-    """Commit batches of sky components."""
+    """Insert and commit a batch of sky components to the database.
+
+    Uses bulk insert for efficiency and clears the list after commit.
+
+    Args:
+        db: SQLAlchemy database session.
+        component_objs: List of component dictionaries to insert (modified in-place).
+    """
     if not component_objs:
         return
 
@@ -454,30 +492,30 @@ def process_source_data_batch(
     return True
 
 
-def get_full_catalog(db: Session, catalog_config) -> bool:
-    """
-    Downloads and processes a source catalog for a specified telescope.
+def ingest_catalog(db: Session, catalog_config) -> bool:
+    """Ingest catalog data from in-memory CSV content into the database.
 
-    This function retrieves source data from the specified catalog and processes
-    it into the schema, storing all information directly in the SkyComponent table.
+    Processes source data from CSV content provided in the catalog configuration,
+    validates all records, and inserts them into the SkyComponent table.
+    No data is downloaded - all content must be provided in the configuration.
 
     Args:
-        db: An SQLAlchemy database session object.
-        catalog_config: Dictionary containing catalog configuration including:
-            - name: Telescope name
-            - catalog_name: Name of the catalog
-            - ingest: Ingest configuration
-            - source: Source name field
+        db: SQLAlchemy database session.
+        catalog_config: Catalog configuration dictionary containing:
+            - name: Telescope/catalog name for logging
+            - catalog_name: Display name of the catalog
+            - ingest: Configuration with file_location containing CSV content (bytes)
+            - source: Column name to use as component_id
 
     Returns:
-        True if the catalog data is downloaded and processed successfully, False otherwise.
+        True if all data was validated and ingested successfully, False otherwise.
     """
     telescope_name = catalog_config["name"]
     catalog_name = catalog_config["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
-    # Get catalog data
-    catalog_data = get_data_catalog_selector(catalog_config["ingest"])
+    # Parse catalog sources from configuration
+    catalog_data = parse_catalog_sources(catalog_config["ingest"])
 
     for components in catalog_data:
         if not components:
