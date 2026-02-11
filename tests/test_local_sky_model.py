@@ -184,8 +184,9 @@ class TestLocalSkyModel:
             # Check that the metadata YAML file was written correctly.
             with open(yaml_path, encoding="utf-8") as stream:
                 metadata = yaml.safe_load(stream)
-            lsm_dict = metadata["local_sky_model"]
+            lsm_dict = metadata["local_sky_model"][0]
             assert lsm_dict["columns"] == column_names
+            assert lsm_dict["file_path"] == csv_file_name
             assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
             assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
             assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
