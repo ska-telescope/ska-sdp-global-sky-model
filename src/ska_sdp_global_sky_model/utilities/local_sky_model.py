@@ -33,7 +33,7 @@ class LocalSkyModel:
     # --------------------------
 
     # Column type enumerator.
-    ColumnType = Literal["float", "str", "int", "bool", "vector_float"]
+    ColumnType = ClassVar[Literal["float", "str", "int", "bool", "vector_float"]]
 
     # Names of non-float column types (anything else is treated as a float):
     _STR_COLUMNS: ClassVar[set] = {"component_id", "name"}
@@ -236,8 +236,8 @@ class LocalSkyModel:
             return []
         tokens: list[str] = []
         buf: list[str] = []
-        bracket_depth = 0
-        in_quotes = False
+        bracket_depth: int = 0
+        in_quotes: bool = False
         quote_char: str | None = None
 
         index = 0
@@ -267,12 +267,12 @@ class LocalSkyModel:
                     buf.append(character)
                     index += 1
                     continue
-                if bracket_depth == 0:
-                    if character == ",":
-                        tokens.append("".join(buf).strip())
-                        buf = []
-                        index += 1
-                        continue
+                if bracket_depth == 0 and character == ",":
+                    # End of token.
+                    tokens.append("".join(buf).strip())
+                    buf = []
+                    index += 1
+                    continue
             buf.append(character)
             index += 1
 
