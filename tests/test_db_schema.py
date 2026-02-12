@@ -192,16 +192,16 @@ class TestSkyComponentModel:
         db_session.commit()
 
         # Test columns_to_dict
-        source_dict = component.columns_to_dict()
+        component_dict = component.columns_to_dict()
 
-        assert isinstance(source_dict, dict)
-        assert source_dict["component_id"] == "DictTestSource"
-        assert source_dict["ra"] == 111.11
-        assert source_dict["dec"] == -22.22
-        assert source_dict["i_pol"] == 3.33
-        assert source_dict["healpix_index"] == 33333
-        assert source_dict["major_ax"] == 0.002
-        assert "id" in source_dict
+        assert isinstance(component_dict, dict)
+        assert component_dict["component_id"] == "DictTestSource"
+        assert component_dict["ra"] == 111.11
+        assert component_dict["dec"] == -22.22
+        assert component_dict["i_pol"] == 3.33
+        assert component_dict["healpix_index"] == 33333
+        assert component_dict["major_ax"] == 0.002
+        assert "id" in component_dict
 
     def test_sky_component_nullable_fields(self, db_session):
         """Test that nullable fields can be None."""

@@ -57,7 +57,7 @@ API Service
 
 The FastAPI service provides REST endpoints for:
 
-- Querying sources by position and field of view
+- Querying components by position and field of view
 - Uploading catalog data
 - Managing catalog versions
 - Health checks and status

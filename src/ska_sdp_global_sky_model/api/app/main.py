@@ -1,6 +1,7 @@
 # pylint: disable=no-member, too-many-positional-arguments
 """
-A simple fastAPI to obtain a local sky model from a global sky model.
+A simple fastAPI to ingest data into the global sky model database and to obtain a local sky
+model from it.
 """
 
 # pylint: disable=too-many-arguments, broad-exception-caught, not-callable
@@ -18,11 +19,15 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-from ska_sdp_global_sky_model.api.app.ingest import get_full_catalog
+from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
 from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import STANDARD_CATALOG_CONFIG, engine, get_db
+from ska_sdp_global_sky_model.configuration.config import (
+    STANDARD_CATALOG_METADATA,
+    engine,
+    get_db,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +49,6 @@ def wait_for_db():
 async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     """
     Lifespan context manager for FastAPI application startup and shutdown.
-
-    Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown").
     """
     # Startup
     logger.info("Starting application...")
@@ -104,7 +107,7 @@ def root():
 def ingest(db: Session, catalog_config: dict):
     """Ingest catalog"""
     try:
-        if get_full_catalog(db, catalog_config):
+        if ingest_catalog(db, catalog_config):
             return True
         logger.error("Error ingesting the catalogue")
         return False
@@ -112,12 +115,12 @@ def ingest(db: Session, catalog_config: dict):
         raise e
 
 
-@app.get("/sources", summary="See all the point sources")
-def get_point_sources(db: Session = Depends(get_db)):
-    """Retrieve all point sources"""
-    logger.info("Retrieving all point sources...")
+@app.get("/components", summary="See all the point components")
+def get_point_components(db: Session = Depends(get_db)):
+    """Retrieve all point components"""
+    logger.info("Retrieving all point components...")
     components = db.query(SkyComponent).all()
-    logger.info("Retrieved all point sources for all %s components", str(len(components)))
+    logger.info("Retrieved all point components: %s components", str(len(components)))
     component_list = []
     for component in components:
         component_list.append([component.component_id, component.ra, component.dec])
@@ -167,7 +170,7 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
     return ORJSONResponse(local_model)
 
 
-def _run_ingestion_task(upload_id: str, survey_config: dict):
+def _run_ingestion_task(upload_id: str, survey_metadata: dict):
     """
     Run ingestion task in background to staging table.
 
@@ -179,27 +182,32 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
     ----------
     upload_id : str
         Upload identifier for tracking
-    survey_config : dict
-        Catalog configuration for ingestion
+    survey_metadata : dict
+        Catalog metadata for ingestion
     """
     db = None
     try:
         # Get fresh database session
         db = _get_db_session()
 
-        # Ingest all files to staging table
-        file_paths = upload_manager.list_files(upload_id)
-        for file_path in file_paths:
-            # Deep copy to avoid modifying shared config
-            file_config = copy.deepcopy(survey_config)
-            file_config["ingest"]["file_location"][0]["key"] = str(file_path)
-            file_config["staging"] = True  # Flag to ingest to staging
-            file_config["upload_id"] = upload_id  # Track upload batch
+        # Get files from memory
+        files_data = upload_manager.get_files(upload_id)
 
-            if not get_full_catalog(db, file_config):
-                raise RuntimeError(f"Ingest failed for {file_path.name}")
+        # Ingest all files from memory to staging table
+        for filename, content in files_data:
+            # Deep copy to avoid modifying shared metadata
+            file_metadata = copy.deepcopy(survey_metadata)
+            # Pass content directly
+            file_metadata["ingest"]["file_location"][0]["content"] = content
+            # Set staging flag and upload_id for tracking
+            file_metadata["staging"] = True
+            file_metadata["upload_id"] = upload_id
 
-        # Mark as completed ingestion (still in UPLOADING, awaiting commit)
+            logger.info("Ingesting file to staging: %s", filename)
+            if not ingest_catalog(db, file_metadata):
+                raise RuntimeError(f"Ingest failed for {filename}")
+
+        # Mark as completed
         upload_manager.mark_completed(upload_id)
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
@@ -210,8 +218,9 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
         upload_manager.mark_failed(upload_id, error_msg)
 
     finally:
-        # Cleanup temporary files
+        # Cleanup memory
         upload_manager.cleanup(upload_id)
+
         if db:
             db.close()
 
@@ -225,7 +234,6 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
-    db: Session = Depends(get_db),
 ):
     """
     Upload and ingest one or more sky survey CSV files atomically.
@@ -241,8 +249,6 @@ async def upload_sky_survey_batch(
     files : list[UploadFile]
         One or more CSV files containing standardized sky survey data.
         Expected format: component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
-    db : Session
-        Database session
 
     Raises
     ------
@@ -258,27 +264,20 @@ async def upload_sky_survey_batch(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
-    # Validate database connection
-    try:
-        db.execute(text("SELECT 1"))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Unable to access database") from e
-
-    # Use standard catalog configuration
-    survey_config = copy.deepcopy(STANDARD_CATALOG_CONFIG)
+    # Use standard catalog metadata
+    survey_metadata = copy.deepcopy(STANDARD_CATALOG_METADATA)
 
     # Create upload tracking
     upload_status = upload_manager.create_upload(len(files))
     upload_id = upload_status.upload_id
 
     try:
-        # Validate and save all files first (synchronous part)
+        # Validate and save all files (validation happens in save_file)
         for file in files:
-            upload_manager.validate_file(file)
             await upload_manager.save_file(file, upload_status)
 
         # Schedule ingestion to run in background
-        background_tasks.add_task(_run_ingestion_task, upload_id, survey_config)
+        background_tasks.add_task(_run_ingestion_task, upload_id, survey_metadata)
 
         logger.info("Upload %s: files saved, ingestion scheduled in background", upload_id)
         logger.info("===== Background task SCHEDULED for upload %s =====", upload_id)

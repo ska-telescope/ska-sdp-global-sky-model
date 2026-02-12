@@ -79,29 +79,21 @@ def q3c_index():
         )
 
 
-# Standard catalog configuration for all uploads
+# Standard catalog metadata for all uploads
 # Uses the standardized format with explicit column names
-STANDARD_CATALOG_CONFIG = {
+STANDARD_CATALOG_METADATA = {
+    "version": "1.0.0",
+    "description": "Standard sky survey catalog ingestion metadata",
+    "name": "Standard Sky Survey",
+    "catalog_name": "STANDARD",
     "ingest": {
-        "wideband": True,
-        "agent": "file",
         "file_location": [
             {
-                "key": "unset",
-                # No column aliasing - expect standardized column names
-                "heading_alias": {},
-                "heading_missing": [],
-                "bands": [],
+                "content": None,  # Content will be provided at runtime
             }
         ],
     },
-    "name": "Standard Sky Survey",
-    "catalog_name": "STANDARD",
-    "frequency_min": 80,
-    "frequency_max": 300,
-    "source": "component_id",  # Standardized source identifier column
-    "bands": [],
 }
 
 # Backward compatibility alias
-DEFAULT_CATALOG_CONFIG = STANDARD_CATALOG_CONFIG
+DEFAULT_CATALOG_METADATA = STANDARD_CATALOG_METADATA

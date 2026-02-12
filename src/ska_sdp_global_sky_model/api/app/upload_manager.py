@@ -2,17 +2,14 @@
 Upload manager for handling batch file uploads and tracking.
 
 This module provides functionality for managing batch uploads of sky survey data,
-including file validation, temporary storage, and upload state tracking.
+including file validation, in-memory storage, and upload state tracking.
 """
 
+import csv
+import io
 import logging
-import os
-import shutil
-import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
@@ -38,7 +35,7 @@ class UploadStatus:
     uploaded: int = 0
     state: UploadState = UploadState.PENDING
     errors: list[str] = field(default_factory=list)
-    temp_dir: Optional[str] = None
+    files: list[tuple[str, bytes]] = field(default_factory=list)  # (filename, content)
 
     def to_dict(self) -> dict:
         """Convert status to dictionary."""
@@ -74,17 +71,15 @@ class UploadManager:
             The created upload status object
         """
         upload_id = str(uuid4())
-        temp_dir = tempfile.mkdtemp(prefix="sky_survey_")
 
         status = UploadStatus(
             upload_id=upload_id,
             total=file_count,
             state=UploadState.UPLOADING,
-            temp_dir=temp_dir,
         )
 
         self._uploads[upload_id] = status
-        logger.info("Created upload %s for %d files in %s", upload_id, file_count, temp_dir)
+        logger.info("Created upload %s for %d files", upload_id, file_count)
 
         return status
 
@@ -112,36 +107,9 @@ class UploadManager:
 
         return self._uploads[upload_id]
 
-    def validate_file(self, file: UploadFile) -> None:
+    async def save_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
         """
-        Validate that a file is a CSV.
-
-        Parameters
-        ----------
-        file : UploadFile
-            File to validate
-
-        Raises
-        ------
-        HTTPException
-            If the file is not a CSV
-        """
-        # Check filename extension
-        if not file.filename.endswith(".csv"):
-            raise HTTPException(
-                status_code=400, detail=f"Invalid file type for {file.filename}. Must be CSV."
-            )
-
-        # Check content type (allow common CSV MIME types)
-        allowed_types = ["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]
-        if file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid file type for {file.filename}. Must be CSV."
-            )
-
-    async def save_file(self, file: UploadFile, upload_status: UploadStatus) -> Path:
-        """
-        Save an uploaded file to the temporary directory.
+        Save an uploaded file to memory after validating CSV structure.
 
         Parameters
         ----------
@@ -150,45 +118,65 @@ class UploadManager:
         upload_status : UploadStatus
             Upload status tracking object
 
-        Returns
-        -------
-        Path
-            Path where the file was saved
-
         Raises
         ------
         HTTPException
-            If there's insufficient disk space
+            If file content is not valid CSV
         """
-        if not upload_status.temp_dir:
-            raise HTTPException(status_code=500, detail="Upload temporary directory not set")
-
-        # Check disk space
-        statvfs = os.statvfs(upload_status.temp_dir)
-        free_space = statvfs.f_frsize * statvfs.f_bavail
-
         contents = await file.read()
         file_size = len(contents)
 
-        if file_size > free_space:
+        # Validate CSV structure
+        try:
+            text_content = contents.decode("utf-8")
+        except UnicodeDecodeError as exc:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient disk space for {file.filename}",
-            )
+                detail=f"File {file.filename} is not valid UTF-8 text. "
+                f"CSV files must be text-based.",
+            ) from exc
 
-        file_path = Path(upload_status.temp_dir) / file.filename
-        with open(file_path, "wb") as f:
-            f.write(contents)
+        try:
+            csv_reader = csv.reader(io.StringIO(text_content), strict=True)
+            rows = list(csv_reader)
 
+            if not rows:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {file.filename} is empty. Must contain header and data rows.",
+                )
+
+            if len(rows) < 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {file.filename} has no data rows. "
+                    f"Must contain at least one header row and one data row.",
+                )
+
+            # Validate header row is not empty
+            header = rows[0]
+            if not header or all(cell.strip() == "" for cell in header):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {file.filename} has empty header row. "
+                    f"First row must contain column names.",
+                )
+
+        except csv.Error as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {file.filename} is not valid CSV: {str(e)}",
+            ) from e
+
+        upload_status.files.append((file.filename, text_content))
         upload_status.uploaded += 1
+
         logger.info(
-            "Saved file %s (%d bytes) to %s",
+            "Validated and stored file %s (%d bytes, %d rows) in memory",
             file.filename,
             file_size,
-            file_path,
+            len(rows),
         )
-
-        return file_path
 
     def mark_completed(self, upload_id: str) -> None:
         """
@@ -221,21 +209,21 @@ class UploadManager:
 
     def cleanup(self, upload_id: str) -> None:
         """
-        Clean up temporary files for an upload.
+        Clean up memory and remove upload tracking.
 
         Parameters
         ----------
         upload_id : str
             Upload identifier
         """
-        status = self.get_status(upload_id)
-        if status.temp_dir and os.path.exists(status.temp_dir):
-            shutil.rmtree(status.temp_dir, ignore_errors=True)
-            logger.info("Cleaned up temporary directory for upload %s", upload_id)
+        if upload_id in self._uploads:
+            # Clear file contents from memory
+            self._uploads[upload_id].files.clear()
+            logger.info("Cleaned up upload %s from memory", upload_id)
 
-    def list_files(self, upload_id: str) -> list[Path]:
+    def get_files(self, upload_id: str) -> list[tuple[str, bytes]]:
         """
-        List all files in an upload's temporary directory.
+        Get all files for an upload.
 
         Parameters
         ----------
@@ -244,15 +232,8 @@ class UploadManager:
 
         Returns
         -------
-        list[Path]
-            List of file paths
+        list[tuple[str, bytes]]
+            List of (filename, content) tuples
         """
         status = self.get_status(upload_id)
-        if not status.temp_dir:
-            return []
-
-        temp_path = Path(status.temp_dir)
-        if not temp_path.exists():
-            return []
-
-        return list(temp_path.iterdir())
+        return status.files
