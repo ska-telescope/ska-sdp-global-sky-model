@@ -16,8 +16,8 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--name", help="Name of dataset", default="Sample Dataset")
-    parser.add_argument("--catalog-name", help="Name of catalogue", default="test_catalog")
-    parser.add_argument("csv-files", help="CSV Files to include", nargs="+")
+    parser.add_argument("--catalog_name", help="Name of catalogue", default="test_catalog")
+    parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
 
     args = parser.parse_args()
 
