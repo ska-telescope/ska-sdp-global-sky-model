@@ -97,6 +97,7 @@ class TestLocalSkyModel:
             assert model["u_pol"][i] == -1.1 * i
             assert model["v_pol"][i] == 0.1 * i
 
+    # pylint: disable=too-many-locals
     def test_save_and_load(self):
         """
         Test that we can save values to a CSV file and load them back.
@@ -157,15 +158,19 @@ class TestLocalSkyModel:
 
         # Write the model to a CSV file.
         with tempfile.TemporaryDirectory() as temp_dir_name:
-            csv_file_name = os.path.join(
-                temp_dir_name, "_temp_test_local_sky_model_save_and_load.csv"
-            )
+            csv_file_names = [
+                os.path.join(temp_dir_name, "_temp_test_lsm1.csv"),
+                os.path.join(temp_dir_name, "_temp_test_lsm2.csv"),
+            ]
             yaml_dir_name = os.path.join(temp_dir_name, "_temp_test_yaml_metadata_dir")
             yaml_path = os.path.join(yaml_dir_name, "ska-data-product.yaml")
-            model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
+
+            # Save two copies of the LSM so we have two entries in the YAML.
+            for csv_file_name in csv_file_names:
+                model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
 
             # Load the CSV file into a new model.
-            model2 = LocalSkyModel.load(csv_file_name)
+            model2 = LocalSkyModel.load(csv_file_names[0])
             assert model2.num_rows == num_rows
 
             # Check that the values were read correctly.
@@ -184,10 +189,14 @@ class TestLocalSkyModel:
             # Check that the metadata YAML file was written correctly.
             with open(yaml_path, encoding="utf-8") as stream:
                 metadata = yaml.safe_load(stream)
-            lsm_dict = metadata["local_sky_model"]
-            assert lsm_dict["columns"] == column_names
-            assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
-            assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
-            assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
-            assert metadata["execution_block"] == execution_block_id
-            assert metadata["files"][0]["path"] == csv_file_name
+
+            # Check the entry for each file.
+            for i, csv_file_name in enumerate(csv_file_names):
+                lsm_dict = metadata["local_sky_model"][i]
+                assert lsm_dict["columns"] == column_names
+                assert lsm_dict["file_path"] == csv_file_name
+                assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
+                assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
+                assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
+                assert metadata["execution_block"] == execution_block_id
+                assert metadata["files"][i]["path"] == csv_file_name
