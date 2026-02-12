@@ -103,7 +103,7 @@ class LocalSkyModel:
     # --------------------------
 
     # Column type enumerator.
-    column_type = Literal["float", "str", "int", "bool", "vector_float"]
+    ColumnType = ClassVar[Literal["float", "str", "int", "bool", "vector_float"]]
 
     # Names of non-float column types (anything else is treated as a float):
     # Dynamically determined from SkyComponent dataclass if available
@@ -336,8 +336,8 @@ class LocalSkyModel:
 
         tokens: list[str] = []
         buf: list[str] = []
-        bracket_depth = 0
-        in_quotes = False
+        bracket_depth: int = 0
+        in_quotes: bool = False
         quote_char: str | None = None
 
         for character in line:
@@ -592,18 +592,32 @@ class LocalSkyModel:
         This is called by save(), so it should not normally be called
         separately.
 
+        If the metadata file already exists, it will be updated with details
+        of the new sky model file; otherwise, it will be created.
+
+        An error will be raised during validation if both the YAML file and
+        the LSM file already exist.
+        To avoid the error, either delete the existing YAML file first,
+        or ensure the LSM path given is unique.
+
         :param yaml_path: Path to YAML file to write.
         :type yaml_path: str
         :param lsm_path: Path of local sky model file.
         :type lsm_path: str
         """
-        metadata = MetaData()
-        metadata.output_path = yaml_path
+        if os.path.exists(yaml_path):
+            # Open the existing file for update.
+            metadata = MetaData(path=yaml_path)
+            metadata.output_path = yaml_path
+        else:
+            # Create a new metadata file.
+            metadata = MetaData()
+            metadata.output_path = yaml_path
 
-        # Write any special values that have been set
-        # (e.g. the execution block ID).
-        if "execution_block_id" in self._metadata:
-            metadata.set_execution_block_id(self._metadata["execution_block_id"])
+            # Write any special values that have been set
+            # (e.g. the execution block ID).
+            if "execution_block_id" in self._metadata:
+                metadata.set_execution_block_id(self._metadata["execution_block_id"])
 
         # Get a handle to the top-level metadata dictionary.
         data = metadata.get_data()
@@ -615,12 +629,22 @@ class LocalSkyModel:
         header.update(self._header)
 
         # Update the metadata contents.
-        parent = "local_sky_model"
-        data[parent] = {}
-        data[parent]["header"] = header
-        data[parent]["columns"] = self.column_names
+        root = "local_sky_model"
+        if root not in data:
+            data[root] = []  # Ensure we have a list under the root item.
+
+        # Create entry for new file in the list.
+        data[root].append(
+            {
+                "header": header,
+                "file_path": lsm_path,
+                "columns": self.column_names,
+            }
+        )
 
         # Save the LSM file name in the metadata.
+        # An error will be raised during validation if the LSM file already
+        # exists. Ensure the LSM path given is unique.
         metadata.new_file(
             dp_path=lsm_path,
             description="Local sky model CSV text file",
