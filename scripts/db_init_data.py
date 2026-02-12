@@ -29,7 +29,9 @@ def main():
     }
 
     for file in args.csv_files:
-        catalog_config["ingest"]["file_location"].append({"content": Path(file).read_bytes()})
+        catalog_config["ingest"]["file_location"].append(
+            {"content": Path(file).read_text(encoding="utf8")}
+        )
 
     # Get DB session and load the data
     db = next(get_db())
