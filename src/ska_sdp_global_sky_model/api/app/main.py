@@ -23,7 +23,7 @@ from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (
-    STANDARD_CATALOG_CONFIG,
+    STANDARD_CATALOG_METADATA,
     engine,
     get_db,
 )
@@ -149,7 +149,7 @@ dec:%s, flux_wide:%s, telescope:%s, fov:%s",
     return ORJSONResponse(local_model)
 
 
-def _run_ingestion_task(upload_id: str, survey_config: dict):
+def _run_ingestion_task(upload_id: str, survey_metadata: dict):
     """
     Run ingestion task in background.
 
@@ -160,8 +160,8 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
     ----------
     upload_id : str
         Upload identifier for tracking
-    survey_config : dict
-        Catalog configuration for ingestion
+    survey_metadata : dict
+        Catalog metadata for ingestion
     """
     db = None
     try:
@@ -173,15 +173,13 @@ def _run_ingestion_task(upload_id: str, survey_config: dict):
 
         # Ingest all files from memory
         for filename, content in files_data:
-            # Deep copy to avoid modifying shared config
-            file_config = copy.deepcopy(survey_config)
-            # Pass content directly instead of file path
-            file_config["ingest"]["file_location"][0]["content"] = content
-            # Remove key since we're using content
-            file_config["ingest"]["file_location"][0].pop("key", None)
+            # Deep copy to avoid modifying shared metadata
+            file_metadata = copy.deepcopy(survey_metadata)
+            # Pass content directly
+            file_metadata["ingest"]["file_location"][0]["content"] = content
 
             logger.info("Ingesting file from memory: %s", filename)
-            if not ingest_catalog(db, file_config):
+            if not ingest_catalog(db, file_metadata):
                 raise RuntimeError(f"Ingest failed for {filename}")
 
         upload_manager.mark_completed(upload_id)
@@ -239,8 +237,8 @@ async def upload_sky_survey_batch(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
-    # Use standard catalog configuration
-    survey_config = copy.deepcopy(STANDARD_CATALOG_CONFIG)
+    # Use standard catalog metadata
+    survey_metadata = copy.deepcopy(STANDARD_CATALOG_METADATA)
 
     # Create upload tracking
     upload_status = upload_manager.create_upload(len(files))
@@ -252,7 +250,7 @@ async def upload_sky_survey_batch(
             await upload_manager.save_file(file, upload_status)
 
         # Schedule ingestion to run in background
-        background_tasks.add_task(_run_ingestion_task, upload_id, survey_config)
+        background_tasks.add_task(_run_ingestion_task, upload_id, survey_metadata)
 
         logger.info("Upload %s: files saved, ingestion scheduled in background", upload_id)
 

@@ -59,18 +59,18 @@ class ComponentFile:
 def parse_catalog_components(ingest: dict):
     """Parse catalog components from in-memory CSV content.
 
-    Converts the catalog configuration containing file content into ComponentFile
+    Converts the catalog metadata containing file content into ComponentFile
     objects that can be iterated over for data ingestion.
 
     Args:
-        ingest: Ingest configuration dictionary containing:
+        ingest: Ingest metadata dictionary containing:
             - file_location: List of dicts with 'content' key (str)
 
     Yields:
         ComponentFile: Iterator object for each CSV file's content.
 
     Raises:
-        ValueError: If content is missing from configuration.
+        ValueError: If content is missing from metadata.
     """
     for ingest_set in ingest["file_location"]:
         content = ingest_set.get("content")
@@ -193,7 +193,7 @@ def _process_special_field(field_name: str, value, component_mapping: dict) -> b
     return False
 
 
-def build_component_mapping(component_dict: dict, catalog_config: dict) -> dict:
+def build_component_mapping(component_dict: dict) -> dict:
     """
     Construct component structure mapping CSV columns to SkyComponent schema dynamically.
 
@@ -204,7 +204,6 @@ def build_component_mapping(component_dict: dict, catalog_config: dict) -> dict:
 
     Args:
         component_dict: Dictionary from CSV row with column names as keys
-        catalog_config: Catalog configuration containing source name field
 
     Returns:
         Dictionary mapping to SkyComponent fields for database insertion
@@ -212,8 +211,7 @@ def build_component_mapping(component_dict: dict, catalog_config: dict) -> dict:
     component_mapping = {}
     dataclass_fields = _get_dataclass_fields()
 
-    # Special handling for component_id (comes from config, not direct field name)
-    component_mapping["component_id"] = str(component_dict.get(catalog_config["source"]))
+    component_mapping["component_id"] = str(component_dict.get("component_id"))
 
     # Database-specific field (not in dataclass)
     component_mapping["healpix_index"] = compute_hpx_healpy(
@@ -405,7 +403,6 @@ def commit_batch(db: Session, component_objs: list):
 def process_component_data_batch(
     db: Session,
     catalog_data,
-    catalog_config,
     batch_size: int = 500,
 ) -> bool:
     """
@@ -418,7 +415,6 @@ def process_component_data_batch(
     Args:
         db: SQLAlchemy session.
         catalog_data: List of catalog component dictionaries.
-        catalog_config: Catalog configuration.
         batch_size: Number of components to insert per DB commit.
     Returns:
         True if successful, False if validation errors occurred.
@@ -435,7 +431,7 @@ def process_component_data_batch(
 
     for src in catalog_data:
         component_dict = dict(src) if not hasattr(src, "items") else src
-        component_id = str(component_dict.get(catalog_config["source"]))
+        component_id = str(component_dict.get("component_id"))
 
         count += 1
         component_dict["component_id"] = component_id
@@ -457,7 +453,7 @@ def process_component_data_batch(
             )
 
         # Build the standardized component mapping
-        component_mapping = build_component_mapping(component_dict, catalog_config)
+        component_mapping = build_component_mapping(component_dict)
 
         # Validate the component mapping
         is_valid, error_msg = validate_component_mapping(component_mapping, count)
@@ -497,30 +493,29 @@ def process_component_data_batch(
     return True
 
 
-def ingest_catalog(db: Session, catalog_config) -> bool:
+def ingest_catalog(db: Session, catalog_metadata) -> bool:
     """Ingest catalog data from in-memory CSV content into the database.
 
-    Processes component data from CSV content provided in the catalog configuration,
+    Processes component data from CSV content provided in the catalog metadata,
     validates all records, and inserts them into the SkyComponent table.
-    No data is downloaded - all content must be provided in the configuration.
 
     Args:
         db: SQLAlchemy database session.
-        catalog_config: Catalog configuration dictionary containing:
-            - name: Telescope/catalog name for logging
-            - catalog_name: Display name of the catalog
-            - ingest: Configuration with file_location containing CSV content (str)
-            - source: Column name to use as component_id
+        catalog_metadata: Catalog metadata dictionary containing:
+            - name: Name used for logging messages
+            - catalog_name: Catalog identifier for logging
+            - ingest: Dictionary with 'file_location' key containing a list of
+              dictionaries, each with a 'content' key holding CSV data as a string
 
     Returns:
         True if all data was validated and ingested successfully, False otherwise.
     """
-    telescope_name = catalog_config["name"]
-    catalog_name = catalog_config["catalog_name"]
+    telescope_name = catalog_metadata["name"]
+    catalog_name = catalog_metadata["catalog_name"]
     logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
 
-    # Parse catalog components from configuration
-    catalog_data = parse_catalog_components(catalog_config["ingest"])
+    # Parse catalog components from metadata
+    catalog_data = parse_catalog_components(catalog_metadata["ingest"])
 
     for components in catalog_data:
         if not components:
@@ -531,7 +526,6 @@ def ingest_catalog(db: Session, catalog_config) -> bool:
         if not process_component_data_batch(
             db,
             components,
-            catalog_config,
         ):
             return False
 

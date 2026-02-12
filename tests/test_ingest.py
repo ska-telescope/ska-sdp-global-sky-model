@@ -132,39 +132,39 @@ class TestCoerceFloats:
 class TestComponentFile:
     """Tests for ComponentFile class"""
 
-    def test_source_file_init(self, sample_csv_file):
+    def test_component_file_init(self, sample_csv_file):
         """Test ComponentFile initialization with in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = ComponentFile(content)
-        assert sf.len == 4  # Header + 3 data rows
+        cf = ComponentFile(content)
+        assert cf.len == 4  # Header + 3 data rows
 
-    def test_source_file_iteration(self, sample_csv_file):
+    def test_component_file_iteration(self, sample_csv_file):
         """Test iterating through ComponentFile with in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = ComponentFile(content)
-        rows = list(sf)
+        cf = ComponentFile(content)
+        rows = list(cf)
         assert len(rows) == 3
         assert rows[0]["component_id"] == "J001122-334455"
         assert rows[0]["ra"] == "10.5"
 
-    def test_source_file_invalid_content(self):
+    def test_component_file_invalid_content(self):
         """Test ComponentFile with invalid CSV format"""
         # CSV reader will handle empty or invalid CSV format gracefully
         invalid_csv = "Just some random text without CSV structure"
-        sf = ComponentFile(invalid_csv)
+        cf = ComponentFile(invalid_csv)
         # File can be created, but iterating won't produce valid rows
-        rows = list(sf)
+        rows = list(cf)
         # No valid CSV rows are extracted
         assert len(rows) <= 1  # Might have header row with wrong structure
 
-    def test_source_file_length(self, sample_csv_file):
+    def test_component_file_length(self, sample_csv_file):
         """Test __len__ method with in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = ComponentFile(content)
-        assert len(sf) == 4
+        cf = ComponentFile(content)
+        assert len(cf) == 4
 
 
 class TestBuildComponentMapping:
@@ -178,9 +178,8 @@ class TestBuildComponentMapping:
             "dec": "45.2",
             "i_pol": "1.5",
         }
-        catalog_config = {"source": "component_id"}
 
-        mapping = build_component_mapping(component_dict, catalog_config)
+        mapping = build_component_mapping(component_dict)
 
         assert mapping["component_id"] == "J001122-334455"
         assert mapping["ra"] == 10.5
@@ -199,9 +198,8 @@ class TestBuildComponentMapping:
             "minor_ax": "0.008",
             "pos_ang": "45.0",
         }
-        catalog_config = {"source": "component_id"}
 
-        mapping = build_component_mapping(component_dict, catalog_config)
+        mapping = build_component_mapping(component_dict)
 
         assert mapping["major_ax"] == 0.01
         assert mapping["minor_ax"] == 0.008
@@ -216,11 +214,40 @@ class TestBuildComponentMapping:
             "i_pol": "1.5",
             "spec_idx": "-0.7",
         }
-        catalog_config = {"source": "component_id"}
 
-        mapping = build_component_mapping(component_dict, catalog_config)
+        mapping = build_component_mapping(component_dict)
 
         assert mapping["spec_idx"] == [-0.7, None, None, None, None]
+
+    def test_mapping_with_spec_idx_invalid_string(self):
+        """Test spec_idx with invalid string converts to None"""
+        component_dict = {
+            "component_id": "J001122-334455",
+            "ra": "10.5",
+            "dec": "45.2",
+            "i_pol": "1.5",
+            "spec_idx": "invalid",
+        }
+
+        mapping = build_component_mapping(component_dict)
+
+        # Invalid string should create [None, None, None, None, None]
+        assert mapping["spec_idx"] == [None, None, None, None, None]
+
+    def test_mapping_with_spec_idx_invalid_type(self):
+        """Test spec_idx with invalid type (dict) creates None array"""
+        component_dict = {
+            "component_id": "J001122-334455",
+            "ra": "10.5",
+            "dec": "45.2",
+            "i_pol": "1.5",
+            "spec_idx": {"invalid": "type"},
+        }
+
+        mapping = build_component_mapping(component_dict)
+
+        # Invalid type should create [None, None, None, None, None]
+        assert mapping["spec_idx"] == [None, None, None, None, None]
 
     def test_mapping_with_polarization(self):
         """Test mapping with polarization parameters"""
@@ -233,9 +260,8 @@ class TestBuildComponentMapping:
             "u_pol": "0.2",
             "v_pol": "0.05",
         }
-        catalog_config = {"source": "component_id"}
 
-        mapping = build_component_mapping(component_dict, catalog_config)
+        mapping = build_component_mapping(component_dict)
 
         assert mapping["q_pol"] == 0.1
         assert mapping["u_pol"] == 0.2
@@ -250,13 +276,12 @@ class TestBuildComponentMapping:
             "i_pol": "1.5",
             "log_spec_idx": "true",
         }
-        catalog_config = {"source": "component_id"}
 
-        mapping = build_component_mapping(component_dict, catalog_config)
+        mapping = build_component_mapping(component_dict)
         assert mapping["log_spec_idx"] is True
 
         component_dict["log_spec_idx"] = "false"
-        mapping = build_component_mapping(component_dict, catalog_config)
+        mapping = build_component_mapping(component_dict)
         assert mapping["log_spec_idx"] is False
 
 
@@ -367,7 +392,7 @@ class TestParseCatalogComponents:  # pylint: disable=too-few-public-methods
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        ingest_config = {
+        ingest_metadata = {
             "file_location": [
                 {
                     "content": content,
@@ -375,7 +400,7 @@ class TestParseCatalogComponents:  # pylint: disable=too-few-public-methods
             ]
         }
 
-        results = list(parse_catalog_components(ingest_config))
+        results = list(parse_catalog_components(ingest_metadata))
         assert len(results) == 1
         component_file = results[0]
         assert isinstance(component_file, ComponentFile)
@@ -388,10 +413,9 @@ class TestProcessComponentDataBatch:
         """Test processing valid component data from in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        sf = ComponentFile(content)
-        catalog_config = {"source": "component_id"}
+        cf = ComponentFile(content)
 
-        result = process_component_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, cf)
 
         assert result is True
         count = test_db.query(SkyComponent).count()
@@ -402,16 +426,17 @@ class TestProcessComponentDataBatch:
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        sf = ComponentFile(content)
-        catalog_config = {"source": "component_id"}
+        cf = ComponentFile(content)
 
         # First ingestion
-        process_component_data_batch(test_db, sf, catalog_config)
+
+        process_component_data_batch(test_db, cf)
         count1 = test_db.query(SkyComponent).count()
 
         # Second ingestion - should skip duplicates
-        sf2 = ComponentFile(content)
-        process_component_data_batch(test_db, sf2, catalog_config)
+        cf2 = ComponentFile(content)
+
+        process_component_data_batch(test_db, cf2)
         count2 = test_db.query(SkyComponent).count()
 
         assert count1 == count2  # No new components added
@@ -426,10 +451,9 @@ class TestProcessComponentDataBatch:
             "J223344-556677,30.1,-20.5,0.8\n"  # Valid
         )
 
-        sf = ComponentFile(invalid_csv)
-        catalog_config = {"source": "component_id"}
+        cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, cf)
 
         # Should fail due to validation errors
         assert result is False
@@ -451,10 +475,9 @@ class TestProcessComponentDataBatch:
             "J445566-778899,50.0,20.0,2.0\n"  # Valid
         )
 
-        sf = ComponentFile(invalid_csv)
-        catalog_config = {"source": "component_id"}
+        cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, cf)
 
         # Should fail
         assert result is False
@@ -487,10 +510,9 @@ class TestProcessComponentDataBatch:
             "J223344-556677,400.0,-20.5,0.8\n"  # Invalid RA (last row)
         )
 
-        sf = ComponentFile(invalid_csv)
-        catalog_config = {"source": "component_id"}
+        cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, cf)
 
         # Should fail
         assert result is False
@@ -524,10 +546,9 @@ class TestProcessComponentDataBatch:
             "J112233-445566,20.0,30.1,2.3\n"
         )
 
-        sf = ComponentFile(valid_csv)
-        catalog_config = {"source": "component_id"}
+        cf = ComponentFile(valid_csv)
 
-        result = process_component_data_batch(test_db, sf, catalog_config)
+        result = process_component_data_batch(test_db, cf)
 
         # Should succeed
         assert result is True
@@ -559,10 +580,9 @@ class TestIngestCatalog:
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        catalog_config = {
+        catalog_metadata = {
             "name": "Test Catalog",
             "catalog_name": "TEST",
-            "source": "component_id",
             "ingest": {
                 "file_location": [
                     {
@@ -572,7 +592,7 @@ class TestIngestCatalog:
             },
         }
 
-        result = ingest_catalog(test_db, catalog_config)
+        result = ingest_catalog(test_db, catalog_metadata)
 
         assert result is True
         count = test_db.query(SkyComponent).count()
@@ -583,10 +603,9 @@ class TestIngestCatalog:
         # Create empty CSV content
         empty_content = "component_id,ra,dec,i_pol\n"
 
-        catalog_config = {
+        catalog_metadata = {
             "name": "Empty Catalog",
             "catalog_name": "EMPTY",
-            "source": "component_id",
             "ingest": {
                 "file_location": [
                     {
@@ -596,6 +615,6 @@ class TestIngestCatalog:
             },
         }
 
-        result = ingest_catalog(test_db, catalog_config)
+        result = ingest_catalog(test_db, catalog_metadata)
         # Should succeed with empty catalog
         assert result is True
