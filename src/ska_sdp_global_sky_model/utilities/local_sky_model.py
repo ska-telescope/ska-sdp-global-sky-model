@@ -103,7 +103,7 @@ class LocalSkyModel:
     # --------------------------
 
     # Column type enumerator.
-    ColumnType = ClassVar[Literal["float", "str", "int", "bool", "vector_float"]]
+    column_type = ClassVar[Literal["float", "str", "int", "bool", "vector_float"]]
 
     # Names of non-float column types (anything else is treated as a float):
     # Dynamically determined from SkyComponent dataclass if available

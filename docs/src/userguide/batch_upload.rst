@@ -8,7 +8,7 @@ Overview
 
 The batch upload feature allows you to:
 
-- Upload multiple CSV files simultaneously
+- Upload multiple CSV files simultaneously (all files are combined into a single sky model)
 - Track upload progress with a unique identifier
 - Query upload status and errors
 - Ensure atomic ingestion (all files succeed or none are ingested)
@@ -156,7 +156,7 @@ Upload Sky Survey Batch
 
 **Endpoint**: ``POST /upload-sky-survey-batch``
 
-Upload and ingest one or more sky survey CSV files atomically. All files are validated and uploaded to a staging area before ingestion begins. If any file fails validation or ingestion, the entire batch is rolled back.
+Upload and ingest one or more sky survey CSV files atomically. All files in the batch are combined into a single sky model. All files are validated and uploaded to a staging area before ingestion begins. If any file fails validation or ingestion, the entire batch is rolled back.
 
 **Parameters**:
 
