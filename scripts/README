@@ -1,5 +1,0 @@
-Steve Ord (stephen.ord@csiro.au)
-
-Just a few utility scripts I found helpful when working with this. 
-Including a script to write the gleam catalog as a CSV file. 
-And example python clients to get the local sky model and to post the gleam model into the database. They are just meant as pointers to what I found works. 
