@@ -9,6 +9,7 @@ The *ska-sdp-global-sky-model* repository contains the code for the SKA Global S
 
   userguide/overview
   userguide/requesting_a_lsm
+  userguide/batch_upload
 
 .. toctree::
   :maxdepth: 1
