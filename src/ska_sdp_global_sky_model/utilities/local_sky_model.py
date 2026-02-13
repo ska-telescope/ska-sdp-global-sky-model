@@ -571,15 +571,14 @@ class LocalSkyModel:
             value = self._cols[name][row_index]
             if value < 0:
                 return ""
-            else:
-                return "true" if value > 0 else "false"
+            return "true" if value > 0 else "false"
         if column_type == "str":
             return self._cols[name][row_index]
         if column_type == "vector_float":
             return self._format_vector(
-                    self._cols[name][row_index],
-                    self._cols[name + self._NUM_TERMS][row_index],
-                )
+                self._cols[name][row_index],
+                self._cols[name + self._NUM_TERMS][row_index],
+            )
         value = float(self._cols[name][row_index])
         return "" if math.isnan(value) else f"{value:.15g}"
 
