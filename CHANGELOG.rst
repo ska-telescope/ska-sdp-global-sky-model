@@ -4,6 +4,11 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Batch upload feature with staging table and review workflow for sky survey data:
+  - New ``sky_component_staging`` table for temporary upload storage with ``upload_id`` tracking
+  - Browser-based upload interface at root endpoint (``/``) with drag-and-drop support
+  - Semantic versioning for components (0.0.0 → 0.1.0 for new, increment patch for updates)
+  - Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files
 - [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
   Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
 - [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
