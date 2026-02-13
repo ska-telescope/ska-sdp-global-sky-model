@@ -14,42 +14,15 @@ The batch upload feature allows you to:
 - Query upload status and errors
 - Ensure atomic ingestion (all files succeed or none are ingested)
 - Process uploads asynchronously in the background for optimal API responsiveness
-- Automatic data validation at the schema level after CSV transformation
+- Automatic data validation at the schema level
 - Version control with semantic versioning for updated components
-
-Browser Upload Interface
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-A browser interface is available at the root URL (``http://localhost:8000/``). The interface provides:
-
-- **Drag-and-drop file upload**: Simply drag CSV files onto the upload zone
-- **Multiple file selection**: Upload multiple catalogs simultaneously
-- **Real-time status monitoring**: Track upload progress with automatic polling
-- **Staging table preview**: Review uploaded data before committing
-- **Commit/Reject workflow**: Approve or discard staged uploads
-- **Version information**: Visual indicators for versioning behavior
-
-**Using the Browser Interface**:
-
-1. Navigate to ``http://localhost:8000/`` in your web browser
-2. Drag and drop CSV files onto the upload zone (or click to browse)
-3. Click "Upload Files" to begin the upload
-4. Monitor the upload progress - status updates automatically
-5. Review the staged data including a sample preview
-6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
-
-The browser interface automatically handles:
-    - File validation (CSV format only)
-    - Upload tracking with unique IDs
-    - Status polling every 2 seconds
-    - Error display if uploads fail
 
 Staging and Versioning Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Two-Stage Upload Process**:
 
-All uploads now use a staging workflow for safety and review:
+All uploads use a staging workflow for safety and review:
 
 1. **Upload to Staging**: Files are first uploaded to ``sky_component_staging`` table
 2. **Review Data**: Use ``/review-upload/{upload_id}`` to inspect a sample of staged data
@@ -211,11 +184,40 @@ Best Practices
 
 5. **Batch Size**: Consider breaking very large uploads into smaller batches for better manageability.
 
-API Endpoints
--------------
 
-Upload Sky Survey Batch
+Upload Sky Survey
+-----------------
+
+Browser Upload Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~
+
+A browser interface is available at the root URL (``http://localhost:8000/``). The interface provides:
+
+- **Drag-and-drop file upload**: Simply drag CSV files onto the upload zone
+- **Multiple file selection**: Upload multiple catalogs simultaneously
+- **Real-time status monitoring**: Track upload progress with automatic polling
+- **Staging table preview**: Review uploaded data before committing
+- **Commit/Reject workflow**: Approve or discard staged uploads
+- **Version information**: Visual indicators for versioning behavior
+
+**Using the Browser Interface**:
+
+1. Navigate to ``http://localhost:8000/`` in your web browser
+2. Drag and drop CSV files onto the upload zone (or click to browse)
+3. Click "Upload Files" to begin the upload
+4. Monitor the upload progress - status updates automatically
+5. Review the staged data including a sample preview
+6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
+
+The browser interface automatically handles:
+    - File validation (CSV format only)
+    - Upload tracking with unique IDs
+    - Status polling every 2 seconds
+    - Error display if uploads fail
+
+
+API Endpoints
+~~~~~~~~~~~~~
 
 **Endpoint**: ``POST /upload-sky-survey-batch``
 
