@@ -442,35 +442,9 @@ class LocalSkyModel:
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")
 
-            # Loop over rows.
+            # Write each row.
             for row_index in range(self.num_rows):
-
-                # Construct string tokens for the line.
-                tokens: list[str] = []
-
-                # Loop over columns.
-                for name in self.columns:
-                    column_type = self.schema[name].column_type
-
-                    # Append a token based on the data type of the column.
-                    if column_type == "bool":
-                        value = self._cols[name][row_index]
-                        tokens.append("" if value < 0 else "true" if value > 0 else "false")
-                    elif column_type == "str":
-                        tokens.append(self._cols[name][row_index])
-                    elif column_type == "vector_float":
-                        tokens.append(
-                            self._format_vector(
-                                self._cols[name][row_index],
-                                self._cols[name + self._NUM_TERMS][row_index],
-                            )
-                        )
-                    else:
-                        value = float(self._cols[name][row_index])
-                        tokens.append("" if math.isnan(value) else f"{value:.15g}")
-
-                # Write the row data.
-                out.write(",".join(tokens) + "\n")
+                out.write(",".join(self.get_row_tokens(row_index)) + "\n")
 
         # Write the YAML metadata file, if a directory is specified.
         if metadata_dir:
@@ -577,6 +551,39 @@ class LocalSkyModel:
         """
         return self.columns
 
+    def get_row_tokens(self, row_index: int) -> list[str]:
+        """
+        Returns a list of strings containing data for the row.
+        Called by the save() method.
+
+        :param row_index: Row index of component to return.
+        :type row_index: int
+        :return: List of string tokens containing component data.
+        :rtype: list[str]
+        """
+        tokens: list[str] = []
+        for name in self.columns:
+            column_type = self.schema[name].column_type
+            if column_type == "bool":
+                value = self._cols[name][row_index]
+                if value < 0:
+                    tokens.append("")
+                else:
+                    tokens.append("true" if value > 0 else "false")
+            elif column_type == "str":
+                tokens.append(self._cols[name][row_index])
+            elif column_type == "vector_float":
+                tokens.append(
+                    self._format_vector(
+                        self._cols[name][row_index],
+                        self._cols[name + self._NUM_TERMS][row_index],
+                    )
+                )
+            else:
+                value = float(self._cols[name][row_index])
+                tokens.append("" if math.isnan(value) else f"{value:.15g}")
+        return tokens
+
     def set_header(self, header: dict[str, Any]) -> None:
         """
         Set header key, value pairs. These are written to the file as comments.
@@ -629,8 +636,10 @@ class LocalSkyModel:
         # Switch on column type.
         column_type = self.schema[name].column_type
         if column_type == "bool":
-            val = val_str.lower()[0]
-            column[row_index] = -1 if value is None else 1 if val in ("t", "1") else 0
+            if value is None:
+                column[row_index] = -1
+            else:
+                column[row_index] = 1 if val_str.lower()[0] in ("t", "1") else 0
         elif column_type == "str":
             column[row_index] = "" if value is None else val_str
         elif column_type == "vector_float":
