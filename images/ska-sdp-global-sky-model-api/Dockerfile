@@ -21,5 +21,9 @@ COPY --from=build /usr/local/ /usr/local/
 
 COPY scripts/db_migrate.sh /db_migrate.sh
 COPY scripts/db_downgrade.sh /db_downgrade.sh
+COPY scripts/db_init_data.py /db_init_data.py
+COPY tests/data/*.csv /sample_data/
+
+RUN chmod +x /db_migrate.sh /db_downgrade.sh /db_init_data.py
 
 CMD ["uvicorn", "ska_sdp_global_sky_model.api.app.main:app", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]
