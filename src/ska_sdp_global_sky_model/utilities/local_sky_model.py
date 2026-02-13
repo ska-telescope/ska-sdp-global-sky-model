@@ -446,7 +446,7 @@ class LocalSkyModel:
             for row_index in range(self.num_rows):
                 tokens: list[str] = []
                 for name in self.columns:
-                    tokens.append(self.get_value(name, row_index))
+                    tokens.append(self.get_value_str(name, row_index))
                 out.write(",".join(tokens) + "\n")
 
         # Write the YAML metadata file, if a directory is specified.
@@ -554,9 +554,9 @@ class LocalSkyModel:
         """
         return self.columns
 
-    def get_value(self, name: str, row_index: int) -> str:
+    def get_value_str(self, name: str, row_index: int) -> str:
         """
-        Returns a single value for a single component.
+        Returns a string containing a single value for a single component.
         Called by the save() method.
 
         :param name: Column name for which to return data.
