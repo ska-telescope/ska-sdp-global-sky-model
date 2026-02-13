@@ -4,12 +4,19 @@ import copy
 import pathlib
 from unittest.mock import MagicMock, call, patch
 
+from tests.test_db_schema import db_session
+
 import pytest
 from ska_sdp_config.entity import Flow
 from ska_sdp_config.entity.flow import DataProduct, FlowSource, PVCPath
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModel,
 )
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    SkyComponent as SkyComponentDataclass,
+)
+
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
@@ -430,146 +437,33 @@ def test_update_state_no_change():
 
 
 @patch("ska_sdp_global_sky_model.configuration.config.session_local")
-def test_query_gsm_for_lsm_with_sources(mock_session_local):
+def test_query_gsm_for_lsm_with_sources(mock_session_local, db_session):
     """Test querying GSM for LSM with sources found"""
-    # pylint: disable=too-many-statements,import-outside-toplevel
-    from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-        NarrowbandMeasurement,
-        SkySource,
-        WidebandMeasurement,
+    component = SkyComponent(
+        component_id="DictTestSource",
+        ra=111.11,
+        dec=-22.22,
+        healpix_index=33333,
+        # version="latest"
     )
+    db_session.add(component)
+    db_session.add(component)
+    db_session.commit()
 
-    # Setup mock database session
-    mock_db = MagicMock()
-    mock_session_local.return_value = mock_db
-
-    # Mock source data
-    mock_source = MagicMock()
-    mock_source.id = 1
-    mock_source.RAJ2000 = 2.9670
-    mock_source.DECJ2000 = -0.1745
-
-    # Mock query chain for sources
-    mock_query_sources = MagicMock()
-    mock_query_sources.where.return_value.distinct.return_value.all.return_value = [mock_source]
-    mock_db.query.return_value = mock_query_sources
-
-    # Mock wideband data
-    mock_wb = MagicMock()
-    mock_wb.source = 1
-    mock_wb.Bck_Wide = 0.01
-    mock_wb.Local_RMS_Wide = 0.02
-    mock_wb.Int_Flux_Wide = 1.5
-    mock_wb.Int_Flux_Wide_Error = 0.1
-    mock_wb.Resid_Mean_Wide = 0.001
-    mock_wb.Resid_Sd_Wide = 0.002
-    mock_wb.Abs_Flux_Pct_Error = 5.0
-    mock_wb.Fit_Flux_Pct_Error = 3.0
-    mock_wb.A_PSF_Wide = 10.0
-    mock_wb.B_PSF_Wide = 8.0
-    mock_wb.PA_PSF_Wide = 45.0
-    mock_wb.A_Wide = 12.0
-    mock_wb.A_Wide_Error = 1.0
-    mock_wb.B_Wide = 10.0
-    mock_wb.B_Wide_Error = 0.8
-    mock_wb.PA_Wide = 50.0
-    mock_wb.PA_Wide_Error = 5.0
-    mock_wb.Flux_Wide = 2.0
-    mock_wb.Flux_Wide_Error = 0.15
-    mock_wb.Spectral_Index = -0.7
-    mock_wb.Spectral_Index_Error = 0.05
-    mock_wb.Spectral_Curvature = 0.1
-    mock_wb.Spectral_Curvature_Error = 0.01
-    mock_wb.Polarised = False
-    mock_wb.Stokes = "I"
-    mock_wb.Rotational_Measure = None
-    mock_wb.Rotational_Measure_Error = None
-    mock_wb.Fractional_Polarisation = None
-    mock_wb.Fractional_Polarisation_Error = None
-    mock_wb.Faraday_Complex = False
-    mock_wb.Variable = False
-    mock_wb.Modulation_Index = None
-    mock_wb.Debiased_Modulation_Index = None
-
-    # Mock narrowband data
-    mock_nb = MagicMock()
-    mock_nb.source = 1
-    mock_nb.Bck_Narrow = 0.005
-    mock_nb.Local_RMS_Narrow = 0.01
-    mock_nb.Int_Flux_Narrow = 1.2
-    mock_nb.Int_Flux_Narrow_Error = 0.08
-    mock_nb.Resid_Mean_Narrow = 0.0005
-    mock_nb.Resid_Sd_Narrow = 0.001
-    mock_nb.A_PSF_Narrow = 9.0
-    mock_nb.B_PSF_Narrow = 7.0
-    mock_nb.PA_PSF_Narrow = 40.0
-    mock_nb.A_Narrow = 11.0
-    mock_nb.A_Narrow_Error = 0.9
-    mock_nb.B_Narrow = 9.0
-    mock_nb.B_Narrow_Error = 0.7
-    mock_nb.PA_Narrow = 45.0
-    mock_nb.PA_Narrow_Error = 4.0
-    mock_nb.Flux_Narrow = 1.8
-    mock_nb.Flux_Narrow_Error = 0.12
-    mock_nb.Spectral_Index = -0.65
-    mock_nb.Spectral_Index_Error = 0.04
-    mock_nb.Polarised = False
-    mock_nb.Stokes = "I"
-    mock_nb.Rotational_Measure = None
-    mock_nb.Rotational_Measure_Error = None
-    mock_nb.Fractional_Polarisation = None
-    mock_nb.Fractional_Polarisation_Error = None
-    mock_nb.Faraday_Complex = False
-    mock_nb.Variable = False
-    mock_nb.Modulation_Index = None
-    mock_nb.Debiased_Modulation_Index = None
-
-    # Configure mock returns for subsequent queries
-    def query_side_effect(*_args):  # pylint: disable=unused-argument
-        # First call: sources query
-        mock_q1 = MagicMock()
-        mock_q1.where.return_value.distinct.return_value.all.return_value = [mock_source]
-
-        # Second call: wideband query (has one .join())
-        mock_q2 = MagicMock()
-        mock_q2.join.return_value.filter.return_value.all.return_value = [(mock_wb, 1)]
-
-        # Third call: narrowband query (has two .join() calls)
-        mock_q3 = MagicMock()
-        mock_q3.join.return_value.join.return_value.filter.return_value.all.return_value = [
-            (mock_nb, 1, 1)
-        ]
-
-        # Return appropriate mock based on call order
-        if not hasattr(query_side_effect, "call_count"):
-            query_side_effect.call_count = 0
-        query_side_effect.call_count += 1
-
-        if query_side_effect.call_count == 1:
-            return mock_q1
-        if query_side_effect.call_count == 2:
-            return mock_q2
-        return mock_q3
-
-    mock_db.query.side_effect = query_side_effect
 
     # Execute the function
-    query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
-    result = _query_gsm_for_lsm(query_params)
+    query_params = QueryParameters(ra=111.11, dec=-22.22, fov=180, version="latest")
+    result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
     assert isinstance(result, GlobalSkyModel)
     assert len(result.sources) == 1
     assert 1 in result.sources
     sky_source = result.sources[1]
-    assert isinstance(sky_source, SkySource)
+    assert isinstance(sky_source, SkyComponentDataclass)
     assert sky_source.source_id == 1
     assert sky_source.ra == 2.9670
     assert sky_source.dec == -0.1745
-    assert len(sky_source.wideband) == 1
-    assert len(sky_source.narrowband) == 1
-    assert isinstance(sky_source.wideband[0], WidebandMeasurement)
-    assert isinstance(sky_source.narrowband[0], NarrowbandMeasurement)
     assert sky_source.wideband[0].flux == 2.0
     assert sky_source.narrowband[0].flux == 1.8
 
