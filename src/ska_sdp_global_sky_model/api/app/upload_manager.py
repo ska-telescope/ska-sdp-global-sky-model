@@ -2,11 +2,12 @@
 Upload manager for handling batch file uploads and tracking.
 
 This module provides functionality for managing batch uploads of sky survey data,
-including file validation, in-memory storage, and upload state tracking.
+including file validation, in-memory storage, metadata parsing, and upload state tracking.
 """
 
 import csv
 import io
+import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
@@ -31,21 +32,23 @@ class UploadStatus:
     """Track the status of a batch upload."""
 
     upload_id: str
-    total: int
-    uploaded: int = 0
+    total_csv_files: int
+    uploaded_csv_files: int = 0
     state: UploadState = UploadState.PENDING
     errors: list[str] = field(default_factory=list)
-    files: list[tuple[str, bytes]] = field(default_factory=list)  # (filename, content)
+    csv_files: list[tuple[str, str]] = field(default_factory=list)  # (filename, content as str)
+    metadata: dict | None = None  # Parsed catalog metadata
 
     def to_dict(self) -> dict:
         """Convert status to dictionary."""
         return {
             "upload_id": self.upload_id,
             "state": self.state.value,
-            "total_files": self.total,
-            "uploaded_files": self.uploaded,
-            "remaining_files": self.total - self.uploaded,
+            "total_csv_files": self.total_csv_files,
+            "uploaded_csv_files": self.uploaded_csv_files,
+            "remaining_csv_files": self.total_csv_files - self.uploaded_csv_files,
             "errors": self.errors,
+            "has_metadata": self.metadata is not None,
         }
 
 
@@ -56,14 +59,14 @@ class UploadManager:
         """Initialize the upload manager."""
         self._uploads: dict[str, UploadStatus] = {}
 
-    def create_upload(self, file_count: int) -> UploadStatus:
+    def create_upload(self, csv_file_count: int) -> UploadStatus:
         """
         Create a new upload tracking entry.
 
         Parameters
         ----------
-        file_count : int
-            Number of files in the batch
+        csv_file_count : int
+            Number of CSV files in the batch
 
         Returns
         -------
@@ -74,12 +77,12 @@ class UploadManager:
 
         status = UploadStatus(
             upload_id=upload_id,
-            total=file_count,
+            total_csv_files=csv_file_count,
             state=UploadState.UPLOADING,
         )
 
         self._uploads[upload_id] = status
-        logger.info("Created upload %s for %d files", upload_id, file_count)
+        logger.info("Created upload %s for %d CSV files", upload_id, csv_file_count)
 
         return status
 
@@ -107,14 +110,80 @@ class UploadManager:
 
         return self._uploads[upload_id]
 
-    async def save_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
+    async def save_metadata_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
         """
-        Save an uploaded file to memory after validating CSV structure.
+        Parse and validate metadata JSON file.
 
         Parameters
         ----------
         file : UploadFile
-            File to save
+            Metadata file to parse
+        upload_status : UploadStatus
+            Upload status tracking object
+
+        Raises
+        ------
+        HTTPException
+            If file is not valid JSON or missing required fields
+        """
+        contents = await file.read()
+
+        # Parse JSON
+        try:
+            text_content = contents.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Metadata file {file.filename} is not valid UTF-8 text.",
+            ) from exc
+
+        try:
+            metadata = json.loads(text_content)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Metadata file {file.filename} is not valid JSON: {str(exc)}",
+            ) from exc
+
+        # Validate required fields
+        required_fields = ["version", "catalog_name", "description", "ref_freq", "epoch"]
+        missing_fields = [field for field in required_fields if field not in metadata]
+
+        if missing_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Metadata file missing required fields: {', '.join(missing_fields)}. "
+                f"Required: {', '.join(required_fields)}",
+            )
+
+        # Validate ref_freq is numeric
+        try:
+            float(metadata["ref_freq"])
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid ref_freq value: {metadata.get('ref_freq')}. " "Must be numeric (Hz)."
+                ),
+            ) from exc
+
+        # Store parsed metadata
+        upload_status.metadata = metadata
+        logger.info(
+            "Parsed and validated metadata file %s (version: %s, catalog: %s)",
+            file.filename,
+            metadata["version"],
+            metadata["catalog_name"],
+        )
+
+    async def save_csv_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
+        """
+        Save a CSV file to memory after validating structure.
+
+        Parameters
+        ----------
+        file : UploadFile
+            CSV file to save
         upload_status : UploadStatus
             Upload status tracking object
 
@@ -168,11 +237,11 @@ class UploadManager:
                 detail=f"File {file.filename} is not valid CSV: {str(e)}",
             ) from e
 
-        upload_status.files.append((file.filename, text_content))
-        upload_status.uploaded += 1
+        upload_status.csv_files.append((file.filename, text_content))
+        upload_status.uploaded_csv_files += 1
 
         logger.info(
-            "Validated and stored file %s (%d bytes, %d rows) in memory",
+            "Validated and stored CSV file %s (%d bytes, %d rows) in memory",
             file.filename,
             file_size,
             len(rows),
@@ -218,12 +287,13 @@ class UploadManager:
         """
         if upload_id in self._uploads:
             # Clear file contents from memory
-            self._uploads[upload_id].files.clear()
+            self._uploads[upload_id].csv_files.clear()
+            self._uploads[upload_id].metadata = None
             logger.info("Cleaned up upload %s from memory", upload_id)
 
-    def get_files(self, upload_id: str) -> list[tuple[str, bytes]]:
+    def get_files(self, upload_id: str) -> list[tuple[str, str]]:
         """
-        Get all files for an upload.
+        Get all CSV files for an upload.
 
         Parameters
         ----------
@@ -232,8 +302,8 @@ class UploadManager:
 
         Returns
         -------
-        list[tuple[str, bytes]]
-            List of (filename, content) tuples
+        list[tuple[str, str]]
+            List of (filename, content) tuples where content is string
         """
         status = self.get_status(upload_id)
-        return status.files
+        return status.csv_files

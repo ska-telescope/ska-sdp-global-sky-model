@@ -24,9 +24,11 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
-from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.sql import func
+from sqlalchemy.types import DateTime
 
 from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 
@@ -195,3 +197,48 @@ _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass, skip_columns=
 _add_dynamic_columns_to_model(
     SkyComponentStaging, SkyComponentDataclass, skip_columns={"component_id"}
 )
+
+
+class CatalogMetadata(Base):
+    """
+    Catalog metadata table storing information about each catalog version.
+
+    Each catalog upload has a single version that applies to all components
+    in that catalog. The version must follow semantic versioning and increment
+    from previous versions.
+    """
+
+    __tablename__ = "catalog_metadata"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    version = Column(String, nullable=False, unique=True, index=True)
+    catalog_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    upload_id = Column(String, nullable=False, unique=True, index=True)
+    # pylint: disable=not-callable
+    uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    # Fields from GlobalSkyModelMetadata dataclass
+    ref_freq = Column(Float, nullable=False, comment="Reference frequency in Hz")
+    epoch = Column(String, nullable=False, comment="Epoch of observation")
+
+    # Additional metadata fields
+    author = Column(String, nullable=True)
+    reference = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    def to_dict(self) -> dict:
+        """Convert catalog metadata to dictionary."""
+        return {
+            "id": self.id,
+            "version": self.version,
+            "catalog_name": self.catalog_name,
+            "description": self.description,
+            "upload_id": self.upload_id,
+            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
+            "ref_freq": self.ref_freq,
+            "epoch": self.epoch,
+            "author": self.author,
+            "reference": self.reference,
+            "notes": self.notes,
+        }

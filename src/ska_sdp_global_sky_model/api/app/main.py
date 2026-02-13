@@ -20,14 +20,18 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
-from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
+from ska_sdp_global_sky_model.api.app.models import (
+    CatalogMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (
-    STANDARD_CATALOG_METADATA,
     engine,
     get_db,
 )
+from ska_sdp_global_sky_model.utilities.version_utils import is_version_increment
 
 logger = logging.getLogger(__name__)
 
@@ -216,65 +220,108 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
 
 @app.post(
     "/upload-sky-survey-batch",
-    summary="Upload sky survey CSV files in a batch",
-    description="All sky survey CSV files must upload successfully or none are ingested. "
+    summary="Upload sky survey CSV files with catalog metadata",
+    description="Upload catalog metadata file and CSV files for staging. "
     "Ingestion runs asynchronously - use the status endpoint to monitor progress.",
 )
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
-    files: list[UploadFile] = File(...),
+    metadata_file: UploadFile = File(..., description="Catalog metadata JSON file"),
+    csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
+    db: Session = Depends(get_db),
 ):
     """
-    Upload and ingest one or more sky survey CSV files atomically.
+    Upload catalog metadata and CSV files for staging.
 
-    All files are first validated and written to a temporary staging directory.
-    Ingestion then runs in the background, allowing the API to remain responsive.
-    Use the status endpoint to monitor progress.
+    Requires a metadata.json file containing catalog information and version,
+    plus one or more CSV files with component data.
 
     Parameters
     ----------
     background_tasks : BackgroundTasks
         FastAPI background task manager
-    files : list[UploadFile]
-        One or more CSV files containing standardized sky survey data.
-        Expected format: component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
+    metadata_file : UploadFile
+        JSON file with catalog metadata (version, catalog_name, description, etc.)
+    csv_files : list[UploadFile]
+        One or more CSV files containing component data
+    db : Session
+        Database session
 
     Raises
     ------
     HTTPException
-        If validation or initial upload fails
+        If validation fails or version is invalid
 
     Returns
     -------
     dict
-        Upload identifier for tracking status. Check /upload-sky-survey-status/{upload_id}
-        for completion status.
+        Upload identifier and status
     """
-    if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
-
-    # Use standard catalog metadata
-    survey_metadata = copy.deepcopy(STANDARD_CATALOG_METADATA)
+    if not csv_files:
+        raise HTTPException(status_code=400, detail="No CSV files provided")
 
     # Create upload tracking
-    upload_status = upload_manager.create_upload(len(files))
+    upload_status = upload_manager.create_upload(len(csv_files))
     upload_id = upload_status.upload_id
 
     try:
-        # Validate and save all files (validation happens in save_file)
-        for file in files:
-            await upload_manager.save_file(file, upload_status)
+        # 1. Parse and validate metadata file
+        await upload_manager.save_metadata_file(metadata_file, upload_status)
+        metadata = upload_status.metadata
 
-        # Schedule ingestion to run in background
+        # 2. Validate version format and check it's an increment
+        existing_versions = [v[0] for v in db.query(CatalogMetadata.version).all()]
+        is_valid, error_msg = is_version_increment(metadata["version"], existing_versions)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
+
+        # 3. Check version doesn't already exist
+        existing = (
+            db.query(CatalogMetadata)
+            .filter(CatalogMetadata.version == metadata["version"])
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Version '{metadata['version']}' already exists. "
+                f"Please use a higher version number.",
+            )
+
+        # 4. Validate and save CSV files
+        for file in csv_files:
+            await upload_manager.save_csv_file(file, upload_status)
+
+        # 5. Prepare metadata for ingestion
+        survey_metadata = {
+            "name": metadata.get("catalog_name", "Upload"),
+            "catalog_name": metadata.get("catalog_name", "UPLOAD"),
+            "version": metadata["version"],
+            "description": metadata.get("description", ""),
+            "ingest": {
+                "file_location": [
+                    {
+                        "content": None,  # Will be filled per-file
+                    }
+                ],
+            },
+        }
+
+        # 6. Schedule ingestion to run in background
         background_tasks.add_task(_run_ingestion_task, upload_id, survey_metadata)
 
-        logger.info("Upload %s: files saved, ingestion scheduled in background", upload_id)
-        logger.info("===== Background task SCHEDULED for upload %s =====", upload_id)
+        logger.info(
+            "Upload %s: metadata and %d CSV files saved, ingestion scheduled",
+            upload_id,
+            len(csv_files),
+        )
 
         return {
             "upload_id": upload_id,
             "status": "uploading",
-            "message": "Files uploaded successfully. Ingestion running in background.",
+            "version": metadata["version"],
+            "catalog_name": metadata["catalog_name"],
+            "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. Ingestion running.",
         }
 
     except HTTPException:
@@ -365,7 +412,10 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
 @app.post("/commit-upload/{upload_id}")
 def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     """
-    Commit staged data to main database.
+    Commit staged data to main database with catalog-level versioning.
+
+    Creates a CatalogMetadata record and copies all components from staging
+    to the main table with the catalog version.
 
     Parameters
     ----------
@@ -377,13 +427,24 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     Returns
     -------
     dict
-        Result of commit operation
+        Result of commit operation including version and catalog info
+
+    Raises
+    ------
+    HTTPException
+        If upload not ready, no metadata, or commit fails
     """
     status = upload_manager.get_status(upload_id)
 
     if status.state != "completed":
         raise HTTPException(
             status_code=400, detail=f"Upload not ready for commit. Current state: {status.state}"
+        )
+
+    if not status.metadata:
+        raise HTTPException(
+            status_code=400,
+            detail="No metadata found for this upload. Cannot commit without catalog metadata.",
         )
 
     try:
@@ -395,59 +456,36 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         if not staged_records:
             raise HTTPException(status_code=404, detail="No staged data found")
 
-        # Get current max versions for all component_ids being committed
-        component_ids = [r.component_id for r in staged_records]
-        max_versions = {}
+        metadata = status.metadata
+        catalog_version = metadata["version"]
+        catalog_name = metadata["catalog_name"]
 
-        if component_ids:
-            # Query max version for each component_id (semantic version strings)
-            version_results = (
-                db.query(
-                    SkyComponent.component_id, func.max(SkyComponent.version).label("max_version")
-                )
-                .filter(SkyComponent.component_id.in_(component_ids))
-                .group_by(SkyComponent.component_id)
-                .all()
-            )
+        # Create CatalogMetadata record
+        catalog_metadata = CatalogMetadata(
+            version=catalog_version,
+            catalog_name=catalog_name,
+            description=metadata.get("description", ""),
+            upload_id=upload_id,
+            ref_freq=float(metadata["ref_freq"]),
+            epoch=metadata["epoch"],
+            author=metadata.get("author"),
+            reference=metadata.get("reference"),
+            notes=metadata.get("notes"),
+        )
+        db.add(catalog_metadata)
 
-            max_versions = {r.component_id: r.max_version for r in version_results}
-
-        # Helper function to increment minor version
-        def increment_minor_version(version_str):
-            """Increment minor version in semantic versioning (major.minor.patch).
-
-            - If no existing version, start at 0.0.0 for first commit.
-            - Subsequent commits increment the minor part: 0.0.0 -> 0.1.0 -> 0.2.0
-            """
-            if not version_str:
-                return "0.0.0"
-            try:
-                parts = version_str.split(".")
-                major = int(parts[0]) if len(parts) > 0 else 0
-                minor = int(parts[1]) if len(parts) > 1 else 0
-                patch = int(parts[2]) if len(parts) > 2 else 0
-                return f"{major}.{minor + 1}.{patch}"
-            except (ValueError, IndexError):
-                return "0.0.0"
-
-        # Copy from staging to main table with semantic version tracking
+        # Copy from staging to main table with catalog version
         for staged in staged_records:
-            # Get next version for this component_id
-            current_version = max_versions.get(staged.component_id, None)
-            next_version = increment_minor_version(current_version)
-
             # Create main table record from staged data
             # Exclude 'id' and 'upload_id' from staging table fields
             record_data = {
                 k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
             }
-            record_data["version"] = next_version
+            # Set catalog version for ALL components
+            record_data["version"] = catalog_version
 
             main_record = SkyComponent(**record_data)
             db.add(main_record)
-
-            # Update max_versions for this component_id for subsequent records in same batch
-            max_versions[staged.component_id] = next_version
 
         # Delete from staging
         db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()
@@ -457,12 +495,19 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         # Cleanup temp files
         upload_manager.cleanup(upload_id)
 
-        logger.info("Successfully committed upload %s", upload_id)
+        logger.info(
+            "Successfully committed upload %s: %d components with version %s",
+            upload_id,
+            len(staged_records),
+            catalog_version,
+        )
 
         return {
             "status": "success",
-            "message": f"Committed {len(staged_records)} records to main database",
+            "message": f"Committed {len(staged_records)} components from catalog '{catalog_name}'",
             "records_committed": len(staged_records),
+            "version": catalog_version,
+            "catalog_name": catalog_name,
         }
 
     except Exception as e:
@@ -527,3 +572,89 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
         db.rollback()
         logger.error("Failed to reject upload %s: %s", upload_id, e)
         raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}") from e
+
+
+@app.get("/catalog-metadata", summary="Query catalog metadata")
+def get_catalog_metadata(
+    catalog_name: str | None = None,
+    version: str | None = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    Query catalog metadata records.
+
+    Search by catalog name, version, or list all catalogs.
+    Results are ordered by upload date (newest first).
+
+    Parameters
+    ----------
+    catalog_name : str, optional
+        Filter by catalog name (case-insensitive partial match)
+    version : str, optional
+        Filter by exact version
+    limit : int, default 100
+        Maximum number of results to return
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        List of catalog metadata records
+    """
+    query = db.query(CatalogMetadata)
+
+    # Apply filters
+    if catalog_name:
+        query = query.filter(CatalogMetadata.catalog_name.ilike(f"%{catalog_name}%"))
+
+    if version:
+        query = query.filter(CatalogMetadata.version == version)
+
+    # Order by most recent first
+    query = query.order_by(CatalogMetadata.uploaded_at.desc())
+
+    # Apply limit
+    query = query.limit(limit)
+
+    # Execute query
+    results = query.all()
+
+    return {
+        "total": len(results),
+        "catalogs": [catalog.to_dict() for catalog in results],
+    }
+
+
+@app.get("/catalog-metadata/{catalog_id}", summary="Get specific catalog metadata")
+def get_catalog_metadata_by_id(
+    catalog_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get catalog metadata by ID.
+
+    Parameters
+    ----------
+    catalog_id : int
+        Catalog metadata ID
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        Catalog metadata record
+
+    Raises
+    ------
+    HTTPException
+        If catalog not found
+    """
+    catalog = db.query(CatalogMetadata).filter(CatalogMetadata.id == catalog_id).first()
+
+    if not catalog:
+        raise HTTPException(status_code=404, detail=f"Catalog with ID {catalog_id} not found")
+
+    return catalog.to_dict()

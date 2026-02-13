@@ -4,6 +4,9 @@ CHANGELOG
 Development
 -----------
 
+- [BREAKING] Implemented catalog-level versioning with metadata files. Upload endpoint now requires
+  a metadata.json file containing catalog version, name, description, reference frequency, and epoch.
+  All components in an upload share a single semantic version from the metadata file.
 - [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
   Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
 - [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
