@@ -104,17 +104,6 @@ def root():
     return {"message": "Upload interface not available. Use API endpoints directly."}
 
 
-def ingest(db: Session, catalog_config: dict):
-    """Ingest catalog"""
-    try:
-        if ingest_catalog(db, catalog_config):
-            return True
-        logger.error("Error ingesting the catalogue")
-        return False
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        raise e
-
-
 @app.get("/components", summary="See all the point components")
 def get_point_components(db: Session = Depends(get_db)):
     """Retrieve all point components"""

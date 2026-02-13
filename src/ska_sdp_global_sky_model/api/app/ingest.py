@@ -404,6 +404,53 @@ def commit_batch(db: Session, component_objs: list, model_class=None):
     component_objs.clear()
 
 
+def _process_single_component(
+    src,
+    count: int,
+    existing_component_id: set,
+    staging: bool,
+    upload_id: Optional[str],
+) -> tuple[dict | None, str | None]:
+    """Process and validate a single component.
+
+    Args:
+        src: Component data dictionary from CSV.
+        count: Current row number for error reporting.
+        existing_component_id: Set of already seen component IDs (modified in-place).
+        staging: Whether ingesting to staging table.
+        upload_id: Upload identifier for staging records.
+
+    Returns:
+        Tuple of (component_mapping, error_message). If valid, returns (mapping, None).
+        If invalid, returns (None, error_message).
+    """
+    component_dict = dict(src) if not hasattr(src, "items") else src
+    component_id = str(component_dict.get("component_id"))
+    component_dict["component_id"] = component_id
+
+    # Check for duplicate component_id
+    if component_id in existing_component_id:
+        error_msg = f"Row {count} (component_id: {component_id}): Duplicate component_id found"
+        logger.warning("Validation error: %s", error_msg)
+        return None, error_msg
+
+    existing_component_id.add(component_id)
+
+    # Build the standardized component mapping
+    component_mapping = build_component_mapping(component_dict)
+
+    # Add upload_id for staging records
+    if staging and upload_id:
+        component_mapping["upload_id"] = upload_id
+
+    # Validate the component mapping
+    is_valid, error_msg = validate_component_mapping(component_mapping, count)
+    if not is_valid:
+        return None, f"Row {count} (component_id: {component_id}): {error_msg}"
+
+    return component_mapping, None
+
+
 def process_component_data_batch(
     db: Session,
     catalog_data,
@@ -448,21 +495,7 @@ def process_component_data_batch(
     total = len(catalog_data)
 
     for src in catalog_data:
-        component_dict = dict(src) if not hasattr(src, "items") else src
-        component_id = str(component_dict.get("component_id"))
-
         count += 1
-        component_dict["component_id"] = component_id
-
-        # Check for duplicate component_id
-        if component_id in existing_component_id:
-            error_entry = (
-                f"Row {count} (component_id: {component_id}): Duplicate component_id found"
-            )
-            validation_errors.append(error_entry)
-            logger.warning("Validation error: %s", error_entry)
-            continue
-        existing_component_id.add(component_id)
 
         if count % 100 == 0:
             logger.info(
@@ -470,18 +503,12 @@ def process_component_data_batch(
                 calculate_percentage(count, total),
             )
 
-        # Build the standardized component mapping
-        component_mapping = build_component_mapping(component_dict)
+        component_mapping, error_msg = _process_single_component(
+            src, count, existing_component_id, staging, upload_id
+        )
 
-        # Add upload_id for staging records
-        if staging and upload_id:
-            component_mapping["upload_id"] = upload_id
-
-        # Validate the component mapping
-        is_valid, error_msg = validate_component_mapping(component_mapping, count)
-        if not is_valid:
-            error_entry = f"Row {count} (component_id: {component_id}): {error_msg}"
-            validation_errors.append(error_entry)
+        if error_msg:
+            validation_errors.append(error_msg)
         else:
             component_objs.append(component_mapping)
 
