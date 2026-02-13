@@ -30,7 +30,7 @@ Schema Architecture
 The ``models.py`` file defines two models:
 
 **SkyComponent Model**
-    - **Dynamically generated columns**: Field names and types are read from the 
+    - **Dynamically generated columns**: Field names and types are read from the
       ``SkyComponent`` dataclass at module import time, ensuring automatic synchronization
       with upstream data model changes
     - **Hardcoded database fields**: The ``healpix_index`` field is explicitly defined for
@@ -43,7 +43,7 @@ The ``models.py`` file defines two models:
 Dynamic Column Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The dynamic column generation happens at module import time through the 
+The dynamic column generation happens at module import time through the
 ``_add_dynamic_columns_to_model()`` helper function:
 
 1. The function iterates over the dataclass's ``__annotations__`` dictionary
@@ -52,8 +52,8 @@ The dynamic column generation happens at module import time through the
 4. Special handling ensures the ``name`` field is unique and not nullable
 
 This approach runs once when the module is first imported. Subsequent imports use the
-cached module with fully-formed classes. When the upstream dataclass changes (e.g., 
-new field added), the database model automatically includes that field on the next import—no 
+cached module with fully-formed classes. When the upstream dataclass changes (e.g.,
+new field added), the database model automatically includes that field on the next import—no
 code generation needed.
 
 **Example:**
@@ -63,19 +63,19 @@ code generation needed.
     from ska_sdp_datamodels.global_sky_model.global_sky_model import (
         SkyComponent as SkyComponentDataclass,
     )
-    
+
     class SkyComponent(Base):
         __tablename__ = "sky_component"
-        
+
         # Hardcoded primary key
         id = mapped_column(Integer, primary_key=True, autoincrement=True)
-        
+
         # Hardcoded database-specific field for spatial indexing
         healpix_index = Column(BigInteger, index=True, nullable=False)
-        
+
         def columns_to_dict(self):
             return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
-    
+
     # Dynamically add all fields from the SkyComponent dataclass to the model
     _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
 
@@ -104,6 +104,12 @@ Running a console/shell into a running instance you can run:
 .. code-block:: bash
 
     $ bash /db_migrate.sh
+
+If you would like to also have a sample dataset then run:
+
+.. code-block:: bash
+
+    $ bash /db_migrate.sh --import-sample-data
 
 If for some reason you need to downgrade the database (which shouldn't be needed), you can run:
 

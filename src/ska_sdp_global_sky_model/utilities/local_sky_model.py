@@ -10,12 +10,82 @@ import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, Union, get_args, get_origin
 
 import numpy
+from ska_sdp_datamodels.global_sky_model.global_sky_model import SkyComponent
 from ska_sdp_dataproduct_metadata import MetaData
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _get_str_columns() -> set[str]:
+    """
+    Determine string column names from SkyComponent dataclass.
+
+    Returns:
+        Set of column names that should be treated as strings
+    """
+    str_cols = set()
+    for field_name, field_type in SkyComponent.__annotations__.items():
+        # Handle Optional types (Union[type, None])
+        origin = get_origin(field_type)
+        if origin is Union:
+            args = get_args(field_type)
+            if args and len(args) >= 1 and args[0] is str:
+                str_cols.add(field_name)
+        elif field_type is str:
+            str_cols.add(field_name)
+
+    # Ensure known string columns are always included
+    str_cols.update({"component_id", "name"})
+    return str_cols
+
+
+def _get_bool_columns() -> set[str]:
+    """
+    Determine boolean column names from SkyComponent dataclass.
+
+    Returns:
+        Set of column names that should be treated as booleans
+    """
+    bool_cols = set()
+    for field_name, field_type in SkyComponent.__annotations__.items():
+        # Handle Optional types (Union[type, None])
+        origin = get_origin(field_type)
+        if origin is Union:
+            args = get_args(field_type)
+            if args and len(args) >= 1 and args[0] is bool:
+                bool_cols.add(field_name)
+        elif field_type is bool:
+            bool_cols.add(field_name)
+
+    return bool_cols
+
+
+def _get_vector_float_columns() -> set[str]:
+    """
+    Determine vector float column names from SkyComponent dataclass.
+
+    Returns:
+        Set of column names that should be treated as vector floats
+    """
+    vector_cols = set()
+    for field_name, field_type in SkyComponent.__annotations__.items():
+        # Handle Optional types (Union[type, None])
+        origin = get_origin(field_type)
+
+        # Check for list types
+        if origin is list:
+            vector_cols.add(field_name)
+        elif origin is Union:
+            args = get_args(field_type)
+            if args and len(args) >= 1:
+                inner_origin = get_origin(args[0])
+                if inner_origin is list:
+                    vector_cols.add(field_name)
+
+    return vector_cols
 
 
 @dataclass
@@ -33,20 +103,17 @@ class LocalSkyModel:
     # --------------------------
 
     # Column type enumerator.
-    ColumnType = Literal["float", "str", "int", "bool", "vector_float"]
+    COLUMN_TYPE = ClassVar[Literal["float", "str", "bool", "vector_float"]]
 
     # Names of non-float column types (anything else is treated as a float):
-    _STR_COLUMNS: ClassVar[set] = {"component_id", "name"}
-    _INT_COLUMNS: ClassVar[set] = {}
-    _BOOL_COLUMNS: ClassVar[set] = {"log_spec_idx", "logarithmicsi"}
+    # Dynamically determined from SkyComponent dataclass if available
+    _STR_COLUMNS: ClassVar[set] = _get_str_columns()
+    _BOOL_COLUMNS: ClassVar[set] = _get_bool_columns()
 
     # Names of default-vector-float columns:
-    _VECTOR_FLOAT_COLUMNS: ClassVar[set] = {"spec_idx", "spectralindex"}
+    # Dynamically determined from SkyComponent dataclass if available
+    _VECTOR_FLOAT_COLUMNS: ClassVar[set] = _get_vector_float_columns()
     _NUM_TERMS: ClassVar[str] = "_num_terms"  # Key suffix for vector length.
-
-    # Sentinel values for null "missing" entries. (Using NaN for floats.)
-    INT_MISSING: ClassVar[numpy.int32] = numpy.iinfo(numpy.int32).min
-    BOOL_MISSING: ClassVar[numpy.int8] = numpy.int8(-1)
 
     # --------------------------
     # Internal schema and storage.
@@ -59,7 +126,7 @@ class LocalSkyModel:
         """
 
         name: str
-        column_type: "LocalSkyModel.ColumnType"
+        column_type: "LocalSkyModel.COLUMN_TYPE"
 
     # Schema is a dictionary of column specifiers.
     schema: dict[str, "LocalSkyModel.ColumnSpec"] = field(default_factory=dict)
@@ -140,6 +207,7 @@ class LocalSkyModel:
         raw = str(value).strip()
         if raw in ("", "[]"):
             return out, 0  # Empty string, or empty list.
+        raw = raw.strip("'\"")  # Strip any quotes.
         if raw[0] == "[" and raw[-1] == "]":
             raw = raw[1:-1]  # Strip brackets.
         parts = [p.strip() for p in raw.split(",") if p.strip()]
@@ -177,7 +245,10 @@ class LocalSkyModel:
     @staticmethod
     def _format_vector(vec_row: numpy.ndarray, num_terms: int) -> str:
         """
-        Returns a string containing a row-vector, enclosed in square brackets.
+        Returns a string containing a row-vector, enclosed in
+        square brackets and quotes if it contains multiple values.
+        (The extra quotes are to help other CSV loaders deal with the vector
+        as a single token.)
 
         :param vec_row: Input vector, as an array.
         :type vec_row: numpy.ndarray
@@ -196,10 +267,12 @@ class LocalSkyModel:
             if math.isnan(value):
                 break
             parts.append(f"{value:g}")
-        return "[]" if not parts else "[" + ",".join(parts) + "]"
+        return "[]" if not parts else '"[' + ",".join(parts) + ']"'
 
     @staticmethod
-    def _get_column_type(name: str, vector_columns_lower: list[str]) -> "LocalSkyModel.ColumnType":
+    def _get_column_type(
+        name: str, vector_columns_lower: list[str]
+    ) -> "LocalSkyModel.COLUMN_TYPE":
         """
         Returns the column type for the given column name.
 
@@ -208,81 +281,16 @@ class LocalSkyModel:
         :param vector_columns_lower: Names of columns containing vectors.
         :type vector_columns_lower: list[str]
         :return: Column type of specified column, as a string.
-        :rtype: ColumnType
+        :rtype: COLUMN_TYPE
         """
         name_lower = name.lower()
         if name_lower in vector_columns_lower:
             return "vector_float"
         if name_lower in LocalSkyModel._BOOL_COLUMNS:
             return "bool"
-        if name_lower in LocalSkyModel._INT_COLUMNS:
-            return "int"
         if name_lower in LocalSkyModel._STR_COLUMNS:
             return "str"
         return "float"
-
-    @staticmethod
-    def _tokenize_line(line: str) -> list[str]:
-        """
-        Split a line into tokens, assuming commas as separators,
-        while respecting quotes and bracketed vectors.
-
-        :param line: String to split up.
-        :type line: str
-        :return: List of tokens.
-        :rtype: list[str]
-        """
-        if line is None:
-            return []
-        tokens: list[str] = []
-        buf: list[str] = []
-        bracket_depth = 0
-        in_quotes = False
-        quote_char: str | None = None
-
-        index = 0
-        length = len(line)
-        while index < length:
-            character = line[index]
-
-            if character in ("'", '"'):
-                if not in_quotes:
-                    in_quotes = True
-                    quote_char = character
-                elif in_quotes and character == quote_char:
-                    in_quotes = False
-                    quote_char = None
-                buf.append(character)
-                index += 1
-                continue
-
-            if not in_quotes:
-                if character == "[":
-                    bracket_depth += 1
-                    buf.append(character)
-                    index += 1
-                    continue
-                if character == "]" and bracket_depth > 0:
-                    bracket_depth -= 1
-                    buf.append(character)
-                    index += 1
-                    continue
-                if bracket_depth == 0:
-                    if character == ",":
-                        tokens.append("".join(buf).strip())
-                        buf = []
-                        index += 1
-                        continue
-            buf.append(character)
-            index += 1
-
-        if buf:
-            tokens.append("".join(buf).strip())
-        else:
-            if length > 0 and line[-1] == ",":
-                tokens.append("")
-
-        return tokens
 
     # --------------------------
     # Constructor.
@@ -330,19 +338,15 @@ class LocalSkyModel:
         # Loop over each item in the schema and create the appropriate array.
         # Fill each array with the "missing" sentinel value.
         for name, spec in schema.items():
-            if spec.column_type == "float":
-                cols[name] = numpy.full((num_rows,), numpy.nan, dtype=numpy.float64)
-            elif spec.column_type == "int":
-                cols[name] = numpy.full((num_rows,), cls.INT_MISSING, dtype=numpy.int32)
-            elif spec.column_type == "bool":
-                cols[name] = numpy.full((num_rows,), cls.BOOL_MISSING, dtype=numpy.int8)
+            if spec.column_type == "bool":
+                cols[name] = numpy.full((num_rows,), -1, dtype=numpy.int8)
             elif spec.column_type == "str":
                 cols[name] = [""] * num_rows
             elif spec.column_type == "vector_float":
                 cols[name] = numpy.full((num_rows, max_vector_len), numpy.nan, dtype=numpy.float64)
                 cols[name + cls._NUM_TERMS] = numpy.zeros((num_rows,), dtype=numpy.uint8)
             else:
-                raise ValueError(spec.column_type)
+                cols[name] = numpy.full((num_rows,), numpy.nan, dtype=numpy.float64)
 
         # Return the constructed data model.
         return cls(
@@ -386,7 +390,7 @@ class LocalSkyModel:
         lines = Path(path).read_text("utf-8").splitlines()
 
         # Find the format string and split it into a list of column names.
-        columns = cls._tokenize_line(cls._find_format_string(lines))
+        columns = cls.tokenize_line(cls._find_format_string(lines))
 
         # Check that columns are defined.
         if not columns:
@@ -409,7 +413,7 @@ class LocalSkyModel:
                 continue
 
             # Split up the line.
-            tokens = cls._tokenize_line(line.strip())
+            tokens = cls.tokenize_line(line.strip())
 
             # Loop over columns in the line, storing each value.
             for column_index, name in enumerate(columns):
@@ -429,58 +433,23 @@ class LocalSkyModel:
         :param metadata_dir: Directory in which to write YAML metadata file.
         :type metadata_dir: str
         """
-
-        # Open the file.
         with open(path, "w", encoding="utf-8") as out:
 
-            # Write the format string.
+            # Write the file header.
             format_string = ",".join(self.columns)
             out.write(f"# ({format_string}) = format\n")
-
-            # Write the header.
             out.write(f"# NUMBER_OF_COMPONENTS: {self.num_rows}\n")
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")
 
-            # Loop over rows.
+            # Write each row.
             for row_index in range(self.num_rows):
-
-                # Construct string tokens for the line.
                 tokens: list[str] = []
-
-                # Loop over columns.
                 for name in self.columns:
-                    column_type = self.schema[name].column_type
-
-                    # Append a token based on the data type of the column.
-                    if column_type == "float":
-                        value = float(self._cols[name][row_index])
-                        tokens.append("" if math.isnan(value) else f"{value:g}")
-                    elif column_type == "int":
-                        value = int(self._cols[name][row_index])
-                        tokens.append("" if value == self.INT_MISSING else str(value))
-                    elif column_type == "bool":
-                        value = int(self._cols[name][row_index])
-                        if value == int(self.BOOL_MISSING):
-                            tokens.append("")
-                        else:
-                            tokens.append("true" if value == 1 else "false")
-                    elif column_type == "str":
-                        tokens.append(self._cols[name][row_index])
-                    elif column_type == "vector_float":
-                        tokens.append(
-                            self._format_vector(
-                                self._cols[name][row_index],
-                                self._cols[name + self._NUM_TERMS][row_index],
-                            )
-                        )
-                    else:
-                        tokens.append("")
-
-                # Write the row data.
+                    tokens.append(self.get_value_str(name, row_index))
                 out.write(",".join(tokens) + "\n")
 
-        # Write the YAML metadata file.
+        # Write the YAML metadata file, if a directory is specified.
         if metadata_dir:
             self.save_metadata(os.path.join(metadata_dir, "ska-data-product.yaml"), path)
 
@@ -490,18 +459,32 @@ class LocalSkyModel:
         This is called by save(), so it should not normally be called
         separately.
 
+        If the metadata file already exists, it will be updated with details
+        of the new sky model file; otherwise, it will be created.
+
+        An error will be raised during validation if both the YAML file and
+        the LSM file already exist.
+        To avoid the error, either delete the existing YAML file first,
+        or ensure the LSM path given is unique.
+
         :param yaml_path: Path to YAML file to write.
         :type yaml_path: str
         :param lsm_path: Path of local sky model file.
         :type lsm_path: str
         """
-        metadata = MetaData()
-        metadata.output_path = yaml_path
+        if os.path.exists(yaml_path):
+            # Open the existing file for update.
+            metadata = MetaData(path=yaml_path)
+            metadata.output_path = yaml_path
+        else:
+            # Create a new metadata file.
+            metadata = MetaData()
+            metadata.output_path = yaml_path
 
-        # Write any special values that have been set
-        # (e.g. the execution block ID).
-        if "execution_block_id" in self._metadata:
-            metadata.set_execution_block_id(self._metadata["execution_block_id"])
+            # Write any special values that have been set
+            # (e.g. the execution block ID).
+            if "execution_block_id" in self._metadata:
+                metadata.set_execution_block_id(self._metadata["execution_block_id"])
 
         # Get a handle to the top-level metadata dictionary.
         data = metadata.get_data()
@@ -513,12 +496,22 @@ class LocalSkyModel:
         header.update(self._header)
 
         # Update the metadata contents.
-        parent = "local_sky_model"
-        data[parent] = {}
-        data[parent]["header"] = header
-        data[parent]["columns"] = self.column_names
+        root = "local_sky_model"
+        if root not in data:
+            data[root] = []  # Ensure we have a list under the root item.
+
+        # Create entry for new file in the list.
+        data[root].append(
+            {
+                "header": header,
+                "file_path": lsm_path,
+                "columns": self.column_names,
+            }
+        )
 
         # Save the LSM file name in the metadata.
+        # An error will be raised during validation if the LSM file already
+        # exists. Ensure the LSM path given is unique.
         metadata.new_file(
             dp_path=lsm_path,
             description="Local sky model CSV text file",
@@ -543,15 +536,13 @@ class LocalSkyModel:
         :type column_name: str
         """
         column_type = self.schema[column_name].column_type
-        if column_type in ("float", "int", "bool", "str"):
-            return self._cols[column_name]
         if column_type == "vector_float":
             return self.VectorColumn(
                 values=self._cols[column_name],
                 num_terms=self._cols[column_name + self._NUM_TERMS],
                 max_len=self.max_vector_len,
             )
-        raise KeyError(column_name)
+        return self._cols[column_name]
 
     @property
     def column_names(self) -> list[str]:
@@ -562,6 +553,34 @@ class LocalSkyModel:
         :rtype: list[str]
         """
         return self.columns
+
+    def get_value_str(self, name: str, row_index: int) -> str:
+        """
+        Returns a string containing a single value for a single component.
+        Called by the save() method.
+
+        :param name: Column name for which to return data.
+        :type name: str
+        :param row_index: Row index of component to return.
+        :type row_index: int
+        :return: String containing specified component data.
+        :rtype: str
+        """
+        column_type = self.schema[name].column_type
+        if column_type == "bool":
+            value = self._cols[name][row_index]
+            if value < 0:
+                return ""
+            return "true" if value > 0 else "false"
+        if column_type == "str":
+            return self._cols[name][row_index]
+        if column_type == "vector_float":
+            return self._format_vector(
+                self._cols[name][row_index],
+                self._cols[name + self._NUM_TERMS][row_index],
+            )
+        value = float(self._cols[name][row_index])
+        return "" if math.isnan(value) else f"{value:.15g}"
 
     def set_header(self, header: dict[str, Any]) -> None:
         """
@@ -609,35 +628,80 @@ class LocalSkyModel:
         :param value: Value to set for parameter. Use 'None' for 'missing'.
         :type value: Any
         """
-        # Deal with an empty string (treat as a missing value).
-        if isinstance(value, str):
-            value = value.strip()
-            if value == "":
-                value = None
+        val_str = str(value).strip()
+        column = self._cols[name]
 
         # Switch on column type.
         column_type = self.schema[name].column_type
-        if column_type == "float":
-            try:
-                self._cols[name][row_index] = float(value)
-            except (TypeError, ValueError):
-                self._cols[name][row_index] = numpy.nan
-        elif column_type == "int":
-            try:
-                self._cols[name][row_index] = int(value)
-            except (TypeError, ValueError):
-                self._cols[name][row_index] = self.INT_MISSING
-        elif column_type == "bool":
+        if column_type == "bool":
             if value is None:
-                self._cols[name][row_index] = self.BOOL_MISSING
+                column[row_index] = -1
             else:
-                val = str(value).strip().lower()
-                self._cols[name][row_index] = numpy.int8(1 if val in ("true", "t", "1") else 0)
+                column[row_index] = 1 if val_str.lower()[0] in ("t", "1") else 0
         elif column_type == "str":
-            self._cols[name][row_index] = "" if value is None else str(value)
+            column[row_index] = "" if value is None else val_str
         elif column_type == "vector_float":
-            self._cols[name][row_index, :], self._cols[name + self._NUM_TERMS][row_index] = (
+            column[row_index, :], self._cols[name + self._NUM_TERMS][row_index] = (
                 self._convert_to_float_array(value, self.max_vector_len)
             )
         else:
-            raise ValueError(f"Unknown column type: {column_type}")
+            try:
+                column[row_index] = float(val_str)
+            except (TypeError, ValueError):
+                column[row_index] = numpy.nan
+
+    @staticmethod
+    def tokenize_line(line: str) -> list[str]:
+        """
+        Split a line into tokens, assuming commas as separators,
+        while respecting quotes and bracketed vectors.
+
+        :param line: String to split up.
+        :type line: str
+        :return: List of tokens.
+        :rtype: list[str]
+        """
+        if line is None:
+            return []
+
+        tokens: list[str] = []
+        current_token: str = ""
+        bracket_depth: int = 0
+        in_quotes: bool = False
+        quote_char: str | None = None
+
+        # Please do not split this up into tiny functions.
+        # (I don't care what SonarQube says - this needs to be kept together
+        # in order to reason about what it is doing.)
+        for character in line:
+            # Handle brackets and delimiters when not in quotes.
+            if not in_quotes:
+                if character == "[":
+                    bracket_depth += 1
+                elif character == "]" and bracket_depth > 0:
+                    bracket_depth -= 1
+                elif character == "," and bracket_depth == 0:
+                    # End of token: append to list and clear current token.
+                    tokens.append(current_token.strip())
+                    current_token = ""
+                    continue  # Next character (added to next token).
+
+            # Handle quotes.
+            if character in ("'", '"'):
+                if not in_quotes:
+                    in_quotes = True
+                    quote_char = character
+                elif in_quotes and character == quote_char:
+                    in_quotes = False
+                    quote_char = None
+
+            # Append current character to current token.
+            current_token += character
+
+        # Finalize last token.
+        if current_token:
+            tokens.append(current_token.strip())
+        elif line and line[-1] == ",":
+            tokens.append("")
+
+        return tokens

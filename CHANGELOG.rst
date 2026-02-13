@@ -4,6 +4,16 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
+  Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
+- [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
+  returning immediately with "uploading" status while ingestion proceeds asynchronously.
+  This keeps the API responsive during large file uploads.
+- [Added] Schema-level data validation for uploaded components.
+  Invalid components are logged with ingestion failing if any validation errors occur.
+- [Updated] Migrated from deprecated ``@app.on_event("startup")`` to modern FastAPI lifespan
+  context manager for application startup and shutdown handling.
+  (`MR61 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/61>`__)
 - [Added] Implemented ``_query_gsm_for_lsm`` function to query the Global Sky Model
   database and return sources within a specified field of view as ``GlobalSkyModel`` objects.
   (`MR55 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/55>`__)
