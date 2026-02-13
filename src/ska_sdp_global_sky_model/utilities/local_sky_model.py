@@ -444,7 +444,10 @@ class LocalSkyModel:
 
             # Write each row.
             for row_index in range(self.num_rows):
-                out.write(",".join(self.get_row_tokens(row_index)) + "\n")
+                tokens: list[str] = []
+                for name in self.columns:
+                    tokens.append(self.get_value(name, row_index))
+                out.write(",".join(tokens) + "\n")
 
         # Write the YAML metadata file, if a directory is specified.
         if metadata_dir:
@@ -551,38 +554,34 @@ class LocalSkyModel:
         """
         return self.columns
 
-    def get_row_tokens(self, row_index: int) -> list[str]:
+    def get_value(self, name: str, row_index: int) -> str:
         """
-        Returns a list of strings containing data for the row.
+        Returns a single value for a single component.
         Called by the save() method.
 
+        :param name: Column name for which to return data.
+        :type name: str
         :param row_index: Row index of component to return.
         :type row_index: int
-        :return: List of string tokens containing component data.
-        :rtype: list[str]
+        :return: String containing specified component data.
+        :rtype: str
         """
-        tokens: list[str] = []
-        for name in self.columns:
-            column_type = self.schema[name].column_type
-            if column_type == "bool":
-                value = self._cols[name][row_index]
-                if value < 0:
-                    tokens.append("")
-                else:
-                    tokens.append("true" if value > 0 else "false")
-            elif column_type == "str":
-                tokens.append(self._cols[name][row_index])
-            elif column_type == "vector_float":
-                tokens.append(
-                    self._format_vector(
-                        self._cols[name][row_index],
-                        self._cols[name + self._NUM_TERMS][row_index],
-                    )
-                )
+        column_type = self.schema[name].column_type
+        if column_type == "bool":
+            value = self._cols[name][row_index]
+            if value < 0:
+                return ""
             else:
-                value = float(self._cols[name][row_index])
-                tokens.append("" if math.isnan(value) else f"{value:.15g}")
-        return tokens
+                return "true" if value > 0 else "false"
+        if column_type == "str":
+            return self._cols[name][row_index]
+        if column_type == "vector_float":
+            return self._format_vector(
+                    self._cols[name][row_index],
+                    self._cols[name + self._NUM_TERMS][row_index],
+                )
+        value = float(self._cols[name][row_index])
+        return "" if math.isnan(value) else f"{value:.15g}"
 
     def set_header(self, header: dict[str, Any]) -> None:
         """
