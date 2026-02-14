@@ -325,10 +325,8 @@
         let currentUploadId = null;
         
         function apiUrl(endpoint) {
-            // Use relative path that goes up one level from /upload
-            // /upload → ../endpoint → /endpoint
-            // /gsm/upload → ../endpoint → /gsm/endpoint
-            return '../' + endpoint;
+            const basePath = window.location.pathname.replace(/\/upload\/?$/, '/');
+            return `${basePath}${endpoint}`;
         }
 
         dropZone.addEventListener('click', () => fileInput.click());
