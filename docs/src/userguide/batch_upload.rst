@@ -8,7 +8,7 @@ Overview
 
 The batch upload feature allows you to:
 
-- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single sky model)
+- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single catalog version)
 - Stage uploads for review before committing to the main database
 - Track upload progress with a unique identifier
 - Query upload status and errors
@@ -22,33 +22,38 @@ Staging and Versioning Workflow
 
 **Two-Stage Upload Process**:
 
-All uploads use a staging workflow for safety and review:
+All uploads use a staging workflow allowing new catalogue versions to be successfully uploaded before a new version is released:
 
 1. **Upload to Staging**: Files are first uploaded to ``sky_component_staging`` table
-2. **Review Data**: Use ``/review-upload/{upload_id}`` to inspect a sample of staged data
-3. **Commit or Reject**: 
+2. **Review Upload Status**: Use ``/review-upload/{upload_id}`` to confirm the upload succeeded
+3. **Commit or Reject** (manual action required): 
    - Commit: Move data to main table with automatic versioning
    - Reject: Discard all staged data for that upload
 
 **Automatic Versioning**:
 
-When committing staged data, the system automatically handles versioning:
+All uploads use a staging workflow allowing new catalog versions to be successfully uploaded before a new version is released.
+When committing staged data, the system automatically handles versioning at the dataset level:
 
-- **New components**: Start at version ``0.0.0``
-- **Updated components**: Increment minor version (e.g., ``0.0.0`` → ``0.1.0``, ``0.1.0`` → ``0.2.0``)
-- **Version tracking**: Each component_id can have multiple versions
+- **First upload**: All components start at version ``0.1.0``
+- **Subsequent uploads**: All components increment to the next minor version (e.g., ``0.1.0`` → ``0.2.0`` → ``0.3.0``)
+- **Dataset versioning**: All components uploaded in the same session share the same version number
+- **Version tracking**: Each component_id can exist across multiple dataset versions
 - **Unique constraint**: ``component_id + version`` must be unique
 
 This allows you to:
-    - Update existing sky sources without losing historical data
-    - Track changes to sources over time
-    - Query specific versions or always get the latest version
+    - Release new versions of the entire sky catalog
+    - Track changes to the catalog over time
+    - Query specific catalog versions or always get the latest version
+    
+Files uploaded in the same session (same ``upload_id``) will form part of the same catalog version. 
+Files uploaded in a new session (new ``upload_id``) will create a new catalog version with an incremented version number.
 
 **Staging Table Schema**:
 
 The ``sky_component_staging`` table mirrors the main ``sky_component`` table but includes:
-    - ``upload_id``: Links all sources in a batch upload
-    - Unique constraint: ``component_id + upload_id`` (allows same source in different uploads)
+    - ``upload_id``: Links all sources in a batch upload (same session)
+    - Unique constraint: ``component_id + upload_id`` (allows same source in different upload sessions)
 
 Asynchronous Processing
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -191,26 +196,26 @@ Upload Sky Survey
 Browser Upload Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-A browser interface is available at the root URL (``http://localhost:8000/``). The interface provides:
+A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``). The interface provides:
 
 - **Drag-and-drop file upload**: Simply drag CSV files onto the upload zone
-- **Multiple file selection**: Upload multiple catalogs simultaneously
+- **Multiple file selection**: Upload multiple files that form a single catalog
 - **Real-time status monitoring**: Track upload progress with automatic polling
-- **Staging table preview**: Review uploaded data before committing
+- **Upload confirmation**: Confirm successful upload before committing to database
 - **Commit/Reject workflow**: Approve or discard staged uploads
-- **Version information**: Visual indicators for versioning behavior
+- **Version information**: Visual indicators showing which catalog version will be created
 
 **Using the Browser Interface**:
 
-1. Navigate to ``http://localhost:8000/`` in your web browser
+1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
 2. Drag and drop CSV files onto the upload zone (or click to browse)
 3. Click "Upload Files" to begin the upload
 4. Monitor the upload progress - status updates automatically
-5. Review the staged data including a sample preview
+5. Confirm the upload completed successfully and review the count of staged records
 6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
 
 The browser interface automatically handles:
-    - File validation (CSV format only)
+    - File validation (CSV format only) - see `Data Validation`_ for details
     - Upload tracking with unique IDs
     - Status polling every 2 seconds
     - Error display if uploads fail
@@ -255,7 +260,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 .. code-block:: bash
 
     # Upload one or more CSV files with standardized column names
-    curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
+    curl -X POST "<GSM_API_URL>/upload-sky-survey-batch" \
       -F "files=@test_catalog_1.csv;type=text/csv" \\
       -F "files=@test_catalog_2.csv;type=text/csv"
 
@@ -266,7 +271,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
     import requests
     import time
 
-    url = "http://localhost:8000/upload-sky-survey-batch"
+    url = "<GSM_API_URL>/upload-sky-survey-batch"
     
     # Upload multiple CSV files with standardized column names
     files = [
@@ -336,7 +341,7 @@ Retrieve the current status of a sky survey batch upload.
 
 .. code-block:: bash
 
-    curl "http://localhost:8000/upload-sky-survey-status/550e8400-e29b-41d4-a716-446655440000"
+    curl "<GSM_API_URL>/upload-sky-survey-status/550e8400-e29b-41d4-a716-446655440000"
 
 **Python Example**:
 
@@ -346,7 +351,7 @@ Retrieve the current status of a sky survey batch upload.
     import time
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
-    url = f"http://localhost:8000/upload-sky-survey-status/{upload_id}"
+    url = f"<GSM_API_URL>/upload-sky-survey-status/{upload_id}"
     
     while True:
         response = requests.get(url)
@@ -368,7 +373,7 @@ Review Staged Upload
 
 **Endpoint**: ``GET /review-upload/{upload_id}``
 
-Review staged data before committing to the main database. Returns a summary and sample of the staged records.
+Review the status of the upload before committing to the main database. Returns total record count and the last 10 staged records to confirm all data loaded successfully.
 
 **Parameters**:
 
@@ -407,7 +412,7 @@ Review staged data before committing to the main database. Returns a summary and
 
 .. code-block:: bash
 
-    curl "http://localhost:8000/review-upload/550e8400-e29b-41d4-a716-446655440000"
+    curl "<GSM_API_URL>/review-upload/550e8400-e29b-41d4-a716-446655440000"
 
 **Python Example**:
 
@@ -416,7 +421,7 @@ Review staged data before committing to the main database. Returns a summary and
     import requests
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
-    url = f"http://localhost:8000/review-upload/{upload_id}"
+    url = f"<GSM_API_URL>/review-upload/{upload_id}"
     
     response = requests.get(url)
     review = response.json()
@@ -429,8 +434,8 @@ Commit Staged Upload
 
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
-Commit staged data to the main database with automatic versioning. New components get version ``0.0.0``, 
-existing components get their minor version incremented.
+Commit staged data to the main database with automatic dataset versioning. All components in the upload
+receive the same version number (the next minor version of the catalog).
 
 **Parameters**:
 
@@ -461,7 +466,7 @@ existing components get their minor version incremented.
 
 .. code-block:: bash
 
-    curl -X POST "http://localhost:8000/commit-upload/550e8400-e29b-41d4-a716-446655440000"
+    curl -X POST "<GSM_API_URL>/commit-upload/550e8400-e29b-41d4-a716-446655440000"
 
 **Python Example**:
 
@@ -470,7 +475,7 @@ existing components get their minor version incremented.
     import requests
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
-    url = f"http://localhost:8000/commit-upload/{upload_id}"
+    url = f"<GSM_API_URL>/commit-upload/{upload_id}"
     
     response = requests.post(url)
     result = response.json()
@@ -514,7 +519,7 @@ Reject and discard staged data. All records associated with this upload_id are p
 
 .. code-block:: bash
 
-    curl -X DELETE "http://localhost:8000/reject-upload/550e8400-e29b-41d4-a716-446655440000"
+    curl -X DELETE "<GSM_API_URL>/reject-upload/550e8400-e29b-41d4-a716-446655440000"
 
 **Python Example**:
 
@@ -523,7 +528,7 @@ Reject and discard staged data. All records associated with this upload_id are p
     import requests
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
-    url = f"http://localhost:8000/reject-upload/{upload_id}"
+    url = f"<GSM_API_URL>/reject-upload/{upload_id}"
     
     response = requests.delete(url)
     result = response.json()

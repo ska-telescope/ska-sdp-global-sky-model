@@ -9,7 +9,7 @@ import dataclasses
 import io
 import logging
 from itertools import zip_longest
-from typing import Optional, get_args, get_origin
+from typing import get_args, get_origin
 
 import healpy as hp
 import numpy as np
@@ -383,7 +383,7 @@ def validate_component_mapping(
     return _validate_optional_numeric_fields(component_mapping, row_info)
 
 
-def commit_batch(db: Session, component_objs: list, model_class=None):
+def commit_batch(db: Session, component_objs: list, model_class=SkyComponent):
     """Insert and commit a batch of sky components to the database.
 
     Uses bulk insert for efficiency and clears the list after commit.
@@ -396,9 +396,6 @@ def commit_batch(db: Session, component_objs: list, model_class=None):
     if not component_objs:
         return
 
-    if model_class is None:
-        model_class = SkyComponent
-
     db.bulk_insert_mappings(model_class, component_objs)
     db.commit()
     component_objs.clear()
@@ -409,7 +406,7 @@ def _process_single_component(
     count: int,
     existing_component_id: set,
     staging: bool,
-    upload_id: Optional[str],
+    upload_id: str | None,
 ) -> tuple[dict | None, str | None]:
     """Process and validate a single component.
 
@@ -456,7 +453,7 @@ def process_component_data_batch(
     catalog_data,
     batch_size: int = 500,
     staging: bool = False,
-    upload_id: Optional[str] = None,
+    upload_id: str | None = None,
 ) -> bool:
     """
     Processes component data and inserts into DB using batch operations for speed.

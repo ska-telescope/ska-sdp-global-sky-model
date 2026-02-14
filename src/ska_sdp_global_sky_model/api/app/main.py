@@ -95,8 +95,8 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/", summary="Browser upload interface")
-def root():
+@app.get("/upload", summary="Browser upload interface")
+def upload_interface():
     """Serve the HTML upload interface"""
     upload_page = Path(__file__).parent / "static" / "upload.html"
     if upload_page.exists():
@@ -267,9 +267,7 @@ async def upload_sky_survey_batch(
 
         # Schedule ingestion to run in background
         background_tasks.add_task(_run_ingestion_task, upload_id, survey_metadata)
-
-        logger.info("Upload %s: files saved, ingestion scheduled in background", upload_id)
-        logger.info("===== Background task SCHEDULED for upload %s =====", upload_id)
+        logger.info("Background task scheduled for upload %s", upload_id)
 
         return {
             "upload_id": upload_id,
@@ -347,10 +345,11 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         .scalar()
     )
 
-    # Get first 10 rows as sample
+    # Get last 10 rows as sample to confirm all data loaded
     sample = (
         db.query(SkyComponentStaging)
         .filter(SkyComponentStaging.upload_id == upload_id)
+        .order_by(SkyComponentStaging.id.desc())
         .limit(10)
         .all()
     )
@@ -395,32 +394,20 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         if not staged_records:
             raise HTTPException(status_code=404, detail="No staged data found")
 
-        # Get current max versions for all component_ids being committed
-        component_ids = [r.component_id for r in staged_records]
-        max_versions = {}
-
-        if component_ids:
-            # Query max version for each component_id (semantic version strings)
-            version_results = (
-                db.query(
-                    SkyComponent.component_id, func.max(SkyComponent.version).label("max_version")
-                )
-                .filter(SkyComponent.component_id.in_(component_ids))
-                .group_by(SkyComponent.component_id)
-                .all()
-            )
-
-            max_versions = {r.component_id: r.max_version for r in version_results}
+        # Determine the version for the entire dataset
+        # All components in this upload will share the same version number
+        # Query the current maximum version across ALL components in the database
+        max_version_result = db.query(func.max(SkyComponent.version)).scalar()
 
         # Helper function to increment minor version
         def increment_minor_version(version_str):
             """Increment minor version in semantic versioning (major.minor.patch).
 
-            - If no existing version, start at 0.0.0 for first commit.
-            - Subsequent commits increment the minor part: 0.0.0 -> 0.1.0 -> 0.2.0
+            - If no existing version, start at 0.1.0 for first dataset.
+            - Subsequent uploads increment the minor part: 0.1.0 -> 0.2.0 -> 0.3.0
             """
             if not version_str:
-                return "0.0.0"
+                return "0.1.0"
             try:
                 parts = version_str.split(".")
                 major = int(parts[0]) if len(parts) > 0 else 0
@@ -428,26 +415,29 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
                 patch = int(parts[2]) if len(parts) > 2 else 0
                 return f"{major}.{minor + 1}.{patch}"
             except (ValueError, IndexError):
-                return "0.0.0"
+                return "0.1.0"
 
-        # Copy from staging to main table with semantic version tracking
+        # Calculate the new version for this entire dataset upload
+        dataset_version = increment_minor_version(max_version_result)
+
+        logger.info(
+            "Assigning version %s to all %d components in upload %s",
+            dataset_version,
+            len(staged_records),
+            upload_id,
+        )
+
+        # Copy from staging to main table - all get the same dataset version
         for staged in staged_records:
-            # Get next version for this component_id
-            current_version = max_versions.get(staged.component_id, None)
-            next_version = increment_minor_version(current_version)
-
             # Create main table record from staged data
             # Exclude 'id' and 'upload_id' from staging table fields
             record_data = {
                 k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
             }
-            record_data["version"] = next_version
+            record_data["version"] = dataset_version
 
             main_record = SkyComponent(**record_data)
             db.add(main_record)
-
-            # Update max_versions for this component_id for subsequent records in same batch
-            max_versions[staged.component_id] = next_version
 
         # Delete from staging
         db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()

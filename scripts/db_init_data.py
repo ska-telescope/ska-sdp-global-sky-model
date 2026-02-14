@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.configuration.config import get_db
 
 
@@ -17,6 +18,8 @@ def main():
     )
     parser.add_argument("--name", help="Name of dataset", default="Sample Dataset")
     parser.add_argument("--catalog_name", help="Name of catalogue", default="test_catalog")
+    parser.add_argument("--description", help="Description of catalog", default="Test catalog data")
+    parser.add_argument("--version", help="Catalog version", default="0.1.0")
     parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
 
     args = parser.parse_args()
@@ -35,6 +38,17 @@ def main():
 
     # Get DB session and load the data
     db = next(get_db())
+    
+    # Create metadata entry for this catalog
+    metadata = GlobalSkyModelMetadata(
+        catalog_name=args.catalog_name,
+        description=args.description,
+        version=args.version,
+        name=args.name,
+    )
+    db.add(metadata)
+    db.commit()
+    
     if not ingest_catalog(db, catalog_config):
         sys.exit(1)
 

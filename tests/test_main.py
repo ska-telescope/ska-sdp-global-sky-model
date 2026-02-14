@@ -13,8 +13,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from ska_sdp_global_sky_model.api.app.main import app, get_db, wait_for_db
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.main import app, get_db, upload_manager, wait_for_db
+from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Use in-memory SQLite for testing
@@ -101,6 +101,27 @@ def fixture_client():
             Base.metadata.drop_all(bind=engine)
 
 
+def _mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
+    """Simple mock that returns True without doing anything."""
+    return True
+
+
+def _mock_ingest_catalog_staging(db, metadata, prefix, count):
+    """Mock ingest that creates test records in staging table."""
+    for i in range(count):
+        component = SkyComponentStaging(
+            component_id=f"{prefix}{i:05d}",
+            upload_id=metadata["upload_id"],
+            ra=10.0 + i,
+            dec=20.0 + i,
+            i_pol=0.5 + i * 0.1,
+            healpix_index=12345,
+        )
+        db.add(component)
+    db.commit()
+    return True
+
+
 def test_read_main(myclient):
     """Unit test for the root path "/" """
     response = myclient.get("/ping")
@@ -112,12 +133,8 @@ def test_upload_rcal(myclient, monkeypatch):
     """Unit test for batch upload with test catalog"""
     file_path = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -155,12 +172,8 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
         "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
     )
 
-    # Mock the ingest_catalog function to always return True
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with first_file.open("rb") as f1, second_file.open("rb") as f2:
@@ -291,12 +304,8 @@ def test_upload_batch_gleam_catalog(myclient, monkeypatch):
     """Unit test for batch upload with GLEAM catalog"""
     file_path = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -324,12 +333,8 @@ def test_upload_batch_racs_catalog(myclient, monkeypatch):
     """Unit test for batch upload with RACS catalog"""
     file_path = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -355,12 +360,8 @@ def test_upload_batch_rcal_catalog(myclient, monkeypatch):
     """Unit test for batch upload with RCAL catalog"""
     file_path = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -386,12 +387,8 @@ def test_upload_batch_generic_catalog(myclient, monkeypatch):
     """Unit test for batch upload with GENERIC catalog"""
     file_path = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -421,12 +418,8 @@ def test_upload_batch_mixed_catalogs(myclient, monkeypatch):
     second_file = Path("tests/data/test_catalog_2.csv")
     third_file = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     # Test uploading multiple files with GLEAM catalog
@@ -459,12 +452,8 @@ def test_upload_batch_default_catalog(myclient, monkeypatch):
     """Unit test for batch upload with standard catalog metadata"""
     file_path = Path("tests/data/test_catalog_1.csv")
 
-    # Mock the ingest function
-    def mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
-        return True
-
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
     )
 
     with file_path.open("rb") as f:
@@ -603,3 +592,279 @@ def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
         # Should succeed because validation is content-based, not extension-based
         assert response.status_code == 200
         assert "upload_id" in response.json()
+
+
+def test_review_upload_success(myclient, monkeypatch):
+    """Test successful review of staged upload."""
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
+        lambda db, meta: _mock_ingest_catalog_staging(db, meta, "TEST", 15),
+    )
+
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+
+    # Upload a file
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 200
+    upload_id = response.json()["upload_id"]
+    upload_manager.mark_completed(upload_id)
+
+    # Review the upload
+    review_response = myclient.get(f"/review-upload/{upload_id}")
+    assert review_response.status_code == 200
+    review_data = review_response.json()
+    assert review_data["upload_id"] == upload_id
+    assert review_data["total_records"] == 15
+
+    # Last 10 records
+    assert len(review_data["sample"]) == 10
+    assert "TEST" in review_data["sample"][0]["component_id"]
+
+
+def test_review_upload_not_completed(myclient, monkeypatch):
+    """Test review of upload that hasn't completed yet."""
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", lambda db, meta: True
+    )
+
+    # Upload a file
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    upload_id = response.json()["upload_id"]
+
+    # Review before completion
+    review_response = myclient.get(f"/review-upload/{upload_id}")
+    assert review_response.status_code == 400
+    assert "not ready for review" in review_response.json()["detail"].lower()
+
+
+def test_commit_upload_success(myclient, monkeypatch):
+    """Test successful commit of staged upload with versioning."""
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
+        lambda db, meta: _mock_ingest_catalog_staging(db, meta, "COMMIT_TEST", 5),
+    )
+
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+
+    # Upload a file
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    upload_id = response.json()["upload_id"]
+    upload_manager.mark_completed(upload_id)
+
+    # Commit the upload
+    commit_response = myclient.post(f"/commit-upload/{upload_id}")
+    assert commit_response.status_code == 200
+    commit_data = commit_response.json()
+    assert commit_data["status"] == "success"
+    assert commit_data["records_committed"] == 5
+
+    # Verify data moved to main table with version
+    db = next(override_get_db())
+    try:
+        main_records = (
+            db.query(SkyComponent).filter(SkyComponent.component_id.like("COMMIT_TEST%")).all()
+        )
+        assert len(main_records) == 5
+
+        # Check all have same version
+        versions = {r.version for r in main_records}
+        assert len(versions) == 1
+        assert list(versions)[0] == "0.1.0"
+
+        # Verify staging table is cleared
+        staging_records = (
+            db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).all()
+        )
+        assert len(staging_records) == 0
+    finally:
+        db.close()
+
+
+def test_commit_upload_increments_version(myclient, monkeypatch):
+    """Test that second commit increments version to 0.2.0."""
+    # Add existing data at version 0.1.0
+    db = next(override_get_db())
+    try:
+        for i in range(3):
+            component = SkyComponent(
+                component_id=f"EXISTING{i:05d}",
+                ra=5.0 + i,
+                dec=15.0 + i,
+                i_pol=0.3,
+                healpix_index=11111,
+                version="0.1.0",
+            )
+            db.add(component)
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
+        lambda db, meta: _mock_ingest_catalog_staging(db, meta, "NEW", 5),
+    )
+
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+
+    # Upload and commit
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    upload_id = response.json()["upload_id"]
+
+    upload_manager.mark_completed(upload_id)
+
+    commit_response = myclient.post(f"/commit-upload/{upload_id}")
+
+    assert commit_response.status_code == 200
+
+    # Verify new records have version 0.2.0
+    db = next(override_get_db())
+    try:
+        new_records = db.query(SkyComponent).filter(SkyComponent.component_id.like("NEW%")).all()
+        assert len(new_records) == 5
+        for record in new_records:
+            assert record.version == "0.2.0"  # Incremented from 0.1.0
+    finally:
+        db.close()
+
+
+def test_commit_upload_not_completed(myclient, monkeypatch):
+    """Test commit fails if upload not completed."""
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", lambda db, meta: True
+    )
+
+    # Upload a file
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    upload_id = response.json()["upload_id"]
+    commit_response = myclient.post(f"/commit-upload/{upload_id}")
+    assert commit_response.status_code == 400
+    assert "not ready for commit" in commit_response.json()["detail"].lower()
+
+
+def test_reject_upload_success(myclient, monkeypatch):
+    """Test successful rejection of staged upload."""
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
+        lambda db, meta: _mock_ingest_catalog_staging(db, meta, "REJECT_TEST", 5),
+    )
+
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+
+    # Upload a file
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    upload_id = response.json()["upload_id"]
+    upload_manager.mark_completed(upload_id)
+
+    # Reject the upload
+    reject_response = myclient.delete(f"/reject-upload/{upload_id}")
+    assert reject_response.status_code == 200
+    reject_data = reject_response.json()
+    assert reject_data["status"] == "success"
+    assert reject_data["records_deleted"] == 5
+
+    # Verify staging table is cleared
+    db = next(override_get_db())
+    try:
+        staging_records = (
+            db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).all()
+        )
+        assert len(staging_records) == 0
+    finally:
+        db.close()
+
+
+def test_reject_upload_not_completed(myclient, monkeypatch):
+    """Test reject fails if upload not completed."""
+    test_metadata = {
+        "version": "1.0.0",
+        "catalog_name": "TEST",
+        "ingest": {"file_location": [{"content": None}]},
+    }
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+    )
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", lambda db, meta: True
+    )
+
+    # Upload a file
+    file_path = Path("tests/data/test_catalog_1.csv")
+    with file_path.open("rb") as f:
+        files = [("files", ("test.csv", f, "text/csv"))]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    upload_id = response.json()["upload_id"]
+
+    # Reject before completion
+    reject_response = myclient.delete(f"/reject-upload/{upload_id}")
+
+    assert reject_response.status_code == 400
+    assert "not ready for rejection" in reject_response.json()["detail"].lower()
