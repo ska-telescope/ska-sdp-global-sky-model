@@ -323,17 +323,12 @@
 
         let selectedFiles = [];
         let currentUploadId = null;
-
-        // Detect base path from current URL (handles /gsm/ prefix in cluster)
-        const basePath = window.location.pathname.endsWith('/') 
-            ? window.location.pathname 
-            : window.location.pathname + '/';
         
         function apiUrl(endpoint) {
-            // Remove leading slash from endpoint if present
-            const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-            // Construct URL: basePath already has trailing /, so just append endpoint
-            return basePath + cleanEndpoint;
+            // Use relative path that goes up one level from /upload
+            // /upload → ../endpoint → /endpoint
+            // /gsm/upload → ../endpoint → /gsm/endpoint
+            return '../' + endpoint;
         }
 
         dropZone.addEventListener('click', () => fileInput.click());

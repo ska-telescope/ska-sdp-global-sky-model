@@ -354,9 +354,17 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         .all()
     )
 
+    # Reverse to show in ascending order and calculate positions
+    sample.reverse()
+
+    # Calculate the starting position
+    sample_start = max(1, count - len(sample) + 1)
+    sample_end = count
+
     return {
         "upload_id": upload_id,
         "total_records": count,
+        "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
     }
 

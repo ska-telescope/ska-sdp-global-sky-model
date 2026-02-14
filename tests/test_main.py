@@ -108,10 +108,13 @@ def _mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
 
 def _mock_ingest_catalog_staging(db, metadata, prefix, count):
     """Mock ingest that creates test records in staging table."""
+    upload_id = metadata.get("upload_id")
+    if not upload_id:
+        return False
     for i in range(count):
         component = SkyComponentStaging(
             component_id=f"{prefix}{i:05d}",
-            upload_id=metadata["upload_id"],
+            upload_id=upload_id,
             ra=10.0 + i,
             dec=20.0 + i,
             i_pol=0.5 + i * 0.1,
@@ -258,6 +261,7 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
             ra=47.222569,
             dec=5.650958,
             i_pol=0.098383,
+            version="0.1.0",
         )
         db.add(component)
         db.commit()
@@ -284,6 +288,7 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
             ra=46.084633,
             dec=2.341634,
             i_pol=0.29086,
+            version="0.1.0",
         )
         db.add(component)
         db.commit()
@@ -626,6 +631,7 @@ def test_review_upload_success(myclient, monkeypatch):
     review_data = review_response.json()
     assert review_data["upload_id"] == upload_id
     assert review_data["total_records"] == 15
+    assert review_data["sample_range"] == "6-15"
 
     # Last 10 records
     assert len(review_data["sample"]) == 10

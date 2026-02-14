@@ -102,6 +102,7 @@ class TestSkyComponentModel:
             dec=-67.89,
             i_pol=1.23,
             healpix_index=12345,
+            version="0.1.0",
         )
 
         db_session.add(component)
@@ -134,6 +135,7 @@ class TestSkyComponentModel:
             q_pol=0.1,
             u_pol=0.2,
             v_pol=0.05,
+            version="0.1.0",
         )
 
         db_session.add(component)
@@ -187,6 +189,7 @@ class TestSkyComponentModel:
             i_pol=3.33,
             healpix_index=33333,
             major_ax=0.002,
+            version="0.1.0",
         )
         db_session.add(component)
         db_session.commit()
@@ -211,6 +214,7 @@ class TestSkyComponentModel:
             dec=0.0,
             i_pol=1.0,
             healpix_index=55555,
+            version="0.1.0",
             # All optional fields left as None
         )
         db_session.add(component)
@@ -238,6 +242,7 @@ class TestSkyComponentModel:
             i_pol=2.0,
             healpix_index=66666,
             spec_idx=spec_idx_values,
+            version="0.1.0",
         )
         db_session.add(component)
         db_session.commit()
@@ -461,6 +466,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             dec=50.0,
             i_pol=1.5,
             healpix_index=77777,
+            version="0.1.0",
         )
         component2 = SkyComponentModel(
             component_id="IntegrationSource2",
@@ -468,6 +474,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             dec=-30.0,
             i_pol=2.5,
             healpix_index=88888,
+            version="0.1.0",
         )
         db_session.add_all([component1, component2])
         db_session.commit()

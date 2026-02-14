@@ -25,7 +25,7 @@ from ska_sdp_global_sky_model.api.app.ingest import (
     to_float,
     validate_component_mapping,
 )
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Test database setup
@@ -368,6 +368,7 @@ class TestCommitBatch:
                 "ra": 10.5,
                 "dec": 45.2,
                 "i_pol": 1.5,
+                "version": "0.1.0",
             },
             {
                 "component_id": "J223344-556677",
@@ -375,6 +376,7 @@ class TestCommitBatch:
                 "ra": 30.1,
                 "dec": -20.5,
                 "i_pol": 0.8,
+                "version": "0.1.0",
             },
         ]
         commit_batch(test_db, component_objs)
@@ -415,10 +417,10 @@ class TestProcessComponentDataBatch:
             content = f.read()
         cf = ComponentFile(content)
 
-        result = process_component_data_batch(test_db, cf)
+        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
 
         assert result is True
-        count = test_db.query(SkyComponent).count()
+        count = test_db.query(SkyComponentStaging).count()
         assert count == 3
 
     def test_skip_duplicate_component_id(self, test_db, sample_csv_file):
@@ -430,14 +432,14 @@ class TestProcessComponentDataBatch:
 
         # First ingestion
 
-        process_component_data_batch(test_db, cf)
-        count1 = test_db.query(SkyComponent).count()
+        process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
+        count1 = test_db.query(SkyComponentStaging).count()
 
         # Second ingestion - should skip duplicates
         cf2 = ComponentFile(content)
 
-        process_component_data_batch(test_db, cf2)
-        count2 = test_db.query(SkyComponent).count()
+        process_component_data_batch(test_db, cf2, staging=True, upload_id="test-upload-1")
+        count2 = test_db.query(SkyComponentStaging).count()
 
         assert count1 == count2  # No new components added
 
@@ -453,12 +455,12 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf)
+        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
 
         # Should fail due to validation errors
         assert result is False
         # NO data should be ingested (all-or-nothing)
-        count = test_db.query(SkyComponent).count()
+        count = test_db.query(SkyComponentStaging).count()
         assert count == 0
 
     def test_all_validation_errors_collected(self, test_db, caplog):
@@ -512,13 +514,13 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf)
+        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
 
         # Should fail
         assert result is False
 
         # NO data should be ingested, even though first 2 rows were valid
-        count = test_db.query(SkyComponent).count()
+        count = test_db.query(SkyComponentStaging).count()
         assert count == 0
 
         # Check that validation message appeared before any ingestion message
@@ -548,11 +550,11 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(valid_csv)
 
-        result = process_component_data_batch(test_db, cf)
+        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
 
         # Should succeed
         assert result is True
-        count = test_db.query(SkyComponent).count()
+        count = test_db.query(SkyComponentStaging).count()
         assert count == 2
 
         # Check log sequence
@@ -583,6 +585,8 @@ class TestIngestCatalog:
         catalog_metadata = {
             "name": "Test Catalog",
             "catalog_name": "TEST",
+            "staging": True,
+            "upload_id": "test-upload-1",
             "ingest": {
                 "file_location": [
                     {
@@ -595,7 +599,7 @@ class TestIngestCatalog:
         result = ingest_catalog(test_db, catalog_metadata)
 
         assert result is True
-        count = test_db.query(SkyComponent).count()
+        count = test_db.query(SkyComponentStaging).count()
         assert count == 3
 
     def test_empty_catalog(self, test_db):
