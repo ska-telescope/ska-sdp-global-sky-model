@@ -424,24 +424,23 @@ class TestProcessComponentDataBatch:
         assert count == 3
 
     def test_skip_duplicate_component_id(self, test_db, sample_csv_file):
-        """Test that duplicate component IDs are skipped"""
+        """Test that duplicate component IDs are allowed across different uploads"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         cf = ComponentFile(content)
 
-        # First ingestion
-
+        # First ingestion with upload_id 1
         process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
         count1 = test_db.query(SkyComponentStaging).count()
 
-        # Second ingestion - should skip duplicates
+        # Second ingestion with different upload_id - should allow duplicates
         cf2 = ComponentFile(content)
-
-        process_component_data_batch(test_db, cf2, staging=True, upload_id="test-upload-1")
+        process_component_data_batch(test_db, cf2, staging=True, upload_id="test-upload-2")
         count2 = test_db.query(SkyComponentStaging).count()
 
-        assert count1 == count2  # No new components added
+        # Both uploads should succeed with same component_ids
+        assert count2 == count1 * 2  # Double the components (different upload_ids)
 
     def test_validation_errors_prevent_ingestion(self, test_db):
         """Test that validation errors prevent any data from being ingested (all-or-nothing)"""
