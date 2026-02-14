@@ -111,7 +111,6 @@ def fixture_clean_tables():
         db.commit()
     finally:
         db.close()
-    yield
 
 
 def _mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
@@ -612,7 +611,9 @@ def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
         assert "upload_id" in response.json()
 
 
-def test_review_upload_success(myclient, monkeypatch, clean_tables):
+def test_review_upload_success(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test successful review of staged upload."""
     monkeypatch.setattr(
         "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
@@ -651,7 +652,9 @@ def test_review_upload_success(myclient, monkeypatch, clean_tables):
     assert "TEST" in review_data["sample"][0]["component_id"]
 
 
-def test_review_upload_not_completed(myclient, monkeypatch, clean_tables):
+def test_review_upload_not_completed(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test review of upload that hasn't completed yet."""
     test_metadata = {
         "version": "1.0.0",
@@ -679,7 +682,9 @@ def test_review_upload_not_completed(myclient, monkeypatch, clean_tables):
     assert "not ready for review" in review_response.json()["detail"].lower()
 
 
-def test_commit_upload_success(myclient, monkeypatch, clean_tables):
+def test_commit_upload_success(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test successful commit of staged upload with versioning."""
     monkeypatch.setattr(
         "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
@@ -733,7 +738,9 @@ def test_commit_upload_success(myclient, monkeypatch, clean_tables):
         db.close()
 
 
-def test_commit_upload_increments_version(myclient, monkeypatch, clean_tables):
+def test_commit_upload_increments_version(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test that second commit increments version to 0.2.0."""
     # Add existing data at version 0.1.0
     db = next(override_get_db())
@@ -791,7 +798,9 @@ def test_commit_upload_increments_version(myclient, monkeypatch, clean_tables):
         db.close()
 
 
-def test_commit_upload_not_completed(myclient, monkeypatch, clean_tables):
+def test_commit_upload_not_completed(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test commit fails if upload not completed."""
     test_metadata = {
         "version": "1.0.0",
@@ -817,7 +826,9 @@ def test_commit_upload_not_completed(myclient, monkeypatch, clean_tables):
     assert "not ready for commit" in commit_response.json()["detail"].lower()
 
 
-def test_reject_upload_success(myclient, monkeypatch, clean_tables):
+def test_reject_upload_success(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test successful rejection of staged upload."""
     monkeypatch.setattr(
         "ska_sdp_global_sky_model.api.app.main.ingest_catalog",
@@ -860,7 +871,9 @@ def test_reject_upload_success(myclient, monkeypatch, clean_tables):
         db.close()
 
 
-def test_reject_upload_not_completed(myclient, monkeypatch, clean_tables):
+def test_reject_upload_not_completed(
+    myclient, monkeypatch, clean_tables
+):  # pylint: disable=unused-argument
     """Test reject fails if upload not completed."""
     test_metadata = {
         "version": "1.0.0",
