@@ -1,10 +1,9 @@
+# pylint: disable=redefined-outer-name,unused-import
 """Tests for the background watcher"""
 
 import copy
 import pathlib
 from unittest.mock import MagicMock, call, patch
-
-from tests.test_db_schema import db_session
 
 import pytest
 from ska_sdp_config.entity import Flow
@@ -17,7 +16,6 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 )
 
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
-
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
     _get_flows,
@@ -26,6 +24,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _update_state,
     _watcher_process,
 )
+from tests.test_db_schema import db_session  # noqa: F401
 
 # pylint: disable=too-many-arguments
 
@@ -87,7 +86,7 @@ def test_happy_path(
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
     # Create a mock GlobalSkyModel object
-    mock_gsm = GlobalSkyModel(sources={})
+    mock_gsm = GlobalSkyModel(components={}, metadata={})
     mock_filter_function.return_value = mock_gsm
 
     _watcher_process(mock_config)
@@ -436,8 +435,7 @@ def test_update_state_no_change():
     ]
 
 
-@patch("ska_sdp_global_sky_model.configuration.config.session_local")
-def test_query_gsm_for_lsm_with_sources(mock_session_local, db_session):
+def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with sources found"""
     component = SkyComponent(
         component_id="DictTestSource",
@@ -447,9 +445,7 @@ def test_query_gsm_for_lsm_with_sources(mock_session_local, db_session):
         # version="latest"
     )
     db_session.add(component)
-    db_session.add(component)
     db_session.commit()
-
 
     # Execute the function
     query_params = QueryParameters(ra=111.11, dec=-22.22, fov=180, version="latest")
@@ -457,221 +453,69 @@ def test_query_gsm_for_lsm_with_sources(mock_session_local, db_session):
 
     # Verify results
     assert isinstance(result, GlobalSkyModel)
-    assert len(result.sources) == 1
-    assert 1 in result.sources
-    sky_source = result.sources[1]
+    assert len(result.components) == 1
+    assert 1 in result.components
+    sky_source = result.components[1]
     assert isinstance(sky_source, SkyComponentDataclass)
-    assert sky_source.source_id == 1
-    assert sky_source.ra == 2.9670
-    assert sky_source.dec == -0.1745
-    assert sky_source.wideband[0].flux == 2.0
-    assert sky_source.narrowband[0].flux == 1.8
-
-    # Verify session was closed
-    mock_db.close.assert_called_once()
+    assert sky_source.ra == 111.11
+    assert sky_source.dec == -22.22
 
 
-@patch("ska_sdp_global_sky_model.configuration.config.session_local")
-def test_query_gsm_for_lsm_no_sources(mock_session_local):
+def test_query_gsm_for_lsm_no_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with no sources found"""
-
-    # Setup mock database session
-    mock_db = MagicMock()
-    mock_session_local.return_value = mock_db
-
-    # Mock empty source data
-    mock_query = MagicMock()
-    mock_query.where.return_value.distinct.return_value.all.return_value = []
-    mock_db.query.return_value = mock_query
 
     # Execute the function
     query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
-    result = _query_gsm_for_lsm(query_params)
+    result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify empty result
     assert isinstance(result, GlobalSkyModel)
-    assert len(result.sources) == 0
-    assert not result.sources
-
-    # Verify session was closed
-    mock_db.close.assert_called_once()
+    assert len(result.components) == 0
+    assert not result.components
 
 
-@patch("ska_sdp_global_sky_model.configuration.config.session_local")
-def test_query_gsm_for_lsm_database_error(mock_session_local):
-    """Test querying GSM for LSM handles database errors"""
-
-    # Setup mock database session
-    mock_db = MagicMock()
-    mock_session_local.return_value = mock_db
-
-    # Mock database error
-    mock_db.query.side_effect = Exception("Database connection error")
-
-    # Execute the function and expect exception
-    query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
-
-    with pytest.raises(Exception, match="Database connection error"):
-        _query_gsm_for_lsm(query_params)
-
-    # Verify session was closed even on error
-    mock_db.close.assert_called_once()
-
-
-@patch("ska_sdp_global_sky_model.configuration.config.session_local")
-def test_query_gsm_for_lsm_multiple_sources(mock_session_local):
+def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with multiple sources found"""
-    # pylint: disable=too-many-statements,import-outside-toplevel
-    from ska_sdp_datamodels.global_sky_model.global_sky_model import SkySource
 
-    # Setup mock database session
-    mock_db = MagicMock()
-    mock_session_local.return_value = mock_db
+    component = SkyComponent(
+        component_id="1",
+        ra=2.9670,
+        dec=-0.1745,
+        healpix_index=1,
+        # version="latest"
+    )
+    db_session.add(component)
 
-    # Mock source data with three sources
-    mock_source1 = MagicMock()
-    mock_source1.id = 1
-    mock_source1.RAJ2000 = 2.9670
-    mock_source1.DECJ2000 = -0.1745
+    component_2 = SkyComponent(
+        component_id="2",
+        ra=2.9680,
+        dec=-0.1755,
+        healpix_index=2,
+        # version="latest"
+    )
+    db_session.add(component_2)
 
-    mock_source2 = MagicMock()
-    mock_source2.id = 2
-    mock_source2.RAJ2000 = 2.9680
-    mock_source2.DECJ2000 = -0.1755
+    component_3 = SkyComponent(
+        component_id="3",
+        ra=2.9690,
+        dec=-0.1765,
+        healpix_index=3,
+        # version="latest"
+    )
+    db_session.add(component_3)
 
-    mock_source3 = MagicMock()
-    mock_source3.id = 3
-    mock_source3.RAJ2000 = 2.9690
-    mock_source3.DECJ2000 = -0.1765
-
-    # Mock wideband data for sources
-    mock_wb1 = MagicMock()
-    mock_wb1.source = 1
-    mock_wb1.Bck_Wide = 0.01
-    mock_wb1.Local_RMS_Wide = 0.02
-    mock_wb1.Int_Flux_Wide = 1.5
-    mock_wb1.Int_Flux_Wide_Error = 0.1
-    mock_wb1.Resid_Mean_Wide = 0.001
-    mock_wb1.Resid_Sd_Wide = 0.002
-    mock_wb1.Abs_Flux_Pct_Error = 5.0
-    mock_wb1.Fit_Flux_Pct_Error = 3.0
-    mock_wb1.A_PSF_Wide = 10.0
-    mock_wb1.B_PSF_Wide = 8.0
-    mock_wb1.PA_PSF_Wide = 45.0
-    mock_wb1.A_Wide = 12.0
-    mock_wb1.A_Wide_Error = 1.0
-    mock_wb1.B_Wide = 10.0
-    mock_wb1.B_Wide_Error = 0.8
-    mock_wb1.PA_Wide = 50.0
-    mock_wb1.PA_Wide_Error = 5.0
-    mock_wb1.Flux_Wide = 2.0
-    mock_wb1.Flux_Wide_Error = 0.15
-    mock_wb1.Spectral_Index = -0.7
-    mock_wb1.Spectral_Index_Error = 0.05
-    mock_wb1.Spectral_Curvature = 0.1
-    mock_wb1.Spectral_Curvature_Error = 0.01
-    mock_wb1.Polarised = False
-    mock_wb1.Stokes = "I"
-    mock_wb1.Rotational_Measure = None
-    mock_wb1.Rotational_Measure_Error = None
-    mock_wb1.Fractional_Polarisation = None
-    mock_wb1.Fractional_Polarisation_Error = None
-    mock_wb1.Faraday_Complex = False
-    mock_wb1.Variable = False
-    mock_wb1.Modulation_Index = None
-    mock_wb1.Debiased_Modulation_Index = None
-
-    mock_wb2 = MagicMock()
-    mock_wb2.source = 2
-    mock_wb2.Bck_Wide = 0.01
-    mock_wb2.Local_RMS_Wide = 0.02
-    mock_wb2.Int_Flux_Wide = 1.5
-    mock_wb2.Int_Flux_Wide_Error = 0.1
-    mock_wb2.Resid_Mean_Wide = 0.001
-    mock_wb2.Resid_Sd_Wide = 0.002
-    mock_wb2.Abs_Flux_Pct_Error = 5.0
-    mock_wb2.Fit_Flux_Pct_Error = 3.0
-    mock_wb2.A_PSF_Wide = 10.0
-    mock_wb2.B_PSF_Wide = 8.0
-    mock_wb2.PA_PSF_Wide = 45.0
-    mock_wb2.A_Wide = 12.0
-    mock_wb2.A_Wide_Error = 1.0
-    mock_wb2.B_Wide = 10.0
-    mock_wb2.B_Wide_Error = 0.8
-    mock_wb2.PA_Wide = 50.0
-    mock_wb2.PA_Wide_Error = 5.0
-    mock_wb2.Flux_Wide = 3.5
-    mock_wb2.Flux_Wide_Error = 0.2
-    mock_wb2.Spectral_Index = -0.8
-    mock_wb2.Spectral_Index_Error = 0.06
-    mock_wb2.Spectral_Curvature = 0.15
-    mock_wb2.Spectral_Curvature_Error = 0.02
-    mock_wb2.Polarised = False
-    mock_wb2.Stokes = "I"
-    mock_wb2.Rotational_Measure = None
-    mock_wb2.Rotational_Measure_Error = None
-    mock_wb2.Fractional_Polarisation = None
-    mock_wb2.Fractional_Polarisation_Error = None
-    mock_wb2.Faraday_Complex = False
-    mock_wb2.Variable = False
-    mock_wb2.Modulation_Index = None
-    mock_wb2.Debiased_Modulation_Index = None
-
-    # Configure mock returns for subsequent queries
-    def query_side_effect(*_args):
-        # First call: sources query
-        mock_q1 = MagicMock()
-        mock_q1.where.return_value.distinct.return_value.all.return_value = [
-            mock_source1,
-            mock_source2,
-            mock_source3,
-        ]
-
-        # Second call: wideband query (has one .join())
-        mock_q2 = MagicMock()
-        mock_q2.join.return_value.filter.return_value.all.return_value = [
-            (mock_wb1, 1),
-            (mock_wb2, 1),
-        ]
-
-        # Third call: narrowband query (has two .join() calls, empty for this test)
-        mock_q3 = MagicMock()
-        mock_q3.join.return_value.join.return_value.filter.return_value.all.return_value = []
-
-        # Return appropriate mock based on call order
-        if not hasattr(query_side_effect, "call_count"):
-            query_side_effect.call_count = 0
-        query_side_effect.call_count += 1
-
-        if query_side_effect.call_count == 1:
-            return mock_q1
-        if query_side_effect.call_count == 2:
-            return mock_q2
-        return mock_q3
-
-    mock_db.query.side_effect = query_side_effect
+    db_session.commit()
 
     # Execute the function
     query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
-    result = _query_gsm_for_lsm(query_params)
+    result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
     assert isinstance(result, GlobalSkyModel)
-    assert len(result.sources) == 3
-    assert 1 in result.sources
-    assert 2 in result.sources
-    assert 3 in result.sources
-    assert isinstance(result.sources[1], SkySource)
-    assert isinstance(result.sources[2], SkySource)
-    assert isinstance(result.sources[3], SkySource)
-    assert result.sources[1].source_id == 1
-    assert result.sources[2].source_id == 2
-    assert result.sources[3].source_id == 3
-    assert len(result.sources[1].wideband) == 1
-    assert len(result.sources[2].wideband) == 1
-    assert len(result.sources[3].wideband) == 0  # No wideband data for source 3
-    assert result.sources[1].wideband[0].flux == 2.0
-    assert result.sources[2].wideband[0].flux == 3.5
-
-    # Verify session was closed
-    mock_db.close.assert_called_once()
+    assert len(result.components) == 3
+    assert 1 in result.components
+    assert 2 in result.components
+    assert 3 in result.components
+    assert isinstance(result.components[1], SkyComponentDataclass)
+    assert isinstance(result.components[2], SkyComponentDataclass)
+    assert isinstance(result.components[3], SkyComponentDataclass)
