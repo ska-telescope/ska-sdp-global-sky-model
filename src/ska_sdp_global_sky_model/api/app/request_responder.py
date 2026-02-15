@@ -25,10 +25,8 @@ import time
 from collections.abc import Generator
 from pathlib import Path
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
 import ska_sdp_config
+from fastapi import Depends
 from ska_sdp_config.entity.flow import Flow, FlowSource
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModel,
@@ -36,6 +34,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
+from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.crud import q3c_radial_query
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
@@ -158,7 +157,8 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, 
     logger.info(" -> params: %s", query_parameters)
 
     try:
-        output_data = _query_gsm_for_lsm(query_parameters)
+        db = get_db()
+        output_data = _query_gsm_for_lsm(query_parameters, db)
         _write_metadata(output_location, flow)
         _write_data(output_location, output_data)
     except Exception as err:  # pylint: disable=broad-exception-caught
@@ -206,9 +206,9 @@ def _query_gsm_for_lsm(
 
     try:
         # Query components within the field of view using spatial index
+        # pylint: disable=no-member
         sky_components = (
-            db.query(SkyComponent.id)
-            .where(
+            db.query(SkyComponent).where(
                 q3c_radial_query(
                     SkyComponent.ra,
                     SkyComponent.dec,
@@ -221,11 +221,14 @@ def _query_gsm_for_lsm(
             .all()
         )
 
-        sky_components_dict = {
-            sky_component.id: SkyComponentDataclass(sky_component.to_dict())
-            for sky_component in sky_components
-        }
-        return GlobalSkyModel(components=sky_components_dict)
+        sky_components_dict = {}
+        for sky_component in sky_components:
+            sky_component_dict = sky_component.columns_to_dict()
+            del sky_component_dict["id"]
+            del sky_component_dict["healpix_index"]
+            sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
+
+        return GlobalSkyModel(metadata={}, components=sky_components_dict)
 
     except Exception as e:
         logger.exception("Error querying GSM database: %s", e)
