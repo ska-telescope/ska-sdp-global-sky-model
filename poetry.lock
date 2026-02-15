@@ -2930,6 +2930,18 @@ files = [
 dev = ["black", "build", "mypy", "pytest", "pytest-cov", "setuptools", "tox", "twine", "wheel"]
 
 [[package]]
+name = "pytz"
+version = "2025.2"
+description = "World timezone definitions, modern and historical"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
+    {file = "pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3"},
+]
+
+[[package]]
 name = "pyvo"
 version = "1.8"
 description = "Astropy affiliated package for accessing Virtual Observatory data and services"
@@ -3340,14 +3352,14 @@ reference = "skao"
 
 [[package]]
 name = "ska-sdp-datamodels"
-version = "1.0.2+dev.c2a771380"
+version = "1.0.2+dev.c772c480c"
 description = "SKA SDP Python-based Data Models"
 optional = false
 python-versions = ">=3.10,<4.0"
 groups = ["main"]
 files = [
-    {file = "ska_sdp_datamodels-1.0.2+dev.c2a771380-py3-none-any.whl", hash = "sha256:29dcedab510451f176f295a8d44d7d8e5202c965d8cfd4cbee8bddb3212080d1"},
-    {file = "ska_sdp_datamodels-1.0.2+dev.c2a771380.tar.gz", hash = "sha256:f8046e3c7449355b4fe63c8773aeb54294a91bbec23af4a509c8a2ab0e8c5d20"},
+    {file = "ska_sdp_datamodels-1.0.2+dev.c772c480c-py3-none-any.whl", hash = "sha256:2d0ceebfadd9cb3a599b9347990b5092c5eb01d44ae19369db140dfb5371e134"},
+    {file = "ska_sdp_datamodels-1.0.2+dev.c772c480c.tar.gz", hash = "sha256:572c25373f4d240cb468e683f34620c3a5b929ed0b37ab7204744ad9903fbf57"},
 ]
 
 [package.dependencies]
@@ -4154,4 +4166,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "284c67f9ad5534d68836e3076d2658a2c8e5a73f97883c4e3a636f30142b544c"
+content-hash = "3b9b2015cdf3dcd17ff703586602c0c557388a4ef1473042c0beaf60253baa0e"

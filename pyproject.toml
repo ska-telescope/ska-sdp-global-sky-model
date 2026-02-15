@@ -46,7 +46,7 @@ python-multipart = "^0.0.9"
 healpy = "^1.19.0"
 alembic = "^1.13.2"
 ska-sdp-config = "^1.4.0"
-ska-sdp-datamodels = "1.0.2+dev.c2a771380"
+ska-sdp-datamodels = "1.0.2+dev.c772c480c"
 ska-sdp-dataproduct-metadata = "^1.1.0"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
 PyYAML = "^6.0.0"
