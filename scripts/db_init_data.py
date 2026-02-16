@@ -5,7 +5,8 @@ import argparse
 from pathlib import Path
 import sys
 
-from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
+from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.configuration.config import get_db
 
 
@@ -16,26 +17,38 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--name", help="Name of dataset", default="Sample Dataset")
-    parser.add_argument("--catalog_name", help="Name of catalogue", default="test_catalog")
+    parser.add_argument("--catalogue_name", help="Name of catalogue", default="test_catalogue")
+    parser.add_argument("--version", help="Catalogue version", default="0.1.0")
     parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
 
     args = parser.parse_args()
 
     # Configuration pointing to the in-memory content
-    catalog_config = {
+    catalogue_config = {
         "name": args.name,
-        "catalog_name": args.catalog_name,
+        "catalogue_name": args.catalogue_name,
         "ingest": {"file_location": []},
     }
 
     for file in args.csv_files:
-        catalog_config["ingest"]["file_location"].append(
+        catalogue_config["ingest"]["file_location"].append(
             {"content": Path(file).read_text(encoding="utf8")}
         )
 
     # Get DB session and load the data
     db = next(get_db())
-    if not ingest_catalog(db, catalog_config):
+    
+    # Create metadata entry for this catalogue
+    metadata = GlobalSkyModelMetadata(
+        catalogue_name=args.catalogue_name,
+        description=args.description,
+        version=args.version,
+        name=args.name,
+    )
+    db.add(metadata)
+    db.commit()
+    
+    if not ingest_catalogue(db, catalogue_config):
         sys.exit(1)
 
 

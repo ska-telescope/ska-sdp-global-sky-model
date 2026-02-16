@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Sky Model Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .drop-zone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+
+        .drop-zone.dragover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .file-item button {
+            background: #f56565;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .status-value {
+            color: #2d3748;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.pending {
+            background: #fef5e7;
+            color: #d68910;
+        }
+
+        .status-badge.uploading {
+            background: #ebf4ff;
+            color: #2c5aa0;
+        }
+
+        .status-badge.completed {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.failed {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .review-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fffaf0;
+            border: 2px solid #fbd38d;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .review-section h3 {
+            color: #744210;
+            margin-bottom: 15px;
+        }
+
+        .review-info {
+            margin-bottom: 15px;
+            color: #744210;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-approve {
+            flex: 1;
+            background: #48bb78;
+            color: white;
+            padding: 12px;
+        }
+
+        .btn-approve:hover {
+            background: #38a169;
+        }
+
+        .btn-reject {
+            flex: 1;
+            background: #f56565;
+            color: white;
+            padding: 12px;
+        }
+
+        .btn-reject:hover {
+            background: #e53e3e;
+        }
+
+        .sample-data {
+            max-height: 300px;
+            overflow: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌌 Global Sky Model Upload</h1>
+
+        <div id="alert"></div>
+
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="fileInput">Global Sky Model Files (CSV)</label>
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📁</div>
+                    <div>Drag and drop CSV files or click to browse</div>
+                </div>
+                <input type="file" id="fileInput" accept=".csv" multiple />
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+            <button type="submit" class="btn btn-primary" id="uploadBtn">
+                Upload Files
+            </button>
+        </form>
+
+        <div class="status" id="status"></div>
+
+        <div class="review-section" id="reviewSection">
+            <h3>Review Staged Data</h3>
+            <div id="reviewInfo" class="review-info"></div>
+            <div class="sample-data" id="sampleData"></div>
+            <div class="review-actions">
+                <button class="btn btn-approve" id="commitBtn">
+                    ✓ Commit to Database
+                </button>
+                <button class="btn btn-reject" id="rejectBtn">
+                    ✗ Reject and Discard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const alertDiv = document.getElementById('alert');
+        const statusDiv = document.getElementById('status');
+        const reviewSection = document.getElementById('reviewSection');
+        const reviewInfo = document.getElementById('reviewInfo');
+        const sampleData = document.getElementById('sampleData');
+        const commitBtn = document.getElementById('commitBtn');
+        const rejectBtn = document.getElementById('rejectBtn');
+
+        let selectedFiles = [];
+        let currentUploadId = null;
+        
+        function apiUrl(endpoint) {
+            const basePath = window.location.pathname.replace(/\/upload\/?$/, '/');
+            return `${basePath}${endpoint}`;
+        }
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            const csvFiles = Array.from(files).filter(f => f.name.endsWith('.csv'));
+            if (csvFiles.length === 0) {
+                showAlert('error', 'Please select CSV files only');
+                return;
+            }
+            selectedFiles = [...selectedFiles, ...csvFiles];
+            updateFileList();
+        }
+
+        function updateFileList() {
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '';
+                return;
+            }
+            fileList.innerHTML = selectedFiles.map((f, i) => `
+                <div class="file-item">
+                    <span>📄 ${f.name}</span>
+                    <button type="button" onclick="removeFile(${i})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (selectedFiles.length === 0) {
+                showAlert('error', 'Please select at least one file');
+                return;
+            }
+
+            const formData = new FormData();
+            selectedFiles.forEach(f => formData.append('files', f));
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            reviewSection.style.display = 'none';
+            
+            try {
+                const response = await fetch(apiUrl('upload-sky-survey-batch'), {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentUploadId = data.upload_id;
+                    showAlert('success', `Upload started! ID: ${data.upload_id}`);
+                    monitorStatus(data.upload_id);
+                } else {
+                    showAlert('error', `Failed: ${data.detail || 'Unknown error'}`);
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload Files';
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Files';
+            }
+        });
+
+        async function monitorStatus(uploadId) {
+            statusDiv.style.display = 'block';
+            let retryCount = 0;
+            const maxRetries = 30; // 30 retries = 60 seconds
+            
+            const check = async () => {
+                try {
+                    const response = await fetch(apiUrl(`upload-sky-survey-status/${uploadId}`));
+                    const status = await response.json();
+
+                    // Reset retry count on successful fetch
+                    retryCount = 0;
+
+                    const stateBadge = `<span class="status-badge ${status.state.toLowerCase()}">${status.state.toUpperCase()}</span>`;
+                    
+                    statusDiv.innerHTML = `
+                        <div class="status-item">
+                            <span class="status-label">Upload ID:</span>
+                            <span class="status-value">${uploadId.substring(0, 8)}...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Status:</span>
+                            <span class="status-value">${stateBadge}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Files Progress:</span>
+                            <span class="status-value">${status.uploaded_files} / ${status.total_files}</span>
+                        </div>
+                        ${status.state === 'completed' ? `
+                        <div class="status-item">
+                            <span class="status-label">Location:</span>
+                            <span class="status-value">Staging Table (awaiting review)</span>
+                        </div>
+                        ` : ''}
+                        ${status.errors.length > 0 ? `
+                        <div class="status-item">
+                            <span class="status-label">Errors:</span>
+                            <span class="status-value" style="color: #e53e3e;">${status.errors.join(', ')}</span>
+                        </div>
+                        ` : ''}
+                    `;
+
+                    if (status.state === 'completed') {
+                        showAlert('success', 'Upload to staging complete! Please review before committing.');
+                        await loadReviewData(uploadId);
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                    } else if (status.state === 'failed') {
+                        showAlert('error', 'Upload failed');
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                    } else {
+                        setTimeout(check, 2000);
+                    }
+                } catch (error) {
+                    retryCount++;
+                    console.error(`Failed to fetch upload status (attempt ${retryCount}/${maxRetries}):`, error);
+                    
+                    if (retryCount >= maxRetries) {
+                        showAlert('error', 'Lost connection to server. Please refresh and check upload status manually.');
+                        uploadBtn.disabled = false;
+                        uploadBtn.textContent = 'Upload Files';
+                    } else {
+                        setTimeout(check, 2000);
+                    }
+                }
+            };
+
+            check();
+        }
+
+        async function loadReviewData(uploadId) {
+            try {
+                const response = await fetch(apiUrl(`review-upload/${uploadId}`));
+                const data = await response.json();
+
+                if (response.ok) {
+                    reviewInfo.innerHTML = `
+                        <div class="status-item">
+                            <span class="status-label">Total Records:</span>
+                            <span class="status-value"><strong>${data.total_records}</strong></span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Upload ID:</span>
+                            <span class="status-value">${data.upload_id}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Next Action:</span>
+                            <span class="status-value">Will create new version when committed</span>
+                        </div>
+                        <div style="margin-top: 15px; padding: 12px; background: #ebf8ff; border-left: 4px solid #4299e1; border-radius: 4px;">
+                            <strong>ℹ️ Versioning:</strong> When committed, records will be added to the main table.
+                            Duplicate component_ids will create new versions using semantic versioning.
+                        </div>
+                    `;
+
+                    sampleData.innerHTML = `<pre>${JSON.stringify(data.sample, null, 2)}</pre>`;
+                    reviewSection.style.display = 'block';
+                } else {
+                    showAlert('error', 'Failed to load review data');
+                }
+            } catch (error) {
+                showAlert('error', `Error loading review: ${error.message}`);
+            }
+        }
+
+        commitBtn.addEventListener('click', async () => {
+            if (!currentUploadId) return;
+
+            if (!confirm('Are you sure you want to commit this data to the main database?')) {
+                return;
+            }
+
+            commitBtn.disabled = true;
+            commitBtn.textContent = 'Committing...';
+
+            try {
+                const response = await fetch(apiUrl(`commit-upload/${currentUploadId}`), {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', `✓ Success! ${data.records_committed} records committed with versioning.`);
+                    reviewSection.style.display = 'none';
+                    selectedFiles = [];
+                    fileInput.value = '';
+                    updateFileList();
+                    statusDiv.style.display = 'none';
+                    currentUploadId = null;
+                } else {
+                    showAlert('error', `Commit failed: ${data.detail}`);
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+            } finally {
+                commitBtn.disabled = false;
+                commitBtn.textContent = '✓ Commit to Database';
+            }
+        });
+
+        rejectBtn.addEventListener('click', async () => {
+            if (!currentUploadId) return;
+
+            if (!confirm('Are you sure you want to reject and discard this data?')) {
+                return;
+            }
+
+            rejectBtn.disabled = true;
+            rejectBtn.textContent = 'Rejecting...';
+
+            try {
+                const response = await fetch(apiUrl(`reject-upload/${currentUploadId}`), {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('success', `Rejected. ${data.records_deleted} records discarded.`);
+                    reviewSection.style.display = 'none';
+                    selectedFiles = [];
+                    fileInput.value = '';
+                    updateFileList();
+                    statusDiv.style.display = 'none';
+                    currentUploadId = null;
+                } else {
+                    showAlert('error', `Reject failed: ${data.detail}`);
+                }
+            } catch (error) {
+                showAlert('error', `Error: ${error.message}`);
+            } finally {
+                rejectBtn.disabled = false;
+                rejectBtn.textContent = '✗ Reject and Discard';
+            }
+        });
+
+        function showAlert(type, message) {
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

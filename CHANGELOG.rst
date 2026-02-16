@@ -4,6 +4,11 @@ CHANGELOG
 Development
 -----------
 
+- [Added] Batch upload feature with staging table and review workflow for sky survey data:
+  - New ``sky_component_staging`` table for temporary upload storage with ``upload_id`` tracking
+  - Browser-based upload interface at ``/upload`` endpoint with drag-and-drop support
+  - Dataset-level semantic versioning (0.1.0 → 0.2.0)
+  - Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files
 - [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
   Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
 - [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
@@ -111,7 +116,7 @@ Unreleased
 0.1.3
 -----
 
-- Changes to allow ingest of an arbitrary catalog for testing.
+- Changes to allow ingest of an arbitrary catalogue for testing.
   (`MR22 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/22>`__)
 - Improve Local Sky Model creation speed
   (`MR21 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/21>`__)
@@ -123,7 +128,7 @@ Unreleased
   (`MR18 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/18>`__)
 - Fixed up dockerfile, ensure DB connection is up and running before finishing app startup
   (`MR17 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/17>`__)
-- Make the ingest generic to be able to process both vizier and file based catalog
+- Make the ingest generic to be able to process both vizier and file based catalogue
   (`MR16 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/16>`__)
 - Implement Cone Search
   (`MR15 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/15>`__)
@@ -135,7 +140,7 @@ Unreleased
   (`MR12 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/12>`__)
 - Add probes, update volumes, update docker compose
   (`MR11 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/11>`__)
-- Ingest GLEAM catalog, updated models, added test endpoints
+- Ingest GLEAM catalogue, updated models, added test endpoints
   (`MR10 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/10>`__)
 - Use sqlalchemy for Data models
   (`MR7 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/7>`__)
