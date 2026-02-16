@@ -43,6 +43,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     SHARED_VOLUME_MOUNT,
     get_db,
 )
+from ska_sdp_global_sky_model.utilities.local_sky_model import LocalSkyModel
 
 logger = logging.getLogger(__name__)
 
@@ -157,10 +158,13 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, 
     logger.info(" -> params: %s", query_parameters)
 
     try:
-        db = get_db()
-        output_data = _query_gsm_for_lsm(query_parameters, db)
-        _write_metadata(output_location, flow)
-        _write_data(output_location, output_data)
+        db = next(get_db())
+        try:
+            output_data = _query_gsm_for_lsm(query_parameters, db)
+            _write_metadata(output_location, flow)
+            _write_data(output_location, output_data)
+        finally:
+            db.close()
     except Exception as err:  # pylint: disable=broad-exception-caught
         logger.exception(err)
         return False, str(err)
@@ -175,10 +179,9 @@ def _query_gsm_for_lsm(
     """
     Query the Global Sky Model database for sources within the specified field of view.
 
-    This function queries the GSM database to retrieve sources and their associated
-    narrowband and wideband measurements within a circular region defined by the
-    provided coordinates and field of view. Results are returned as a GlobalSkyModel
-    object.
+    This function queries the GSM database to retrieve sky components within a circular
+    region defined by the provided coordinates and field of view. Results are returned
+    as a GlobalSkyModel object.
 
     Args:
         query_parameters: QueryParameters object containing:
@@ -186,15 +189,16 @@ def _query_gsm_for_lsm(
             - dec: Declination in radians
             - fov: Field of view radius in radians
             - version: GSM version to query (currently unused, defaults to "latest")
+        db: Database session
 
     Returns:
         A GlobalSkyModel object from ska_sdp_datamodels.global_sky_model,
-        containing a dictionary of SkySource objects keyed by source ID.
+        containing a dictionary of SkyComponent objects keyed by component ID.
 
     Note:
         - The function uses q3c_radial_query for efficient spatial queries
-        - Sources are retrieved along with all their narrowband and wideband data
-        - Empty GlobalSkyModel is returned if no sources are found within the FOV
+        - Components include position, Stokes parameters, morphology, and spectral indices
+        - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
     logger.info(
         "Querying GSM: RA=%.6f, Dec=%.6f, FOV=%.6f rad (version=%s)",
@@ -261,18 +265,86 @@ def _update_state(
         txn.flow.state(flow).create(new_state)
 
 
-def _write_data(output: Path, data: "GlobalSkyModel"):  # pragma: no cover
-    """This is a stub to write the LSM to disk
+def _write_data(output: Path, data: "GlobalSkyModel"):
+    """Write the LSM to disk as a CSV file.
 
     Args:
         output: Path to the output directory
-        data: GlobalSkyModel object containing the sources to write
+        data: GlobalSkyModel object containing the components to write
     """
-    logger.debug("output: %s", output)
-    logger.debug("data: %s", data)
+    logger.info("Writing LSM data to: %s", output)
+    logger.info("Number of components: %d", len(data.components))
+
+    # Create output directory if it doesn't exist
+    output.mkdir(parents=True, exist_ok=True)
+
+    # Define the output file path
+    lsm_file = output / "local_sky_model.csv"
+
+    # Get column names from SkyComponent dataclass
+    column_names = (
+        list(next(iter(data.components.values())).__annotations__.keys())
+        if data.components
+        else list(SkyComponentDataclass.__annotations__.keys())
+    )
+
+    # Create LocalSkyModel with the right size
+    local_model = LocalSkyModel.empty(
+        column_names=column_names,
+        num_rows=len(data.components),
+        max_vector_len=5,  # For spectral index vectors
+    )
+
+    # Populate the LocalSkyModel with data from GlobalSkyModel
+    for row_idx, component in enumerate(data.components.values()):
+        row_data = {field: getattr(component, field, None) for field in column_names}
+        local_model.set_row(row_idx, row_data)
+
+    # Find the ska-sdm directory for metadata
+    metadata_dir = _find_ska_sdm_dir(output)
+
+    # Use LocalSkyModel.save() to write both CSV and metadata
+    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
+
+    logger.info("Successfully wrote LSM to %s", lsm_file)
+    logger.info("Metadata written to %s/ska-data-product.yaml", metadata_dir)
 
 
-def _write_metadata(output: Path, flow: Flow):  # pragma: no cover
-    """This is a stub to write the Metadata"""
-    logger.debug("output: %s", output)
-    logger.debug("flow: %s", flow)
+def _find_ska_sdm_dir(output: Path) -> Path:
+    """Find the ska-sdm directory in the output path.
+
+    According to docs: "the metadata file will be put in the first
+    <pb_id>/ska-sdm parent directory."
+
+    Args:
+        output: Output path
+            (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id})
+
+    Returns:
+        Path to the ska-sdm directory
+    """
+    current = output
+    while current != current.parent:
+        if current.name == "ska-sdm":
+            return current
+        current = current.parent
+
+    # If ska-sdm not found, use parent of output as fallback
+    logger.warning("Could not find 'ska-sdm' in path %s, using parent directory", output)
+    return output.parent
+
+
+def _write_metadata(output: Path, flow: Flow):
+    """Write metadata for the LSM.
+
+    Note: The actual metadata writing is handled by LocalSkyModel.save(),
+    which is called in _write_data(). This function serves as a placeholder
+    for any additional metadata operations that may be needed in the future.
+
+    Args:
+        output: Path to the output directory
+        flow: Flow object containing request information
+    """
+    logger.info("Metadata handling delegated to LocalSkyModel.save()")
+    logger.debug("Flow: %s", flow.key)
+    logger.debug("Output: %s", output)

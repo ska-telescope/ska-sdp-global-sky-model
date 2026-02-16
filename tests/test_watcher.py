@@ -18,11 +18,13 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
+    _find_ska_sdm_dir,
     _get_flows,
     _process_flow,
     _query_gsm_for_lsm,
     _update_state,
     _watcher_process,
+    _write_data,
 )
 from tests.test_db_schema import db_session  # noqa: F401
 
@@ -112,9 +114,11 @@ def test_happy_path(
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
-    assert mock_filter_function.mock_calls == [
-        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
-    ]
+    assert mock_filter_function.mock_calls[0].args[0] == QueryParameters(
+        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+    )
+    # Second argument is the db session, just verify it was called
+    assert len(mock_filter_function.mock_calls) == 1
     assert mock_write_data.mock_calls == [call(path, mock_gsm)]
     assert mock_write_metadata.mock_calls == [call(path, valid_flow)]
 
@@ -320,9 +324,11 @@ def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
     assert success is True
     assert reason is None
 
-    assert mock_call.mock_calls == [
-        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
-    ]
+    # Check that _query_gsm_for_lsm was called with correct query parameters
+    assert len(mock_call.mock_calls) == 1
+    assert mock_call.mock_calls[0].args[0] == QueryParameters(
+        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+    )
     assert mock_meta.mock_calls == [
         call(
             pathlib.Path(output_path),
@@ -349,9 +355,11 @@ def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
     assert success is False
     assert reason == "An error occured"
 
-    assert mock_call.mock_calls == [
-        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
-    ]
+    # Check that _query_gsm_for_lsm was called with correct query parameters
+    assert len(mock_call.mock_calls) == 1
+    assert mock_call.mock_calls[0].args[0] == QueryParameters(
+        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+    )
     assert mock_meta.mock_calls == []
     assert mock_data.mock_calls == []
 
@@ -519,3 +527,113 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     assert isinstance(result.components[1], SkyComponentDataclass)
     assert isinstance(result.components[2], SkyComponentDataclass)
     assert isinstance(result.components[3], SkyComponentDataclass)
+
+
+def test_write_data_integration(
+    db_session, tmp_path  # noqa: F811  # pylint: disable=unused-argument,redefined-outer-name
+):
+    """Integration test for _write_data with actual file writing"""
+
+    # Create test components
+    component1 = SkyComponentDataclass(
+        component_id="TEST001",
+        ra=45.0,
+        dec=-30.0,
+        i_pol=1.5,
+        major_ax=0.01,
+        minor_ax=0.005,
+        pos_ang=45.0,
+        spec_idx=[0.8, -0.5],
+        log_spec_idx=False,
+    )
+
+    component2 = SkyComponentDataclass(
+        component_id="TEST002",
+        ra=46.0,
+        dec=-31.0,
+        i_pol=2.3,
+        spec_idx=[0.9],
+    )
+
+    # Create GlobalSkyModel
+    gsm = GlobalSkyModel(
+        metadata={},
+        components={"TEST001": component1, "TEST002": component2},
+    )
+
+    # Create output directory structure (simulating the expected path)
+    output_dir = (
+        tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm" / "sky" / "field1"
+    )
+
+    # Ensure ska-sdm directory exists
+    ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
+    ska_sdm_dir.mkdir(parents=True, exist_ok=True)
+
+    # Mock the metadata writing to avoid validation issues
+    # (metadata validation is tested separately in local_sky_model tests)
+    with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
+        # Write the data
+        _write_data(output_dir, gsm)
+
+    # Verify CSV file was created
+    csv_file = output_dir / "local_sky_model.csv"
+    assert csv_file.exists()
+
+    # Read and verify CSV content
+    csv_content = csv_file.read_text()
+    assert "TEST001" in csv_content
+    assert "TEST002" in csv_content
+    assert "45.0" in csv_content or "45" in csv_content
+    assert "-30.0" in csv_content or "-30" in csv_content
+    assert "# NUMBER_OF_COMPONENTS: 2" in csv_content
+
+
+def test_write_data_empty_components(tmp_path):
+    """Test _write_data with empty GlobalSkyModel"""
+
+    # Create empty GlobalSkyModel
+    gsm = GlobalSkyModel(metadata={}, components={})
+
+    # Create output directory
+    output_dir = (
+        tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm" / "sky" / "field1"
+    )
+
+    # Ensure ska-sdm directory exists
+    ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
+    ska_sdm_dir.mkdir(parents=True, exist_ok=True)
+
+    # Mock the metadata writing to avoid validation issues
+    with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
+        # Write the data
+        _write_data(output_dir, gsm)
+
+    # Verify CSV file was created
+    csv_file = output_dir / "local_sky_model.csv"
+    assert csv_file.exists()
+
+    # Verify it has headers but no data rows
+    csv_content = csv_file.read_text()
+    lines = csv_content.strip().split("\n")
+    # Should have header comment lines but no data
+    assert any("format" in line.lower() for line in lines)
+    assert any("NUMBER_OF_COMPONENTS: 0" in line for line in lines)
+
+
+def test_find_ska_sdm_dir():
+    """Test _find_ska_sdm_dir helper function"""
+    # Test with ska-sdm in path
+    test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm/sky/field1")
+    result = _find_ska_sdm_dir(test_path)
+    assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
+
+    # Test with ska-sdm as the current directory
+    test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
+    result = _find_ska_sdm_dir(test_path)
+    assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
+
+    # Test with no ska-sdm in path (should return parent)
+    test_path = pathlib.Path("/some/other/path")
+    result = _find_ska_sdm_dir(test_path)
+    assert result == pathlib.Path("/some/other")
