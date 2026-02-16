@@ -32,11 +32,11 @@ Database Services
 -----------------
 
 **PostgreSQL Database**
-    Stores the global sky model catalog data in the following tables:
+    Stores the global sky model catalogue data in the following tables:
     
     - SkyComponent table: Contains all sky component properties including position (RA/Dec), flux measurements,
       spectral indices, polarization data, and morphological parameters
-    - GlobalSkyModelMetadata table: Stores catalog version information and reference frequency
+    - GlobalSkyModelMetadata table: Stores catalogue version information and reference frequency
     
     The schema is dynamically generated from the ``ska-sdp-datamodels`` package to ensure
     consistency with the canonical data model.
@@ -57,9 +57,9 @@ API Service
 
 The FastAPI service provides REST endpoints for:
 
-- Querying sources by position and field of view
-- Uploading catalog data
-- Managing catalog versions
+- Querying components by position and field of view
+- Uploading catalogue data
+- Managing catalogue versions
 - Health checks and status
 
 Running the application
