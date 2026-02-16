@@ -99,8 +99,8 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/", summary="Browser upload interface")
-def root():
+@app.get("/upload", summary="Browser upload interface")
+def upload_interface():
     """Serve the HTML upload interface"""
     upload_page = Path(__file__).parent / "static" / "upload.html"
     if upload_page.exists():
@@ -394,17 +394,26 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         .scalar()
     )
 
-    # Get first 10 rows as sample
+    # Get last 10 rows as sample to confirm all data loaded
     sample = (
         db.query(SkyComponentStaging)
         .filter(SkyComponentStaging.upload_id == upload_id)
+        .order_by(SkyComponentStaging.id.desc())
         .limit(10)
         .all()
     )
 
+    # Reverse to show in ascending order and calculate positions
+    sample.reverse()
+
+    # Calculate the starting position
+    sample_start = max(1, count - len(sample) + 1)
+    sample_end = count
+
     return {
         "upload_id": upload_id,
         "total_records": count,
+        "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
     }
 

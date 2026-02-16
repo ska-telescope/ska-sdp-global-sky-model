@@ -7,6 +7,11 @@ Development
 - [BREAKING] Implemented catalog-level versioning with metadata files. Upload endpoint now requires
   a metadata.json file containing catalog version, name, description, reference frequency, and epoch.
   All components in an upload share a single semantic version from the metadata file.
+- [Added] Batch upload feature with staging table and review workflow for sky survey data:
+  - New ``sky_component_staging`` table for temporary upload storage with ``upload_id`` tracking
+  - Browser-based upload interface at ``/upload`` endpoint with drag-and-drop support
+  - Dataset-level semantic versioning (0.1.0 → 0.2.0)
+  - Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files
 - [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
   Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
 - [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,

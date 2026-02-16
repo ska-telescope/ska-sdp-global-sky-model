@@ -139,8 +139,7 @@ class SkyComponent(Base):
     healpix_index = Column(BigInteger, index=True, nullable=False)
 
     # Version tracking - semantic versioning
-    # Minor version incremented on each update.
-    version = Column(String, nullable=False, default="0.0.0", server_default="0.0.0")
+    version = Column(String, nullable=False)
 
     # Add component_id explicitly so we can reference it in __table_args__
     component_id = Column(String, nullable=False, index=True)

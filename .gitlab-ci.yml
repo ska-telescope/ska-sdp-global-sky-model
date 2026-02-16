@@ -47,3 +47,7 @@ container_scanning:
     matrix:
       - CS_IMAGE: "$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME-api:$CI_COMMIT_SHORT_SHA"
       - CS_IMAGE: "$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME-db:$CI_COMMIT_SHORT_SHA"
+
+# Override docs-build-rtd to fail pipeline if documentation build fails
+docs-build-rtd:
+  allow_failure: false
