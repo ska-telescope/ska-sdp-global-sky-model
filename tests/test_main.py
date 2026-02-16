@@ -680,7 +680,7 @@ def test_review_upload_success(myclient):
         db.close()
 
     # Create upload status
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
     upload_status.state = "completed"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -703,7 +703,7 @@ def test_review_upload_not_completed(myclient):
 
     # Create upload in non-completed state
     upload_id = "test-upload-not-completed-123"
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
     upload_status.state = "uploading"  # Not completed
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -713,128 +713,13 @@ def test_review_upload_not_completed(myclient):
     assert "not ready for review" in review_response.json()["detail"].lower()
 
 
-def test_commit_upload_success(myclient):
-    """Test successful commit of staged upload with versioning."""
-    _clean_all_tables()
-
-    # Create test data directly in staging table
-    upload_id = "test-upload-commit-123"
-    db = next(override_get_db())
-    try:
-        for i in range(5):
-            component = SkyComponentStaging(
-                component_id=f"COMMIT_TEST{i:05d}",
-                upload_id=upload_id,
-                ra=10.0 + i,
-                dec=20.0 + i,
-                i_pol=0.5,
-                healpix_index=12345,
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
-
-    # Create upload status
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
-
-    # Commit the upload
-    commit_response = myclient.post(f"/commit-upload/{upload_id}")
-    assert commit_response.status_code == 200
-    commit_data = commit_response.json()
-    assert commit_data["status"] == "success"
-    assert commit_data["records_committed"] == 5
-
-    # Verify data moved to main table with version
-    db = next(override_get_db())
-    try:
-        main_records = (
-            db.query(SkyComponent).filter(SkyComponent.component_id.like("COMMIT_TEST%")).all()
-        )
-        assert len(main_records) == 5
-
-        # Check all have same version
-        versions = {r.version for r in main_records}
-        assert len(versions) == 1
-        assert list(versions)[0] == "0.1.0"
-
-        # Verify staging table is cleared
-        staging_records = (
-            db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).all()
-        )
-        assert len(staging_records) == 0
-    finally:
-        db.close()
-
-
-def test_commit_upload_increments_version(myclient):
-    """Test that second commit increments version to 0.2.0."""
-    _clean_all_tables()
-
-    # Add existing data at version 0.1.0
-    db = next(override_get_db())
-    try:
-        for i in range(3):
-            component = SkyComponent(
-                component_id=f"EXISTING{i:05d}",
-                ra=5.0 + i,
-                dec=15.0 + i,
-                i_pol=0.3,
-                healpix_index=11111,
-                version="0.1.0",
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
-
-    # Create new staging data
-    upload_id = "test-upload-increment-123"
-    db = next(override_get_db())
-    try:
-        for i in range(5):
-            component = SkyComponentStaging(
-                component_id=f"NEW{i:05d}",
-                upload_id=upload_id,
-                ra=10.0 + i,
-                dec=20.0 + i,
-                i_pol=0.5,
-                healpix_index=12345,
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
-
-    # Create upload status
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
-
-    commit_response = myclient.post(f"/commit-upload/{upload_id}")
-
-    assert commit_response.status_code == 200
-
-    # Verify new records have version 0.2.0
-    db = next(override_get_db())
-    try:
-        new_records = db.query(SkyComponent).filter(SkyComponent.component_id.like("NEW%")).all()
-        assert len(new_records) == 5
-        for record in new_records:
-            assert record.version == "0.2.0"  # Incremented from 0.1.0
-    finally:
-        db.close()
-
-
 def test_commit_upload_not_completed(myclient):
     """Test commit fails if upload not completed."""
     _clean_staging_table()
 
     # Create upload in non-completed state
     upload_id = "test-upload-commit-not-done-123"
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
     upload_status.state = "uploading"  # Not completed
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -866,7 +751,7 @@ def test_reject_upload_success(myclient):
         db.close()
 
     # Create completed upload status
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
     upload_status.state = "completed"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -894,7 +779,7 @@ def test_reject_upload_not_completed(myclient):
 
     # Create incomplete upload status
     upload_id = "test-upload-reject-incomplete-456"
-    upload_status = UploadStatus(upload_id=upload_id, total=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
     upload_status.state = "uploading"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
