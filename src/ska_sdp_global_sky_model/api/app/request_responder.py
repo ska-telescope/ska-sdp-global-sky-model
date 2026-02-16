@@ -187,7 +187,7 @@ def _query_gsm_for_lsm(
             - ra: Right Ascension in radians
             - dec: Declination in radians
             - fov: Field of view radius in radians
-            - version: GSM version to query (currently unused, defaults to "latest")
+            - version: GSM catalog version to query (e.g., "1.0.0", "latest")
         db: Database session
 
     Returns:
@@ -196,6 +196,7 @@ def _query_gsm_for_lsm(
 
     Note:
         - The function uses q3c_radial_query for efficient spatial queries
+        - Results are filtered by catalog version to support multiple GSM versions
         - Components include position, Stokes parameters, morphology, and spectral indices
         - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
@@ -209,9 +210,10 @@ def _query_gsm_for_lsm(
 
     try:
         # Query components within the field of view using spatial index
-        # pylint: disable=no-member
+        # pylint: disable=no-member,duplicate-code
         sky_components = (
-            db.query(SkyComponent).where(
+            db.query(SkyComponent)
+            .where(
                 q3c_radial_query(
                     SkyComponent.ra,
                     SkyComponent.dec,
@@ -220,15 +222,17 @@ def _query_gsm_for_lsm(
                     query_parameters.fov,
                 )
             )
-            # .where(SkyComponent.version == query_parameters.version)
+            .where(SkyComponent.version == query_parameters.version)
             .all()
         )
 
         sky_components_dict = {}
         for sky_component in sky_components:
             sky_component_dict = sky_component.columns_to_dict()
+            # Remove database-specific fields that are not in SkyComponent dataclass
             del sky_component_dict["id"]
             del sky_component_dict["healpix_index"]
+            del sky_component_dict["version"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
         return GlobalSkyModel(metadata={}, components=sky_components_dict)

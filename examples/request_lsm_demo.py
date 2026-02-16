@@ -42,7 +42,7 @@ def rad_to_deg(radians):
 
 
 def create_lsm_request(
-    ra_deg, dec_deg, fov_deg, eb_id=None, pb_id=None, field_id="demo_field"
+    ra_deg, dec_deg, fov_deg, version="latest", eb_id=None, pb_id=None, field_id="demo_field"
 ):
     """
     Create an LSM request Flow entry in the Configuration DB.
@@ -51,6 +51,7 @@ def create_lsm_request(
         ra_deg: Right Ascension in degrees
         dec_deg: Declination in degrees
         fov_deg: Field of view radius in degrees
+        version: Catalog version to query (e.g., "latest", "1.0.0")
         eb_id: Execution block ID (auto-generated if None)
         pb_id: Processing block ID (auto-generated if None)
         field_id: Field identifier
@@ -72,6 +73,7 @@ def create_lsm_request(
     print(f"  Field ID: {field_id}")
     print(f"  Center: RA={ra_deg:.4f}° ({ra:.6f} rad), Dec={dec_deg:.4f}° ({dec:.6f} rad)")
     print(f"  FOV radius: {fov_deg:.4f}° ({fov:.6f} rad)")
+    print(f"  Catalog version: {version}")
     print(f"  Execution Block: {eb_id}")
     print(f"  Processing Block: {pb_id}")
 
@@ -107,7 +109,7 @@ def create_lsm_request(
                             "ra": ra,
                             "dec": dec,
                             "fov": fov,
-                            "version": "latest",
+                            "version": version,
                         },
                     )
                 ],
@@ -215,6 +217,12 @@ Note: The test catalog (tests/data/test_catalog_1.csv) contains components in th
         "--fov", type=float, default=1.5, help="Field of view radius in degrees (default: 1.5)"
     )
     parser.add_argument(
+        "--version",
+        type=str,
+        default="latest",
+        help="Catalog version to query (default: latest, e.g., 1.0.0, 0.1.0)",
+    )
+    parser.add_argument(
         "--field-id", type=str, default="demo_field", help="Field identifier (default: demo_field)"
     )
     parser.add_argument("--eb-id", type=str, help="Execution block ID (auto-generated if not provided)")
@@ -232,7 +240,7 @@ Note: The test catalog (tests/data/test_catalog_1.csv) contains components in th
         check_status(args.pb_id, args.flow_name)
     else:
         create_lsm_request(
-            args.ra, args.dec, args.fov, args.eb_id, args.pb_id, args.field_id
+            args.ra, args.dec, args.fov, args.version, args.eb_id, args.pb_id, args.field_id
         )
 
 

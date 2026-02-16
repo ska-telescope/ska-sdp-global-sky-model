@@ -27,6 +27,9 @@ python examples/request_lsm_demo.py
 # Request LSM with custom coordinates
 python examples/request_lsm_demo.py --ra 45.0 --dec 2.0 --fov 1.5 --field-id my_field
 
+# Request LSM with specific catalog version
+python examples/request_lsm_demo.py --ra 45.0 --dec 2.0 --fov 1.5 --version 1.0.0
+
 # Check status of a request
 python examples/request_lsm_demo.py --status --pb-id pb-demo-20260216-123456 --flow-name local-sky-model-my_field
 ```
@@ -57,6 +60,7 @@ def deg_to_rad(degrees):
 ra = deg_to_rad(45.0)    # Right Ascension in radians
 dec = deg_to_rad(2.0)    # Declination in radians
 fov = deg_to_rad(1.5)    # Field of view radius in radians
+version = \"latest\"        # Catalog version (or \"1.0.0\", \"0.1.0\", etc.)
 
 # Create Configuration DB connection
 config = ska_sdp_config.Config()
@@ -78,7 +82,7 @@ for txn in config.txn():
             FlowSource(
                 uri="gsm://request/lsm",
                 function="GlobalSkyModel.RequestLocalSkyModel",
-                parameters={"ra": ra, "dec": dec, "fov": fov, "version": "latest"},
+                parameters={"ra": ra, "dec": dec, "fov": fov, "version": version},
             )
         ],
         data_model="CsvNamedColumns",

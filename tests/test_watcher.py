@@ -295,10 +295,10 @@ def test_get_flows_filtering(valid_flow):
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
-def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
+def test_process_flow(mock_query, mock_write, valid_flow):
     """Test that we cann start the processing for a flow"""
 
-    mock_call.return_value = ["data"]
+    mock_query.return_value = ["data"]
 
     output_path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
 
@@ -310,27 +310,21 @@ def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
     assert reason is None
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
-    assert len(mock_call.mock_calls) == 1
-    assert mock_call.mock_calls[0].args[0] == QueryParameters(
+    assert len(mock_query.mock_calls) == 1
+    assert mock_query.mock_calls[0].args[0] == QueryParameters(
         ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
     )
-    assert mock_meta.mock_calls == [
-        call(
-            pathlib.Path(output_path),
-            valid_flow,
-        )
-    ]
-    assert mock_data.mock_calls == [call(output_path, ["data"])]
+    assert mock_write.mock_calls == [call(output_path, ["data"])]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
-def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
+def test_process_flow_exception(mock_query, mock_write, valid_flow):
     """Test that we cann start the processing for a flow"""
 
-    mock_call.return_value = ["data"]
+    mock_query.return_value = ["data"]
 
-    mock_call.side_effect = ValueError("An error occured")
+    mock_query.side_effect = ValueError("An error occured")
 
     success, reason = _process_flow(
         valid_flow, QueryParameters(**valid_flow.sources[0].parameters)
@@ -340,12 +334,11 @@ def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
     assert reason == "An error occured"
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
-    assert len(mock_call.mock_calls) == 1
-    assert mock_call.mock_calls[0].args[0] == QueryParameters(
+    assert len(mock_query.mock_calls) == 1
+    assert mock_query.mock_calls[0].args[0] == QueryParameters(
         ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
     )
-    assert mock_meta.mock_calls == []
-    assert mock_data.mock_calls == []
+    assert mock_write.mock_calls == []
 
 
 @patch("time.time")
@@ -434,7 +427,7 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         ra=111.11,
         dec=-22.22,
         healpix_index=33333,
-        # version="latest"
+        version="latest",
     )
     db_session.add(component)
     db_session.commit()
@@ -474,7 +467,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra=2.9670,
         dec=-0.1745,
         healpix_index=1,
-        # version="latest"
+        version="latest",
     )
     db_session.add(component)
 
@@ -483,7 +476,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra=2.9680,
         dec=-0.1755,
         healpix_index=2,
-        # version="latest"
+        version="latest",
     )
     db_session.add(component_2)
 
@@ -492,7 +485,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra=2.9690,
         dec=-0.1765,
         healpix_index=3,
-        # version="latest"
+        version="latest",
     )
     db_session.add(component_3)
 

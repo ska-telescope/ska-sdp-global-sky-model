@@ -106,9 +106,9 @@ The LSM query uses the following approach:
    ``ska-sdm`` directory as specified in the Flow configuration.
 
 .. note::
-   The ``version`` parameter in query parameters is reserved for future use to
-   support multiple GSM catalog versions. Currently, it defaults to "latest"
-   but does not affect query results.
+   The ``version`` parameter allows you to specify which catalog version to query.
+   This supports multiple GSM catalog versions in the database. Use semantic versioning
+   (e.g., \"1.0.0\", \"0.1.0\") or \"latest\" to query the most recent version.
 
 
 Examples
@@ -142,6 +142,9 @@ field of view (0.0349 radians).
     dec = 0.0349  # 2 degrees
     fov = 0.0349  # 2 degree radius
 
+    # Catalog version - use semantic versioning or \"latest\"
+    version = "latest"  # or \"1.0.0\", \"0.1.0\", etc.
+
     # Create Configuration DB connection
     config = ska_sdp_config.Config()
 
@@ -171,7 +174,7 @@ field of view (0.0349 radians).
                         "ra": ra,
                         "dec": dec,
                         "fov": fov,
-                        "version": "latest",
+                        "version": version,
                     },
                 )
             ],
@@ -259,6 +262,45 @@ subset of those sources:
     print(f"Field of view radius: {fov_deg}°")
     print(f"Output: /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id}/")
 
+Catalog Versioning
+~~~~~~~~~~~~~~~~~~
+
+The GSM service supports multiple catalog versions in the database. Each catalog
+version is identified by a semantic version string (e.g., \"1.0.0\", \"0.1.0\").
+
+**Using Specific Versions:**
+
+.. code-block:: python
+
+    # Query a specific catalog version
+    flow_sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra": deg_to_rad(45.0),
+                "dec": deg_to_rad(2.0),
+                "fov": deg_to_rad(1.5),
+                "version": "1.0.0",  # Specific version
+            },
+        )
+    ]
+
+**Version Benefits:**
+
+- **Reproducibility**: Ensures consistent results across queries by locking to a specific catalog version
+- **Testing**: Allows testing with different catalog versions without modifying the database
+- **Upgrades**: Enables seamless catalog updates while maintaining access to previous versions
+- **Comparison**: Facilitates comparing results between different catalog versions
+
+**Version Format:**
+
+- Semantic versioning: ``\"MAJOR.MINOR.PATCH\"`` (e.g., \"1.0.0\", \"2.1.3\")
+- Special value: ``\"latest\"`` always queries the most recent catalog version
+
+.. note::
+   When ingesting catalogs, ensure each catalog is assigned a unique version identifier.
+   The version field is required when creating SkyComponent records in the database.
 
 Example 3: Multiple Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
