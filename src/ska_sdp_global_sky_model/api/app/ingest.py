@@ -1,7 +1,7 @@
 # pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
 # pylint: disable=too-many-arguments, too-many-locals
 """
-Gleam Catalog ingest
+Gleam Catalogue ingest
 """
 
 import csv
@@ -18,7 +18,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 )
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
@@ -56,10 +56,10 @@ class ComponentFile:
         return self.len
 
 
-def parse_catalog_components(ingest: dict):
-    """Parse catalog components from in-memory CSV content.
+def parse_catalogue_components(ingest: dict):
+    """Parse catalogue components from in-memory CSV content.
 
-    Converts the catalog metadata containing file content into ComponentFile
+    Converts the catalogue metadata containing file content into ComponentFile
     objects that can be iterated over for data ingestion.
 
     Args:
@@ -78,7 +78,7 @@ def parse_catalog_components(ingest: dict):
         if not content:
             raise ValueError("Content (string) must be provided.")
 
-        logger.debug("Processing in-memory content for catalog ingestion")
+        logger.debug("Processing in-memory content for catalogue ingestion")
         yield ComponentFile(content=content)
 
 
@@ -383,7 +383,7 @@ def validate_component_mapping(
     return _validate_optional_numeric_fields(component_mapping, row_info)
 
 
-def commit_batch(db: Session, component_objs: list):
+def commit_batch(db: Session, component_objs: list, model_class=SkyComponent):
     """Insert and commit a batch of sky components to the database.
 
     Uses bulk insert for efficiency and clears the list after commit.
@@ -391,19 +391,69 @@ def commit_batch(db: Session, component_objs: list):
     Args:
         db: SQLAlchemy database session.
         component_objs: List of component dictionaries to insert (modified in-place).
+        model_class: SQLAlchemy model class (SkyComponent or SkyComponentStaging).
     """
     if not component_objs:
         return
 
-    db.bulk_insert_mappings(SkyComponent, component_objs)
+    db.bulk_insert_mappings(model_class, component_objs)
     db.commit()
     component_objs.clear()
 
 
+def _process_single_component(
+    src,
+    count: int,
+    existing_component_id: set,
+    staging: bool,
+    upload_id: str | None,
+) -> tuple[dict | None, str | None]:
+    """Process and validate a single component.
+
+    Args:
+        src: Component data dictionary from CSV.
+        count: Current row number for error reporting.
+        existing_component_id: Set of already seen component IDs (modified in-place).
+        staging: Whether ingesting to staging table.
+        upload_id: Upload identifier for staging records.
+
+    Returns:
+        Tuple of (component_mapping, error_message). If valid, returns (mapping, None).
+        If invalid, returns (None, error_message).
+    """
+    component_dict = dict(src) if not hasattr(src, "items") else src
+    component_id = str(component_dict.get("component_id"))
+    component_dict["component_id"] = component_id
+
+    # Check for duplicate component_id
+    if component_id in existing_component_id:
+        error_msg = f"Row {count} (component_id: {component_id}): Duplicate component_id found"
+        logger.warning("Validation error: %s", error_msg)
+        return None, error_msg
+
+    existing_component_id.add(component_id)
+
+    # Build the standardized component mapping
+    component_mapping = build_component_mapping(component_dict)
+
+    # Add upload_id for staging records
+    if staging and upload_id:
+        component_mapping["upload_id"] = upload_id
+
+    # Validate the component mapping
+    is_valid, error_msg = validate_component_mapping(component_mapping, count)
+    if not is_valid:
+        return None, f"Row {count} (component_id: {component_id}): {error_msg}"
+
+    return component_mapping, None
+
+
 def process_component_data_batch(
     db: Session,
-    catalog_data,
+    catalogue_data,
     batch_size: int = 500,
+    staging: bool = False,
+    upload_id: str | None = None,
 ) -> bool:
     """
     Processes component data and inserts into DB using batch operations for speed.
@@ -414,37 +464,35 @@ def process_component_data_batch(
 
     Args:
         db: SQLAlchemy session.
-        catalog_data: List of catalog component dictionaries.
+        catalogue_data: List of catalogue component dictionaries.
+        catalogue_config: Catalogue configuration.
         batch_size: Number of components to insert per DB commit.
+        staging: If True, insert to staging table.
+        upload_id: Upload identifier for staging records.
     Returns:
         True if successful, False if validation errors occurred.
     """
     logger.info("Validating all component data before ingestion...")
 
-    existing_component_id = {r[0] for r in db.query(SkyComponent.component_id).all()}
+    # Choose appropriate model
+    model_class = SkyComponentStaging if staging else SkyComponent
+
+    # For staging, only check duplicates within this batch (not global)
+    # For main table, check all existing IDs
+    if staging:
+        # Empty set for staging - allow duplicates across uploads
+        existing_component_id = set()
+    else:
+        existing_component_id = {r[0] for r in db.query(model_class.component_id).all()}
 
     # Phase 1: Validate all data and collect valid components
     component_objs = []
     validation_errors = []
     count = 0
-    total = len(catalog_data)
+    total = len(catalogue_data)
 
-    for src in catalog_data:
-        component_dict = dict(src) if not hasattr(src, "items") else src
-        component_id = str(component_dict.get("component_id"))
-
+    for src in catalogue_data:
         count += 1
-        component_dict["component_id"] = component_id
-
-        # Check for duplicate component_id
-        if component_id in existing_component_id:
-            error_entry = (
-                f"Row {count} (component_id: {component_id}): Duplicate component_id found"
-            )
-            validation_errors.append(error_entry)
-            logger.warning("Validation error: %s", error_entry)
-            continue
-        existing_component_id.add(component_id)
 
         if count % 100 == 0:
             logger.info(
@@ -452,14 +500,12 @@ def process_component_data_batch(
                 calculate_percentage(count, total),
             )
 
-        # Build the standardized component mapping
-        component_mapping = build_component_mapping(component_dict)
+        component_mapping, error_msg = _process_single_component(
+            src, count, existing_component_id, staging, upload_id
+        )
 
-        # Validate the component mapping
-        is_valid, error_msg = validate_component_mapping(component_mapping, count)
-        if not is_valid:
-            error_entry = f"Row {count} (component_id: {component_id}): {error_msg}"
-            validation_errors.append(error_entry)
+        if error_msg:
+            validation_errors.append(error_msg)
         else:
             component_objs.append(component_mapping)
 
@@ -483,7 +529,7 @@ def process_component_data_batch(
     total_to_ingest = len(component_objs)
     for i in range(0, total_to_ingest, batch_size):
         batch = component_objs[i : i + batch_size]  # noqa: E203
-        commit_batch(db, batch)
+        commit_batch(db, batch, model_class)
         logger.info(
             "Ingestion progress: %s%%",
             calculate_percentage(min(i + batch_size, total_to_ingest), total_to_ingest),
@@ -493,41 +539,51 @@ def process_component_data_batch(
     return True
 
 
-def ingest_catalog(db: Session, catalog_metadata) -> bool:
-    """Ingest catalog data from in-memory CSV content into the database.
+def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
+    """Ingest catalogue data from in-memory CSV content into the database.
 
-    Processes component data from CSV content provided in the catalog metadata,
+    Processes component data from CSV content provided in the catalogue metadata,
     validates all records, and inserts them into the SkyComponent table.
 
     Args:
         db: SQLAlchemy database session.
-        catalog_metadata: Catalog metadata dictionary containing:
+        catalogue_metadata: Catalogue metadata dictionary containing:
             - name: Name used for logging messages
-            - catalog_name: Catalog identifier for logging
+            - catalogue_name: Catalogue identifier for logging
             - ingest: Dictionary with 'file_location' key containing a list of
               dictionaries, each with a 'content' key holding CSV data as a string
 
     Returns:
         True if all data was validated and ingested successfully, False otherwise.
     """
-    telescope_name = catalog_metadata["name"]
-    catalog_name = catalog_metadata["catalog_name"]
-    logger.info("Loading the %s catalog for the %s telescope...", catalog_name, telescope_name)
+    telescope_name = catalogue_metadata["name"]
+    catalogue_name = catalogue_metadata["catalogue_name"]
+    staging = catalogue_metadata.get("staging", False)
+    upload_id = catalogue_metadata.get("upload_id")
 
-    # Parse catalog components from metadata
-    catalog_data = parse_catalog_components(catalog_metadata["ingest"])
+    logger.info(
+        "Loading the %s catalogue for the %s telescope (staging=%s)...",
+        catalogue_name,
+        telescope_name,
+        staging,
+    )
 
-    for components in catalog_data:
+    # Parse catalogue components from metadata
+    catalogue_data = parse_catalogue_components(catalogue_metadata["ingest"])
+
+    for components in catalogue_data:
         if not components:
-            logger.error("No data-components found for %s", catalog_name)
+            logger.error("No data-components found for %s", catalogue_name)
             return False
         logger.info("Processing %s components", str(len(components)))
         # Process component data
         if not process_component_data_batch(
             db,
             components,
+            staging=staging,
+            upload_id=upload_id,
         ):
             return False
 
-    logger.info("Successfully ingested %s catalog", catalog_name)
+    logger.info("Successfully ingested %s catalogue", catalogue_name)
     return True
