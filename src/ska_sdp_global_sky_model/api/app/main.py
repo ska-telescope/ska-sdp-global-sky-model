@@ -19,12 +19,12 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
+from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
 from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (
-    STANDARD_CATALOG_METADATA,
+    STANDARD_CATALOGUE_METADATA,
     engine,
     get_db,
 )
@@ -172,7 +172,7 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
     upload_id : str
         Upload identifier for tracking
     survey_metadata : dict
-        Catalog metadata for ingestion
+        Catalogue metadata for ingestion
     """
     db = None
     try:
@@ -193,7 +193,7 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
             file_metadata["upload_id"] = upload_id
 
             logger.info("Ingesting file to staging: %s", filename)
-            if not ingest_catalog(db, file_metadata):
+            if not ingest_catalogue(db, file_metadata):
                 raise RuntimeError(f"Ingest failed for {filename}")
 
         # Mark as completed
@@ -253,8 +253,8 @@ async def upload_sky_survey_batch(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
-    # Use standard catalog metadata
-    survey_metadata = copy.deepcopy(STANDARD_CATALOG_METADATA)
+    # Use standard catalogue metadata
+    survey_metadata = copy.deepcopy(STANDARD_CATALOGUE_METADATA)
 
     # Create upload tracking
     upload_status = upload_manager.create_upload(len(files))
@@ -405,6 +405,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         # Determine the version for the entire dataset
         # All components in this upload will share the same version number
         # Query the current maximum version across ALL components in the database
+        # Use the latest existing version from the metadata table once available.
         max_version_result = db.query(func.max(SkyComponent.version)).scalar()
 
         # Helper function to increment minor version

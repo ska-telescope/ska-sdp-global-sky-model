@@ -1,7 +1,7 @@
 # pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
 # pylint: disable=too-many-arguments, too-many-locals
 """
-Gleam Catalog ingest
+Gleam Catalogue ingest
 """
 
 import csv
@@ -56,10 +56,10 @@ class ComponentFile:
         return self.len
 
 
-def parse_catalog_components(ingest: dict):
-    """Parse catalog components from in-memory CSV content.
+def parse_catalogue_components(ingest: dict):
+    """Parse catalogue components from in-memory CSV content.
 
-    Converts the catalog metadata containing file content into ComponentFile
+    Converts the catalogue metadata containing file content into ComponentFile
     objects that can be iterated over for data ingestion.
 
     Args:
@@ -78,7 +78,7 @@ def parse_catalog_components(ingest: dict):
         if not content:
             raise ValueError("Content (string) must be provided.")
 
-        logger.debug("Processing in-memory content for catalog ingestion")
+        logger.debug("Processing in-memory content for catalogue ingestion")
         yield ComponentFile(content=content)
 
 
@@ -450,7 +450,7 @@ def _process_single_component(
 
 def process_component_data_batch(
     db: Session,
-    catalog_data,
+    catalogue_data,
     batch_size: int = 500,
     staging: bool = False,
     upload_id: str | None = None,
@@ -464,8 +464,8 @@ def process_component_data_batch(
 
     Args:
         db: SQLAlchemy session.
-        catalog_data: List of catalog component dictionaries.
-        catalog_config: Catalog configuration.
+        catalogue_data: List of catalogue component dictionaries.
+        catalogue_config: Catalogue configuration.
         batch_size: Number of components to insert per DB commit.
         staging: If True, insert to staging table.
         upload_id: Upload identifier for staging records.
@@ -489,9 +489,9 @@ def process_component_data_batch(
     component_objs = []
     validation_errors = []
     count = 0
-    total = len(catalog_data)
+    total = len(catalogue_data)
 
-    for src in catalog_data:
+    for src in catalogue_data:
         count += 1
 
         if count % 100 == 0:
@@ -539,41 +539,41 @@ def process_component_data_batch(
     return True
 
 
-def ingest_catalog(db: Session, catalog_metadata) -> bool:
-    """Ingest catalog data from in-memory CSV content into the database.
+def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
+    """Ingest catalogue data from in-memory CSV content into the database.
 
-    Processes component data from CSV content provided in the catalog metadata,
+    Processes component data from CSV content provided in the catalogue metadata,
     validates all records, and inserts them into the SkyComponent table.
 
     Args:
         db: SQLAlchemy database session.
-        catalog_metadata: Catalog metadata dictionary containing:
+        catalogue_metadata: Catalogue metadata dictionary containing:
             - name: Name used for logging messages
-            - catalog_name: Catalog identifier for logging
+            - catalogue_name: Catalogue identifier for logging
             - ingest: Dictionary with 'file_location' key containing a list of
               dictionaries, each with a 'content' key holding CSV data as a string
 
     Returns:
         True if all data was validated and ingested successfully, False otherwise.
     """
-    telescope_name = catalog_metadata["name"]
-    catalog_name = catalog_metadata["catalog_name"]
-    staging = catalog_metadata.get("staging", False)
-    upload_id = catalog_metadata.get("upload_id")
+    telescope_name = catalogue_metadata["name"]
+    catalogue_name = catalogue_metadata["catalogue_name"]
+    staging = catalogue_metadata.get("staging", False)
+    upload_id = catalogue_metadata.get("upload_id")
 
     logger.info(
-        "Loading the %s catalog for the %s telescope (staging=%s)...",
-        catalog_name,
+        "Loading the %s catalogue for the %s telescope (staging=%s)...",
+        catalogue_name,
         telescope_name,
         staging,
     )
 
-    # Parse catalog components from metadata
-    catalog_data = parse_catalog_components(catalog_metadata["ingest"])
+    # Parse catalogue components from metadata
+    catalogue_data = parse_catalogue_components(catalogue_metadata["ingest"])
 
-    for components in catalog_data:
+    for components in catalogue_data:
         if not components:
-            logger.error("No data-components found for %s", catalog_name)
+            logger.error("No data-components found for %s", catalogue_name)
             return False
         logger.info("Processing %s components", str(len(components)))
         # Process component data
@@ -585,5 +585,5 @@ def ingest_catalog(db: Session, catalog_metadata) -> bool:
         ):
             return False
 
-    logger.info("Successfully ingested %s catalog", catalog_name)
+    logger.info("Successfully ingested %s catalogue", catalogue_name)
     return True

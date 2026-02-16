@@ -79,13 +79,13 @@ def q3c_index():
         )
 
 
-# Standard catalog metadata for all uploads
+# Standard catalogue metadata for all uploads
 # Uses the standardized format with explicit column names
-STANDARD_CATALOG_METADATA = {
+STANDARD_CATALOGUE_METADATA = {
     "version": "1.0.0",
-    "description": "Standard sky survey catalog ingestion metadata",
+    "description": "Standard sky survey catalogue ingestion metadata",
     "name": "Standard Sky Survey",
-    "catalog_name": "STANDARD",
+    "catalogue_name": "STANDARD",
     "ingest": {
         "file_location": [
             {
@@ -96,4 +96,4 @@ STANDARD_CATALOG_METADATA = {
 }
 
 # Backward compatibility alias
-DEFAULT_CATALOG_METADATA = STANDARD_CATALOG_METADATA
+DEFAULT_CATALOGUE_METADATA = STANDARD_CATALOGUE_METADATA

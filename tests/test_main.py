@@ -123,12 +123,12 @@ def _clean_all_tables():
         db.close()
 
 
-def _mock_ingest_catalog(db, metadata):  # pylint: disable=unused-argument
+def _mock_ingest_catalogue(db, metadata):  # pylint: disable=unused-argument
     """Simple mock that returns True without doing anything."""
     return True
 
 
-def _mock_ingest_catalog_staging(db, metadata, prefix, count):
+def _mock_ingest_catalogue_staging(db, metadata, prefix, count):
     """Mock ingest that creates test records in staging table."""
     upload_id = metadata.get("upload_id")
     if not upload_id:
@@ -155,11 +155,11 @@ def test_read_main(myclient):
 
 
 def test_upload_rcal(myclient, monkeypatch):
-    """Unit test for batch upload with test catalog"""
-    file_path = Path("tests/data/test_catalog_1.csv")
+    """Unit test for batch upload with test catalogue"""
+    file_path = Path("tests/data/test_catalogue_1.csv")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
     with file_path.open("rb") as f:
@@ -174,15 +174,15 @@ def test_upload_rcal(myclient, monkeypatch):
 
 def test_upload_sky_survey_batch(myclient, monkeypatch):
     """Unit test for the /upload-sky-survey-batch path"""
-    first_file = Path("tests/data/test_catalog_1.csv")
-    second_file = Path("tests/data/test_catalog_2.csv")
+    first_file = Path("tests/data/test_catalogue_1.csv")
+    second_file = Path("tests/data/test_catalogue_2.csv")
 
-    # Patch STANDARD_CATALOG_METADATA
+    # Patch STANDARD_CATALOGUE_METADATA
     test_metadata = {
         "version": "1.0.0",
         "description": "Test metadata",
         "name": "Test Sky Survey",
-        "catalog_name": "TEST_SURVEY",
+        "catalogue_name": "TEST_SURVEY",
         "ingest": {
             "file_location": [
                 {
@@ -194,11 +194,11 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
 
     # Patch the metadata in main module where it's imported
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOGUE_METADATA", test_metadata
     )
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
     with first_file.open("rb") as f1, second_file.open("rb") as f2:
@@ -226,19 +226,19 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
 
 def test_upload_sky_survey_batch_invalid_file_type(myclient, monkeypatch):
     """Test batch upload with invalid file type"""
-    # Patch STANDARD_CATALOG_METADATA
+    # Patch STANDARD_CATALOGUE_METADATA
     test_metadata = {
         "version": "1.0.0",
         "description": "Test metadata",
         "name": "Test",
-        "catalog_name": "TEST",
+        "catalogue_name": "TEST",
         "ingest": {
             "file_location": [{"content": None}],
         },
     }
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOG_METADATA", test_metadata
+        "ska_sdp_global_sky_model.api.app.main.STANDARD_CATALOGUE_METADATA", test_metadata
     )
 
     # Create a fake non-CSV file
@@ -327,19 +327,19 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     assert len(local_sky_model.json()) >= 1
 
 
-def test_upload_batch_gleam_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with GLEAM catalog"""
-    file_path = Path("tests/data/test_catalog_1.csv")
+def test_upload_batch_gleam_catalogue(myclient, monkeypatch):
+    """Unit test for batch upload with GLEAM catalogue"""
+    file_path = Path("tests/data/test_catalogue_1.csv")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
     with file_path.open("rb") as f:
         files = [("files", (file_path.name, f, "text/csv"))]
-        # Use catalog parameter to select GLEAM metadata
+        # Use catalogue parameter to select GLEAM metadata
         response = myclient.post(
-            "/upload-sky-survey-batch", files=files, data={"catalog": "GLEAM"}
+            "/upload-sky-survey-batch", files=files, data={"catalogue": "GLEAM"}
         )
 
     assert response.status_code == 200
@@ -356,73 +356,19 @@ def test_upload_batch_gleam_catalog(myclient, monkeypatch):
     assert status_data["total_files"] == 1
 
 
-def test_upload_batch_racs_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with RACS catalog"""
-    file_path = Path("tests/data/test_catalog_1.csv")
+def test_upload_batch_racs_catalogue(myclient, monkeypatch):
+    """Unit test for batch upload with RACS catalogue"""
+    file_path = Path("tests/data/test_catalogue_1.csv")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
     with file_path.open("rb") as f:
         files = [("files", (file_path.name, f, "text/csv"))]
-        # Use catalog parameter to select RACS metadata
-        response = myclient.post("/upload-sky-survey-batch", files=files, data={"catalog": "RACS"})
-
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["status"] == "uploading"
-    assert "upload_id" in response_data
-
-    # Verify status
-    upload_id = response_data["upload_id"]
-    status_response = myclient.get(f"/upload-sky-survey-status/{upload_id}")
-    assert status_response.status_code == 200
-    status_data = status_response.json()
-    assert status_data["state"] == "completed"
-    assert status_data["total_files"] == 1
-
-
-def test_upload_batch_rcal_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with RCAL catalog"""
-    file_path = Path("tests/data/test_catalog_1.csv")
-
-    monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
-    )
-
-    with file_path.open("rb") as f:
-        files = [("files", (file_path.name, f, "text/csv"))]
-        # Use catalog parameter to select RCAL metadata
-        response = myclient.post("/upload-sky-survey-batch", files=files, data={"catalog": "RCAL"})
-
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["status"] == "uploading"
-    assert "upload_id" in response_data
-
-    # Verify status
-    upload_id = response_data["upload_id"]
-    status_response = myclient.get(f"/upload-sky-survey-status/{upload_id}")
-    assert status_response.status_code == 200
-    status_data = status_response.json()
-    assert status_data["state"] == "completed"
-    assert status_data["total_files"] == 1
-
-
-def test_upload_batch_generic_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with GENERIC catalog"""
-    file_path = Path("tests/data/test_catalog_1.csv")
-
-    monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
-    )
-
-    with file_path.open("rb") as f:
-        files = [("files", (file_path.name, f, "text/csv"))]
-        # Use catalog parameter to select GENERIC metadata
+        # Use catalogue parameter to select RACS metadata
         response = myclient.post(
-            "/upload-sky-survey-batch", files=files, data={"catalog": "GENERIC"}
+            "/upload-sky-survey-batch", files=files, data={"catalogue": "RACS"}
         )
 
     assert response.status_code == 200
@@ -439,26 +385,84 @@ def test_upload_batch_generic_catalog(myclient, monkeypatch):
     assert status_data["total_files"] == 1
 
 
-def test_upload_batch_mixed_catalogs(myclient, monkeypatch):
+def test_upload_batch_rcal_catalogue(myclient, monkeypatch):
+    """Unit test for batch upload with RCAL catalogue"""
+    file_path = Path("tests/data/test_catalogue_1.csv")
+
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
+    )
+
+    with file_path.open("rb") as f:
+        files = [("files", (file_path.name, f, "text/csv"))]
+        # Use catalogue parameter to select RCAL metadata
+        response = myclient.post(
+            "/upload-sky-survey-batch", files=files, data={"catalogue": "RCAL"}
+        )
+
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data["status"] == "uploading"
+    assert "upload_id" in response_data
+
+    # Verify status
+    upload_id = response_data["upload_id"]
+    status_response = myclient.get(f"/upload-sky-survey-status/{upload_id}")
+    assert status_response.status_code == 200
+    status_data = status_response.json()
+    assert status_data["state"] == "completed"
+    assert status_data["total_files"] == 1
+
+
+def test_upload_batch_generic_catalogue(myclient, monkeypatch):
+    """Unit test for batch upload with GENERIC catalogue"""
+    file_path = Path("tests/data/test_catalogue_1.csv")
+
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
+    )
+
+    with file_path.open("rb") as f:
+        files = [("files", (file_path.name, f, "text/csv"))]
+        # Use catalogue parameter to select GENERIC metadata
+        response = myclient.post(
+            "/upload-sky-survey-batch", files=files, data={"catalogue": "GENERIC"}
+        )
+
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data["status"] == "uploading"
+    assert "upload_id" in response_data
+
+    # Verify status
+    upload_id = response_data["upload_id"]
+    status_response = myclient.get(f"/upload-sky-survey-status/{upload_id}")
+    assert status_response.status_code == 200
+    status_data = status_response.json()
+    assert status_data["state"] == "completed"
+    assert status_data["total_files"] == 1
+
+
+def test_upload_batch_mixed_catalogues(myclient, monkeypatch):
     """Unit test for batch upload with multiple files"""
-    first_file = Path("tests/data/test_catalog_1.csv")
-    second_file = Path("tests/data/test_catalog_2.csv")
-    third_file = Path("tests/data/test_catalog_1.csv")
+    first_file = Path("tests/data/test_catalogue_1.csv")
+    second_file = Path("tests/data/test_catalogue_2.csv")
+    third_file = Path("tests/data/test_catalogue_1.csv")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
-    # Test uploading multiple files with GLEAM catalog
+    # Test uploading multiple files with GLEAM catalogue
     with first_file.open("rb") as f1, second_file.open("rb") as f2, third_file.open("rb") as f3:
         files = [
             ("files", (first_file.name, f1, "text/csv")),
             ("files", (second_file.name, f2, "text/csv")),
             ("files", (third_file.name, f3, "text/csv")),
         ]
-        # All files will use GLEAM catalog metadata
+        # All files will use GLEAM catalogue metadata
         response = myclient.post(
-            "/upload-sky-survey-batch", files=files, data={"catalog": "GLEAM"}
+            "/upload-sky-survey-batch", files=files, data={"catalogue": "GLEAM"}
         )
 
     assert response.status_code == 200
@@ -475,17 +479,17 @@ def test_upload_batch_mixed_catalogs(myclient, monkeypatch):
     assert status_data["total_files"] == 3
 
 
-def test_upload_batch_default_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with standard catalog metadata"""
-    file_path = Path("tests/data/test_catalog_1.csv")
+def test_upload_batch_default_catalogue(myclient, monkeypatch):
+    """Unit test for batch upload with standard catalogue metadata"""
+    file_path = Path("tests/data/test_catalogue_1.csv")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalog", _mock_ingest_catalog
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
     with file_path.open("rb") as f:
         files = [("files", (file_path.name, f, "text/csv"))]
-        # Uses standard catalog metadata automatically
+        # Uses standard catalogue metadata automatically
         response = myclient.post("/upload-sky-survey-batch", files=files)
 
     assert response.status_code == 200
@@ -528,12 +532,12 @@ def test_wait_for_db_retry():
 
 
 def test_upload_batch_ingest_failure(myclient):
-    """Test batch upload when catalog ingest fails."""
-    file_path = Path("tests/data/test_catalog_1.csv")
+    """Test batch upload when catalogue ingest fails."""
+    file_path = Path("tests/data/test_catalogue_1.csv")
 
     with (
         file_path.open("rb") as f,
-        patch("ska_sdp_global_sky_model.api.app.main.ingest_catalog", return_value=False),
+        patch("ska_sdp_global_sky_model.api.app.main.ingest_catalogue", return_value=False),
     ):
         files = [("files", (file_path.name, f, "text/csv"))]
         response = myclient.post("/upload-sky-survey-batch", files=files)
@@ -606,11 +610,11 @@ def test_upload_sky_survey_batch_malformed_csv(myclient):
 
 def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
     """Test uploading a valid CSV file without .csv extension."""
-    file_path = Path("tests/data/test_catalog_1.csv")
+    file_path = Path("tests/data/test_catalogue_1.csv")
 
     with (
         file_path.open("rb") as f,
-        patch("ska_sdp_global_sky_model.api.app.main.ingest_catalog", return_value=True),
+        patch("ska_sdp_global_sky_model.api.app.main.ingest_catalogue", return_value=True),
     ):
         # Use .txt extension but valid CSV content
         files = [("files", ("data.txt", f, "text/plain"))]

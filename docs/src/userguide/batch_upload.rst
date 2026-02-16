@@ -1,21 +1,21 @@
 Uploading Sky Survey Data
 =========================
 
-The SKA Global Sky Model (GSM) provides both a browser interface and API endpoints for uploading multiple sky survey catalog files in a single atomic batch operation into the GSM database.
+The SKA Global Sky Model (GSM) provides both a browser interface and API endpoints for uploading multiple sky survey catalogue files in a single atomic batch operation into the GSM database.
 
 Overview
 --------
 
 The batch upload feature allows you to:
 
-- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single catalog version)
+- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single catalogue version)
 - Stage uploads for review before committing to the main database
 - Track upload progress with a unique identifier
 - Query upload status and errors
 - Ensure atomic ingestion (all files succeed or none are ingested)
 - Process uploads asynchronously in the background for optimal API responsiveness
 - Automatic data validation at the schema level
-- Version control with semantic versioning for updated components
+- Version control with semantic versioning of the catalogue
 
 Staging and Versioning Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,28 +32,26 @@ All uploads use a staging workflow allowing new catalogue versions to be success
 
 **Automatic Versioning**:
 
-All uploads use a staging workflow allowing new catalog versions to be successfully uploaded before a new version is released.
-When committing staged data, the system automatically handles versioning at the dataset level:
+All uploads use a staging workflow allowing new catalogue versions to be successfully uploaded before a new version is released.
+When committing staged data, the system automatically handles versioning at the catalogue level:
 
-- **First upload**: All components start at version ``0.1.0``
-- **Subsequent uploads**: All components increment to the next minor version (e.g., ``0.1.0`` → ``0.2.0`` → ``0.3.0``)
-- **Dataset versioning**: All components uploaded in the same session share the same version number
-- **Version tracking**: Each component_id can exist across multiple dataset versions
-- **Unique constraint**: ``component_id + version`` must be unique
+- **Initial catalogue version**: If no catalogue version exists in the database yet, the new catalogue starts at version ``0.1.0``
+- **Next catalogue version**: Each new committed catalogue increments the minor version (e.g., ``0.1.0`` → ``0.2.0`` → ``0.3.0``)
+- **Catalogue-level versioning**: All records in the same committed catalogue share the same version number
 
 This allows you to:
-    - Release new versions of the entire sky catalog
-    - Track changes to the catalog over time
-    - Query specific catalog versions or always get the latest version
+    - Release new versions of the entire sky catalogue
+    - Track changes to the catalogue over time
+    - Query specific catalogue versions or always get the latest version
     
-Files uploaded in the same session (same ``upload_id``) will form part of the same catalog version. 
-Files uploaded in a new session (new ``upload_id``) will create a new catalog version with an incremented version number.
+Files uploaded in the same session (same ``upload_id``) will form part of the same catalogue version. 
+Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with an incremented version number.
 
 **Staging Table Schema**:
 
 The ``sky_component_staging`` table mirrors the main ``sky_component`` table but includes:
     - ``upload_id``: Links all sources in a batch upload (same session)
-    - Unique constraint: ``component_id + upload_id`` (allows same source in different upload sessions)
+    - Unique constraint: ``component_id + upload_id``
 
 Asynchronous Processing
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +70,7 @@ This design keeps the API responsive during large uploads and allows multiple co
 CSV File Format
 ---------------
 
-The uploaded CSV files must follow the standardized sky survey catalog format compatible with the 
+The uploaded CSV files must follow the standardized sky survey catalogue format compatible with the 
 `ska_sdp_datamodels <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py?ref_type=heads>`_ package. CSV files should use the standardized column names.
 
 Required Columns
@@ -112,7 +110,7 @@ CSV Format Examples
 
 **Standardized Format**:
 
-The ``test_catalog_1.csv`` and ``test_catalog_2.csv`` files in the test data directory demonstrate 
+The ``test_catalogue_1.csv`` and ``test_catalogue_2.csv`` files in the test data directory demonstrate 
 the required standardized format:
 
 .. code-block:: text
@@ -121,7 +119,7 @@ the required standardized format:
     J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,-0.419238,False
     J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,-1.074094,False
 
-These test catalogs contain 100 components each and are used throughout the test suite as reference examples.
+These test catalogues contain 100 components each and are used throughout the test suite as reference examples.
 
 **Minimal Format**:
 
@@ -199,11 +197,11 @@ Browser Upload Interface
 A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``). The interface provides:
 
 - **Drag-and-drop file upload**: Simply drag CSV files onto the upload zone
-- **Multiple file selection**: Upload multiple files that form a single catalog
+- **Multiple file selection**: Upload multiple files that form a single catalogue
 - **Real-time status monitoring**: Track upload progress with automatic polling
 - **Upload confirmation**: Confirm successful upload before committing to database
 - **Commit/Reject workflow**: Approve or discard staged uploads
-- **Version information**: Visual indicators showing which catalog version will be created
+- **Version information**: Visual indicators showing which catalogue version will be created
 
 **Using the Browser Interface**:
 
@@ -260,9 +258,9 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 .. code-block:: bash
 
     # Upload one or more CSV files with standardized column names
-    curl -X POST "<GSM_API_URL>/upload-sky-survey-batch" \
-      -F "files=@test_catalog_1.csv;type=text/csv" \\
-      -F "files=@test_catalog_2.csv;type=text/csv"
+        curl -X POST "<GSM_API_URL>/upload-sky-survey-batch" \
+            -F "files=@test_catalogue_1.csv;type=text/csv" \\
+            -F "files=@test_catalogue_2.csv;type=text/csv"
 
 **Python Example**:
 
@@ -275,8 +273,8 @@ asynchronously in the background. Use the status endpoint to monitor completion,
     
     # Upload multiple CSV files with standardized column names
     files = [
-        ("files", ("test_catalog_1.csv", open("test_catalog_1.csv", "rb"), "text/csv")),
-        ("files", ("test_catalog_2.csv", open("test_catalog_2.csv", "rb"), "text/csv")),
+        ("files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
+        ("files", ("test_catalogue_2.csv", open("test_catalogue_2.csv", "rb"), "text/csv")),
     ]
     response = requests.post(url, files=files)
     
@@ -435,7 +433,7 @@ Commit Staged Upload
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
 Commit staged data to the main database with automatic dataset versioning. All components in the upload
-receive the same version number (the next minor version of the catalog).
+receive the same version number (the next minor version of the catalogue).
 
 **Parameters**:
 
