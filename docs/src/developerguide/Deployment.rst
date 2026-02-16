@@ -1,6 +1,8 @@
 Deployment Guide
 ~~~~~~~~~~~~~~~~
 
+# Rename to deployment with docker compose
+
 This document complements the guidelines set out in the SKA telescope developer
  portal `<https://developer.skao.int/en/latest/>`_
 
@@ -49,9 +51,9 @@ Service Configuration
 The docker-compose setup includes the following services:
 
 **etcd Service**
-    Provides distributed configuration management for SKA SDP workflows. The FastAPI service 
+    Provides distributed configuration management for SKA SDP workflows. The FastAPI service
     connects to etcd using environment variables:
-    
+
     - ``SDP_CONFIG_HOST``: Hostname of the etcd service (default: ``etcd``)
     - ``SDP_CONFIG_PORT``: Port of the etcd service (default: ``2379``)
 

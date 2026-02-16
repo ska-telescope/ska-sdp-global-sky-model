@@ -1,6 +1,9 @@
 Developer Guide
 ~~~~~~~~~~~~~~~
 
+Top-level overview section, pointing to sub-sections (deployment with K8s and Docker compose; Database guide - combine existing sections (since they're already on the same page))
+
+
 This document complements the guidelines set out in the `SKA telescope developer portal <https://developer.skao.int/en/latest/>`_
 
 
@@ -33,23 +36,23 @@ Database Services
 
 **PostgreSQL Database**
     Stores the global sky model catalogue data in the following tables:
-    
+
     - SkyComponent table: Contains all sky component properties including position (RA/Dec), flux measurements,
       spectral indices, polarization data, and morphological parameters
     - GlobalSkyModelMetadata table: Stores catalogue version information and reference frequency
-    
+
     The schema is dynamically generated from the ``ska-sdp-datamodels`` package to ensure
     consistency with the canonical data model.
 
 **etcd**
-    A distributed key-value store used by the SKA SDP configuration system. The application 
+    A distributed key-value store used by the SKA SDP configuration system. The application
     uses etcd to:
-    
+
     - Watch for flow requests (data processing workflows)
     - Coordinate between different SDP services
-    
-    The ``request_responder.py`` module starts a background thread that watches etcd for 
-    flow entries requesting local sky models. When a flow is detected, it processes the 
+
+    The ``request_responder.py`` module starts a background thread that watches etcd for
+    flow entries requesting local sky models. When a flow is detected, it processes the
     request and writes the results to the specified location.
 
 API Service
@@ -65,10 +68,16 @@ The FastAPI service provides REST endpoints for:
 Running the application
 =======================
 
-Using Docker Compose (Recommended)
------------------------------------
+Running as part of SDP (using Kubernetes)
+-----------------------------------------
 
-For an integrated setup, use Docker Compose to run the full application stack. See the 
+To be filled in with Nijin!
+-> point to another deployment document
+
+Using Docker Compose
+--------------------
+
+For an integrated setup, use Docker Compose to run the full application stack. See the
 :doc:`Deployment` guide for complete instructions on running with Docker Compose.
 
 Running Standalone (Development)
@@ -85,30 +94,33 @@ Then run the API directly:
 
     $ uvicorn ska_sdp_global_sky_model.api.app.main:app --reload --host 0.0.0.0 --port 80 --app-dir /usr/src
 
+=====> Move to Testing.rst?
+
+
 Running the application tests
 =============================
 
 The API is tested using the pytest framework alongside FastAPI's TestClient. The tests can be run with:
 
 .. code-block:: bash
-    
+
     $ make python-tests
 
 Test Database Setup
 -------------------
 
-The tests use an in-memory SQLite database instead of PostgreSQL to avoid the need for a running 
-database instance during testing. 
+The tests use an in-memory SQLite database instead of PostgreSQL to avoid the need for a running
+database instance during testing.
 
 Database Mocking Strategy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The test suite implements several key mocking strategies:
 
-1. **In-memory SQLite Database**: Tests use ``sqlite:///:memory:`` instead of PostgreSQL, with 
+1. **In-memory SQLite Database**: Tests use ``sqlite:///:memory:`` instead of PostgreSQL, with
    ``StaticPool`` to maintain a single connection across tests.
 
-2. **Q3C Function Mocking**: PostgreSQL's Q3C extension for spherical coordinate searches is 
+2. **Q3C Function Mocking**: PostgreSQL's Q3C extension for spherical coordinate searches is
    mocked for SQLite using a simple box check approximation:
 
    .. code-block:: python
@@ -135,7 +147,7 @@ The test suite implements several key mocking strategies:
                        if isinstance(column.type, JSONB):
                            column.type = JSON()
 
-4. **Startup Function Mocking**: Database connection checks and background threads are mocked to 
+4. **Startup Function Mocking**: Database connection checks and background threads are mocked to
    prevent actual connections during tests:
 
    .. code-block:: python

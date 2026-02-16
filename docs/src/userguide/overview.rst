@@ -1,5 +1,54 @@
+
 SDP Global Sky Model's Overview
 ===============================
+
+Deployed via SDP -> link to SDP documentation
+https://developer.skao.int/projects/ska-sdp-integration/en/latest/installation/standalone.html
+
+
+How to upload data to the GSM
+-----------------------------
+
+-> link to batch_upload.rst
+
+Example Usage:
+
+
+
+
+How to request a LSM file (for pipeline)
+----------------------------------------
+
+
+
+-> link to requesting_a_lsm.rst
+
+Example Usage:
+
+Example LSM output
+
+
+
+
+
+How to view data (in a browser)
+-------------------------------
+
+Example Usage:
+
+
+
+
+(Move elsewhere)
+
+Service layout
+==============
+
+Structure of the data and versions
+
+Overview of deployments
+
+
 
 
 Automatic API Documentation
@@ -68,7 +117,7 @@ The endpoint returns a JSON object representing the local sky model.
     "flux_wide": (float),  // Wide-field flux provided as input.
     "telescope": (string),  // Telescope name provided as input.
     "fov": (float),  // Field of view provided as input.
-    "local_data": (string),  // Placeholder for data specific to the local sky model. 
+    "local_data": (string),  // Placeholder for data specific to the local sky model.
                                 // This data will be populated by the backend.
     }
 
@@ -108,13 +157,13 @@ The schema stores all component information in a single SkyComponent table. Each
 
 The SkyComponent model where most fields are dynamically generated from the ``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization with upstream data model changes:
 
-This approach allows the schema to automatically adapt when new fields are added to the upstream 
+This approach allows the schema to automatically adapt when new fields are added to the upstream
 dataclass, while maintaining database-specific concerns like spatial indexing.
 
 Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sky components meeting the criteria of the given parameters are returned as the Local Sky Model.
 
 .. code-block:: javascript
-  
+
     {
       "components": {
         "<component_id>": {

@@ -1,12 +1,17 @@
 Requesting a Local Sky Model
 ============================
 
+The processing script requests a LSM using the following method.
+
+
 The GSM service watches for requests for LSMs by watching the Configuration DB
 for specific Flow entries.
 
 The layout of a flow entry should match the following:
 
 .. code-block:: python
+
+    from ska_sdp_config.entity.flow import DataProduct, Flow, FlowSource, PVCPath
 
     Flow(
         key=Flow.Key(
@@ -70,4 +75,3 @@ Once a flow has been found that matches those criteria, the following is done:
 5. The state is updated to ``COMPLETED``.
 
 If there is a failure the state is updated to ``FAILED`` and a reason is set.
-
