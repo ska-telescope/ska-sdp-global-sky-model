@@ -65,12 +65,9 @@ def fixture_valid_flow():
 
 
 @patch("time.time")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_happy_path(
-    mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
-):
+def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow):
     """Test the happy path"""
 
     mock_time.return_value = 1234.5678
@@ -120,13 +117,11 @@ def test_happy_path(
     # Second argument is the db session, just verify it was called
     assert len(mock_filter_function.mock_calls) == 1
     assert mock_write_data.mock_calls == [call(path, mock_gsm)]
-    assert mock_write_metadata.mock_calls == [call(path, valid_flow)]
 
 
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_no_state(mock_filter_function, mock_write_data, mock_write_metadata, valid_flow):
+def test_no_state(mock_filter_function, mock_write_data, valid_flow):
     """Test watcher process when a flow has no state"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
@@ -151,13 +146,11 @@ def test_no_state(mock_filter_function, mock_write_data, mock_write_metadata, va
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_state_completed(mock_filter_function, mock_write_data, mock_write_metadata, valid_flow):
+def test_state_completed(mock_filter_function, mock_write_data, valid_flow):
     """Test watcher process when the state is already completed"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
@@ -182,15 +175,11 @@ def test_state_completed(mock_filter_function, mock_write_data, mock_write_metad
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_state_not_initialised(
-    mock_filter_function, mock_write_data, mock_write_metadata, valid_flow
-):
+def test_state_not_initialised(mock_filter_function, mock_write_data, valid_flow):
     """Test watcher process when the state is already failed"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
@@ -215,15 +204,13 @@ def test_state_not_initialised(
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
 @patch("time.time")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
 def test_watcher_process_missing_parameter(
-    mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
+    mock_filter_function, mock_write_data, mock_time, valid_flow
 ):
     """Test the happy path"""
 
@@ -280,7 +267,6 @@ def test_watcher_process_missing_parameter(
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
 def test_get_flows_filtering(valid_flow):
@@ -308,7 +294,6 @@ def test_get_flows_filtering(valid_flow):
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
     """Test that we cann start the processing for a flow"""
@@ -339,7 +324,6 @@ def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
     """Test that we cann start the processing for a flow"""
@@ -444,7 +428,7 @@ def test_update_state_no_change():
 
 
 def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
-    """Test querying GSM for LSM with sources found"""
+    """Test querying GSM for LSM with components found"""
     component = SkyComponent(
         component_id="DictTestSource",
         ra=111.11,
@@ -470,7 +454,7 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
 
 
 def test_query_gsm_for_lsm_no_sources(db_session):  # noqa: F811
-    """Test querying GSM for LSM with no sources found"""
+    """Test querying GSM for LSM with no components found"""
 
     # Execute the function
     query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
@@ -483,7 +467,7 @@ def test_query_gsm_for_lsm_no_sources(db_session):  # noqa: F811
 
 
 def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
-    """Test querying GSM for LSM with multiple sources found"""
+    """Test querying GSM for LSM with multiple components found"""
 
     component = SkyComponent(
         component_id="1",

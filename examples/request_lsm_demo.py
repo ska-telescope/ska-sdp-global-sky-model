@@ -201,7 +201,7 @@ Examples based on test catalog data:
   # Check status of a request
   %(prog)s --status --pb-id pb-demo-20260216-123456 --flow-name local-sky-model-demo_field
 
-Note: The test catalog (tests/data/test_catalog_1.csv) contains sources in the range:
+Note: The test catalog (tests/data/test_catalog_1.csv) contains components in the range:
   RA: 42.8° to 46.5° (0.747 to 0.811 radians)
   Dec: 0.2° to 4.3° (0.003 to 0.075 radians)
         """,

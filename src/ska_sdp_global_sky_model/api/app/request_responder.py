@@ -161,7 +161,6 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, 
         db = next(get_db())
         try:
             output_data = _query_gsm_for_lsm(query_parameters, db)
-            _write_metadata(output_location, flow)
             _write_data(output_location, output_data)
         finally:
             db.close()
@@ -177,7 +176,7 @@ def _query_gsm_for_lsm(
     db: Session = Depends(get_db),
 ) -> "GlobalSkyModel":
     """
-    Query the Global Sky Model database for sources within the specified field of view.
+    Query the Global Sky Model database for components within the specified field of view.
 
     This function queries the GSM database to retrieve sky components within a circular
     region defined by the provided coordinates and field of view. Results are returned
@@ -332,19 +331,3 @@ def _find_ska_sdm_dir(output: Path) -> Path:
     # If ska-sdm not found, use parent of output as fallback
     logger.warning("Could not find 'ska-sdm' in path %s, using parent directory", output)
     return output.parent
-
-
-def _write_metadata(output: Path, flow: Flow):
-    """Write metadata for the LSM.
-
-    Note: The actual metadata writing is handled by LocalSkyModel.save(),
-    which is called in _write_data(). This function serves as a placeholder
-    for any additional metadata operations that may be needed in the future.
-
-    Args:
-        output: Path to the output directory
-        flow: Flow object containing request information
-    """
-    logger.info("Metadata handling delegated to LocalSkyModel.save()")
-    logger.debug("Flow: %s", flow.key)
-    logger.debug("Output: %s", output)

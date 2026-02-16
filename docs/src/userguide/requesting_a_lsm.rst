@@ -44,7 +44,7 @@ The layout of a flow entry should match the following:
 
     1. The first item in ``flow.sources`` with ``function="GlobalSkyModel.RequestLocalSkyModel"``
        will be used, any other ones which may have the same function are
-       ignored. Note: there should not be more than one source with this
+       ignored. Note: there should not be more than one component with this
        matching function.
     2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
     3. The output location needs to be specified in ``pvc_subpath``, but the metadata
@@ -66,7 +66,7 @@ Once a flow has been found that matches those criteria, the following is done:
 1. The state is updated to ``FLOWING``.
 2. The local sky model is retrieved from the database by:
 
-   a. Querying sources within the specified field of view using spatial indexing (q3c_radial_query)
+   a. Querying components within the specified field of view using spatial indexing (q3c_radial_query)
    b. Converting database records to SkyComponent objects from ska_sdp_datamodels
 
 3. The LSM is written to the shared volume as a CSV file.
@@ -99,7 +99,7 @@ The LSM query uses the following approach:
 
 4. **Result Format**: Returns a ``GlobalSkyModel`` object containing a dictionary
    of ``SkyComponent`` objects (keyed by component ID) with all relevant astronomical
-   measurements for sources within the requested field of view.
+   measurements for components within the requested field of view.
 
 5. **Output Format**: The LSM is written as a CSV file with named columns matching the
    ``SkyComponent`` dataclass fields. Metadata is written as a YAML file in the parent
@@ -194,7 +194,7 @@ Example 2: Query Based on Test Catalog
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Using the test catalog data in ``tests/data/test_catalog_1.csv``, which contains
-sources around RA~44-46° and Dec~0-4°, this example demonstrates querying a
+components around RA~44-46° and Dec~0-4°, this example demonstrates querying a
 subset of those sources:
 
 .. code-block:: python
