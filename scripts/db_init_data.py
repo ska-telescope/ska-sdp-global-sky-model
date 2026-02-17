@@ -39,11 +39,7 @@ def main():
     db = next(get_db())
     
     # Create metadata entry for this catalogue
-    metadata = GlobalSkyModelMetadata(
-        catalogue_name=args.catalogue_name,
-        version=args.version,
-        name=args.name,
-    )
+    metadata = GlobalSkyModelMetadata()
     db.add(metadata)
     db.commit()
     
