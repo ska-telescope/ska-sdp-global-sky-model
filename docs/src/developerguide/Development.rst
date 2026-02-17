@@ -97,9 +97,6 @@ Then run the API directly:
 
     $ uvicorn ska_sdp_global_sky_model.api.app.main:app --reload --host 0.0.0.0 --port 80 --app-dir /usr/src
 
-=====> Move to Testing.rst?
-
-
 Running the application tests
 =============================
 

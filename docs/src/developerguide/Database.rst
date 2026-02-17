@@ -79,9 +79,6 @@ code generation needed.
     # Dynamically add all fields from the SkyComponent dataclass to the model
     _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
 
-
-# Change the underline to make it not appear in the left-hand index list (not top-level)
-
 Schema management with Alembic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
