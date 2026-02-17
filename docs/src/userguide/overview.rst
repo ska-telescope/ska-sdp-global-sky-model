@@ -2,29 +2,39 @@
 SDP Global Sky Model Overview
 =============================
 
-Deployed via SDP -> link to SDP documentation
-https://developer.skao.int/projects/ska-sdp-integration/en/latest/installation/standalone.html
+The SDP Global Sky Model is a tool used to manage and maintain Sky Models.
+Subsets of these models are used in SKA pipelines. These subsets are known
+as Local Sky Models (LSM).
+
+This user guide focuses on the two main users of this service. The primary user
+is the pipeline or pipelines developer which ingests the LSM when the pipline is run.
+The second is the Operations User who will create and update Sky Model Versions.
+
+For Developers please refer to the {-> developer guide}
 
 
 How to upload data to the GSM
 -----------------------------
 
--> link to batch_upload.rst
+Uploading new versions can be done through the user interface or as a bulk upload.
 
-Example Usage:
+For interface upload please see {-> interface upload}
+For bulk upload please see {-> batch_upload.rst}
+
+GSM upload structure
+^^^^^^^^^^^^^^^^^^^^
 
 
 
+How to request an LSM
+---------------------
 
-How to request a LSM file
--------------------------
+The typical use case for requesting an LSM is from the pipeline as a file.
+An Operations User can review an LSM request on the browser. This is meant
+for quality control only for details go to {-> view_data_in_browser.rst}
+
 The process by which pipelines should request a Local Sky Model (LSM) is
 described on the page :doc:`requesting_a_lsm`
-
-
-Example Usage
-^^^^^^^^^^^^^
-To be written (summarise contents of :doc:`requesting_a_lsm`?)
 
 
 LSM file structure
@@ -105,153 +115,3 @@ The following shows the contents of a small LSM file as an example:
    J000022-000002,22.2,-2.345,20.0,200,20,2,1.02e+08,"[-0.7,0.02,0.123]",false
    J000033-000003,33.3,-3.456,30.0,300,30,3,1.03e+08,"[-0.7,0.03,0.123]",true
 
-
-How to view data (in a browser)
--------------------------------
-
-Example Usage:
-
-
-
-
-(Move elsewhere)
-
-Service layout
-==============
-
-Structure of the data and versions
-
-Overview of deployments
-
-
-
-
-Automatic API Documentation
----------------------------
-For detailed documentation of the API, see the FastAPI Swagger UI documentation. This interactive API documentation can be accessed at http://127.0.0.1:8000/docs when running the application locally or https://<domain>/<namespace>/global-sky-model/docs when deployed behind an ingress.
-
-Basic Usage
------------
-
-Get Local Sky Model API Endpoint
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This API endpoint retrieves a local sky model from a global sky model for a specified celestial observation.
-
-URI:
-~~~~
-
-.. code-block:: bash
-
-    GET /local_sky_model
-
-
-Request Parameters:
-~~~~~~~~~~~~~~~~~~~
-
-.. list-table::
-    :widths: 20, 50, 20, 10
-    :header-rows: 1
-
-    * - Parameter
-      - Description
-      - Data Type
-      - Required
-    * - ``ra``
-      - Right ascension of the observation point in degrees.
-      - Float
-      - Yes
-    * - ``dec``
-      - Declination of the observation point in degrees.
-      - Float
-      - Yes
-    * - ``flux_wide``
-      - Wide-field flux of the observation in Jy (Jansky).
-      - Float
-      - Yes
-    * - ``telescope``
-      - Name of the telescope being used for the observation.
-      - String
-      - Yes
-    * - ``fov``
-      - Field of view of the telescope in arcminutes.
-      - Float
-      - Yes
-
-Response:
-~~~~~~~~~
-
-The endpoint returns a JSON object representing the local sky model.
-
-
-.. code-block:: javascript
-
-    {
-    "ra": (float),  // Right ascension provided as input.
-    "dec": (float),  // Declination provided as input.
-    "flux_wide": (float),  // Wide-field flux provided as input.
-    "telescope": (string),  // Telescope name provided as input.
-    "fov": (float),  // Field of view provided as input.
-    "local_data": (string),  // Placeholder for data specific to the local sky model.
-                                // This data will be populated by the backend.
-    }
-
-
-Example Usage:
-~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-    curl -X GET http://localhost:8000/local_sky_model \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "ra": 123.456,
-        "dec": -56.789,
-        "flux_wide": 1.23,
-        "telescope": "HST",
-        "fov": 2.0
-    }'
-
-This example request retrieves a local sky model for an observation with the following parameters:
-
-* Right Ascension (RA): 123.456 degrees
-* Declination (DEC): -56.789 degrees
-* Wide-field flux: 1.23 Jy
-* Telescope: HST
-* Field of view: 2.0 degrees
-
-The response will be a JSON object containing the provided input parameters and a placeholder value for "local_data". The actual data for the local sky model will be populated by the backend implementation.
-
-
-How It Works:
-~~~~~~~~~~~~~
-
-Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
-
-The schema stores all component information in a single SkyComponent table. Each row represents a celestial component with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
-
-The SkyComponent model where most fields are dynamically generated from the ``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization with upstream data model changes:
-
-This approach allows the schema to automatically adapt when new fields are added to the upstream
-dataclass, while maintaining database-specific concerns like spatial indexing.
-
-Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sky components meeting the criteria of the given parameters are returned as the Local Sky Model.
-
-.. code-block:: javascript
-
-    {
-      "components": {
-        "<component_id>": {
-          "ra": <number>,
-          "dec": <number>,
-          "i_pol": <number>,
-          "major_ax": <number>,
-          "minor_ax": <number>,
-          "pos_ang": <number>,
-          "spec_idx": [<number>, ...],
-          "q_pol": <number>,
-          "u_pol": <number>,
-          "v_pol": <number>
-        }
-      }
-    }
