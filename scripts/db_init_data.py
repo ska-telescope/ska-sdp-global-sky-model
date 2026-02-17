@@ -41,7 +41,6 @@ def main():
     # Create metadata entry for this catalogue
     metadata = GlobalSkyModelMetadata(
         catalogue_name=args.catalogue_name,
-        description=args.description,
         version=args.version,
         name=args.name,
     )
