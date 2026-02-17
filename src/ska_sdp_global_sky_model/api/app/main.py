@@ -204,6 +204,23 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
         error_msg = str(e)
         logger.error("Background ingestion failed for upload %s: %s", upload_id, error_msg)
         logger.exception("Full traceback for upload %s:", upload_id)
+
+        if db:
+            try:
+                db.rollback()
+                db.query(SkyComponentStaging).filter(
+                    SkyComponentStaging.upload_id == upload_id
+                ).delete()
+                db.commit()
+                logger.info("Cleared staged records for failed upload %s", upload_id)
+            except Exception as cleanup_error:
+                db.rollback()
+                logger.error(
+                    "Failed to clear staged records for upload %s: %s",
+                    upload_id,
+                    cleanup_error,
+                )
+
         upload_manager.mark_failed(upload_id, error_msg)
 
     finally:
