@@ -307,10 +307,9 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
         component = SkyComponent(
             component_id="J030420+022029",
             healpix_index=12345,
-            ra=46.084633,
-            dec=2.341634,
-            i_pol=0.29086,
-            version="0.1.0",
+            ra=45,
+            dec=4,
+            version="1.0.2"
         )
         db.add(component)
         db.commit()
@@ -320,11 +319,11 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     # Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "4", "telescope": "MWA", "flux_wide": 0, "fov": 5},
+        params={"ra": "45", "dec": "4", "fov": 5, "version": "0.1.0"},
     )
 
     assert local_sky_model.status_code == 200
-    assert len(local_sky_model.json()) >= 1
+    assert "J030420+022029" in local_sky_model.text
 
 
 def test_upload_batch_gleam_catalogue(myclient, monkeypatch):
