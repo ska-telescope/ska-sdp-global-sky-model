@@ -11,14 +11,12 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, ORJSONResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import func, text
-from fastapi.responses import JSONResponse, ORJSONResponse
 from sqlalchemy.orm import Session
-f$rom starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
@@ -98,11 +96,6 @@ def ping():
     return {"ping": "live"}
 
 
-@app.get("/sources",  response_class=HTMLResponse, summary="See all the point sources")
-def get_point_sources(request: Request, db: Session = Depends(get_db)):
-    """Retrieve all point sources"""
-    logger.info("Retrieving all point sources...")
-
 @app.get("/upload", summary="Browser upload interface")
 def upload_interface():
     """Serve the HTML upload interface"""
@@ -113,22 +106,23 @@ def upload_interface():
 
 
 @app.get("/components", summary="See all the point components")
-def get_point_components(db: Session = Depends(get_db)):
+def get_point_components(request: Request, db: Session = Depends(get_db)):
     """Retrieve all point components"""
     logger.info("Retrieving all point components...")
     components = db.query(SkyComponent).all()
     logger.info("Retrieved all point sources for all %s components", str(len(components)))
-    return templates.TemplateResponse("table.html", {"request": request, "items": list(components)})
+    return templates.TemplateResponse(
+        "table.html", {"request": request, "items": list(components)}
+    )
 
 
 @app.get("/local_sky_model", response_class=HTMLResponse)
 async def get_local_sky_model_endpoint(
     request: Request,
-    ra: str,
-    dec: str,
-    flux_wide: float,
-    telescope: str,
+    ra: float,
+    dec: float,
     fov: float,
+    version: str,
     db: Session = Depends(get_db),
 ):
     """
@@ -138,34 +132,25 @@ async def get_local_sky_model_endpoint(
         request (Request): HTTP request object.
         ra (float): Right ascension of the observation point in degrees.
         dec (float): Declination of the observation point in degrees.
-        flux_wide (float): Wide-field flux of the observation in Jy.
-        telescope (str): Name of the telescope being used for the observation.
         fov (float): Field of view of the telescope in arcminutes.
+        version (str): Version of the global sky model.
         db (Session): Database session object.
 
     Returns:
-        html: An HTML template response.
-
-        The dictionary includes the following keys:
-            - ra: The right ascension provided as input.
-            - dec: The declination provided as input.
-            - flux_wide: The wide-field flux provided as input.
-            - telescope: The telescope name provided as input.
-            - fov: The field of view provided as input.
-            - local_data: ......
+        html: An HTML template response of the LSM in table format.
     """
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+dec:%s, fov:%s, version:%s",
         ra,
         dec,
-        flux_wide,
-        telescope,
         fov,
+        version,
     )
-    local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
-    return templates.TemplateResponse("table.html", {"request": request, "items": list(local_model)})
-    return ORJSONResponse(local_model)
+    local_model = get_local_sky_model(db, ra, dec, fov, version)
+    return templates.TemplateResponse(
+        "table.html", {"request": request, "items": list(local_model)}
+    )
 
 
 def _run_ingestion_task(upload_id: str, survey_metadata: dict):

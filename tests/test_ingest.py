@@ -16,7 +16,6 @@ from sqlalchemy.pool import StaticPool
 from ska_sdp_global_sky_model.api.app.ingest import (
     ComponentFile,
     build_component_mapping,
-    coerce_floats,
     commit_batch,
     compute_hpx_healpy,
     ingest_catalogue,
@@ -107,26 +106,6 @@ class TestComputeHpxHealpy:
         hpx = compute_hpx_healpy(180.0, -45.0)
         assert isinstance(hpx, int)
         assert hpx >= 0
-
-
-class TestCoerceFloats:
-    """Tests for coerce_floats function"""
-
-    def test_coerce_valid_floats(self):
-        """Test coercion of valid numeric strings"""
-        input_dict = {"a": "1.5", "b": "2", "c": 3.14}
-        result = coerce_floats(input_dict)
-        assert result["a"] == 1.5
-        assert result["b"] == 2.0
-        assert result["c"] == 3.14
-
-    def test_coerce_invalid_values(self):
-        """Test that invalid values remain unchanged"""
-        input_dict = {"a": "text", "b": None, "c": ""}
-        result = coerce_floats(input_dict)
-        assert result["a"] == "text"
-        assert result["b"] is None
-        assert result["c"] == ""
 
 
 class TestComponentFile:
