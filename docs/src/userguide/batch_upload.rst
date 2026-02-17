@@ -1,7 +1,7 @@
 Uploading Sky Survey Data
 =========================
 
-The SKA Global Sky Model (GSM) provides both a browser interface and API endpoints for uploading multiple sky survey catalog files in a single atomic batch operation into the GSM database.
+The SKA Global Sky Model (GSM) provides both a browser interface and API endpoints for uploading multiple sky survey catalogue files in a single atomic batch operation into the GSM database.
 
 Overview
 --------
@@ -34,7 +34,7 @@ from ska-sdp-datamodels.
 
     {
       "version": "1.0.0",
-      "catalog_name": "GLEAM",
+      "catalogue_name": "GLEAM",
       "description": "GaLactic and Extragalactic All-sky MWA Survey",
       "ref_freq": 170000000,
       "epoch": "J2000",
@@ -45,7 +45,7 @@ from ska-sdp-datamodels.
 
 **Required Fields**:
     - ``version``: Semantic version (e.g., "1.0.0") - must increment from previous versions
-    - ``catalog_name``: Catalog identifier (e.g., "GLEAM", "RACS", "RCAL")
+    - ``catalogue_name``: Catalog identifier (e.g., "GLEAM", "RACS", "RCAL")
     - ``description``: Human-readable description of the catalog
     - ``ref_freq``: Reference frequency in Hz (float/integer)
     - ``epoch``: Epoch of observation (e.g., "J2000")
@@ -98,7 +98,7 @@ Files uploaded in a new session (new ``upload_id``) will create a new catalog ve
 
 The ``sky_component_staging`` table mirrors the main ``sky_component`` table but includes:
     - ``upload_id``: Links all sources in a batch upload (same session)
-    - Unique constraint: ``component_id + upload_id`` (allows same source in different upload sessions)
+    - Unique constraint: ``component_id + upload_id``
 
 Asynchronous Processing
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -117,7 +117,7 @@ This design keeps the API responsive during large uploads and allows multiple co
 CSV File Format
 ---------------
 
-The uploaded CSV files must follow the standardized sky survey catalog format compatible with the 
+The uploaded CSV files must follow the standardized sky survey catalogue format compatible with the 
 `ska_sdp_datamodels <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py?ref_type=heads>`_ package. CSV files should use the standardized column names.
 
 Required Columns
@@ -157,7 +157,7 @@ CSV Format Examples
 
 **Standardized Format**:
 
-The ``test_catalog_1.csv`` and ``test_catalog_2.csv`` files in the test data directory demonstrate 
+The ``test_catalogue_1.csv`` and ``test_catalogue_2.csv`` files in the test data directory demonstrate 
 the required standardized format:
 
 .. code-block:: text
@@ -166,7 +166,7 @@ the required standardized format:
     J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,-0.419238,False
     J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,-1.074094,False
 
-These test catalogs contain 100 components each and are used throughout the test suite as reference examples.
+These test catalogues contain 100 components each and are used throughout the test suite as reference examples.
 
 **Minimal Format**:
 
@@ -244,11 +244,11 @@ Browser Upload Interface
 A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``). The interface provides:
 
 - **Drag-and-drop file upload**: Simply drag CSV files onto the upload zone
-- **Multiple file selection**: Upload multiple files that form a single catalog
+- **Multiple file selection**: Upload multiple files that form a single catalogue
 - **Real-time status monitoring**: Track upload progress with automatic polling
 - **Upload confirmation**: Confirm successful upload before committing to database
 - **Commit/Reject workflow**: Approve or discard staged uploads
-- **Version information**: Visual indicators showing which catalog version will be created
+- **Version information**: Visual indicators showing which catalogue version will be created
 
 **Using the Browser Interface**:
 
@@ -287,7 +287,7 @@ or ingestion, the entire batch is rolled back.
       - Data Type
       - Required
     * - ``metadata_file``
-      - JSON file containing catalog metadata (version, catalog_name, description, ref_freq, epoch)
+      - JSON file containing catalog metadata (version, catalogue_name, description, ref_freq, epoch)
       - File
       - Yes
     * - ``csv_files``
@@ -303,7 +303,7 @@ or ingestion, the entire batch is rolled back.
         "upload_id": "550e8400-e29b-41d4-a716-446655440000",
         "status": "uploading",
         "version": "1.0.0",
-        "catalog_name": "GLEAM"
+        "catalogue_name": "GLEAM"
     }
 
 **Note**: The endpoint returns immediately with status "uploading". Ingestion to staging table proceeds 
@@ -316,8 +316,8 @@ asynchronously in the background. Use the status endpoint to monitor completion,
     # Upload CSV files with catalog metadata
     curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
       -F "metadata_file=@metadata.json;type=application/json" \\
-      -F "csv_files=@test_catalog_1.csv;type=text/csv" \\
-      -F "csv_files=@test_catalog_2.csv;type=text/csv"
+      -F "csv_files=@test_catalogue_1.csv;type=text/csv" \\
+      -F "csv_files=@test_catalogue_2.csv;type=text/csv"
 
 **Python Example**:
 
@@ -331,14 +331,14 @@ asynchronously in the background. Use the status endpoint to monitor completion,
     # Upload CSV files with catalog metadata
     files = [
         ("metadata_file", ("metadata.json", open("metadata.json", "rb"), "application/json")),
-        ("csv_files", ("test_catalog_1.csv", open("test_catalog_1.csv", "rb"), "text/csv")),
-        ("csv_files", ("test_catalog_2.csv", open("test_catalog_2.csv", "rb"), "text/csv")),
+        ("csv_files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
+        ("csv_files", ("test_catalogue_2.csv", open("test_catalogue_2.csv", "rb"), "text/csv")),
     ]
     response = requests.post(url, files=files)
     
     result = response.json()
     print(f"Upload ID: {result['upload_id']}")
-    print(f"Catalog: {result['catalog_name']} v{result['version']}")
+    print(f"Catalog: {result['catalogue_name']} v{result['version']}")
     print(f"Status: {result['status']}")  # Will be "uploading"
     
     # Poll for completion
@@ -519,7 +519,7 @@ upload information.
         "upload_id": "550e8400-e29b-41d4-a716-446655440000",
         "records_committed": 200,
         "version": "1.0.0",
-        "catalog_name": "GLEAM"
+        "catalogue_name": "GLEAM"
     }
 
 **Example Usage**:
@@ -541,7 +541,7 @@ upload information.
     result = response.json()
     
     print(f"Committed {result['records_committed']} records")
-    print(f"Catalog: {result['catalog_name']} v{result['version']}")
+    print(f"Catalog: {result['catalogue_name']} v{result['version']}")
 
 Query Catalog Metadata
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -561,7 +561,7 @@ version information including upload dates, reference frequencies, epochs, and a
       - Description
       - Data Type
       - Required
-    * - ``catalog_name``
+    * - ``catalogue_name``
       - Filter by catalog name (case-insensitive partial match)
       - string
       - No
@@ -584,7 +584,7 @@ version information including upload dates, reference frequencies, epochs, and a
             {
                 "id": 1,
                 "version": "2.0.0",
-                "catalog_name": "GLEAM",
+                "catalogue_name": "GLEAM",
                 "description": "GaLactic and Extragalactic All-sky MWA Survey",
                 "upload_id": "550e8400-e29b-41d4-a716-446655440000",
                 "uploaded_at": "2026-02-13T10:30:00",
@@ -597,7 +597,7 @@ version information including upload dates, reference frequencies, epochs, and a
             {
                 "id": 2,
                 "version": "1.0.0",
-                "catalog_name": "GLEAM",
+                "catalogue_name": "GLEAM",
                 "description": "GaLactic and Extragalactic All-sky MWA Survey - Initial Release",
                 "upload_id": "660e8400-e29b-41d4-a716-446655440001",
                 "uploaded_at": "2026-01-15T09:15:00",
@@ -618,13 +618,13 @@ version information including upload dates, reference frequencies, epochs, and a
     curl "http://localhost:8000/catalog-metadata"
 
     # Get specific catalog versions
-    curl "http://localhost:8000/catalog-metadata?catalog_name=GLEAM"
+    curl "http://localhost:8000/catalog-metadata?catalogue_name=GLEAM"
 
     # Get specific version
     curl "http://localhost:8000/catalog-metadata?version=1.0.0"
 
     # Combined search with limit
-    curl "http://localhost:8000/catalog-metadata?catalog_name=GLEAM&limit=10"
+    curl "http://localhost:8000/catalog-metadata?catalogue_name=GLEAM&limit=10"
 
 **Python Example**:
 
@@ -634,14 +634,14 @@ version information including upload dates, reference frequencies, epochs, and a
 
     # Query all GLEAM catalog versions
     url = "http://localhost:8000/catalog-metadata"
-    params = {"catalog_name": "GLEAM"}
+    params = {"catalogue_name": "GLEAM"}
     
     response = requests.get(url, params=params)
     result = response.json()
     
     print(f"Found {result['total']} catalog versions:")
     for catalog in result['catalogs']:
-        print(f"  {catalog['catalog_name']} v{catalog['version']}")
+        print(f"  {catalog['catalogue_name']} v{catalog['version']}")
         print(f"    Uploaded: {catalog['uploaded_at']}")
         print(f"    Reference frequency: {catalog['ref_freq']/1e6:.1f} MHz")
         print(f"    Epoch: {catalog['epoch']}")

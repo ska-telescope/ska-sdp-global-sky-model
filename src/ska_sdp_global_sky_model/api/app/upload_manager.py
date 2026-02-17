@@ -146,7 +146,7 @@ class UploadManager:
             ) from exc
 
         # Validate required fields
-        required_fields = ["version", "catalog_name", "description", "ref_freq", "epoch"]
+        required_fields = ["version", "catalogue_name", "description", "ref_freq", "epoch"]
         missing_fields = [field for field in required_fields if field not in metadata]
 
         if missing_fields:
@@ -173,7 +173,7 @@ class UploadManager:
             "Parsed and validated metadata file %s (version: %s, catalog: %s)",
             file.filename,
             metadata["version"],
-            metadata["catalog_name"],
+            metadata["catalogue_name"],
         )
 
     async def save_csv_file(self, file: UploadFile, upload_status: UploadStatus) -> None:

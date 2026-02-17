@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "catalog_name": "RACS",
+  "catalogue_name": "RACS",
   "description": "Rapid ASKAP Continuum Survey",
   "ref_freq": 887500000,
   "epoch": "J2000",

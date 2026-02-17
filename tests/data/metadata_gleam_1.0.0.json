@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "catalog_name": "GLEAM",
+  "catalogue_name": "GLEAM",
   "description": "GaLactic and Extragalactic All-sky MWA Survey",
   "ref_freq": 170000000,
   "epoch": "J2000",

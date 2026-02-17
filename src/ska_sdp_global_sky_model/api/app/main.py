@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
-from ska_sdp_global_sky_model.api.app.ingest import ingest_catalog
+from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
 from ska_sdp_global_sky_model.api.app.models import (
     CatalogMetadata,
     SkyComponent,
@@ -176,7 +176,7 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
     upload_id : str
         Upload identifier for tracking
     survey_metadata : dict
-        Catalog metadata for ingestion
+        Catalogue metadata for ingestion
     """
     db = None
     try:
@@ -197,7 +197,7 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
             file_metadata["upload_id"] = upload_id
 
             logger.info("Ingesting file to staging: %s", filename)
-            if not ingest_catalog(db, file_metadata):
+            if not ingest_catalogue(db, file_metadata):
                 raise RuntimeError(f"Ingest failed for {filename}")
 
         # Mark as completed
@@ -241,7 +241,7 @@ async def upload_sky_survey_batch(
     background_tasks : BackgroundTasks
         FastAPI background task manager
     metadata_file : UploadFile
-        JSON file with catalog metadata (version, catalog_name, description, etc.)
+        JSON file with catalog metadata (version, catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
     db : Session
@@ -294,8 +294,8 @@ async def upload_sky_survey_batch(
 
         # 5. Prepare metadata for ingestion
         survey_metadata = {
-            "name": metadata.get("catalog_name", "Upload"),
-            "catalog_name": metadata.get("catalog_name", "UPLOAD"),
+            "name": metadata.get("catalogue_name", "Upload"),
+            "catalogue_name": metadata.get("catalogue_name", "UPLOAD"),
             "version": metadata["version"],
             "description": metadata.get("description", ""),
             "ingest": {
@@ -320,7 +320,7 @@ async def upload_sky_survey_batch(
             "upload_id": upload_id,
             "status": "uploading",
             "version": metadata["version"],
-            "catalog_name": metadata["catalog_name"],
+            "catalogue_name": metadata["catalogue_name"],
             "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. Ingestion running.",
         }
 
@@ -467,12 +467,12 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
         metadata = status.metadata
         catalog_version = metadata["version"]
-        catalog_name = metadata["catalog_name"]
+        catalogue_name = metadata["catalogue_name"]
 
         # Create CatalogMetadata record
         catalog_metadata = CatalogMetadata(
             version=catalog_version,
-            catalog_name=catalog_name,
+            catalogue_name=catalogue_name,
             description=metadata.get("description", ""),
             upload_id=upload_id,
             ref_freq=float(metadata["ref_freq"]),
@@ -513,10 +513,11 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
         return {
             "status": "success",
-            "message": f"Committed {len(staged_records)} components from catalog '{catalog_name}'",
+            "message": f"Committed {len(staged_records)} \
+                components from catalogue '{catalogue_name}'",
             "records_committed": len(staged_records),
             "version": catalog_version,
-            "catalog_name": catalog_name,
+            "catalogue_name": catalogue_name,
         }
 
     except Exception as e:
@@ -585,7 +586,7 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
 
 @app.get("/catalog-metadata", summary="Query catalog metadata")
 def get_catalog_metadata(
-    catalog_name: str | None = None,
+    catalogue_name: str | None = None,
     version: str | None = None,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -598,7 +599,7 @@ def get_catalog_metadata(
 
     Parameters
     ----------
-    catalog_name : str, optional
+    catalogue_name : str, optional
         Filter by catalog name (case-insensitive partial match)
     version : str, optional
         Filter by exact version
@@ -615,8 +616,8 @@ def get_catalog_metadata(
     query = db.query(CatalogMetadata)
 
     # Apply filters
-    if catalog_name:
-        query = query.filter(CatalogMetadata.catalog_name.ilike(f"%{catalog_name}%"))
+    if catalogue_name:
+        query = query.filter(CatalogMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
 
     if version:
         query = query.filter(CatalogMetadata.version == version)

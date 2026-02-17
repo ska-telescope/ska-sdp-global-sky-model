@@ -1,6 +1,6 @@
 {
   "version": "1.5.0",
-  "catalog_name": "GENERIC",
+  "catalogue_name": "GENERIC",
   "description": "Generic test catalog",
   "ref_freq": 1000000000,
   "epoch": "J2000"

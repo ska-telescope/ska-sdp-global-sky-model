@@ -1,6 +1,6 @@
 # pylint: disable=no-member,redefined-outer-name,duplicate-code
 """
-Tests for catalog ingestion functionality
+Tests for catalogue ingestion functionality
 """
 
 import logging
@@ -19,8 +19,8 @@ from ska_sdp_global_sky_model.api.app.ingest import (
     coerce_floats,
     commit_batch,
     compute_hpx_healpy,
-    ingest_catalog,
-    parse_catalog_components,
+    ingest_catalogue,
+    parse_catalogue_components,
     process_component_data_batch,
     to_float,
     validate_component_mapping,
@@ -386,11 +386,11 @@ class TestCommitBatch:
         assert len(component_objs) == 0  # Should be cleared
 
 
-class TestParseCatalogComponents:  # pylint: disable=too-few-public-methods
-    """Tests for parse_catalog_components function"""
+class TestParseCatalogueComponents:  # pylint: disable=too-few-public-methods
+    """Tests for parse_catalogue_components function"""
 
     def test_content_based_selector(self, sample_csv_file):
-        """Test content-based catalog parsing for in-memory CSV data"""
+        """Test content-based catalogue parsing for in-memory CSV data"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -402,7 +402,7 @@ class TestParseCatalogComponents:  # pylint: disable=too-few-public-methods
             ]
         }
 
-        results = list(parse_catalog_components(ingest_metadata))
+        results = list(parse_catalogue_components(ingest_metadata))
         assert len(results) == 1
         component_file = results[0]
         assert isinstance(component_file, ComponentFile)
@@ -573,17 +573,17 @@ class TestProcessComponentDataBatch:
         assert ingestion_started is True
 
 
-class TestIngestCatalog:
-    """Tests for ingest_catalog function"""
+class TestIngestCatalogue:
+    """Tests for ingest_catalogue function"""
 
     def test_successful_ingestion(self, test_db, sample_csv_file):
-        """Test successful full catalog ingestion with in-memory content"""
+        """Test successful full catalogue ingestion with in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        catalog_metadata = {
-            "name": "Test Catalog",
-            "catalog_name": "TEST",
+        catalogue_metadata = {
+            "name": "Test Catalogue",
+            "catalogue_name": "TEST",
             "staging": True,
             "upload_id": "test-upload-1",
             "ingest": {
@@ -595,20 +595,20 @@ class TestIngestCatalog:
             },
         }
 
-        result = ingest_catalog(test_db, catalog_metadata)
+        result = ingest_catalogue(test_db, catalogue_metadata)
 
         assert result is True
         count = test_db.query(SkyComponentStaging).count()
         assert count == 3
 
-    def test_empty_catalog(self, test_db):
-        """Test handling of empty catalog with in-memory content"""
+    def test_empty_catalogue(self, test_db):
+        """Test handling of empty catalogue with in-memory content"""
         # Create empty CSV content
         empty_content = "component_id,ra,dec,i_pol\n"
 
-        catalog_metadata = {
-            "name": "Empty Catalog",
-            "catalog_name": "EMPTY",
+        catalogue_metadata = {
+            "name": "Empty Catalogue",
+            "catalogue_name": "EMPTY",
             "ingest": {
                 "file_location": [
                     {
@@ -618,6 +618,6 @@ class TestIngestCatalog:
             },
         }
 
-        result = ingest_catalog(test_db, catalog_metadata)
-        # Should succeed with empty catalog
+        result = ingest_catalogue(test_db, catalogue_metadata)
+        # Should succeed with empty catalogue
         assert result is True

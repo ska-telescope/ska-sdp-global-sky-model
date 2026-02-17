@@ -24,7 +24,7 @@ def upgrade() -> None:
         'catalog_metadata',
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
         sa.Column('version', sa.String(), nullable=False),
-        sa.Column('catalog_name', sa.String(), nullable=False),
+        sa.Column('catalogue_name', sa.String(), nullable=False),
         sa.Column('description', sa.String(), nullable=True),
         sa.Column('upload_id', sa.String(), nullable=False),
         sa.Column(

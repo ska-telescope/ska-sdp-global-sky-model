@@ -211,7 +211,7 @@ class CatalogMetadata(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     version = Column(String, nullable=False, unique=True, index=True)
-    catalog_name = Column(String, nullable=False)
+    catalogue_name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     upload_id = Column(String, nullable=False, unique=True, index=True)
     # pylint: disable=not-callable
@@ -231,7 +231,7 @@ class CatalogMetadata(Base):
         return {
             "id": self.id,
             "version": self.version,
-            "catalog_name": self.catalog_name,
+            "catalogue_name": self.catalogue_name,
             "description": self.description,
             "upload_id": self.upload_id,
             "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
