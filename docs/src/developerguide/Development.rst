@@ -1,9 +1,6 @@
 Developer Guide
 ~~~~~~~~~~~~~~~
 
-Top-level overview section, pointing to sub-sections (deployment with K8s and Docker compose; Database guide - combine existing sections (since they're already on the same page))
-
-
 This document complements the guidelines set out in the `SKA telescope developer portal <https://developer.skao.int/en/latest/>`_
 
 

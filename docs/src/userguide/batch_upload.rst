@@ -1,5 +1,5 @@
-Uploading Sky Survey Data
-=========================
+Uploading GSM data
+==================
 
 The SKA Global Sky Model (GSM) provides both a browser interface and API endpoints for uploading multiple sky survey catalogue files in a single atomic batch operation into the GSM database.
 
@@ -26,7 +26,7 @@ All uploads use a staging workflow allowing new catalogue versions to be success
 
 1. **Upload to Staging**: Files are first uploaded to ``sky_component_staging`` table
 2. **Review Upload Status**: Use ``/review-upload/{upload_id}`` to confirm the upload succeeded
-3. **Commit or Reject** (manual action required): 
+3. **Commit or Reject** (manual action required):
    - Commit: Move data to main table with automatic versioning
    - Reject: Discard all staged data for that upload
 
@@ -43,8 +43,8 @@ This allows you to:
     - Release new versions of the entire sky catalogue
     - Track changes to the catalogue over time
     - Query specific catalogue versions or always get the latest version
-    
-Files uploaded in the same session (same ``upload_id``) will form part of the same catalogue version. 
+
+Files uploaded in the same session (same ``upload_id``) will form part of the same catalogue version.
 Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with an incremented version number.
 
 **Staging Table Schema**:
@@ -70,7 +70,7 @@ This design keeps the API responsive during large uploads and allows multiple co
 CSV File Format
 ---------------
 
-The uploaded CSV files must follow the standardized sky survey catalogue format compatible with the 
+The uploaded CSV files must follow the standardized sky survey catalogue format compatible with the
 `ska_sdp_datamodels <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py?ref_type=heads>`_ package. CSV files should use the standardized column names.
 
 Required Columns
@@ -110,7 +110,7 @@ CSV Format Examples
 
 **Standardized Format**:
 
-The ``test_catalogue_1.csv`` and ``test_catalogue_2.csv`` files in the test data directory demonstrate 
+The ``test_catalogue_1.csv`` and ``test_catalogue_2.csv`` files in the test data directory demonstrate
 the required standardized format:
 
 .. code-block:: text
@@ -134,7 +134,7 @@ At minimum, you need the four required columns:
 Data Validation
 ~~~~~~~~~~~~~~~~
 
-**Important**: The API performs only basic technical validation (data types, required fields, coordinate ranges). 
+**Important**: The API performs only basic technical validation (data types, required fields, coordinate ranges).
 No scientific validation is performed - users are responsible for ensuring their data is scientifically accurate, including correct flux values, proper component positions, and appropriate units.
 
 After CSV files are loaded, each component undergoes validation. The following checks are performed:
@@ -175,10 +175,10 @@ After CSV files are loaded, each component undergoes validation. The following c
 Best Practices
 --------------
 
-1. **Data Preparation**: Verify the scientific accuracy of your data before upload. The API does not validate 
+1. **Data Preparation**: Verify the scientific accuracy of your data before upload. The API does not validate
    flux values, component identifications, or other scientific properties - only basic technical requirements.
 
-2. **File Validation**: Ensure all CSV files are properly formatted with standardized column names before upload 
+2. **File Validation**: Ensure all CSV files are properly formatted with standardized column names before upload
    to avoid batch failures. Required columns are component_id, ra, dec, and i_pol.
 
 3. **Progress Monitoring**: Use the status endpoint to monitor long-running uploads, especially for large batches.
@@ -250,7 +250,7 @@ Upload and ingest one or more sky survey CSV files to the staging table. All fil
         "status": "uploading"
     }
 
-**Note**: The endpoint returns immediately with status "uploading". Ingestion to staging table proceeds 
+**Note**: The endpoint returns immediately with status "uploading". Ingestion to staging table proceeds
 asynchronously in the background. Use the status endpoint to monitor completion, then review and commit.
 
 **Example Usage**:
@@ -270,18 +270,18 @@ asynchronously in the background. Use the status endpoint to monitor completion,
     import time
 
     url = "<GSM_API_URL>/upload-sky-survey-batch"
-    
+
     # Upload multiple CSV files with standardized column names
     files = [
         ("files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
         ("files", ("test_catalogue_2.csv", open("test_catalogue_2.csv", "rb"), "text/csv")),
     ]
     response = requests.post(url, files=files)
-    
+
     result = response.json()
     print(f"Upload ID: {result['upload_id']}")
     print(f"Status: {result['status']}")  # Will be "uploading"
-    
+
     # Poll for completion
     status_url = f"{url.replace('/upload-sky-survey-batch', '')}/upload-sky-survey-status/{result['upload_id']}"
     while True:
@@ -290,7 +290,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
         if status_data['state'] in ['completed', 'failed']:
             break
         time.sleep(2)
-    
+
     print(f"Final status: {status_data['state']}")
 
 Get Upload Status
@@ -350,19 +350,19 @@ Retrieve the current status of a sky survey batch upload.
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
     url = f"<GSM_API_URL>/upload-sky-survey-status/{upload_id}"
-    
+
     while True:
         response = requests.get(url)
         status = response.json()
-        
+
         print(f"State: {status['state']}")
         print(f"Progress: {status['uploaded_files']}/{status['total_files']}")
-        
+
         if status['state'] in ['completed', 'failed']:
             break
-        
+
         time.sleep(2)
-    
+
     if status['state'] == 'failed':
         print(f"Errors: {status['errors']}")
 
@@ -420,10 +420,10 @@ Review the status of the upload before committing to the main database. Returns 
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
     url = f"<GSM_API_URL>/review-upload/{upload_id}"
-    
+
     response = requests.get(url)
     review = response.json()
-    
+
     print(f"Total records: {review['total_records']}")
     print(f"Sample data: {review['sample'][:3]}")  # First 3 records
 
@@ -474,10 +474,10 @@ receive the same version number (the next minor version of the catalogue).
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
     url = f"<GSM_API_URL>/commit-upload/{upload_id}"
-    
+
     response = requests.post(url)
     result = response.json()
-    
+
     print(f"Committed {result['records_committed']} records")
     print(f"Message: {result['message']}")
 
@@ -527,9 +527,9 @@ Reject and discard staged data. All records associated with this upload_id are p
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
     url = f"<GSM_API_URL>/reject-upload/{upload_id}"
-    
+
     response = requests.delete(url)
     result = response.json()
-    
+
     print(f"Rejected and deleted {result['records_deleted']} records")
     print(f"Message: {result['message']}")

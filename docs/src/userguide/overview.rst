@@ -2,37 +2,47 @@
 SDP Global Sky Model Overview
 =============================
 
-The SDP Global Sky Model is a tool used to manage and maintain Sky Models.
+The SDP Global Sky Model is a tool used to manage and maintain sky models.
 Subsets of these models are used in SKA pipelines. These subsets are known
 as Local Sky Models (LSM).
 
 This user guide focuses on the two main users of this service. The primary user
-is the pipeline or pipelines developer which ingests the LSM when the pipline is run.
-The second is the Operations User who will create and update Sky Model Versions.
+is the pipeline developer, for which the LSM is ingested when the pipline is run.
+The second is the operations user who will create and update sky model versions.
 
-For Developers please refer to the {-> developer guide}
+For developers, please refer to the :doc:`Developer Guide </developerguide/Development>`.
 
 
 How to upload data to the GSM
 -----------------------------
 
-Uploading new versions can be done through the user interface or as a bulk upload.
+Uploading a new version of the GSM catalogue can be done through the user
+interface or as a bulk upload.
 
+For instructions for using the bulk upload method, please see the
+:doc:`Batch Upload Guide </userguide/batch_upload>`.
 For interface upload please see {-> interface upload}
-For bulk upload please see {-> batch_upload.rst}
+(page to be added).
 
 GSM upload structure
 ^^^^^^^^^^^^^^^^^^^^
-
+The CSV file format that should be used when submitting an updated version
+of the GSM catalogue is described in the section at :ref:`CSV File Format`.
 
 
 How to request an LSM
 ---------------------
 
+Request LSM via a browser
+^^^^^^^^^^^^^^^^^^^^^^^^^
 The typical use case for requesting an LSM is from the pipeline as a file.
-An Operations User can review an LSM request on the browser. This is meant
-for quality control only for details go to {-> view_data_in_browser.rst}
+An operations user can review an LSM request in the browser.
+This is meant for quality control only.
+For details, go to :doc:`Viewing data in a browser </userguide/viewing_data_in_browser>`.
 
+
+Request LSM file for a pipeline
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The process by which pipelines should request a Local Sky Model (LSM) is
 described on the page :doc:`requesting_a_lsm`
 
@@ -114,4 +124,3 @@ The following shows the contents of a small LSM file as an example:
    J000011-000001,11.1,-1.234,10.0,100,10,1,1.01e+08,"[-0.7,0.01,0.123]",true
    J000022-000002,22.2,-2.345,20.0,200,20,2,1.02e+08,"[-0.7,0.02,0.123]",false
    J000033-000003,33.3,-3.456,30.0,300,30,3,1.03e+08,"[-0.7,0.03,0.123]",true
-

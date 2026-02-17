@@ -1,12 +1,15 @@
 Deployment Guide
 ~~~~~~~~~~~~~~~~
 
-# Rename to deployment with docker compose
-
 This document complements the guidelines set out in the SKA telescope developer
- portal `<https://developer.skao.int/en/latest/>`_
+portal `<https://developer.skao.int/en/latest/>`_
 
-This service is deployed in `SDP <https://developer.skao.int/projects/ska-sdp-integration/en/latest/>`_.
+The GSM service is deployed in `SDP <https://developer.skao.int/projects/ska-sdp-integration/en/latest/>`_.
+Normally, developers should deploy the service within their Kubernetes
+namespace on SDP for testing purposes.
+However, non-European users may find it easier to work with a local deployment
+in order to avoid problems with network latency.
+The following section describes how this can be done using Docker Compose.
 
 Running the application with Docker Compose
 ===========================================
@@ -16,15 +19,6 @@ The application can be built and run using the provided docker-compose file. The
 - **PostgreSQL database**: Stores the global sky model data
 - **FastAPI service**: REST API for accessing the sky model
 - **etcd**: Configuration store for SKA SDP flow management
-
-Prerequisites
--------------
-
-Install Docker and docker-compose:
-
-.. code-block:: bash
-
-    $ sudo apt install docker.io docker-compose
 
 Starting the Services
 ---------------------

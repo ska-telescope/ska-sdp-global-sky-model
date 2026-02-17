@@ -1,5 +1,5 @@
-Requesting a Local Sky Model
-============================
+Requesting LSM data
+===================
 
 The processing script requests a LSM using the following method.
 

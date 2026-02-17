@@ -1,9 +1,9 @@
-Viewing data in a browser
-=========================
+Viewing LSM data in a browser
+=============================
 
 For users who would like to inspect the data visually two views have been provided.
-The Two table views are available through a browser interface.
-These are at the `/components` and and the `/local_sky_model` endpoints.
+The two table views are available through a browser interface.
+These are at the `/components` and the `/local_sky_model` endpoints.
 
 Components
 ----------
@@ -22,7 +22,7 @@ The following table will be displayed:
 Components
 ----------
 
-To access the LSM (filtered list of components navigate to
+To access the LSM (filtered list of components) navigate to
 ``GET /local_sky_model?ra={ra}&dec={dec}&fov={fov}&version={version}``
 
 where:

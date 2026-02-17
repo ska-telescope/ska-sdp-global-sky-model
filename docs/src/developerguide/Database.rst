@@ -2,7 +2,7 @@ Database Guide
 ~~~~~~~~~~~~~~
 
 This document complements the guidelines set out in the SKA telescope developer
- portal `<https://developer.skao.int/en/latest/>`_
+portal `<https://developer.skao.int/en/latest/>`_
 
 Running the application database
 ================================
