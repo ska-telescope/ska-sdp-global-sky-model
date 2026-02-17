@@ -15,7 +15,7 @@ The following table will be displayed:
 
 +----+----------------+---------+----------------+-----------+-----------+-------+----------+----------+---------+----------+--------------+-------+-------+-------+
 | Id | Healpix_index  | Version | Component_id   | Ra        | Dec       | I_pol | Major_ax | Minor_ax | Pos_ang | Spec_idx | Log_spec_idx | Q_pol | U_pol | V_pol |
-+====+================+=========+================+===========+===========+=======+==========+==========+=========+==========+==============+=======+-------+-------+
++====+================+=========+================+===========+===========+=======+==========+==========+=========+==========+==============+=======+=======+=======+
 | 1  | 72434864       | 0.0.0   | J023255-053134 | 38.230309 | -5.526247 | None  | None     | None     | None    | None     | None         | None  | None  | None  |
 +----+----------------+---------+----------------+-----------+-----------+-------+----------+----------+---------+----------+--------------+-------+-------+-------+
 
@@ -35,15 +35,15 @@ where:
       - Data Type
       - Required
     * - ``ra``
-      - The ra of the centre of the cone search
+      - The ra of the centre of the cone search (in degrees)
       - float
       - Yes
     * - ``dec``
-      - The dec of the centre of the cone search
+      - The dec of the centre of the cone search (in degrees)
       - float
       - Yes
     * - ``fov``
-      - The field of view of the cone search
+      - The field of view of the cone search (in arcminutes)
       - float
       - Yes
     * - ``version``
