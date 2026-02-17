@@ -202,10 +202,6 @@ def _query_gsm_for_lsm(
         containing a dictionary of SkyComponent objects keyed by component ID.
 
     Note:
-        - The function uses q3c_radial_query for efficient spatial queries
-        - Both the database and q3c use degrees for all coordinates
-        - Results are filtered by catalog version to support multiple GSM versions
-        - Components include position, Stokes parameters, morphology, and spectral indices
         - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
     logger.info(
@@ -218,7 +214,6 @@ def _query_gsm_for_lsm(
 
     try:
         # Query components within the field of view using spatial index
-        # Note: q3c_radial_query expects all coordinates in degrees
         # pylint: disable=no-member,duplicate-code
         sky_components = (
             db.query(SkyComponent)
@@ -249,10 +244,6 @@ def _query_gsm_for_lsm(
     except Exception as e:
         logger.exception("Error querying GSM database: %s", e)
         raise
-
-
-# The next functions are meant to be replaced when we actually query the
-# data, as well as write the metadata and data to disk.
 
 
 def _update_state(

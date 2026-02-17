@@ -44,7 +44,7 @@ The layout of a flow entry should match the following:
 
     1. The first item in ``flow.sources`` with ``function="GlobalSkyModel.RequestLocalSkyModel"``
        will be used, any other ones which may have the same function are
-       ignored. Note: there should not be more than one component with this
+       ignored. Note: there should not be more than one source with this
        matching function.
     2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
     3. The output location needs to be specified in ``pvc_subpath``, but the metadata
@@ -80,7 +80,7 @@ Database Query Details
 
 The LSM query uses the following approach:
 
-1. **Spatial Query**: Uses PostgreSQL's q3c extension to efficiently find sources
+1. **Spatial Query**: Uses PostgreSQL's q3c extension to efficiently find components
    within a circular region defined by RA, Dec, and FOV radius (all in radians).
 
 2. **Data Retrieval**: For each matched source, the system retrieves:

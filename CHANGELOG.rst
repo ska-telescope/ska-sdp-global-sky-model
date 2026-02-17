@@ -20,7 +20,7 @@ Development
   context manager for application startup and shutdown handling.
   (`MR61 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/61>`__)
 - [Added] Implemented ``_query_gsm_for_lsm`` function to query the Global Sky Model
-  database and return componentswithin a specified field of view as ``GlobalSkyModel`` objects.
+  database and return components within a specified field of view as ``GlobalSkyModel`` objects.
   (`MR55 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/55>`__)
 - [Added] Utilities to write a local sky model CSV file and associated metadata.
   (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__)
