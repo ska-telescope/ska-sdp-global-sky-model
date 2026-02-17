@@ -112,9 +112,6 @@ class GlobalSkyModelMetadata(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = mapped_column(String(255), nullable=False)
-    catalogue_name = mapped_column(String(255), nullable=False)
-    description = mapped_column(String, nullable=True)
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
