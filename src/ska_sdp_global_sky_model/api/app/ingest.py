@@ -556,15 +556,13 @@ def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
     Returns:
         True if all data was validated and ingested successfully, False otherwise.
     """
-    telescope_name = catalogue_metadata["name"]
     catalogue_name = catalogue_metadata["catalogue_name"]
     staging = catalogue_metadata.get("staging", False)
     upload_id = catalogue_metadata.get("upload_id")
 
     logger.info(
-        "Loading the %s catalogue for the %s telescope (staging=%s)...",
+        "Loading the %s catalogue (staging=%s)...",
         catalogue_name,
-        telescope_name,
         staging,
     )
 
