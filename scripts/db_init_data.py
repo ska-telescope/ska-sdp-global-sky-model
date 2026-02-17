@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--catalogue_name", help="Name of catalogue", default="test_catalogue")
     parser.add_argument("--version", help="Catalogue version", default="0.1.0")
     parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
+    parser.add_argument("--description", help="Catalogue description", default="")
 
     args = parser.parse_args()
 
