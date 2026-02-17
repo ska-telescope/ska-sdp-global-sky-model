@@ -433,6 +433,7 @@ class LocalSkyModel:
         :param metadata_dir: Directory in which to write YAML metadata file.
         :type metadata_dir: str
         """
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as out:
 
             # Write the file header.
@@ -448,6 +449,13 @@ class LocalSkyModel:
                 for name in self.columns:
                     tokens.append(self.get_value_str(name, row_index))
                 out.write(",".join(tokens) + "\n")
+
+        # Verify the file was written
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Failed to write LSM file to {path}")
+
+        file_size = os.path.getsize(path)
+        LOGGER.info("LSM file written successfully: %s (size: %d bytes)", path, file_size)
 
         # Write the YAML metadata file, if a directory is specified.
         if metadata_dir:

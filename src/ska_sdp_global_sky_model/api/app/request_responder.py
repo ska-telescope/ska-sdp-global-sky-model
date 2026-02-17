@@ -25,6 +25,7 @@ import time
 from collections.abc import Generator
 from pathlib import Path
 
+import numpy as np
 import ska_sdp_config
 from fastapi import Depends
 from ska_sdp_config.entity.flow import Flow, FlowSource
@@ -53,13 +54,13 @@ class QueryParameters:
     """The list of available and optional query parameters."""
 
     ra: float
-    """Right Ascension [rad]"""
+    """Right Ascension [degrees]"""
 
     dec: float
-    """Declination [rad]"""
+    """Declination [degrees]"""
 
     fov: float
-    """Field of View radius [rad]"""
+    """Field of View radius [degrees]"""
 
     version: str = "latest"
     """version of the GSM data"""
@@ -165,8 +166,14 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, 
         finally:
             db.close()
     except Exception as err:  # pylint: disable=broad-exception-caught
+        logger.error(
+            "Failed to process flow %s with parameters %s: %s",
+            flow.key,
+            query_parameters,
+            err,
+        )
         logger.exception(err)
-        return False, str(err)
+        return False, f"Error processing flow {flow.key} with parameters {query_parameters}: {err}"
 
     return True, None
 
@@ -184,9 +191,9 @@ def _query_gsm_for_lsm(
 
     Args:
         query_parameters: QueryParameters object containing:
-            - ra: Right Ascension in radians
-            - dec: Declination in radians
-            - fov: Field of view radius in radians
+            - ra: Right Ascension in degrees
+            - dec: Declination in degrees
+            - fov: Field of view radius in degrees
             - version: GSM catalog version to query (e.g., "1.0.0", "latest")
         db: Database session
 
@@ -196,12 +203,13 @@ def _query_gsm_for_lsm(
 
     Note:
         - The function uses q3c_radial_query for efficient spatial queries
+        - Both the database and q3c use degrees for all coordinates
         - Results are filtered by catalog version to support multiple GSM versions
         - Components include position, Stokes parameters, morphology, and spectral indices
         - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
     logger.info(
-        "Querying GSM: RA=%.6f, Dec=%.6f, FOV=%.6f rad (version=%s)",
+        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (version=%s)",
         query_parameters.ra,
         query_parameters.dec,
         query_parameters.fov,
@@ -210,6 +218,7 @@ def _query_gsm_for_lsm(
 
     try:
         # Query components within the field of view using spatial index
+        # Note: q3c_radial_query expects all coordinates in degrees
         # pylint: disable=no-member,duplicate-code
         sky_components = (
             db.query(SkyComponent)
@@ -268,7 +277,7 @@ def _update_state(
         txn.flow.state(flow).create(new_state)
 
 
-def _write_data(output: Path, data: "GlobalSkyModel"):
+def _write_data(output: Path, data: "GlobalSkyModel"):  # pylint: disable=too-many-locals
     """Write the LSM to disk as a CSV file.
 
     Args:
@@ -298,19 +307,58 @@ def _write_data(output: Path, data: "GlobalSkyModel"):
         max_vector_len=5,  # For spectral index vectors
     )
 
+    # Think this should/could be done better...
+    # Extract execution block ID from path and set metadata
+    # Path format: /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id}
+    path_parts = output.parts
+    try:
+        # Find 'product' in path and get the next part (eb_id)
+        product_idx = path_parts.index("product")
+        if product_idx + 1 < len(path_parts):
+            eb_id = path_parts[product_idx + 1]
+            local_model.set_metadata({"execution_block_id": eb_id})
+            logger.debug("Set execution_block_id to: %s", eb_id)
+    except (ValueError, IndexError) as e:
+        logger.warning("Could not extract execution_block_id from path %s: %s", output, e)
+
     # Populate the LocalSkyModel with data from GlobalSkyModel
     for row_idx, component in enumerate(data.components.values()):
-        row_data = {field: getattr(component, field, None) for field in column_names}
+        row_data = {}
+        for field in column_names:
+            value = getattr(component, field, None)
+            # Handle None values in arrays (e.g., spec_idx with nulls)
+            if isinstance(value, (list, tuple)):
+                # Replace None with numpy.nan in arrays
+
+                value = [np.nan if v is None else v for v in value]
+            row_data[field] = value
         local_model.set_row(row_idx, row_data)
 
     # Find the ska-sdm directory for metadata
     metadata_dir = _find_ska_sdm_dir(output)
 
-    # Use LocalSkyModel.save() to write both CSV and metadata
-    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
+    # Handle empty components gracefully
+    logger.info(
+        "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
+    )
+    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir) if data.components else None)
 
-    logger.info("Successfully wrote LSM to %s", lsm_file)
-    logger.info("Metadata written to %s/ska-data-product.yaml", metadata_dir)
+    # Verify files were actually written
+    if lsm_file.exists():
+        logger.info("Successfully wrote LSM to %s", lsm_file)
+    else:
+        raise FileNotFoundError(f"LSM file was not created at {lsm_file}")
+
+    # Only verify metadata file if there are components
+    if data.components:
+        metadata_yaml = metadata_dir / "ska-data-product.yaml"
+        if metadata_yaml.exists():
+            logger.info("Metadata written to %s", metadata_yaml)
+        else:
+            logger.warning(
+                "Metadata file was not created at %s (this may be expected in tests)",
+                metadata_yaml,
+            )
 
 
 def _find_ska_sdm_dir(output: Path) -> Path:

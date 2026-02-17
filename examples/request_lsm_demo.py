@@ -11,12 +11,13 @@ Prerequisites:
 - Access to the Configuration DB (etcd)
 
 Test data coordinates (from tests/data/test_catalog_1.csv):
-- RA range: ~42.8° to 46.5° (0.747 to 0.811 radians)
-- Dec range: ~0.2° to 4.3° (0.003 to 0.075 radians)
+- RA range: ~42.8° to 46.5°
+- Dec range: ~0.2° to 4.3°
+
+Note: All coordinates are specified in decimal degrees.
 """
 
 import argparse
-import math
 import pathlib
 import sys
 import time
@@ -31,18 +32,8 @@ except ImportError:
     sys.exit(1)
 
 
-def deg_to_rad(degrees):
-    """Convert degrees to radians"""
-    return degrees * math.pi / 180.0
-
-
-def rad_to_deg(radians):
-    """Convert radians to degrees"""
-    return radians * 180.0 / math.pi
-
-
 def create_lsm_request(
-    ra_deg, dec_deg, fov_deg, version="latest", eb_id=None, pb_id=None, field_id="demo_field"
+    ra_deg, dec_deg, fov_deg, version="1.1.0", eb_id=None, pb_id=None, field_id="demo_field"
 ):
     """
     Create an LSM request Flow entry in the Configuration DB.
@@ -56,11 +47,6 @@ def create_lsm_request(
         pb_id: Processing block ID (auto-generated if None)
         field_id: Field identifier
     """
-    # Convert to radians
-    ra = deg_to_rad(ra_deg)
-    dec = deg_to_rad(dec_deg)
-    fov = deg_to_rad(fov_deg)
-
     # Generate IDs if not provided
     if eb_id is None:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -71,8 +57,8 @@ def create_lsm_request(
 
     print(f"\nCreating LSM request:")
     print(f"  Field ID: {field_id}")
-    print(f"  Center: RA={ra_deg:.4f}° ({ra:.6f} rad), Dec={dec_deg:.4f}° ({dec:.6f} rad)")
-    print(f"  FOV radius: {fov_deg:.4f}° ({fov:.6f} rad)")
+    print(f"  Center: RA={ra_deg:.4f}°, Dec={dec_deg:.4f}°")
+    print(f"  FOV radius: {fov_deg:.4f}°")
     print(f"  Catalog version: {version}")
     print(f"  Execution Block: {eb_id}")
     print(f"  Processing Block: {pb_id}")
@@ -89,7 +75,7 @@ def create_lsm_request(
     try:
         for txn in config.txn():
             flow = Flow(
-                key=Flow.Key(pb_id=pb_id, name=f"local-sky-model-{field_id}"),
+                key=Flow.Key(pb_id=pb_id, name="local-sky-model-field1"),
                 sink=DataProduct(
                     data_dir=PVCPath(
                         k8s_namespaces=[],
@@ -106,9 +92,9 @@ def create_lsm_request(
                         uri="gsm://request/lsm",
                         function="GlobalSkyModel.RequestLocalSkyModel",
                         parameters={
-                            "ra": ra,
-                            "dec": dec,
-                            "fov": fov,
+                            "ra": ra_deg,
+                            "dec": dec_deg,
+                            "fov": fov_deg,
                             "version": version,
                         },
                     )
@@ -116,7 +102,7 @@ def create_lsm_request(
                 data_model="CsvNamedColumns",
                 expiry_time=-1,
             )
-            txn.flow.add(flow)
+            txn.flow.create(flow)
             txn.flow.state(flow).create({"status": "INITIALISED"})
 
         print(f"\n✓ LSM request created successfully!")
@@ -124,6 +110,7 @@ def create_lsm_request(
         print(f"\nOutput will be written to:")
         print(f"  CSV: /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id}/local_sky_model.csv")
         print(f"  Metadata: /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/ska-data-product.yaml")
+        print(f"\nNote: Inside the container, this maps to /mnt/data/product/...")
         print(f"\nMonitor status with:")
         print(f"  python {__file__} --status --pb-id {pb_id} --flow-name local-sky-model-{field_id}")
 
@@ -204,8 +191,9 @@ Examples based on test catalog data:
   %(prog)s --status --pb-id pb-demo-20260216-123456 --flow-name local-sky-model-demo_field
 
 Note: The test catalog (tests/data/test_catalog_1.csv) contains components in the range:
-  RA: 42.8° to 46.5° (0.747 to 0.811 radians)
-  Dec: 0.2° to 4.3° (0.003 to 0.075 radians)
+  RA: 42.8° to 46.5°
+  Dec: 0.2° to 4.3°
+  All coordinates are in decimal degrees.
         """,
     )
 
@@ -219,7 +207,7 @@ Note: The test catalog (tests/data/test_catalog_1.csv) contains components in th
     parser.add_argument(
         "--version",
         type=str,
-        default="latest",
+        default="1.1.0",
         help="Catalog version to query (default: latest, e.g., 1.0.0, 0.1.0)",
     )
     parser.add_argument(

@@ -331,7 +331,7 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     )
 
     assert success is False
-    assert reason == "An error occured"
+    assert "Error processing flow" in reason
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
@@ -565,6 +565,8 @@ def test_write_data_integration(
     assert "-30.0" in csv_content or "-30" in csv_content
     assert "# NUMBER_OF_COMPONENTS: 2" in csv_content
 
+    # Note: metadata file is not checked here because MetaData is mocked
+
 
 def test_write_data_empty_components(tmp_path):
     """Test _write_data with empty GlobalSkyModel"""
@@ -581,10 +583,8 @@ def test_write_data_empty_components(tmp_path):
     ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
     ska_sdm_dir.mkdir(parents=True, exist_ok=True)
 
-    # Mock the metadata writing to avoid validation issues
-    with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
-        # Write the data
-        _write_data(output_dir, gsm)
+    # Write the data (should handle empty components gracefully)
+    _write_data(output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
@@ -596,6 +596,10 @@ def test_write_data_empty_components(tmp_path):
     # Should have header comment lines but no data
     assert any("format" in line.lower() for line in lines)
     assert any("NUMBER_OF_COMPONENTS: 0" in line for line in lines)
+
+    # Verify metadata file was NOT created (since we skip it for empty components)
+    metadata_file = ska_sdm_dir / "ska-data-product.yaml"
+    assert not metadata_file.exists()
 
 
 def test_find_ska_sdm_dir():
