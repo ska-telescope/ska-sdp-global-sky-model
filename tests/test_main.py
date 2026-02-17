@@ -293,8 +293,7 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
     response = myclient.get("/components")
     assert response.status_code == 200
     # Verify we have components
-    assert len(response.json()) > 0
-    assert response.json()[0][0].startswith("J")
+    assert "J030853+053903" in response.text
 
 
 def test_local_sky_model(myclient):  # pylint: disable=unused-argument
