@@ -1,7 +1,7 @@
 [project]
 include = ["MANIFEST.skao.int"]
 name = "ska_sdp_global_sky_model"
-version = "0.1.4+dev"
+version = "0.1.4"
 description = "SKA SDP Global Sky Model"
 authors = [
     {name = "Jacob Maresca", email =  "jacob.maresca@akkodis.com>"},
