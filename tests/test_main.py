@@ -305,11 +305,7 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     try:
         # Add a component in the query region (RA ~45, Dec ~4)
         component = SkyComponent(
-            component_id="J030420+022029",
-            healpix_index=12345,
-            ra=45,
-            dec=4,
-            version="1.0.2"
+            component_id="J030420+022029", healpix_index=12345, ra=45, dec=4, version="1.0.2"
         )
         db.add(component)
         db.commit()
