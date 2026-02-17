@@ -1,0 +1,25 @@
+<head></head>
+<body>
+    <table border="1">
+        <!-- Table Header (optional) -->
+        <thead>
+            <tr>
+                {% if items %}
+                    {% for key in items[0].columns_to_dict().keys() %}
+                        <th>{{ key.capitalize() }}</th>
+                    {% endfor %}
+                {% endif %}
+            </tr>
+        </thead>
+        <!-- Table Body -->
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    {% for value in item.columns_to_dict().values() %}
+                        <td>{{ value }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>

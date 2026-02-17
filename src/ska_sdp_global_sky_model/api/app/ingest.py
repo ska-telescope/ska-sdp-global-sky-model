@@ -125,23 +125,6 @@ def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
         return None
 
 
-def coerce_floats(component_dict: dict) -> dict:
-    """Convert all numeric values in dictionary to floats where possible.
-
-    Args:
-        component_dict: Dictionary with string or numeric values.
-
-    Returns:
-        New dictionary with values converted to float where possible,
-        original values preserved if conversion fails.
-    """
-    out = {}
-    for k, v in component_dict.items():
-        float_val = to_float(v)
-        out[k] = float_val if float_val is not None else v
-    return out
-
-
 def _is_optional_field(field_type: type) -> bool:
     """Check if a field type is Optional (Union[T, None])."""
     origin = get_origin(field_type)
