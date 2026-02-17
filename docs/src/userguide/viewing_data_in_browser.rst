@@ -2,14 +2,14 @@ Viewing data in a browser
 =========================
 
 For users who would like to inspect the data visually two views have been provided.
-The two table views are available through a browser interface.
+The Two table views are available through a browser interface.
 These are at the `/components` and and the `/local_sky_model` endpoints.
 
 Components
 ----------
 
 The components endpoint gives a table of the components that have been added to the GSM.
-To access these on a local instance of the GSM navigate to ``GET components``.
+To access these on a local instance of the GSM navigate to ``GET /components``
 
 The following table will be displayed:
 
@@ -23,7 +23,7 @@ Components
 ----------
 
 To access the LSM (filtered list of components navigate to
-``GET local_sky_model?ra={ra}&dec={dec}&fov={fov}&version={version}``
+``GET /local_sky_model?ra={ra}&dec={dec}&fov={fov}&version={version}``
 
 where:
 .. list-table::
