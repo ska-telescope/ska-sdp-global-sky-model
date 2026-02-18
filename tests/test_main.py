@@ -829,7 +829,7 @@ def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
     with good_file.open("rb") as f1:
         files = [
             ("files", (good_file.name, f1, "text/csv")),
-            ("files", ("bad.csv", bad_csv_bytes, "text/csv")),
+            ("files", ("bad.csv", io.BytesIO(bad_csv_bytes), "text/csv")),
         ]
         response = myclient.post("/upload-sky-survey-batch", files=files)
 
