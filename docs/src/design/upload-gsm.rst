@@ -13,7 +13,7 @@ The process allows the following:
 - CSV files uploaded in a single upload session will be part of the same catalogue version.
 - Track upload progress with a unique identifier.
 - Query upload status and errors.
-- Review the last few entries of the uploaded data than manually.
+- Review the last few entries of the uploaded data, then manually
   commit or reject the upload.
 - Ensure atomic ingestion (all files succeed or none are ingested).
 - Automatic data validation at the schema level.
@@ -31,7 +31,7 @@ Staging and versioning of data
 Two-stage upload process
 ........................
 
-All uploads stage the data into a ``staging table`` first, which is follows the schema of the
+All uploads stage the data into a ``staging table`` first, which follows the schema of the
 main tables, except it also includes an ``upload_id`` to distinguish between different
 upload sessions.
 
@@ -44,7 +44,7 @@ Automatic Versioning
 
 When committing staged data, the system automatically handles versioning at the catalogue level:
 
-- Initial catalogue version: If data exist in the database yet, the new catalogue starts at version ``0.1.0``
+- Initial catalogue version: If no data exist in the database yet, the new catalogue starts at version ``0.1.0``
 - Next catalogue version: Each new committed catalogue increments the minor version (e.g., ``0.1.0`` → ``0.2.0`` → ``0.3.0``)
 
 All records in the same commit (same upload session) share the same version number.
@@ -75,7 +75,7 @@ Data Validation
 .. note::
 
     The API performs only basic technical validation (data types, required fields, coordinate ranges).
-    No scientific validation is performed - users are responsible for ensuring theirdata is scientifically accurate.
+    No scientific validation is performed - users are responsible for ensuring their data are scientifically accurate.
 
 After CSV files are loaded, each component undergoes validation.
 The following checks are performed:
@@ -106,5 +106,5 @@ The following checks are performed:
       - Must be numeric
 
 Each ingested component is validated individually.
-If any validation errors occur, no data is ingested.
+If any validation errors occur, no data will be ingested.
 Only if all components pass validation will ingestion proceed.

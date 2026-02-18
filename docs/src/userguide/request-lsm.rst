@@ -6,8 +6,8 @@ Requesting Local Sky Model data
 SDP processing pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The processing script requesting an LSM on behalf of data processing
-pipeline have to do it via generating data flow entries in the
+The processing script requesting an LSM on behalf of a data processing
+pipeline has to do it by generating data flow entries in the
 SDP Configuration Database (see :ref:`design page <sdp_request>`).
 
 The flow needs to be of kind ``data-product`` and its
@@ -81,7 +81,7 @@ If there is a failure the state is updated to ``FAILED`` and a reason is set.
 Output CSV file
 ...............
 
-The output CSV file is descried at :ref:`lsm_file`.
+The output CSV file is described at :ref:`lsm_file`.
 
 
 .. _lsm_browser:
@@ -89,7 +89,7 @@ The output CSV file is descried at :ref:`lsm_file`.
 Viewing LSM data in a browser
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For users who would like to inspect the data visually two views have been provided.
+For users who would like to inspect the data visually, two views have been provided.
 The two table views are available through a browser interface.
 These are at the `/components` and the `/local_sky_model` endpoints.
 
@@ -97,7 +97,7 @@ Components
 ..........
 
 The components endpoint gives a table of the components that have been added to the GSM.
-To access these on a local instance of the GSM navigate to ``GET /components``
+To access these on a local instance of the GSM, navigate to ``GET /components``
 
 The following table will be displayed:
 
@@ -124,11 +124,11 @@ where:
      - Data Type
      - Required
    * - ``ra``
-     - The ra of the centre of the cone search (in degrees)
+     - The right ascension of the centre of the cone search (in degrees)
      - float
      - Yes
    * - ``dec``
-     - The dec of the centre of the cone search (in degrees)
+     - The declination of the centre of the cone search (in degrees)
      - float
      - Yes
    * - ``fov``

@@ -4,13 +4,13 @@ Deployment Guide
 The GSM service is deployed as an SDP component (including its required database
 backend), which allows full integration testing of the code. Follow the
 `SDP documentation <https://developer.skao.int/projects/ska-sdp-integration/en/latest/installation/standalone.html>`_
-for guidlines.
+for guidelines.
 
 Running the application locally
 -------------------------------
 
 The application can be built and run locally, with the backend services
-deployed using docker.
+deployed using docker or podman.
 
 Starting the database services
 ..............................

@@ -16,16 +16,16 @@ SDP Processing
 ^^^^^^^^^^^^^^
 
 In the SDP, processing scripts request the deployment of various processing
-pipeliens, including, e.g. the realtime calibartion pipeline, the instrumental
+pipelines, including, e.g. the realtime calibration pipeline, the instrumental
 calibration pipeline or the iterative calibration pipeline. All of these
-pipeliens require an LSM to be available for their calibration
+pipelines require an LSM to be available for their calibration
 processes to run with high accuracy.
 
-The process to request an LSM follows the `SDP architecutre <https://developer.skao.int/projects/ska-sdp-integration/en/latest/index.html>`_.
-Processing scripts specify the request paramertes via data flow entites (see `ADR-81 <https://confluence.skatelescope.org/display/SWSI/ADR-81+Centralise+SDP+data+product%2C+queue+and+Tango+configuration+as+data+flows>`_),
+The process to request an LSM follows the `SDP architecture <https://developer.skao.int/projects/ska-sdp-integration/en/latest/index.html>`_.
+Processing scripts specify the request parameters via data flow entities (see `ADR-81 <https://confluence.skatelescope.org/display/SWSI/ADR-81+Centralise+SDP+data+product%2C+queue+and+Tango+configuration+as+data+flows>`_),
 which are stored in the SDP Configuration database (Config DB).
 
-The GSM Service continously monitors the Config DB for new LSM requests, and
+The GSM Service continuously monitors the Config DB for new LSM requests, and
 when it finds one, it extracts the query parameters, then queries the PostgreSQL
 database using Q3C (Quad-tree Cube)-based queries. The returned data are then stored in a
 CSV file (one per LSM request) in a location that is specified by the data flow entity
