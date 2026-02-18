@@ -186,6 +186,9 @@ def _resolve_version(version: str, db: Session) -> str:
 
     try:
         versions = db.query(SkyComponent.version).distinct().all()
+        if not versions:
+            logger.exception("No GSM versions available in database.")
+            raise
 
         version_strings = [v[0] for v in versions]
 
@@ -195,7 +198,7 @@ def _resolve_version(version: str, db: Session) -> str:
         return latest_version
 
     except Exception as e:
-        logger.exception("No GSM versions available in database: %s", e)
+        logger.exception("Failed to resolve version: %s", e)
         raise
 
 

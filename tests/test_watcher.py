@@ -427,7 +427,7 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         ra=111.11,
         dec=-22.22,
         healpix_index=33333,
-        version="latest",
+        version="0.1.0",
     )
     db_session.add(component)
     db_session.commit()
@@ -467,7 +467,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra=2.9670,
         dec=-0.1745,
         healpix_index=1,
-        version="latest",
+        version="0.1.0",
     )
     db_session.add(component)
 
@@ -476,7 +476,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra=2.9680,
         dec=-0.1755,
         healpix_index=2,
-        version="latest",
+        version="0.1.0",
     )
     db_session.add(component_2)
 
@@ -485,7 +485,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra=2.9690,
         dec=-0.1765,
         healpix_index=3,
-        version="latest",
+        version="0.1.0",
     )
     db_session.add(component_3)
 
