@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 import ska_ser_logging
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.orm import sessionmaker
@@ -17,6 +18,9 @@ if not ENV_FILE.exists():
     ENV_FILE = None
 
 config = Config(ENV_FILE)
+
+template_path = Path(Path(__file__).parent.parent, "templates")
+templates = Jinja2Templates(directory=template_path)
 
 ska_ser_logging.configure_logging(level=config("SDP_LOG_LEVEL", default="WARNING").upper())
 logger = logging.getLogger(__name__)
