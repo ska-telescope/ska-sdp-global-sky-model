@@ -130,7 +130,7 @@ def _mock_ingest_catalogue(db, metadata):  # pylint: disable=unused-argument
     return True
 
 
-def _fake_ingest_catalogue(db, metadata):
+def _fake_ingest_catalogue(metadata):
     """Fake ingest that fails when `ra` or `dec` are missing."""
     content = metadata["ingest"]["file_location"][0]["content"]
     if isinstance(content, bytes):
