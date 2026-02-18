@@ -16,8 +16,10 @@ Clone the repository and its submodules:
 Service layout
 ==============
 
-The GSM service consists of two main components a FastAPI application and a PostgreSQL database.
-The FastAPI Service provides a web interface as well as a thread that interfaces with the ConfigurationDB.
+The GSM service consists of two main components:
+A FastAPI application, and a PostgreSQL database.
+The FastAPI service provides a web interface, as well as a thread that
+interfaces with the ConfigurationDB.
 
 To illustrate the components and the various external interfaces the process of requesting an LSM is described:
 (Thanks to Jacob, we shamelessly plugged this from https://confluence.skatelescope.org/display/SWSI/Requesting+a+Local+Sky+Model)

@@ -19,36 +19,37 @@ The following table will be displayed:
 | 1  | 72434864       | 0.0.0   | J023255-053134 | 38.230309 | -5.526247 | None  | None     | None     | None    | None     | None         | None  | None  | None  |
 +----+----------------+---------+----------------+-----------+-----------+-------+----------+----------+---------+----------+--------------+-------+-------+-------+
 
-Components
-----------
+Local Sky Model
+---------------
 
 To access the LSM (filtered list of components) navigate to
 ``GET /local_sky_model?ra={ra}&dec={dec}&fov={fov}&version={version}``
 
 where:
-.. list-table::
-    :widths: 20, 50, 20, 10
-    :header-rows: 1
 
-    * - Parameter
-      - Description
-      - Data Type
-      - Required
-    * - ``ra``
-      - The ra of the centre of the cone search (in degrees)
-      - float
-      - Yes
-    * - ``dec``
-      - The dec of the centre of the cone search (in degrees)
-      - float
-      - Yes
-    * - ``fov``
-      - The field of view of the cone search (in arcminutes)
-      - float
-      - Yes
-    * - ``version``
-      - The version string of the GSM to select from (not implemented)
-      - string
-      - Yes
+.. list-table::
+   :widths: 20 50 20 10
+   :header-rows: 1
+
+   * - Parameter
+     - Description
+     - Data Type
+     - Required
+   * - ``ra``
+     - The ra of the centre of the cone search (in degrees)
+     - float
+     - Yes
+   * - ``dec``
+     - The dec of the centre of the cone search (in degrees)
+     - float
+     - Yes
+   * - ``fov``
+     - The field of view of the cone search (in arcminutes)
+     - float
+     - Yes
+   * - ``version``
+     - The version string of the GSM to select from (not implemented)
+     - string
+     - Yes
 
 This will return a filtered view of the sky components.

@@ -41,7 +41,7 @@ The ``models.py`` file defines two models:
       ``GlobalSkyModelMetadata`` dataclass at module import time
 
 Dynamic Column Generation
-~~~~~~~~~~~~~~~~~~~~~~~~~
+=========================
 
 The dynamic column generation happens at module import time through the
 ``_add_dynamic_columns_to_model()`` helper function:
@@ -80,7 +80,7 @@ code generation needed.
     _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass)
 
 Schema management with Alembic
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+==============================
 
 The database schema is being managed by alembic `<https://alembic.sqlalchemy.org/en/latest/>`_
 
