@@ -68,13 +68,15 @@ The FastAPI service provides REST endpoints for:
 Running the application
 =======================
 
-The service can either be run as part of an SDP deployment.
-Alternatively, and in a development context, it can also be deployed as a standalone application.
+The service can be run as part of an SDP deployment.
+Alternatively, and in a development context, it can also be deployed as a
+standalone application.
 
 Running as part of SDP (using Kubernetes)
 -----------------------------------------
 
-Deployed via SDP -> link to SDP documentation
+If the service is deployed as an SDP component, see the SDP Integration
+documentation for details:
 https://developer.skao.int/projects/ska-sdp-integration/en/latest/installation/standalone.html
 
 Using Docker Compose
