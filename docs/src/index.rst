@@ -48,4 +48,4 @@ repository contains the code for the GSM service.
   :maxdepth: 1
   :caption: Releases
 
-  changelog
+  releases/changelog
