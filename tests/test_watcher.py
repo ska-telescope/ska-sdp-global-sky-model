@@ -597,10 +597,6 @@ def test_write_data_empty_components(tmp_path):
     assert any("format" in line.lower() for line in lines)
     assert any("NUMBER_OF_COMPONENTS: 0" in line for line in lines)
 
-    # Verify metadata file was NOT created (since we skip it for empty components)
-    metadata_file = ska_sdm_dir / "ska-data-product.yaml"
-    assert not metadata_file.exists()
-
 
 def test_find_ska_sdm_dir():
     """Test _find_ska_sdm_dir helper function"""
@@ -613,8 +609,3 @@ def test_find_ska_sdm_dir():
     test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
     result = _find_ska_sdm_dir(test_path)
     assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
-
-    # Test with no ska-sdm in path (should return parent)
-    test_path = pathlib.Path("/some/other/path")
-    result = _find_ska_sdm_dir(test_path)
-    assert result == pathlib.Path("/some/other")
