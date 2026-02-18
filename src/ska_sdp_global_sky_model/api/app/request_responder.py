@@ -28,6 +28,7 @@ from pathlib import Path
 import numpy as np
 import ska_sdp_config
 from fastapi import Depends
+from packaging.version import Version
 from ska_sdp_config.entity.flow import Flow, FlowSource
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModel,
@@ -178,6 +179,26 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, 
     return True, None
 
 
+def _resolve_version(version: str, db: Session) -> str:
+    """Resolve 'latest' to highest semantic version in database."""
+    if version != "latest":
+        return version
+
+    try:
+        versions = db.query(SkyComponent.version).distinct().all()
+
+        version_strings = [v[0] for v in versions]
+
+        # Parse and sort semantically
+        latest_version = max(version_strings, key=Version)
+
+        return latest_version
+
+    except Exception as e:
+        logger.exception("No GSM versions available in database: %s", e)
+        raise
+
+
 def _query_gsm_for_lsm(
     query_parameters: QueryParameters,
     db: Session = Depends(get_db),
@@ -213,6 +234,7 @@ def _query_gsm_for_lsm(
     )
 
     try:
+        resolved_version = _resolve_version(query_parameters.version, db)
         # Query components within the field of view using spatial index
         # pylint: disable=no-member,duplicate-code
         sky_components = (
@@ -226,7 +248,7 @@ def _query_gsm_for_lsm(
                     query_parameters.fov,
                 )
             )
-            .where(SkyComponent.version == query_parameters.version)
+            .where(SkyComponent.version == resolved_version)
             .all()
         )
 

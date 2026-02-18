@@ -50,6 +50,7 @@ ska-sdp-datamodels = "1.0.2+dev.c772c480c"
 ska-sdp-dataproduct-metadata = "^1.1.0"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
 PyYAML = "^6.0.0"
+packaging = "^26.0"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.0"
