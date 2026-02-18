@@ -3,6 +3,8 @@
 Basic testing of the API
 """
 
+import csv
+import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -128,23 +130,42 @@ def _mock_ingest_catalogue(db, metadata):  # pylint: disable=unused-argument
     return True
 
 
-def _mock_ingest_catalogue_staging(db, metadata, prefix, count):
-    """Mock ingest that creates test records in staging table."""
-    upload_id = metadata.get("upload_id")
-    if not upload_id:
-        return False
-    for i in range(count):
-        component = SkyComponentStaging(
-            component_id=f"{prefix}{i:05d}",
-            upload_id=upload_id,
-            ra=10.0 + i,
-            dec=20.0 + i,
-            i_pol=0.5 + i * 0.1,
-            healpix_index=12345,
-        )
-        db.add(component)
-    db.commit()
+def _fake_ingest_catalogue(metadata):
+    """Fake ingest that fails when `ra` or `dec` are missing."""
+    content = metadata["ingest"]["file_location"][0]["content"]
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="replace")
+    reader = csv.DictReader(io.StringIO(content))
+    for row in reader:
+        if not row.get("ra") or not row.get("dec"):
+            return False
     return True
+
+
+def _make_bad_csv(file_path: Path, n_missing: int = 2) -> bytes:
+    """Create a bad CSV bytes object by removing `ra` and `dec` from first n rows."""
+    with file_path.open("r", newline="", encoding="utf-8") as f:
+        reader = list(csv.reader(f))
+    if not reader:
+        return b""
+    header = reader[0]
+    rows = reader[1:]
+
+    for i in range(min(n_missing, len(rows))):
+        if "ra" in header:
+            ra_idx = header.index("ra")
+            if ra_idx < len(rows[i]):
+                rows[i][ra_idx] = ""
+        if "dec" in header:
+            dec_idx = header.index("dec")
+            if dec_idx < len(rows[i]):
+                rows[i][dec_idx] = ""
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(header)
+    writer.writerows(rows)
+    return buf.getvalue().encode("utf-8")
 
 
 def test_read_main(myclient):
@@ -272,8 +293,7 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
     response = myclient.get("/components")
     assert response.status_code == 200
     # Verify we have components
-    assert len(response.json()) > 0
-    assert response.json()[0][0].startswith("J")
+    assert "J030853+053903" in response.text
 
 
 def test_local_sky_model(myclient):  # pylint: disable=unused-argument
@@ -284,12 +304,7 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     try:
         # Add a component in the query region (RA ~45, Dec ~4)
         component = SkyComponent(
-            component_id="J030420+022029",
-            healpix_index=12345,
-            ra=46.084633,
-            dec=2.341634,
-            i_pol=0.29086,
-            version="0.1.0",
+            component_id="J030420+022029", healpix_index=12345, ra=45, dec=4, version="1.0.2"
         )
         db.add(component)
         db.commit()
@@ -299,11 +314,11 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     # Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "4", "telescope": "MWA", "flux_wide": 0, "fov": 5},
+        params={"ra": "45", "dec": "4", "fov": 5, "version": "0.1.0"},
     )
 
     assert local_sky_model.status_code == 200
-    assert len(local_sky_model.json()) >= 1
+    assert "J030420+022029" in local_sky_model.text
 
 
 def test_upload_batch_gleam_catalog(myclient, monkeypatch):
@@ -796,3 +811,45 @@ def test_reject_upload_not_completed(myclient):
 
     assert reject_response.status_code == 400
     assert "not ready for rejection" in reject_response.json()["detail"].lower()
+
+
+def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
+    """Test that if one good and one bad file are uploaded, staging is cleared on failure."""
+    _clean_staging_table()
+    good_file = Path("tests/data/test_catalogue_1.csv")
+
+    # Create bad CSV bytes from the good file (removes ra/dec in first rows)
+    bad_csv_bytes = _make_bad_csv(good_file, n_missing=2)
+
+    # Fake to simulate failure when ra/dec missing
+    monkeypatch.setattr(
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _fake_ingest_catalogue
+    )
+
+    with good_file.open("rb") as f1:
+        files = [
+            ("files", (good_file.name, f1, "text/csv")),
+            ("files", ("bad.csv", bad_csv_bytes, "text/csv")),
+        ]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 200
+    upload_id = response.json()["upload_id"]
+
+    # Status should be failed
+    status_response = myclient.get(f"/upload-sky-survey-status/{upload_id}")
+    assert status_response.status_code == 200
+    status_data = status_response.json()
+    assert status_data["state"] == "failed"
+
+    # Staging table should be empty for this upload_id
+    db = next(override_get_db())
+    try:
+        count = (
+            db.query(SkyComponentStaging)
+            .filter(SkyComponentStaging.upload_id == upload_id)
+            .count()
+        )
+        assert count == 0
+    finally:
+        db.close()

@@ -11,9 +11,9 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, ORJSONResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -30,6 +30,7 @@ from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (
     engine,
     get_db,
+    templates,
 )
 from ska_sdp_global_sky_model.utilities.version_utils import is_version_increment
 
@@ -109,58 +110,51 @@ def upload_interface():
 
 
 @app.get("/components", summary="See all the point components")
-def get_point_components(db: Session = Depends(get_db)):
+def get_point_components(request: Request, db: Session = Depends(get_db)):
     """Retrieve all point components"""
     logger.info("Retrieving all point components...")
     components = db.query(SkyComponent).all()
-    logger.info("Retrieved all point components: %s components", str(len(components)))
-    component_list = []
-    for component in components:
-        component_list.append([component.component_id, component.ra, component.dec])
-    return component_list
+    logger.info("Retrieved all point sources for all %s components", str(len(components)))
+    return templates.TemplateResponse(
+        "table.html", {"request": request, "items": list(components)}
+    )
 
 
-@app.get("/local_sky_model", response_class=ORJSONResponse)
+@app.get("/local_sky_model", response_class=HTMLResponse)
 async def get_local_sky_model_endpoint(
-    ra: str,
-    dec: str,
-    flux_wide: float,
-    telescope: str,
+    request: Request,
+    ra: float,
+    dec: float,
     fov: float,
+    version: str,
     db: Session = Depends(get_db),
 ):
     """
     Get the local sky model from a global sky model.
 
     Args:
+        request (Request): HTTP request object.
         ra (float): Right ascension of the observation point in degrees.
         dec (float): Declination of the observation point in degrees.
-        flux_wide (float): Wide-field flux of the observation in Jy.
-        telescope (str): Name of the telescope being used for the observation.
         fov (float): Field of view of the telescope in arcminutes.
+        version (str): Version of the global sky model.
+        db (Session): Database session object.
 
     Returns:
-        dict: A dictionary containing the local sky model information.
-
-        The dictionary includes the following keys:
-            - ra: The right ascension provided as input.
-            - dec: The declination provided as input.
-            - flux_wide: The wide-field flux provided as input.
-            - telescope: The telescope name provided as input.
-            - fov: The field of view provided as input.
-            - local_data: ......
+        html: An HTML template response of the LSM in table format.
     """
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, flux_wide:%s, telescope:%s, fov:%s",
+dec:%s, fov:%s, version:%s",
         ra,
         dec,
-        flux_wide,
-        telescope,
         fov,
+        version,
     )
-    local_model = get_local_sky_model(db, ra.split(";"), dec.split(";"), flux_wide, telescope, fov)
-    return ORJSONResponse(local_model)
+    local_model = get_local_sky_model(db, ra, dec, fov, version)
+    return templates.TemplateResponse(
+        "table.html", {"request": request, "items": list(local_model)}
+    )
 
 
 def _run_ingestion_task(upload_id: str, survey_metadata: dict):
@@ -208,6 +202,23 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
         error_msg = str(e)
         logger.error("Background ingestion failed for upload %s: %s", upload_id, error_msg)
         logger.exception("Full traceback for upload %s:", upload_id)
+
+        if db:
+            try:
+                db.rollback()
+                db.query(SkyComponentStaging).filter(
+                    SkyComponentStaging.upload_id == upload_id
+                ).delete()
+                db.commit()
+                logger.info("Cleared staged records for failed upload %s", upload_id)
+            except Exception as cleanup_error:
+                db.rollback()
+                logger.error(
+                    "Failed to clear staged records for upload %s: %s",
+                    upload_id,
+                    cleanup_error,
+                )
+
         upload_manager.mark_failed(upload_id, error_msg)
 
     finally:
