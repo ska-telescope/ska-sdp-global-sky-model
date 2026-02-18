@@ -3268,14 +3268,14 @@ reference = "skao"
 
 [[package]]
 name = "ska-sdp-datamodels"
-version = "1.0.2+dev.c772c480c"
+version = "1.1.0"
 description = "SKA SDP Python-based Data Models"
 optional = false
 python-versions = ">=3.10,<4.0"
 groups = ["main"]
 files = [
-    {file = "ska_sdp_datamodels-1.0.2+dev.c772c480c-py3-none-any.whl", hash = "sha256:2d0ceebfadd9cb3a599b9347990b5092c5eb01d44ae19369db140dfb5371e134"},
-    {file = "ska_sdp_datamodels-1.0.2+dev.c772c480c.tar.gz", hash = "sha256:572c25373f4d240cb468e683f34620c3a5b929ed0b37ab7204744ad9903fbf57"},
+    {file = "ska_sdp_datamodels-1.1.0-py3-none-any.whl", hash = "sha256:3ee3cd4f8c338cbc3ff432ef13d4c79d1002d1f732252426060207e9bb64a08c"},
+    {file = "ska_sdp_datamodels-1.1.0.tar.gz", hash = "sha256:df07293314226f109b0e592f73963437422a3115556026ff71daab896a402719"},
 ]
 
 [package.dependencies]
@@ -3294,8 +3294,8 @@ python-casacore = ["python-casacore (>=3.6,<4.0)"]
 
 [package.source]
 type = "legacy"
-url = "https://gitlab.com/api/v4/projects/40032008/packages/pypi/simple"
-reference = "ska-sdp-datamodels-gitlab"
+url = "https://artefact.skao.int/repository/pypi-internal/simple"
+reference = "skao"
 
 [[package]]
 name = "ska-sdp-dataproduct-metadata"
@@ -4082,4 +4082,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "a0aa634efac45087b2692ce3c27b6fb4a4b13695ec68b56e888580ab10fd4700"
+content-hash = "4b32432dcb767ac1cd9fa3da29ac27dfbef3f6cbfbf487721ace27d2293d457d"
