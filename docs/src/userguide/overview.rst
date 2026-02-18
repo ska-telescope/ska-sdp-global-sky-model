@@ -3,8 +3,8 @@ SDP Global Sky Model Overview
 =============================
 
 The SDP Global Sky Model (GSM) is a service used to manage and obtain sky models.
-Subsets of the Global Sky Model are used in SKA pipelines.
-These subsets are known as Local Sky Models (LSM).
+Subsets of the Global Sky Model are used in SKA pipelines to bootstrap the
+calibration process. These subsets are known as Local Sky Models (LSM).
 
 This user guide focuses on the two main users of this service:
 
