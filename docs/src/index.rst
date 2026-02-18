@@ -4,7 +4,7 @@ SDP Global Sky Model Service
 The SKA SDP Global Sky Model (GSM) service is a service within the
 `Science Data Processor (SDP) <https://developer.skao.int/projects/ska-sdp-integration/en/latest/index.html>`_
 to provide sky model data for data processing pipelines. The model is developed by
-users (commissioning scientists and science oprators performing SKA global sky surveys)
+users (commissioning scientists and science operators performing SKA global sky surveys)
 and uploaded into the GSM database for use.
 
 Main features:
