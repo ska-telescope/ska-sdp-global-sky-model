@@ -2,7 +2,7 @@
 SDP Global Sky Model Overview
 =============================
 
-The SDP Global Sky Model is a tool used to manage and maintain sky models.
+The SDP Global Sky Model (GSM) is a service used to manage and obtain sky models.
 Subsets of these models are used in SKA pipelines. These subsets are known
 as Local Sky Models (LSM).
 
