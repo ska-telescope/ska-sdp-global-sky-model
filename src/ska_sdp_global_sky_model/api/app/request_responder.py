@@ -194,7 +194,7 @@ def _query_gsm_for_lsm(
             - ra: Right Ascension in degrees
             - dec: Declination in degrees
             - fov: Field of view radius in degrees
-            - version: GSM catalog version to query (e.g., "1.0.0", "latest")
+            - version: GSM catalogue version to query (e.g., "1.0.0", "latest")
         db: Database session
 
     Returns:
@@ -332,7 +332,7 @@ def _write_data(output: Path, data: "GlobalSkyModel"):  # pylint: disable=too-ma
     logger.info(
         "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
     )
-    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir) if data.components else None)
+    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
 
     # Verify files were actually written
     if lsm_file.exists():
@@ -340,30 +340,33 @@ def _write_data(output: Path, data: "GlobalSkyModel"):  # pylint: disable=too-ma
     else:
         raise FileNotFoundError(f"LSM file was not created at {lsm_file}")
 
-    # Only verify metadata file if there are components
-    if data.components:
-        metadata_yaml = metadata_dir / "ska-data-product.yaml"
-        if metadata_yaml.exists():
-            logger.info("Metadata written to %s", metadata_yaml)
-        else:
-            logger.warning(
-                "Metadata file was not created at %s (this may be expected in tests)",
-                metadata_yaml,
-            )
+    metadata_yaml = metadata_dir / "ska-data-product.yaml"
+    if metadata_yaml.exists():
+        logger.info("Metadata written to %s", metadata_yaml)
+    else:
+        logger.warning(
+            "Metadata file was not created at %s (this may be expected in tests)",
+            metadata_yaml,
+        )
 
 
 def _find_ska_sdm_dir(output: Path) -> Path:
-    """Find the ska-sdm directory in the output path.
+    """
+    Find the ska-sdm directory in the output path for metadata placement.
 
-    According to docs: "the metadata file will be put in the first
-    <pb_id>/ska-sdm parent directory."
+    The function returns the first ``<pb_id>/ska-sdm`` parent directory of the
+    ``pvc_subpath``. If no ska-sdm directory is found in the path, a
+    FileNotFoundError is raised to enforce correct metadata placement.
 
     Args:
-        output: Output path
-            (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id})
+        output: Output path (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}
+        /ska-sdm/sky/{field_id})
 
     Returns:
-        Path to the ska-sdm directory
+        Path to the ska-sdm directory where the metadata file should be written.
+
+    Raises:
+        FileNotFoundError: If no ska-sdm directory is found in the output path.
     """
     current = output
     while current != current.parent:
@@ -371,6 +374,11 @@ def _find_ska_sdm_dir(output: Path) -> Path:
             return current
         current = current.parent
 
-    # If ska-sdm not found, use parent of output as fallback
-    logger.warning("Could not find 'ska-sdm' in path %s, using parent directory", output)
-    return output.parent
+    # If ska-sdm not found, raise an error to enforce correct metadata placement
+    error_msg = (
+        f"Could not find 'ska-sdm' directory in path {output}. "
+        "Metadata file location is undefined. "
+        "Please ensure the output path includes a ska-sdm directory as required."
+    )
+    logger.error(error_msg)
+    raise FileNotFoundError(error_msg)

@@ -424,7 +424,7 @@ class LocalSkyModel:
 
         return model
 
-    def save(self, path: str, metadata_dir: str = ".") -> None:
+    def save(self, path: str, metadata_dir: str) -> None:
         """
         Save this sky model to a CSV text file.
 
@@ -457,9 +457,8 @@ class LocalSkyModel:
         file_size = os.path.getsize(path)
         LOGGER.info("LSM file written successfully: %s (size: %d bytes)", path, file_size)
 
-        # Write the YAML metadata file, if a directory is specified.
-        if metadata_dir:
-            self.save_metadata(os.path.join(metadata_dir, "ska-data-product.yaml"), path)
+        # Write the YAML metadata file.
+        self.save_metadata(os.path.join(metadata_dir, "ska-data-product.yaml"), path)
 
     def save_metadata(self, yaml_path: str, lsm_path: str) -> None:
         """
