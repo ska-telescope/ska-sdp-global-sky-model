@@ -446,17 +446,13 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     assert sky_source.dec == -22.22
 
 
-def test_query_gsm_for_lsm_no_sources(db_session):  # noqa: F811
-    """Test querying GSM for LSM with no components found"""
+def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
+    """Test querying GSM for LSM with no version found"""
 
     # Execute the function
     query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
-    result = _query_gsm_for_lsm(query_params, db_session)
-
-    # Verify empty result
-    assert isinstance(result, GlobalSkyModel)
-    assert len(result.components) == 0
-    assert not result.components
+    with pytest.raises(ValueError, match="No GSM versions available"):
+        _query_gsm_for_lsm(query_params, db_session)
 
 
 def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
