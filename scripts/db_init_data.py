@@ -20,6 +20,9 @@ def main():
     )
     print("Starting direct import script...")
     parser.add_argument(
+        "--ignore-import-failure", help="Don't exit with error on failure", action="store_true"
+    )
+    parser.add_argument(
         "--metadata-file",
         required=True,
         help="Path to catalog metadata JSON file (contains version, catalogue_name, etc.)",
@@ -101,7 +104,8 @@ def main():
         # Ingest the catalogue data
         if not ingest_catalogue(db, ingest_metadata):
             print("Error: Catalog ingestion failed")
-            sys.exit(1)
+            if not args.ignore_import_failure:
+                sys.exit(1)
 
         print(
             f"Successfully imported {metadata_json['catalogue_name']} "
@@ -111,7 +115,8 @@ def main():
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error during import: {e}")
         db.rollback()
-        sys.exit(1)
+        if not args.ignore_import_failure:
+            sys.exit(1)
     finally:
         db.close()
 
