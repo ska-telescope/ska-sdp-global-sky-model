@@ -827,7 +827,6 @@ def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
     )
 
     with good_file.open("rb") as f1:
-        # You need a metadata file as well!
         metadata_file = Path("tests/data/metadata_rcal_1.1.0.json")
         with metadata_file.open("rb") as meta_f:
             files = [
