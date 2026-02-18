@@ -114,6 +114,8 @@ def _watcher_process_flow(watcher, flow, source):
 
     try:
         query_params = QueryParameters(**source.parameters)
+        if not query_params.version:
+            query_params.version = "latest"
     except TypeError as err:
         logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
         for txn in watcher.txn():
