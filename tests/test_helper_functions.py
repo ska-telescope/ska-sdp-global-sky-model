@@ -1,8 +1,5 @@
 """This module contains tests for the helper_functions.py"""
 
-import pytest
-from astropy.coordinates import SkyCoord
-
 from ska_sdp_global_sky_model.utilities.helper_functions import (
     calculate_percentage,
 )

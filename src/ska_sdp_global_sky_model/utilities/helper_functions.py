@@ -1,6 +1,5 @@
 """This module contains helper functions for the ska_sdp_global_sky_model"""
 
-from numpy import pi
 from sqlalchemy.orm import class_mapper
 
 
