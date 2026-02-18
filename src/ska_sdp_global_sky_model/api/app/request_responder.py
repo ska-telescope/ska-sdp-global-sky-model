@@ -111,7 +111,8 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
 def _watcher_process_flow(watcher, flow, source):
     for txn in watcher.txn():
         _update_state(txn, flow, "FLOWING")
-
+        processing_block = txn.processing_block.get(flow.key.pb_id)
+        eb_id = processing_block.eb_id
     try:
         query_params = QueryParameters(**source.parameters)
         if not query_params.version:
@@ -122,7 +123,7 @@ def _watcher_process_flow(watcher, flow, source):
             _update_state(txn, flow, "FAILED", str(err)[27:])
         return
 
-    successful, reason = _process_flow(flow, query_params)
+    successful, reason = _process_flow(flow, eb_id, query_params)
 
     for txn in watcher.txn():
         _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
@@ -153,7 +154,9 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
         yield flow, source
 
 
-def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, str | None]:
+def _process_flow(
+    flow: Flow, eb_id: str, query_parameters: QueryParameters
+) -> tuple[bool, str | None]:
     """Process the Flow entry"""
 
     output_location = SHARED_VOLUME_MOUNT / flow.sink.data_dir.pvc_subpath
@@ -165,7 +168,7 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> tuple[bool, 
         db = next(get_db())
         try:
             output_data = _query_gsm_for_lsm(query_parameters, db)
-            _write_data(output_location, output_data)
+            _write_data(eb_id, output_location, output_data)
         finally:
             db.close()
     except Exception as err:  # pylint: disable=broad-exception-caught
@@ -295,10 +298,13 @@ def _update_state(
         txn.flow.state(flow).create(new_state)
 
 
-def _write_data(output: Path, data: "GlobalSkyModel"):  # pylint: disable=too-many-locals
+def _write_data(
+    eb_id: str, output: Path, data: "GlobalSkyModel"
+):  # pylint: disable=too-many-locals
     """Write the LSM to disk as a CSV file.
 
     Args:
+        eb_id: Execution block ID
         output: Path to the output directory
         data: GlobalSkyModel object containing the components to write
     """
@@ -326,18 +332,11 @@ def _write_data(output: Path, data: "GlobalSkyModel"):  # pylint: disable=too-ma
     )
 
     # Think this should/could be done better...
-    # Extract execution block ID from path and set metadata
-    # Path format: /mnt/data/product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id}
-    path_parts = output.parts
     try:
-        # Find 'product' in path and get the next part (eb_id)
-        product_idx = path_parts.index("product")
-        if product_idx + 1 < len(path_parts):
-            eb_id = path_parts[product_idx + 1]
-            local_model.set_metadata({"execution_block_id": eb_id})
-            logger.debug("Set execution_block_id to: %s", eb_id)
+        local_model.set_metadata({"execution_block_id": eb_id})
+        logger.debug("Set execution_block_id to: %s", eb_id)
     except (ValueError, IndexError) as e:
-        logger.warning("Could not extract execution_block_id from path %s: %s", output, e)
+        logger.warning("Could not set execution_block_id to %s: %s", eb_id, e)
 
     # Populate the LocalSkyModel with data from GlobalSkyModel
     for row_idx, component in enumerate(data.components.values()):

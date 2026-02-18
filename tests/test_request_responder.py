@@ -1,5 +1,5 @@
 # pylint: disable=redefined-outer-name,unused-import
-"""Tests for the background watcher"""
+"""Tests for the request_responder"""
 
 import copy
 import pathlib
@@ -84,6 +84,11 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
     ]
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
+    # Mock processing_block.get to return an object with eb_id
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
+
     # Create a mock GlobalSkyModel object
     mock_gsm = GlobalSkyModel(components={}, metadata={})
     mock_filter_function.return_value = mock_gsm
@@ -91,6 +96,7 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
     _watcher_process(mock_config)
 
     path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
+    eb_id = "eb-test-20260108-1234"
 
     assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
@@ -106,6 +112,7 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
         call.flow.state().get(),
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "FLOWING", "last_updated": 1234.5678}),
+        call.processing_block.get(valid_flow.key.pb_id),
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),
@@ -116,7 +123,7 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
     )
     # Second argument is the db session, just verify it was called
     assert len(mock_filter_function.mock_calls) == 1
-    assert mock_write_data.mock_calls == [call(path, mock_gsm)]
+    assert mock_write_data.mock_calls == [call(eb_id, path, mock_gsm)]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
@@ -233,6 +240,11 @@ def test_watcher_process_missing_parameter(
 
     mock_filter_function.return_value = ["data"]
 
+    # Mock processing_block.get to return an object with eb_id
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
+
     _watcher_process(mock_config)
 
     assert mock_config.mock_calls == [call.watcher(timeout=30)]
@@ -254,6 +266,7 @@ def test_watcher_process_missing_parameter(
                 "last_updated": 1234.5678,
             }
         ),
+        call.processing_block.get(valid_flow.key.pb_id),
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),
@@ -301,9 +314,10 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     mock_query.return_value = ["data"]
 
     output_path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
+    eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
-        valid_flow, QueryParameters(**valid_flow.sources[0].parameters)
+        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
 
     assert success is True
@@ -314,7 +328,7 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     assert mock_query.mock_calls[0].args[0] == QueryParameters(
         ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
     )
-    assert mock_write.mock_calls == [call(output_path, ["data"])]
+    assert mock_write.mock_calls == [call(eb_id, output_path, ["data"])]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
@@ -325,9 +339,10 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     mock_query.return_value = ["data"]
 
     mock_query.side_effect = ValueError("An error occured")
+    eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
-        valid_flow, QueryParameters(**valid_flow.sources[0].parameters)
+        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
 
     assert success is False
@@ -543,11 +558,13 @@ def test_write_data_integration(
     ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
     ska_sdm_dir.mkdir(parents=True, exist_ok=True)
 
+    eb_id = "eb-test-20260108-1234"
+
     # Mock the metadata writing to avoid validation issues
     # (metadata validation is tested separately in local_sky_model tests)
     with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
         # Write the data
-        _write_data(output_dir, gsm)
+        _write_data(eb_id, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
@@ -579,8 +596,10 @@ def test_write_data_empty_components(tmp_path):
     ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
     ska_sdm_dir.mkdir(parents=True, exist_ok=True)
 
+    eb_id = "eb-test-20260108-1234"
+
     # Write the data (should handle empty components gracefully)
-    _write_data(output_dir, gsm)
+    _write_data(eb_id, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
