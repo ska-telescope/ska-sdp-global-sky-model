@@ -21,11 +21,13 @@ A FastAPI application, and a PostgreSQL database.
 The FastAPI service provides a web interface, as well as a thread that
 interfaces with the ConfigurationDB.
 
-To illustrate the components and the various external interfaces the process of requesting an LSM is described:
-(Thanks to Jacob, we shamelessly plugged this from https://confluence.skatelescope.org/display/SWSI/Requesting+a+Local+Sky+Model)
+To illustrate the components and the way they interact, the process of
+requesting a Local Sky Model is shown in the following diagram:
 
+.. figure:: images/LSM_Flow.png
 
-.. image:: images/LSM_Flow.png
+   Service components and their interactions. Image credit: Jacob Maresca.
+
 
 Application Architecture
 ========================
