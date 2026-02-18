@@ -827,11 +827,15 @@ def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
     )
 
     with good_file.open("rb") as f1:
-        files = [
-            ("files", (good_file.name, f1, "text/csv")),
-            ("files", ("bad.csv", io.BytesIO(bad_csv_bytes), "text/csv")),
-        ]
-        response = myclient.post("/upload-sky-survey-batch", files=files)
+        # You need a metadata file as well!
+        metadata_file = Path("tests/data/metadata_rcal_1.1.0.json")
+        with metadata_file.open("rb") as meta_f:
+            files = [
+                ("metadata_file", (metadata_file.name, meta_f, "application/json")),
+                ("csv_files", (good_file.name, f1, "text/csv")),
+                ("csv_files", ("bad.csv", io.BytesIO(bad_csv_bytes), "text/csv")),
+            ]
+            response = myclient.post("/upload-sky-survey-batch", files=files)
 
     assert response.status_code == 200
     upload_id = response.json()["upload_id"]
