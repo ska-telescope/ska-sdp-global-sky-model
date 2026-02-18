@@ -22,5 +22,5 @@ users as well.
 
 When the data models are updated, the database schema is migrated to a new version.
 This is a manual process and can be performed using the tools provided by the GSM
-(using ``make``, see :ref:``).
+(using ``make``, see :ref:`alembic_upload`).
 

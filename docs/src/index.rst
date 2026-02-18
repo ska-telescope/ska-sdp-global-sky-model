@@ -40,9 +40,9 @@ repository contains the code for the GSM service.
   :maxdepth: 1
   :caption: Developer Guide
 
-  developerguide/Development
-  developerguide/Deployment
-  developerguide/Database
+  developerguide/development
+  developerguide/deployment
+  developerguide/database
 
 .. toctree::
   :maxdepth: 1

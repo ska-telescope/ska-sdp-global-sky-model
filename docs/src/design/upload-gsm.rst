@@ -23,7 +23,7 @@ Batch uploads run asynchronously as background tasks. This design keeps the API 
 during large uploads and allows multiple concurrent batch operations.
 
 A detailed user guide of the browser interface and the API can be
-found at :ref:``.
+found at :ref:`batch_upload`.
 
 Staging and versioning of data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

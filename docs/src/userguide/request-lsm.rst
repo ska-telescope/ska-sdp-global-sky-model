@@ -3,8 +3,8 @@
 Requesting Local Sky Model data
 -------------------------------
 
-SDP processing
-^^^^^^^^^^^^^^
+SDP processing pipelines
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The processing script requesting an LSM on behalf of data processing
 pipeline have to do it via generating data flow entries in the

@@ -27,6 +27,8 @@ The browser interface also provides:
 
 The expected CSV format is described at :ref:`upload_csv_format` and examples are shown at :ref:`example_upload_csv`.
 
+.. _upload_api:
+
 API Endpoints
 ^^^^^^^^^^^^^
 

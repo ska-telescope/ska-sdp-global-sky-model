@@ -7,8 +7,6 @@ This user guide focuses on the two main users of this service:
 - Pipeline developers will request a Local Sky Model, which will be
   written to a file, and ingested by the pipeline when it runs.
 
-For developers, please refer to the :ref:`Developer guide <>`.
-
 How to request a Local Sky Model
 --------------------------------
 

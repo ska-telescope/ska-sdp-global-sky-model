@@ -2,7 +2,7 @@ Overview
 ========
 
 The intended design of the GSM can be found in
-`Solition Intent <https://confluence.skatelescope.org/display/SWSI/SDP+Global+Sky+Model>`_.
+`Solution Intent <https://confluence.skatelescope.org/display/SWSI/SDP+Global+Sky+Model>`_.
 The most up-to-date implementation is described here.
 
 Purpose
