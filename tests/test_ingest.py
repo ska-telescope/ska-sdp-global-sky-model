@@ -196,7 +196,7 @@ class TestBuildComponentMapping:
 
         mapping = build_component_mapping(component_dict)
 
-        assert mapping["spec_idx"] == [-0.7, None, None, None, None]
+        assert mapping["spec_idx"] == -0.7
 
     def test_mapping_with_spec_idx_invalid_string(self):
         """Test spec_idx with invalid string converts to None"""
@@ -210,8 +210,8 @@ class TestBuildComponentMapping:
 
         mapping = build_component_mapping(component_dict)
 
-        # Invalid string should create [None, None, None, None, None]
-        assert mapping["spec_idx"] == [None, None, None, None, None]
+        # Invalid string should create None
+        assert mapping["spec_idx"] is None
 
     def test_mapping_with_spec_idx_invalid_type(self):
         """Test spec_idx with invalid type (dict) creates None array"""
@@ -225,8 +225,8 @@ class TestBuildComponentMapping:
 
         mapping = build_component_mapping(component_dict)
 
-        # Invalid type should create [None, None, None, None, None]
-        assert mapping["spec_idx"] == [None, None, None, None, None]
+        # Invalid type should create None
+        assert mapping["spec_idx"] is None
 
     def test_mapping_with_polarization(self):
         """Test mapping with polarization parameters"""

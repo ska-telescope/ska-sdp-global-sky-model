@@ -1,5 +1,5 @@
 # pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
-# pylint: disable=too-many-arguments, too-many-locals
+# pylint: disable=too-many-arguments, too-many-locals, too-many-return-statements
 """
 Gleam Catalogue ingest
 """
@@ -153,16 +153,39 @@ def _process_special_field(field_name: str, value, component_mapping: dict) -> b
     """
     # Special handling for spec_idx (List type)
     if field_name == "spec_idx":
+        # Handle null/None
+        if value is None or (isinstance(value, str) and value.strip() == ""):
+            component_mapping[field_name] = None
+            return True
+        # Handle bracketed list string
+        if (
+            isinstance(value, str)
+            and value.strip().startswith("[")
+            and value.strip().endswith("]")
+        ):
+            try:
+                # Remove brackets and split
+                vals = value.strip()[1:-1].split(",")
+                float_list = [to_float(v) for v in vals]
+                component_mapping[field_name] = float_list
+            except Exception:  # pylint: disable=broad-exception-caught
+                component_mapping[field_name] = None
+            return True
+        # Handle quoted float string
         if isinstance(value, str):
             float_val = to_float(value)
-            component_mapping[field_name] = [float_val, None, None, None, None]
-        elif isinstance(value, (int, float)):
-            component_mapping[field_name] = [float(value), None, None, None, None]
-        elif isinstance(value, list):
+            component_mapping[field_name] = float_val
+            return True
+        # Handle numeric value
+        if isinstance(value, (int, float)):
+            component_mapping[field_name] = float(value)
+            return True
+        # Handle list
+        if isinstance(value, list):
             component_mapping[field_name] = value
-        else:
-            # Field present but invalid type - store as None
-            component_mapping[field_name] = [None, None, None, None, None]
+            return True
+        # Field present but invalid type - store as None
+        component_mapping[field_name] = None
         return True
 
     # Special handling for log_spec_idx (bool type)
