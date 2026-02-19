@@ -167,7 +167,7 @@ class TestBuildComponentMapping:
         assert "healpix_index" in mapping
 
     def test_mapping_with_shape_params(self):
-        """Test mapping with source shape parameters"""
+        """Test mapping with component shape parameters"""
         component_dict = {
             "component_id": "J001122-334455",
             "ra": "10.5",
