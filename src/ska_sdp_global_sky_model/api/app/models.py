@@ -109,11 +109,22 @@ def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
 class GlobalSkyModelMetadata(Base):
     """Metadata describing a GSM catalogue instance."""
 
-    __tablename__ = "globalskymodelmetadata"
+    __tablename__ = "global_sky_model_metadata"
     __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    catalogue_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    upload_id = Column(String, nullable=False, unique=True, index=True)
+
+    # Additional metadata fields
+    author = Column(String, nullable=True)
+    reference = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # pylint: disable=not-callable
+    uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
@@ -197,47 +208,17 @@ _add_dynamic_columns_to_model(
     SkyComponentStaging, SkyComponentDataclass, skip_columns={"component_id"}
 )
 
-
-class CatalogMetadata(Base):
-    """
-    Catalog metadata table storing information about each catalog version.
-
-    Each catalog upload has a single version that applies to all components
-    in that catalog. The version must follow semantic versioning and increment
-    from previous versions.
-    """
-
-    __tablename__ = "catalog_metadata"
-
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    version = Column(String, nullable=False, unique=True, index=True)
-    catalogue_name = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-    upload_id = Column(String, nullable=False, unique=True, index=True)
-    # pylint: disable=not-callable
-    uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
-
-    # Fields from GlobalSkyModelMetadata dataclass
-    ref_freq = Column(Float, nullable=False, comment="Reference frequency in Hz")
-    epoch = Column(String, nullable=False, comment="Epoch of observation")
-
-    # Additional metadata fields
-    author = Column(String, nullable=True)
-    reference = Column(String, nullable=True)
-    notes = Column(Text, nullable=True)
-
-    def to_dict(self) -> dict:
-        """Convert catalog metadata to dictionary."""
-        return {
-            "id": self.id,
-            "version": self.version,
-            "catalogue_name": self.catalogue_name,
-            "description": self.description,
-            "upload_id": self.upload_id,
-            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
-            "ref_freq": self.ref_freq,
-            "epoch": self.epoch,
-            "author": self.author,
-            "reference": self.reference,
-            "notes": self.notes,
-        }
+_add_dynamic_columns_to_model(
+    GlobalSkyModelMetadata,
+    GlobalSkyModelMetadata,
+    skip_columns={
+        "id",
+        "catalogue_name",
+        "description",
+        "upload_id",
+        "author",
+        "reference",
+        "notes",
+        "uploaded_at",
+    },
+)

@@ -82,7 +82,7 @@ Version tracking is now done at the catalog level, not per-component:
 - **Single version per upload**: All components in a batch receive the same version from metadata.json
 - **Semantic versioning**: Versions must follow ``major.minor.patch`` format (e.g., "1.0.0")
 - **Version increments**: Each new upload must have a version greater than all previous versions
-- **Catalog metadata table**: New ``catalog_metadata`` table tracks catalog versions, upload metadata, and timestamps
+- **Catalog metadata table**: New ``global_sky_model_metadata`` table tracks catalog versions, upload metadata, and timestamps
 - **Query capabilities**: Use ``GET /catalog-metadata`` to list all catalog versions and metadata
 
 This approach allows you to:
@@ -492,7 +492,7 @@ Commit Staged Upload
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
 Commit staged data to the main database with the catalog version from the metadata file. All components 
-in the upload receive the same version. Creates a record in the ``catalog_metadata`` table with the 
+in the upload receive the same version. Creates a record in the ``global_sky_model_metadata`` table with the 
 upload information.
 
 **Parameters**:

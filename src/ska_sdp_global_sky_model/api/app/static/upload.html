@@ -275,12 +275,12 @@
 
         <form id="uploadForm">
             <div class="form-group">
-                <label for="fileInput">Global Sky Model Files (CSV)</label>
+                <label for="fileInput">Global Sky Model metadata (JSON) and data files (CSV)</label>
                 <div class="drop-zone" id="dropZone">
                     <div class="drop-zone-icon">📁</div>
-                    <div>Drag and drop CSV files or click to browse</div>
+                    <div>Drag and drop the Catalogue metadata file (.json) and the data files (.csv) files here or click to browse</div>
                 </div>
-                <input type="file" id="fileInput" accept=".csv" multiple />
+                <input type="file" id="fileInput" accept=".csv,application/json" multiple />
             </div>
 
             <div class="file-list" id="fileList"></div>
@@ -351,12 +351,12 @@
         });
 
         function handleFiles(files) {
-            const csvFiles = Array.from(files).filter(f => f.name.endsWith('.csv'));
-            if (csvFiles.length === 0) {
-                showAlert('error', 'Please select CSV files only');
+            const allowedFiles = Array.from(files).filter(f => f.name.endsWith('.csv') || f.name.endsWith('.json'));
+            if (allowedFiles.length === 0) {
+                showAlert('error', 'Please select CSV or JSON files only');
                 return;
             }
-            selectedFiles = [...selectedFiles, ...csvFiles];
+            selectedFiles = [...selectedFiles, ...allowedFiles];
             updateFileList();
         }
 
@@ -387,7 +387,32 @@
             }
 
             const formData = new FormData();
-            selectedFiles.forEach(f => formData.append('files', f));
+            // Separate metadata (JSON) and CSV files for correct field names
+            let metadataFile = null;
+            let csvFiles = [];
+            selectedFiles.forEach(f => {
+                if (f.name.endsWith('.json')) {
+                    metadataFile = f;
+                } else if (f.name.endsWith('.csv')) {
+                    csvFiles.push(f);
+                }
+            });
+
+            if (!metadataFile) {
+                showAlert('error', 'Please include a metadata JSON file.');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Files';
+                return;
+            }
+            if (csvFiles.length === 0) {
+                showAlert('error', 'Please include at least one CSV data file.');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Files';
+                return;
+            }
+
+            formData.append('metadata_file', metadataFile);
+            csvFiles.forEach(f => formData.append('csv_files', f));
 
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Uploading...';

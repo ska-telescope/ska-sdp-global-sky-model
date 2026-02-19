@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
-from ska_sdp_global_sky_model.api.app.models import CatalogMetadata
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.configuration.config import get_db
 
 
@@ -55,7 +55,7 @@ def main():
         upload_id = f"init-{uuid.uuid4()}"
 
         # Create catalog metadata entry
-        catalog_metadata = CatalogMetadata(
+        global_sky_model_metadata = GlobalSkyModelMetadata(
             version=metadata_json["version"],
             catalogue_name=metadata_json["catalogue_name"],
             description=metadata_json.get(
@@ -68,7 +68,7 @@ def main():
             reference=metadata_json.get("reference"),
             notes=metadata_json.get("notes"),
         )
-        db.add(catalog_metadata)
+        db.add(global_sky_model_metadata)
         db.commit()
 
         print(

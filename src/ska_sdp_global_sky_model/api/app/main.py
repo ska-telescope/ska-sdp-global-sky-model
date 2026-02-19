@@ -21,7 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
 from ska_sdp_global_sky_model.api.app.models import (
-    CatalogMetadata,
+    GlobalSkyModelMetadata,
     SkyComponent,
     SkyComponentStaging,
 )
@@ -281,15 +281,15 @@ async def upload_sky_survey_batch(
         metadata = upload_status.metadata
 
         # 2. Validate version format and check it's an increment
-        existing_versions = [v[0] for v in db.query(CatalogMetadata.version).all()]
+        existing_versions = [v[0] for v in db.query(GlobalSkyModelMetadata.version).all()]
         is_valid, error_msg = is_version_increment(metadata["version"], existing_versions)
         if not is_valid:
             raise HTTPException(status_code=400, detail=error_msg)
 
         # 3. Check version doesn't already exist
         existing = (
-            db.query(CatalogMetadata)
-            .filter(CatalogMetadata.version == metadata["version"])
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.version == metadata["version"])
             .first()
         )
         if existing:
@@ -421,12 +421,16 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
     sample_start = max(1, count - len(sample) + 1)
     sample_end = count
 
-    return {
+    response = {
         "upload_id": upload_id,
         "total_records": count,
         "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
     }
+    # Add metadata details if available
+    if status.metadata:
+        response["metadata"] = status.metadata
+    return response
 
 
 @app.post("/commit-upload/{upload_id}")
@@ -434,7 +438,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     """
     Commit staged data to main database with catalog-level versioning.
 
-    Creates a CatalogMetadata record and copies all components from staging
+    Creates a GlobalSkyModelMetadata record and copies all components from staging
     to the main table with the catalog version.
 
     Parameters
@@ -480,8 +484,8 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         catalog_version = metadata["version"]
         catalogue_name = metadata["catalogue_name"]
 
-        # Create CatalogMetadata record
-        catalog_metadata = CatalogMetadata(
+        # Create GlobalSkyModelMetadata record
+        global_sky_model_metadata = GlobalSkyModelMetadata(
             version=catalog_version,
             catalogue_name=catalogue_name,
             description=metadata.get("description", ""),
@@ -492,7 +496,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             reference=metadata.get("reference"),
             notes=metadata.get("notes"),
         )
-        db.add(catalog_metadata)
+        db.add(global_sky_model_metadata)
 
         # Copy from staging to main table with catalog version
         for staged in staged_records:
@@ -624,17 +628,17 @@ def get_catalog_metadata(
     dict
         List of catalog metadata records
     """
-    query = db.query(CatalogMetadata)
+    query = db.query(GlobalSkyModelMetadata)
 
     # Apply filters
     if catalogue_name:
-        query = query.filter(CatalogMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
+        query = query.filter(GlobalSkyModelMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
 
     if version:
-        query = query.filter(CatalogMetadata.version == version)
+        query = query.filter(GlobalSkyModelMetadata.version == version)
 
     # Order by most recent first
-    query = query.order_by(CatalogMetadata.uploaded_at.desc())
+    query = query.order_by(GlobalSkyModelMetadata.uploaded_at.desc())
 
     # Apply limit
     query = query.limit(limit)
@@ -673,7 +677,9 @@ def get_catalog_metadata_by_id(
     HTTPException
         If catalog not found
     """
-    catalog = db.query(CatalogMetadata).filter(CatalogMetadata.id == catalog_id).first()
+    catalog = (
+        db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.id == catalog_id).first()
+    )
 
     if not catalog:
         raise HTTPException(status_code=404, detail=f"Catalog with ID {catalog_id} not found")

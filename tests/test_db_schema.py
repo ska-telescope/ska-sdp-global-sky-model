@@ -387,8 +387,8 @@ class TestGlobalSkyModelMetadataModel:
         Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
         tables = inspector.get_table_names()
-        assert "GlobalSkyModelMetadata" in tables or any(
-            "globalskymodelmetadata" in t.lower() for t in tables
+        assert "global_sky_model_metadata" in tables or any(
+            "global_sky_model_metadata" in t.lower() for t in tables
         )
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
@@ -399,7 +399,7 @@ class TestGlobalSkyModelMetadataModel:
 
         columns = []
         for table_name in inspector.get_table_names():
-            if "globalskymodelmetadata" in table_name.lower():
+            if "global_sky_model_metadata" in table_name.lower():
                 columns = [col["name"] for col in inspector.get_columns(table_name)]
                 break
 
@@ -414,8 +414,10 @@ class TestGlobalSkyModelMetadataModel:
         """Test creating a GlobalSkyModelMetadata instance."""
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq=1.4e9,  # 1.4 GHz
+            ref_freq=1.4e9,
             epoch="J2000",
+            catalogue_name="TestCatalog",
+            upload_id="test-upload-1",
         )
 
         db_session.add(metadata)
@@ -433,6 +435,8 @@ class TestGlobalSkyModelMetadataModel:
             version="2.1.0",
             ref_freq=3e9,
             epoch="J2015.5",
+            catalogue_name="TestCatalog",
+            upload_id="test-upload-2",
         )
         db_session.add(metadata)
         db_session.commit()
@@ -447,9 +451,27 @@ class TestGlobalSkyModelMetadataModel:
 
     def test_metadata_multiple_versions(self, db_session):
         """Test storing multiple metadata versions."""
-        metadata1 = GlobalSkyModelMetadata(version="1.0.0", ref_freq=1.4e9, epoch="J2000")
-        metadata2 = GlobalSkyModelMetadata(version="2.0.0", ref_freq=1.4e9, epoch="J2000")
-        metadata3 = GlobalSkyModelMetadata(version="3.0.0", ref_freq=3.0e9, epoch="J2015")
+        metadata1 = GlobalSkyModelMetadata(
+            version="1.0.0",
+            ref_freq=1.4e9,
+            epoch="J2000",
+            catalogue_name="TestCatalog1",
+            upload_id="test-upload-1",
+        )
+        metadata2 = GlobalSkyModelMetadata(
+            version="2.0.0",
+            ref_freq=1.4e9,
+            epoch="J2000",
+            catalogue_name="TestCatalog2",
+            upload_id="test-upload-2",
+        )
+        metadata3 = GlobalSkyModelMetadata(
+            version="3.0.0",
+            ref_freq=3.0e9,
+            epoch="J2015",
+            catalogue_name="TestCatalog3",
+            upload_id="test-upload-3",
+        )
 
         db_session.add_all([metadata1, metadata2, metadata3])
         db_session.commit()
@@ -468,7 +490,13 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
     def test_sky_component_and_metadata_coexist(self, db_session):
         """Test that SkyComponent and Metadata can both be stored in the same database."""
         # Create metadata
-        metadata = GlobalSkyModelMetadata(version="1.0.0", ref_freq=1.4e9, epoch="J2000")
+        metadata = GlobalSkyModelMetadata(
+            version="1.0.0",
+            ref_freq=1.4e9,
+            epoch="J2000",
+            catalogue_name="TestCatalog",
+            upload_id="test-upload-1",
+        )
         db_session.add(metadata)
 
         # Create components
@@ -585,7 +613,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
         model_columns = set()
         for table_name in inspector.get_table_names():
-            if "globalskymodelmetadata" in table_name.lower():
+            if "global_sky_model_metadata" in table_name.lower():
                 model_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
 
@@ -599,9 +627,22 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
     def test_model_has_only_expected_columns(self):
         """Test that GlobalSkyModelMetadata model doesn't have unexpected columns."""
-        # Expected columns: dataclass fields + database-specific field (id)
+        # Expected columns: dataclass fields + database-specific fields
         expected_columns = set(GSMMetadataDataclass.__annotations__.keys())
-        expected_columns.add("id")
+        expected_columns.update(
+            {
+                "id",
+                "catalogue_name",
+                "description",
+                "upload_id",
+                "author",
+                "reference",
+                "notes",
+                "uploaded_at",
+                "metadata",
+                "registry",
+            }
+        )
 
         # Get actual model columns
         inspector = inspect(engine)
@@ -609,7 +650,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
         actual_columns = set()
         for table_name in inspector.get_table_names():
-            if "globalskymodelmetadata" in table_name.lower():
+            if "global_sky_model_metadata" in table_name.lower():
                 actual_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
 
@@ -622,8 +663,8 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
-        # Expected: all dataclass fields + 1 database-specific (id)
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 1
+        # Expected: all dataclass fields + all database-specific fields
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 10
 
         # Get actual count
         inspector = inspect(engine)
@@ -631,7 +672,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
         actual_count = 0
         for table_name in inspector.get_table_names():
-            if "globalskymodelmetadata" in table_name.lower():
+            if "global_sky_model_metadata" in table_name.lower():
                 actual_count = len(inspector.get_columns(table_name))
                 break
 
