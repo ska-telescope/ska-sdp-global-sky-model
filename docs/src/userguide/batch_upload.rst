@@ -102,7 +102,7 @@ Additional standardized columns that will be automatically ingested if present:
     - ``u_pol``: U polarization flux in Jy (float)
     - ``v_pol``: V polarization flux in Jy (float)
     - ``pol_frac``: Polarized fraction (float)
-    - ``pol_ang``: Polarization angle in radians (float)
+    - ``pol_ang``: Polarization angle in degrees (float)
     - ``rot_meas``: Faraday rotation measure in rad/m² (float)
 
 CSV Format Examples

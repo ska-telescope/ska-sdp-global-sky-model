@@ -1,4 +1,5 @@
-"""Tests for the background watcher"""
+# pylint: disable=redefined-outer-name,unused-import
+"""Tests for the request_responder"""
 
 import copy
 import pathlib
@@ -7,14 +8,25 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from ska_sdp_config.entity import Flow
 from ska_sdp_config.entity.flow import DataProduct, FlowSource, PVCPath
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    GlobalSkyModel,
+)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    SkyComponent as SkyComponentDataclass,
+)
 
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
+    _find_ska_sdm_dir,
     _get_flows,
     _process_flow,
+    _query_gsm_for_lsm,
     _update_state,
     _watcher_process,
+    _write_data,
 )
+from tests.test_db_schema import db_session  # noqa: F401
 
 # pylint: disable=too-many-arguments
 
@@ -53,12 +65,9 @@ def fixture_valid_flow():
 
 
 @patch("time.time")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_happy_path(
-    mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
-):
+def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow):
     """Test the happy path"""
 
     mock_time.return_value = 1234.5678
@@ -75,11 +84,19 @@ def test_happy_path(
     ]
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
 
-    mock_filter_function.return_value = ["data"]
+    # Mock processing_block.get to return an object with eb_id
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
+
+    # Create a mock GlobalSkyModel object
+    mock_gsm = GlobalSkyModel(components={}, metadata={})
+    mock_filter_function.return_value = mock_gsm
 
     _watcher_process(mock_config)
 
     path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
+    eb_id = "eb-test-20260108-1234"
 
     assert mock_config.mock_calls == [call.watcher(timeout=30)]
     assert mock_watcher.mock_calls == [
@@ -95,22 +112,23 @@ def test_happy_path(
         call.flow.state().get(),
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "FLOWING", "last_updated": 1234.5678}),
+        call.processing_block.get(valid_flow.key.pb_id),
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
-    assert mock_filter_function.mock_calls == [
-        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
-    ]
-    assert mock_write_data.mock_calls == [call(path, ["data"])]
-    assert mock_write_metadata.mock_calls == [call(path, valid_flow)]
+    assert mock_filter_function.mock_calls[0].args[0] == QueryParameters(
+        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+    )
+    # Second argument is the db session, just verify it was called
+    assert len(mock_filter_function.mock_calls) == 1
+    assert mock_write_data.mock_calls == [call(eb_id, path, mock_gsm)]
 
 
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_no_state(mock_filter_function, mock_write_data, mock_write_metadata, valid_flow):
+def test_no_state(mock_filter_function, mock_write_data, valid_flow):
     """Test watcher process when a flow has no state"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
@@ -135,13 +153,11 @@ def test_no_state(mock_filter_function, mock_write_data, mock_write_metadata, va
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_state_completed(mock_filter_function, mock_write_data, mock_write_metadata, valid_flow):
+def test_state_completed(mock_filter_function, mock_write_data, valid_flow):
     """Test watcher process when the state is already completed"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
@@ -166,15 +182,11 @@ def test_state_completed(mock_filter_function, mock_write_data, mock_write_metad
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_state_not_initialised(
-    mock_filter_function, mock_write_data, mock_write_metadata, valid_flow
-):
+def test_state_not_initialised(mock_filter_function, mock_write_data, valid_flow):
     """Test watcher process when the state is already failed"""
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
@@ -199,15 +211,13 @@ def test_state_not_initialised(
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
 @patch("time.time")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
 def test_watcher_process_missing_parameter(
-    mock_filter_function, mock_write_data, mock_write_metadata, mock_time, valid_flow
+    mock_filter_function, mock_write_data, mock_time, valid_flow
 ):
     """Test the happy path"""
 
@@ -230,6 +240,11 @@ def test_watcher_process_missing_parameter(
 
     mock_filter_function.return_value = ["data"]
 
+    # Mock processing_block.get to return an object with eb_id
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
+
     _watcher_process(mock_config)
 
     assert mock_config.mock_calls == [call.watcher(timeout=30)]
@@ -251,6 +266,7 @@ def test_watcher_process_missing_parameter(
                 "last_updated": 1234.5678,
             }
         ),
+        call.processing_block.get(valid_flow.key.pb_id),
         call.flow.state(valid_flow),
         call.flow.state().get(),
         call.flow.state(valid_flow),
@@ -264,7 +280,6 @@ def test_watcher_process_missing_parameter(
     ]
     assert mock_filter_function.mock_calls == []
     assert mock_write_data.mock_calls == []
-    assert mock_write_metadata.mock_calls == []
 
 
 def test_get_flows_filtering(valid_flow):
@@ -292,56 +307,53 @@ def test_get_flows_filtering(valid_flow):
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
-def test_process_flow(mock_call, mock_meta, mock_data, valid_flow):
+def test_process_flow(mock_query, mock_write, valid_flow):
     """Test that we cann start the processing for a flow"""
 
-    mock_call.return_value = ["data"]
+    mock_query.return_value = ["data"]
 
     output_path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
+    eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
-        valid_flow, QueryParameters(**valid_flow.sources[0].parameters)
+        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
 
     assert success is True
     assert reason is None
 
-    assert mock_call.mock_calls == [
-        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
-    ]
-    assert mock_meta.mock_calls == [
-        call(
-            pathlib.Path(output_path),
-            valid_flow,
-        )
-    ]
-    assert mock_data.mock_calls == [call(output_path, ["data"])]
+    # Check that _query_gsm_for_lsm was called with correct query parameters
+    assert len(mock_query.mock_calls) == 1
+    assert mock_query.mock_calls[0].args[0] == QueryParameters(
+        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+    )
+    assert mock_write.mock_calls == [call(eb_id, output_path, ["data"])]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
-@patch("ska_sdp_global_sky_model.api.app.request_responder._write_metadata")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
-def test_process_flow_exception(mock_call, mock_meta, mock_data, valid_flow):
+def test_process_flow_exception(mock_query, mock_write, valid_flow):
     """Test that we cann start the processing for a flow"""
 
-    mock_call.return_value = ["data"]
+    mock_query.return_value = ["data"]
 
-    mock_call.side_effect = ValueError("An error occured")
+    mock_query.side_effect = ValueError("An error occured")
+    eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
-        valid_flow, QueryParameters(**valid_flow.sources[0].parameters)
+        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
 
     assert success is False
-    assert reason == "An error occured"
+    assert "Error processing flow" in reason
 
-    assert mock_call.mock_calls == [
-        call(QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"))
-    ]
-    assert mock_meta.mock_calls == []
-    assert mock_data.mock_calls == []
+    # Check that _query_gsm_for_lsm was called with correct query parameters
+    assert len(mock_query.mock_calls) == 1
+    assert mock_query.mock_calls[0].args[0] == QueryParameters(
+        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+    )
+    assert mock_write.mock_calls == []
 
 
 @patch("time.time")
@@ -421,3 +433,194 @@ def test_update_state_no_change():
         call.flow.state(flow),
         call.flow.state().get(),
     ]
+
+
+def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
+    """Test querying GSM for LSM with components found"""
+    component = SkyComponent(
+        component_id="DictTestSource",
+        ra=111.11,
+        dec=-22.22,
+        healpix_index=33333,
+        version="0.1.0",
+    )
+    db_session.add(component)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(ra=111.11, dec=-22.22, fov=180, version="latest")
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert len(result.components) == 1
+    assert 1 in result.components
+    sky_source = result.components[1]
+    assert isinstance(sky_source, SkyComponentDataclass)
+    assert sky_source.ra == 111.11
+    assert sky_source.dec == -22.22
+
+
+def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
+    """Test querying GSM for LSM with no version found"""
+
+    # Execute the function
+    query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
+    with pytest.raises(ValueError, match="No GSM versions available"):
+        _query_gsm_for_lsm(query_params, db_session)
+
+
+def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
+    """Test querying GSM for LSM with multiple components found"""
+
+    component = SkyComponent(
+        component_id="1",
+        ra=2.9670,
+        dec=-0.1745,
+        healpix_index=1,
+        version="0.1.0",
+    )
+    db_session.add(component)
+
+    component_2 = SkyComponent(
+        component_id="2",
+        ra=2.9680,
+        dec=-0.1755,
+        healpix_index=2,
+        version="0.1.0",
+    )
+    db_session.add(component_2)
+
+    component_3 = SkyComponent(
+        component_id="3",
+        ra=2.9690,
+        dec=-0.1765,
+        healpix_index=3,
+        version="0.1.0",
+    )
+    db_session.add(component_3)
+
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert len(result.components) == 3
+    assert 1 in result.components
+    assert 2 in result.components
+    assert 3 in result.components
+    assert isinstance(result.components[1], SkyComponentDataclass)
+    assert isinstance(result.components[2], SkyComponentDataclass)
+    assert isinstance(result.components[3], SkyComponentDataclass)
+
+
+def test_write_data_integration(
+    db_session, tmp_path  # noqa: F811  # pylint: disable=unused-argument,redefined-outer-name
+):
+    """Integration test for _write_data with actual file writing"""
+
+    # Create test components
+    component1 = SkyComponentDataclass(
+        component_id="TEST001",
+        ra=45.0,
+        dec=-30.0,
+        i_pol=1.5,
+        major_ax=0.01,
+        minor_ax=0.005,
+        pos_ang=45.0,
+        spec_idx=[0.8, -0.5],
+        log_spec_idx=False,
+    )
+
+    component2 = SkyComponentDataclass(
+        component_id="TEST002",
+        ra=46.0,
+        dec=-31.0,
+        i_pol=2.3,
+        spec_idx=[0.9],
+    )
+
+    # Create GlobalSkyModel
+    gsm = GlobalSkyModel(
+        metadata={},
+        components={"TEST001": component1, "TEST002": component2},
+    )
+
+    # Create output directory structure (simulating the expected path)
+    output_dir = (
+        tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm" / "sky" / "field1"
+    )
+
+    # Ensure ska-sdm directory exists
+    ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
+    ska_sdm_dir.mkdir(parents=True, exist_ok=True)
+
+    eb_id = "eb-test-20260108-1234"
+
+    # Mock the metadata writing to avoid validation issues
+    # (metadata validation is tested separately in local_sky_model tests)
+    with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
+        # Write the data
+        _write_data(eb_id, output_dir, gsm)
+
+    # Verify CSV file was created
+    csv_file = output_dir / "local_sky_model.csv"
+    assert csv_file.exists()
+
+    # Read and verify CSV content
+    csv_content = csv_file.read_text()
+    assert "TEST001" in csv_content
+    assert "TEST002" in csv_content
+    assert "45.0" in csv_content or "45" in csv_content
+    assert "-30.0" in csv_content or "-30" in csv_content
+    assert "# NUMBER_OF_COMPONENTS: 2" in csv_content
+
+    # Note: metadata file is not checked here because MetaData is mocked
+
+
+def test_write_data_empty_components(tmp_path):
+    """Test _write_data with empty GlobalSkyModel"""
+
+    # Create empty GlobalSkyModel
+    gsm = GlobalSkyModel(metadata={}, components={})
+
+    # Create output directory
+    output_dir = (
+        tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm" / "sky" / "field1"
+    )
+
+    # Ensure ska-sdm directory exists
+    ska_sdm_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm"
+    ska_sdm_dir.mkdir(parents=True, exist_ok=True)
+
+    eb_id = "eb-test-20260108-1234"
+
+    # Write the data (should handle empty components gracefully)
+    _write_data(eb_id, output_dir, gsm)
+
+    # Verify CSV file was created
+    csv_file = output_dir / "local_sky_model.csv"
+    assert csv_file.exists()
+
+    # Verify it has headers but no data rows
+    csv_content = csv_file.read_text()
+    lines = csv_content.strip().split("\n")
+    # Should have header comment lines but no data
+    assert any("format" in line.lower() for line in lines)
+    assert any("NUMBER_OF_COMPONENTS: 0" in line for line in lines)
+
+
+def test_find_ska_sdm_dir():
+    """Test _find_ska_sdm_dir helper function"""
+    # Test with ska-sdm in path
+    test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm/sky/field1")
+    result = _find_ska_sdm_dir(test_path)
+    assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
+
+    # Test with ska-sdm as the current directory
+    test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
+    result = _find_ska_sdm_dir(test_path)
+    assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")

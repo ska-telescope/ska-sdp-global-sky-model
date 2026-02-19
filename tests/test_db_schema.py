@@ -36,6 +36,18 @@ engine = create_engine(
 )
 
 
+# pylint: disable=unused-argument)
+def q3c_radial_query_mock(*args):
+    """Mock q3c_radial_query function."""
+    return True
+
+
+@event.listens_for(engine, "connect")
+def register_sqlite_functions(dbapi_connection, connection_record):
+    """Load the mock function for q3c_radial_query"""
+    dbapi_connection.create_function("q3c_radial_query", 5, q3c_radial_query_mock)
+
+
 # Make JSONB compatible with SQLite for tests
 @event.listens_for(Base.metadata, "before_create")  # pylint: disable=no-member
 def replace_jsonb_sqlite(target, connection, **kw):  # pylint: disable=unused-argument

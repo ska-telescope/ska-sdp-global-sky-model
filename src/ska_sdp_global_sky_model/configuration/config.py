@@ -78,7 +78,7 @@ def q3c_index():
         conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
-                'ON source (q3c_ang2ipix("ra","dec"));'
+                'ON sky_component (version, q3c_ang2ipix("ra","dec"));'
             )
         )
 
