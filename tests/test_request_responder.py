@@ -450,7 +450,17 @@ def test_update_state_no_change():
 
 def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with components found"""
-    metadata = GlobalSkyModelMetadata(version="0.1.0")
+    metadata = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        ref_freq=20000000,
+        epoch="test",
+    )
     db_session.add(metadata)
     component = SkyComponent(
         component_id="DictTestSource",
@@ -488,7 +498,17 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
 def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with multiple components found"""
 
-    metadata = GlobalSkyModelMetadata(version="0.1.0")
+    metadata = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        ref_freq=20000000,
+        epoch="test",
+    )
     db_session.add(metadata)
     component = SkyComponent(
         component_id="1",
