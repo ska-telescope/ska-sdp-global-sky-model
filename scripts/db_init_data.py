@@ -21,7 +21,7 @@ def main():
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    print("Starting direct import script...")
+    logger.info("Starting direct import script...")
     parser.add_argument(
         "--ignore-import-failure", help="Don't exit with error on failure", action="store_true"
     )
@@ -74,7 +74,7 @@ def main():
         db.add(global_sky_model_metadata)
         db.commit()
 
-        print(
+        logger.info(
             f"Created catalog metadata: {metadata_json['catalogue_name']} "
             f"v{metadata_json['version']}"
         )
