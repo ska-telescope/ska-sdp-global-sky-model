@@ -55,3 +55,33 @@ of the sky. RA/Dec pairs are mapped to a quad-tree pixel index on the sphere (us
 Q3C automatically determines which q3c pixels intersect the search circle, and uses the index to restrict the
 candidate set before computing exact distances between rows in the table and the centre of the search.
 This prunes huge parts of the table without checking every row, thus speeding up the search time.
+
+Database Query Details
+^^^^^^^^^^^^^^^^^^^^^^
+
+The LSM query uses the following approach:
+
+1. Spatial Query: Uses PostgreSQL's q3c extension to efficiently find components
+   within a circular region defined by RA, Dec, and FOV radius (all in degrees).
+
+2. Data Retrieval: For each matched source, the system retrieves:
+
+   - Component position (RA, Dec) and identifier
+   - Stokes parameters (I, Q, U, V polarization)
+   - Source shape parameters (major/minor axes, position angle)
+   - Spectral index information
+
+3. Data Model Mapping: Database records are mapped to the GlobalSkyModel data
+   structure defined in `ska_sdp_datamodels.global_sky_model <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py>`_:
+
+   - ``GlobalSkyModel``: Top-level container with metadata and a dictionary of components
+   - ``SkyComponent``: Contains component ID, position (RA, Dec), Stokes parameters,
+     morphology (major_ax, minor_ax, pos_ang), and spectral index as a list of coefficients
+
+4. Result Format: Returns a ``GlobalSkyModel`` object containing a dictionary
+   of ``SkyComponent`` objects (keyed by component ID) with all relevant astronomical
+   measurements for components within the requested field of view.
+
+5. Output Format: The LSM is written as a CSV file with named columns matching the
+   ``SkyComponent`` dataclass fields. Metadata is written as a YAML file in the parent
+   directory as specified in the Flow configuration.

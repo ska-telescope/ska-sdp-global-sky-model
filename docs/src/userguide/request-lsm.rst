@@ -72,8 +72,12 @@ Once a flow has been found that matches those criteria, the following is done:
 
 1. The state is updated to ``FLOWING``.
 2. The local sky model is retrieved.
-3. The LSM is written to the shared volume.
-4. The metadata is written to.
+
+   a. Querying components within the specified field of view using spatial indexing (q3c_radial_query)
+   b. Converting database records to SkyComponent objects from ska_sdp_datamodels
+
+3. The LSM is written to the shared volume as a CSV file.
+4. The metadata is written to the parent directory.
 5. The state is updated to ``COMPLETED``.
 
 If there is a failure the state is updated to ``FAILED`` and a reason is set.
