@@ -122,7 +122,7 @@ async def get_local_sky_model_endpoint(
     ra: float,
     dec: float,
     fov: float,
-    version: str,
+    version: str | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -133,7 +133,7 @@ async def get_local_sky_model_endpoint(
         ra (float): Right ascension of the observation point in degrees.
         dec (float): Declination of the observation point in degrees.
         fov (float): Field of view of the telescope in degrees.
-        version (str): Version of the global sky model.
+        version (str): Version of the global sky model. Optional.
         db (Session): Database session object.
 
     Returns:

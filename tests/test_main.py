@@ -317,29 +317,101 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
     assert "J030853+053903" in response.text
 
 
-def test_local_sky_model(myclient):  # pylint: disable=unused-argument
-    """Unit test for the /local_sky_model path"""
+@pytest.fixture(name="set_up_db")
+def _set_up_db_data():
+    """
+    Set up database with components
+    """
+    components = [
+        SkyComponent(
+            component_id="J030420+022029", healpix_index=12345, ra=90, dec=2, version="1.0.2"
+        ),
+        SkyComponent(
+            component_id="J031020+042029", healpix_index=12340, ra=92, dec=4, version="1.1.0"
+        ),
+    ]
 
     # Add a component directly to the test database
     db = next(override_get_db())
     try:
         # Add a component in the query region (RA ~45, Dec ~4)
-        component = SkyComponent(
-            component_id="J030420+022029", healpix_index=12345, ra=45, dec=4, version="1.0.2"
-        )
-        db.add(component)
-        db.commit()
+        for component in components:
+            db.add(component)
+            db.commit()
     finally:
         db.close()
 
-    # Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+
+def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    without a specified version
+    """
+
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "4", "fov": 5, "version": "0.1.0"},
+        params={"ra": "45", "dec": "4", "fov": 5},
     )
 
     assert local_sky_model.status_code == 200
     assert "J030420+022029" in local_sky_model.text
+    assert "J031020+042029" in local_sky_model.text
+
+
+def test_local_sky_model_with_version(myclient):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    but with version that only includes one component
+    """
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": "45", "dec": "4", "fov": 5, "version": "1.1.0"},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J030420+022029" not in local_sky_model.text
+    assert "J031020+042029" in local_sky_model.text
+
+
+def test_local_sky_model_small_fov(myclient):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    without version, with fov that only returns one object
+    """
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": "45", "dec": "2", "fov": 0.2},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J030420+022029" in local_sky_model.text
+    assert "J031020+042029" not in local_sky_model.text
+
+
+def test_local_sky_model_missing_version(myclient):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    with version that does not exist
+    """
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": "45", "dec": "2", "fov": 5, "version": "2.0.0"},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J030420+022029" not in local_sky_model.text
+    assert "J031020+042029" not in local_sky_model.text
 
 
 def test_upload_batch_gleam_catalogue(myclient, monkeypatch):

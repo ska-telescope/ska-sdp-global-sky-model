@@ -28,7 +28,7 @@ def get_local_sky_model(
     ra: float,
     dec: float,
     fov: float,
-    version: str,
+    version: str | None = None,
 ) -> list:
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
@@ -49,17 +49,19 @@ def get_local_sky_model(
     """
 
     # Query sky components within field of view
-    sky_components = (
-        db.query(SkyComponent).where(
-            q3c_radial_query(
-                SkyComponent.ra,
-                SkyComponent.dec,
-                ra,
-                dec,
-                fov,
-            )
+    query = db.query(SkyComponent).where(
+        q3c_radial_query(
+            SkyComponent.ra,
+            SkyComponent.dec,
+            ra,
+            dec,
+            fov,
         )
-        # .where(SkyComponent.version == query_parameters.version)
-        .all()
     )
+
+    if version:
+        query = query.where(SkyComponent.version == version)
+
+    sky_components = query.all()
+
     return sky_components
