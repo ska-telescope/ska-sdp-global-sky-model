@@ -231,8 +231,8 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
 
 @app.post(
     "/upload-sky-survey-batch",
-    summary="Upload sky survey CSV files with catalog metadata",
-    description="Upload catalog metadata file and CSV files for staging. "
+    summary="Upload sky survey CSV files with catalogue metadata",
+    description="Upload catalogue metadata file and CSV files for staging. "
     "Ingestion runs asynchronously - use the status endpoint to monitor progress.",
 )
 async def upload_sky_survey_batch(
@@ -242,9 +242,9 @@ async def upload_sky_survey_batch(
     db: Session = Depends(get_db),
 ):
     """
-    Upload catalog metadata and CSV files for staging.
+    Upload catalogue metadata and CSV files for staging.
 
-    Requires a metadata.json file containing catalog information and version,
+    Requires a metadata.json file containing catalogue information and version,
     plus one or more CSV files with component data.
 
     Parameters
@@ -252,7 +252,7 @@ async def upload_sky_survey_batch(
     background_tasks : BackgroundTasks
         FastAPI background task manager
     metadata_file : UploadFile
-        JSON file with catalog metadata (version, catalogue_name, description, etc.)
+        JSON file with catalogue metadata (version, catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
     db : Session
@@ -436,10 +436,10 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
 @app.post("/commit-upload/{upload_id}")
 def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     """
-    Commit staged data to main database with catalog-level versioning.
+    Commit staged data to main database with catalogue-level versioning.
 
     Creates a GlobalSkyModelMetadata record and copies all components from staging
-    to the main table with the catalog version.
+    to the main table with the catalogue version.
 
     Parameters
     ----------
@@ -451,7 +451,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     Returns
     -------
     dict
-        Result of commit operation including version and catalog info
+        Result of commit operation including version and catalogue info
 
     Raises
     ------
@@ -468,7 +468,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     if not status.metadata:
         raise HTTPException(
             status_code=400,
-            detail="No metadata found for this upload. Cannot commit without catalog metadata.",
+            detail="No metadata found for this upload. Cannot commit without catalogue metadata.",
         )
 
     try:
@@ -498,14 +498,14 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         )
         db.add(global_sky_model_metadata)
 
-        # Copy from staging to main table with catalog version
+        # Copy from staging to main table with catalogue version
         for staged in staged_records:
             # Create main table record from staged data
             # Exclude 'id' and 'upload_id' from staging table fields
             record_data = {
                 k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
             }
-            # Set catalog version for ALL components
+            # Set catalogue version for ALL components
             record_data["version"] = catalog_version
 
             main_record = SkyComponent(**record_data)
@@ -599,7 +599,7 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}") from e
 
 
-@app.get("/catalog-metadata", summary="Query catalog metadata")
+@app.get("/catalogue-metadata", summary="Query catalogue metadata")
 def get_catalog_metadata(
     catalogue_name: str | None = None,
     version: str | None = None,
@@ -607,15 +607,15 @@ def get_catalog_metadata(
     db: Session = Depends(get_db),
 ):
     """
-    Query catalog metadata records.
+    Query catalogue metadata records.
 
-    Search by catalog name, version, or list all catalogs.
+    Search by catalogue name, version, or list all catalogues.
     Results are ordered by upload date (newest first).
 
     Parameters
     ----------
     catalogue_name : str, optional
-        Filter by catalog name (case-insensitive partial match)
+        Filter by catalogue name (case-insensitive partial match)
     version : str, optional
         Filter by exact version
     limit : int, default 100
@@ -626,7 +626,7 @@ def get_catalog_metadata(
     Returns
     -------
     dict
-        List of catalog metadata records
+        List of catalogue metadata records
     """
     query = db.query(GlobalSkyModelMetadata)
 
@@ -648,17 +648,17 @@ def get_catalog_metadata(
 
     return {
         "total": len(results),
-        "catalogs": [catalog.to_dict() for catalog in results],
+        "catalogues": [catalogue.to_dict() for catalogue in results],
     }
 
 
-@app.get("/catalog-metadata/{catalog_id}", summary="Get specific catalog metadata")
+@app.get("/catalogue-metadata/{catalog_id}", summary="Get specific catalogue metadata")
 def get_catalog_metadata_by_id(
     catalog_id: int,
     db: Session = Depends(get_db),
 ):
     """
-    Get catalog metadata by ID.
+    Get catalogue metadata by ID.
 
     Parameters
     ----------
@@ -675,13 +675,13 @@ def get_catalog_metadata_by_id(
     Raises
     ------
     HTTPException
-        If catalog not found
+        If catalogue not found
     """
-    catalog = (
+    catalogue = (
         db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.id == catalog_id).first()
     )
 
-    if not catalog:
+    if not catalogue:
         raise HTTPException(status_code=404, detail=f"Catalog with ID {catalog_id} not found")
 
-    return catalog.to_dict()
+    return catalogue.to_dict()

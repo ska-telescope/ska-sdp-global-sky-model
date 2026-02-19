@@ -4,8 +4,8 @@ CHANGELOG
 Development
 -----------
 
-- [BREAKING] Implemented catalog-level versioning with metadata files. Upload endpoint now requires
-  a metadata.json file containing catalog version, name, description, reference frequency, and epoch.
+- [BREAKING] Implemented catalogue-level versioning with metadata files. Upload endpoint now requires
+  a metadata.json file containing catalogue version, name, description, reference frequency, and epoch.
   All components in an upload share a single semantic version from the metadata file.
 - [Added] Batch upload feature with staging table and review workflow for sky survey data:
   - New ``sky_component_staging`` table for temporary upload storage with ``upload_id`` tracking

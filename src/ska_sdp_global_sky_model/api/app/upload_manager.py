@@ -37,7 +37,7 @@ class UploadStatus:
     state: UploadState = UploadState.PENDING
     errors: list[str] = field(default_factory=list)
     csv_files: list[tuple[str, str]] = field(default_factory=list)  # (filename, content as str)
-    metadata: dict | None = None  # Parsed catalog metadata
+    metadata: dict | None = None  # Parsed catalogue metadata
 
     def to_dict(self) -> dict:
         """Convert status to dictionary."""
@@ -171,7 +171,7 @@ class UploadManager:
         # Store parsed metadata
         upload_status.metadata = metadata
         logger.info(
-            "Parsed and validated metadata file %s (version: %s, catalog: %s)",
+            "Parsed and validated metadata file %s (version: %s, catalogue: %s)",
             file.filename,
             metadata["version"],
             metadata["catalogue_name"],

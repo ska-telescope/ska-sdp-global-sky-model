@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "catalogue_name": "TEST_CATALOG_2",
-  "description": "Test catalog 2 for development and testing purposes",
+  "description": "Test catalogue 2 for development and testing purposes",
   "ref_freq": 200000000,
   "epoch": "J2000",
   "author": "SKA SDP Team",

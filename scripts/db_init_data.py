@@ -28,7 +28,7 @@ def main():
     parser.add_argument(
         "--metadata-file",
         required=True,
-        help="Path to catalog metadata JSON file (contains version, catalogue_name, etc.)",
+        help="Path to catalogue metadata JSON file (contains version, catalogue_name, etc.)",
     )
     parser.add_argument("csv_files", help="CSV files to include", nargs="+")
 
@@ -57,7 +57,7 @@ def main():
         # Generate unique upload_id for this import
         upload_id = f"init-{uuid.uuid4()}"
 
-        # Create catalog metadata entry
+        # Create catalogue metadata entry
         global_sky_model_metadata = GlobalSkyModelMetadata(
             version=metadata_json["version"],
             catalogue_name=metadata_json["catalogue_name"],
@@ -75,7 +75,7 @@ def main():
         db.commit()
 
         logger.info(
-            f"Created catalog metadata: {metadata_json['catalogue_name']} "
+            f"Created catalogue metadata: {metadata_json['catalogue_name']} "
             f"v{metadata_json['version']}"
         )
 

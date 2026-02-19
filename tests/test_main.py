@@ -322,7 +322,7 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
 
 
 def test_upload_batch_gleam_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with GLEAM catalog"""
+    """Unit test for batch upload with GLEAM catalogue"""
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_gleam_1.0.0.json")
 
@@ -352,7 +352,7 @@ def test_upload_batch_gleam_catalog(myclient, monkeypatch):
 
 
 def test_upload_batch_racs_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with RACS catalog"""
+    """Unit test for batch upload with RACS catalogue"""
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_racs_2.0.0.json")
 
@@ -382,7 +382,7 @@ def test_upload_batch_racs_catalog(myclient, monkeypatch):
 
 
 def test_upload_batch_rcal_catalog(myclient):
-    """Unit test for batch upload with RCAL catalog"""
+    """Unit test for batch upload with RCAL catalogue"""
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_rcal_1.1.0.json")
 
@@ -416,7 +416,7 @@ def test_upload_batch_rcal_catalog(myclient):
 
 
 def test_upload_batch_generic_catalog(myclient):
-    """Unit test for batch upload with GENERIC catalog"""
+    """Unit test for batch upload with GENERIC catalogue"""
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_generic_1.5.0.json")
 
@@ -460,7 +460,7 @@ def test_upload_batch_mixed_catalogs(myclient, monkeypatch):  # pylint: disable=
         "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
     )
 
-    # Test uploading multiple files with GLEAM catalog
+    # Test uploading multiple files with GLEAM catalogue
     with (
         metadata_file.open("rb") as metadata_f,
         first_file.open("rb") as f1,
@@ -490,7 +490,7 @@ def test_upload_batch_mixed_catalogs(myclient, monkeypatch):  # pylint: disable=
 
 
 def test_upload_batch_default_catalog(myclient, monkeypatch):
-    """Unit test for batch upload with standard catalog metadata"""
+    """Unit test for batch upload with standard catalogue metadata"""
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_rcal_1.1.0.json")
 
@@ -545,7 +545,7 @@ def test_wait_for_db_retry():
 
 
 def test_upload_batch_ingest_failure(myclient):
-    """Test batch upload when catalog ingest fails."""
+    """Test batch upload when catalogue ingest fails."""
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_rcal_1.1.0.json")
 

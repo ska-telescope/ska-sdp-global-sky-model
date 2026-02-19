@@ -8,22 +8,22 @@ Overview
 
 The batch upload feature allows you to:
 
-- Provide catalog metadata via JSON file (required - includes version, name, description, reference frequency, and epoch)
-- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single catalog version)
+- Provide catalogue metadata via JSON file (required - includes version, name, description, reference frequency, and epoch)
+- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single catalogue version)
 - Stage uploads for review before committing to the main database
 - Track upload progress with a unique identifier
 - Query upload status and errors
 - Ensure atomic ingestion (all files succeed or none are ingested)
 - Process uploads asynchronously in the background for optimal API responsiveness
 - Automatic data validation at the schema level
-- Catalog-level semantic versioning for tracking catalog releases
+- Catalog-level semantic versioning for tracking catalogue releases
 
 Catalog Metadata File
 ~~~~~~~~~~~~~~~~~~~~~
 
 **Required for All Uploads**:
 
-Every upload must include a ``metadata.json`` file containing catalog-level information that applies 
+Every upload must include a ``metadata.json`` file containing catalogue-level information that applies 
 to all components in the batch. The metadata follows the ``GlobalSkyModelMetadata`` dataclass format 
 from ska-sdp-datamodels.
 
@@ -45,7 +45,7 @@ from ska-sdp-datamodels.
 **Required Fields**:
     - ``version``: Semantic version (e.g., "1.0.0") - must increment from previous versions
     - ``catalogue_name``: Catalog identifier (e.g., "GLEAM", "RACS", "RCAL")
-    - ``description``: Human-readable description of the catalog
+    - ``description``: Human-readable description of the catalogue
     - ``ref_freq``: Reference frequency in Hz (float/integer)
     - ``epoch``: Epoch of observation (e.g., "J2000")
 
@@ -57,7 +57,7 @@ from ska-sdp-datamodels.
 **Version Requirements**:
     - Must follow semantic versioning: ``major.minor.patch`` (e.g., "1.0.0", "2.1.3")
     - Each version must be unique - cannot reuse existing version numbers
-    - New version must be greater than all existing versions for that catalog
+    - New version must be greater than all existing versions for that catalogue
     - The same version applies to ALL components in the upload
 
 Staging and Versioning Workflow
@@ -65,33 +65,33 @@ Staging and Versioning Workflow
 
 **Two-Stage Upload Process**:
 
-All uploads use a staging workflow allowing new catalog versions to be successfully uploaded before a new version is released.
+All uploads use a staging workflow allowing new catalogue versions to be successfully uploaded before a new version is released.
 When committing staged data, the system sets the version for all components in the upload to the same value from the metadata file:
 
 1. **Upload with Metadata**: Upload CSV files plus metadata.json to ``sky_component_staging`` table
 2. **Review Upload Status**: Use ``/review-upload/{upload_id}`` to confirm the upload succeeded
 3. **Commit or Reject** (manual action required): 
-   - Commit: Move data to main table with catalog version from metadata
+   - Commit: Move data to main table with catalogue version from metadata
    - Reject: Discard all staged data for that upload
 
 **Catalog-Level Versioning**:
 
-Version tracking is now done at the catalog level, not per-component:
+Version tracking is now done at the catalogue level, not per-component:
 
 - **Single version per upload**: All components in a batch receive the same version from metadata.json
 - **Semantic versioning**: Versions must follow ``major.minor.patch`` format (e.g., "1.0.0")
 - **Version increments**: Each new upload must have a version greater than all previous versions
-- **Catalog metadata table**: New ``global_sky_model_metadata`` table tracks catalog versions, upload metadata, and timestamps
-- **Query capabilities**: Use ``GET /catalog-metadata`` to list all catalog versions and metadata
+- **Catalog metadata table**: New ``global_sky_model_metadata`` table tracks catalogue versions, upload metadata, and timestamps
+- **Query capabilities**: Use ``GET /catalogue-metadata`` to list all catalogue versions and metadata
 
 This approach allows you to:
-    - Track entire catalog releases with proper semantic versioning
-    - Associate metadata (frequency, epoch, references) with each catalog version
-    - Query catalogs by name and version
-    - Maintain a complete history of catalog updates with timestamps and authorship
+    - Track entire catalogue releases with proper semantic versioning
+    - Associate metadata (frequency, epoch, references) with each catalogue version
+    - Query catalogues by name and version
+    - Maintain a complete history of catalogue updates with timestamps and authorship
 
-Files uploaded in the same session (same ``upload_id``) will form part of the same catalog version. 
-Files uploaded in a new session (new ``upload_id``) will create a new catalog version with its own version number as per the metadata.json file. Uploading a new version requires incrementing the version number in the metadata file to ensure proper version tracking, duplicate version numbers are not allowed.
+Files uploaded in the same session (same ``upload_id``) will form part of the same catalogue version. 
+Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its own version number as per the metadata.json file. Uploading a new version requires incrementing the version number in the metadata file to ensure proper version tracking, duplicate version numbers are not allowed.
 
 **Staging Table Schema**:
 
@@ -270,8 +270,8 @@ API Endpoints
 
 **Endpoint**: ``POST /upload-sky-survey-batch``
 
-Upload and ingest one or more sky survey CSV files along with catalog metadata to the staging table. 
-All files in the batch are combined into a single sky model with a shared catalog version. All files 
+Upload and ingest one or more sky survey CSV files along with catalogue metadata to the staging table. 
+All files in the batch are combined into a single sky model with a shared catalogue version. All files 
 are validated and uploaded to a staging area before ingestion begins. If any file fails validation 
 or ingestion, the entire batch is rolled back.
 
@@ -286,7 +286,7 @@ or ingestion, the entire batch is rolled back.
       - Data Type
       - Required
     * - ``metadata_file``
-      - JSON file containing catalog metadata (version, catalogue_name, description, ref_freq, epoch)
+      - JSON file containing catalogue metadata (version, catalogue_name, description, ref_freq, epoch)
       - File
       - Yes
     * - ``csv_files``
@@ -312,7 +312,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 
 .. code-block:: bash
 
-    # Upload CSV files with catalog metadata
+    # Upload CSV files with catalogue metadata
     curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
       -F "metadata_file=@metadata.json;type=application/json" \\
       -F "csv_files=@test_catalogue_1.csv;type=text/csv" \\
@@ -327,7 +327,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 
     url = "<GSM_API_URL>/upload-sky-survey-batch"
     
-    # Upload CSV files with catalog metadata
+    # Upload CSV files with catalogue metadata
     files = [
         ("metadata_file", ("metadata.json", open("metadata.json", "rb"), "application/json")),
         ("csv_files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
@@ -490,7 +490,7 @@ Commit Staged Upload
 
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
-Commit staged data to the main database with the catalog version from the metadata file. All components 
+Commit staged data to the main database with the catalogue version from the metadata file. All components 
 in the upload receive the same version. Creates a record in the ``global_sky_model_metadata`` table with the 
 upload information.
 
@@ -545,9 +545,9 @@ upload information.
 Query Catalog Metadata
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-**Endpoint**: ``GET /catalog-metadata``
+**Endpoint**: ``GET /catalogue-metadata``
 
-Query catalog metadata records by catalog name, version, or list all catalogs. Returns catalog 
+Query catalogue metadata records by catalogue name, version, or list all catalogues. Returns catalogue 
 version information including upload dates, reference frequencies, epochs, and authorship details.
 
 **Parameters**:
@@ -561,7 +561,7 @@ version information including upload dates, reference frequencies, epochs, and a
       - Data Type
       - Required
     * - ``catalogue_name``
-      - Filter by catalog name (case-insensitive partial match)
+      - Filter by catalogue name (case-insensitive partial match)
       - string
       - No
     * - ``version``
@@ -579,7 +579,7 @@ version information including upload dates, reference frequencies, epochs, and a
 
     {
         "total": 2,
-        "catalogs": [
+        "catalogues": [
             {
                 "id": 1,
                 "version": "2.0.0",
@@ -613,17 +613,17 @@ version information including upload dates, reference frequencies, epochs, and a
 
 .. code-block:: bash
 
-    # List all catalogs
-    curl "http://localhost:8000/catalog-metadata"
+    # List all catalogues
+    curl "http://localhost:8000/catalogue-metadata"
 
-    # Get specific catalog versions
-    curl "http://localhost:8000/catalog-metadata?catalogue_name=GLEAM"
+    # Get specific catalogue versions
+    curl "http://localhost:8000/catalogue-metadata?catalogue_name=GLEAM"
 
     # Get specific version
-    curl "http://localhost:8000/catalog-metadata?version=1.0.0"
+    curl "http://localhost:8000/catalogue-metadata?version=1.0.0"
 
     # Combined search with limit
-    curl "http://localhost:8000/catalog-metadata?catalogue_name=GLEAM&limit=10"
+    curl "http://localhost:8000/catalogue-metadata?catalogue_name=GLEAM&limit=10"
 
 **Python Example**:
 
@@ -631,19 +631,19 @@ version information including upload dates, reference frequencies, epochs, and a
 
     import requests
 
-    # Query all GLEAM catalog versions
-    url = "http://localhost:8000/catalog-metadata"
+    # Query all GLEAM catalogue versions
+    url = "http://localhost:8000/catalogue-metadata"
     params = {"catalogue_name": "GLEAM"}
     
     response = requests.get(url, params=params)
     result = response.json()
     
-    print(f"Found {result['total']} catalog versions:")
-    for catalog in result['catalogs']:
-        print(f"  {catalog['catalogue_name']} v{catalog['version']}")
-        print(f"    Uploaded: {catalog['uploaded_at']}")
-        print(f"    Reference frequency: {catalog['ref_freq']/1e6:.1f} MHz")
-        print(f"    Epoch: {catalog['epoch']}")
+    print(f"Found {result['total']} catalogue versions:")
+    for catalogue in result['catalogues']:
+        print(f"  {catalogue['catalogue_name']} v{catalogue['version']}")
+        print(f"    Uploaded: {catalogue['uploaded_at']}")
+        print(f"    Reference frequency: {catalogue['ref_freq']/1e6:.1f} MHz")
+        print(f"    Epoch: {catalogue['epoch']}")
 
 Reject Staged Upload
 ~~~~~~~~~~~~~~~~~~~~~**Python Example**:
