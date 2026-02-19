@@ -132,7 +132,7 @@ async def get_local_sky_model_endpoint(
         request (Request): HTTP request object.
         ra (float): Right ascension of the observation point in degrees.
         dec (float): Declination of the observation point in degrees.
-        fov (float): Field of view of the telescope in arcminutes.
+        fov (float): Field of view of the telescope in degrees.
         version (str): Version of the global sky model.
         db (Session): Database session object.
 

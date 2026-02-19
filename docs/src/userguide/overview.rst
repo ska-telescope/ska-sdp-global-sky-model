@@ -1,133 +1,28 @@
-SDP Global Sky Model's Overview
-===============================
+Quick view
+==========
+
+This user guide focuses on the two main users of this service:
+
+- Operations users will create and update new versions of the Global Sky Model.
+- Pipeline developers will request a Local Sky Model, which will be
+  written to a file, and ingested by the pipeline when it runs.
+
+How to request a Local Sky Model
+--------------------------------
+
+The process by which pipelines should request a Local Sky Model (LSM) is
+described on the page :ref:`request_lsm_processing`.
+
+The CSV file format used to save the LSM data is described in the
+design sections: :ref:`lsm_file`.
+
+In addition, we provide an API to easily review a subset of the GSM data
+in the browser, which is described at :ref:`lsm_browser`.
 
 
-Automatic API Documentation
----------------------------
-For detailed documentation of the API, see the FastAPI Swagger UI documentation. This interactive API documentation can be accessed at http://127.0.0.1:8000/docs when running the application locally or https://<domain>/<namespace>/global-sky-model/docs when deployed behind an ingress.
+How to upload data to the Global Sky Model
+------------------------------------------
 
-Basic Usage
------------
+A browser interface and corresponding API are provided for uploading
+catalogue data in the form of CSV files. See: :ref:`batch_upload`.
 
-Get Local Sky Model API Endpoint
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This API endpoint retrieves a local sky model from a global sky model for a specified celestial observation.
-
-URI:
-~~~~
-
-.. code-block:: bash
-
-    GET /local_sky_model
-
-
-Request Parameters:
-~~~~~~~~~~~~~~~~~~~
-
-.. list-table::
-    :widths: 20, 50, 20, 10
-    :header-rows: 1
-
-    * - Parameter
-      - Description
-      - Data Type
-      - Required
-    * - ``ra``
-      - Right ascension of the observation point in degrees.
-      - Float
-      - Yes
-    * - ``dec``
-      - Declination of the observation point in degrees.
-      - Float
-      - Yes
-    * - ``flux_wide``
-      - Wide-field flux of the observation in Jy (Jansky).
-      - Float
-      - Yes
-    * - ``telescope``
-      - Name of the telescope being used for the observation.
-      - String
-      - Yes
-    * - ``fov``
-      - Field of view of the telescope in arcminutes.
-      - Float
-      - Yes
-
-Response:
-~~~~~~~~~
-
-The endpoint returns a JSON object representing the local sky model.
-
-
-.. code-block:: javascript
-
-    {
-    "ra": (float),  // Right ascension provided as input.
-    "dec": (float),  // Declination provided as input.
-    "flux_wide": (float),  // Wide-field flux provided as input.
-    "telescope": (string),  // Telescope name provided as input.
-    "fov": (float),  // Field of view provided as input.
-    "local_data": (string),  // Placeholder for data specific to the local sky model. 
-                                // This data will be populated by the backend.
-    }
-
-
-Example Usage:
-~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-    curl -X GET http://localhost:8000/local_sky_model \
-    -H 'Content-Type: application/json' \
-    -d '{
-        "ra": 123.456,
-        "dec": -56.789,
-        "flux_wide": 1.23,
-        "telescope": "HST",
-        "fov": 2.0
-    }'
-
-This example request retrieves a local sky model for an observation with the following parameters:
-
-* Right Ascension (RA): 123.456 degrees
-* Declination (DEC): -56.789 degrees
-* Wide-field flux: 1.23 Jy
-* Telescope: HST
-* Field of view: 2.0 degrees
-
-The response will be a JSON object containing the provided input parameters and a placeholder value for "local_data". The actual data for the local sky model will be populated by the backend implementation.
-
-
-How It Works:
-~~~~~~~~~~~~~
-
-Under the hood, the Global Sky Model is using Q3C (Quad Tree Cube), an extension to PostgreSQL, that adds a sky-indexing scheme along with a SQL interface for performing cone searches.
-
-The schema stores all component information in a single SkyComponent table. Each row represents a celestial component with its associated properties and measurements, including an associated HEALPix position for efficient spatial indexing.
-
-The SkyComponent model where most fields are dynamically generated from the ``SkyComponent`` dataclass in the ``ska-sdp-datamodels`` package, ensuring automatic synchronization with upstream data model changes:
-
-This approach allows the schema to automatically adapt when new fields are added to the upstream 
-dataclass, while maintaining database-specific concerns like spatial indexing.
-
-Upon requesting a local sky model, a cone search is carried out with the given parameters, using the `q3c_radial_query` provided by the Q3C extension. Sky components meeting the criteria of the given parameters are returned as the Local Sky Model.
-
-.. code-block:: javascript
-  
-    {
-      "components": {
-        "<component_id>": {
-          "ra": <number>,
-          "dec": <number>,
-          "i_pol": <number>,
-          "major_ax": <number>,
-          "minor_ax": <number>,
-          "pos_ang": <number>,
-          "spec_idx": [<number>, ...],
-          "q_pol": <number>,
-          "u_pol": <number>,
-          "v_pol": <number>
-        }
-      }
-    }
