@@ -32,7 +32,7 @@ Design
 
 The database design is described at :ref:`db_design`.
 
-The two main functionality of the GSM is also described:
+The two main functionalities of the GSM is also described:
 
 - :ref:`request_design`
 - :ref:`upload_design`

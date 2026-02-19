@@ -18,7 +18,7 @@ async def main():
         dec: Declination in degrees
         flux_wide: Wide-field flux in Jy
         telescope: Name of the telescope
-        fov: Field of view in arcminutes
+        fov: Field of view in degrees
     """
     # Replace with your actual FastAPI endpoint URL
     api_url = "http://localhost:37313/local_sky_model"

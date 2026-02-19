@@ -73,11 +73,11 @@ Once a flow has been found that matches those criteria, the following is done:
 1. The state is updated to ``FLOWING``.
 2. The local sky model is retrieved.
 
-   a. Querying components within the specified field of view using spatial indexing (q3c_radial_query)
+   a. Querying components within the specified field of view using spatial indexing
    b. Converting database records to SkyComponent objects from ska_sdp_datamodels
 
 3. The LSM is written to the shared volume as a CSV file.
-4. The metadata is written to the parent directory.
+4. The metadata in YAML format is written to the parent directory.
 5. The state is updated to ``COMPLETED``.
 
 If there is a failure the state is updated to ``FAILED`` and a reason is set.
@@ -136,7 +136,7 @@ where:
      - float
      - Yes
    * - ``fov``
-     - The field of view of the cone search (in arcminutes)
+     - The field of view of the cone search (in degrees)
      - float
      - Yes
    * - ``version``

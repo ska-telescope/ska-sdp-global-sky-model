@@ -15,7 +15,7 @@ The database schema is managed by `Alembic <https://alembic.sqlalchemy.org/en/la
 Database schema
 ^^^^^^^^^^^^^^^
 
-The schema for the database tables is generated from an agreed datamodel (see :ref:<>), currently stored in the
+The schema for the database tables is generated from an agreed datamodel, currently stored in the
 `ska-sdp-datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py?ref_type=heads>`_.
 The columns and data types are defined in these models, which allow sharing the structure with
 users as well.
