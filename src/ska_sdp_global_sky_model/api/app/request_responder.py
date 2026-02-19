@@ -308,12 +308,14 @@ def _update_state(
 
 
 def _write_data(
-    eb_id: str, query_parameters: dict, output: Path, data: "GlobalSkyModel"
+    eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel"
 ):  # pylint: disable=too-many-locals
-    """Write the LSM to disk as a CSV file.
+    """
+    Write the LSM to disk as a CSV file.
 
     Args:
         eb_id: Execution block ID
+        query_parameters: QueryParameters dataclass instance
         output: Path to the output directory
         data: GlobalSkyModel object containing the components to write
     """
@@ -370,7 +372,9 @@ def _write_data(
     logger.info(
         "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
     )
-    local_model.save(query_parameters, str(lsm_file), metadata_dir=str(metadata_dir))
+    # Always convert QueryParameters dataclass to dict
+    query_parameters_dict = dataclasses.asdict(query_parameters)
+    local_model.save(query_parameters_dict, str(lsm_file), metadata_dir=str(metadata_dir))
 
     # Verify files were actually written
     if lsm_file.exists():

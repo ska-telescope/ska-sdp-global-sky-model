@@ -556,11 +556,11 @@ def test_write_data_integration(
         spec_idx=[0.9],
     )
 
-    query_parameters = {
-        "ra": 2.9670,
-        "dec": -0.1745,
-        "fov": 0.0873,
-    }
+    query_parameters = QueryParameters(
+        ra=2.9670,
+        dec=-0.1745,
+        fov=0.0873,
+    )
     # Create GlobalSkyModel
     gsm = GlobalSkyModel(
         metadata={},
@@ -582,8 +582,7 @@ def test_write_data_integration(
     # (metadata validation is tested separately in local_sky_model tests)
     with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
         # Write the data
-        qp = dict(query_parameters)
-        _write_data(eb_id, qp, output_dir, gsm)
+        _write_data(eb_id, query_parameters, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
@@ -617,15 +616,14 @@ def test_write_data_empty_components(tmp_path):
 
     eb_id = "eb-test-20260108-1234"
 
-    query_parameters = {
-        "ra": 2.9670,
-        "dec": -0.1745,
-        "fov": 0.0873,
-    }
+    query_parameters = QueryParameters(
+        ra=2.9670,
+        dec=-0.1745,
+        fov=0.0873,
+    )
 
     # Write the data (should handle empty components gracefully)
-    qp = dict(query_parameters)
-    _write_data(eb_id, qp, output_dir, gsm)
+    _write_data(eb_id, query_parameters, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"

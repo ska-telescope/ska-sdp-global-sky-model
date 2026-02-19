@@ -201,16 +201,7 @@ class SkyComponentStaging(Base):
 _add_dynamic_columns_to_model(
     GlobalSkyModelMetadata,
     GSMMetadataDataclass,
-    skip_columns={
-        "id",
-        "catalogue_name",
-        "description",
-        "upload_id",
-        "author",
-        "reference",
-        "notes",
-        "uploaded_at",
-    },
+    skip_columns={},
 )
 # For main table, skip component_id since it's defined explicitly
 # for the composite constraint with version
