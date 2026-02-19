@@ -64,10 +64,48 @@ checked:
 Once a flow has been found that matches those criteria, the following is done:
 
 1. The state is updated to ``FLOWING``.
-2. The local sky model is retrieved.
-3. The LSM is written to the shared volume.
-4. The metadata is written to.
+2. The local sky model is retrieved from the database by:
+
+   a. Querying components within the specified field of view using spatial indexing (q3c_radial_query)
+   b. Converting database records to SkyComponent objects from ska_sdp_datamodels
+
+3. The LSM is written to the shared volume as a CSV file.
+4. The metadata is written to the parent ska-sdm directory.
 5. The state is updated to ``COMPLETED``.
 
 If there is a failure the state is updated to ``FAILED`` and a reason is set.
 
+Database Query Details
+----------------------
+
+The LSM query uses the following approach:
+
+1. **Spatial Query**: Uses PostgreSQL's q3c extension to efficiently find components
+   within a circular region defined by RA, Dec, and FOV radius (all in degrees).
+
+2. **Data Retrieval**: For each matched source, the system retrieves:
+
+   - Component position (RA, Dec) and identifier
+   - Stokes parameters (I, Q, U, V polarization)
+   - Source shape parameters (major/minor axes, position angle)
+   - Spectral index information
+
+3. **Data Model Mapping**: Database records are mapped to the GlobalSkyModel data
+   structure defined in ``ska_sdp_datamodels.global_sky_model``:
+
+   - ``GlobalSkyModel``: Top-level container with metadata and a dictionary of components
+   - ``SkyComponent``: Contains component ID, position (RA, Dec), Stokes parameters,
+     morphology (major_ax, minor_ax, pos_ang), and spectral index as a list of coefficients
+
+4. **Result Format**: Returns a ``GlobalSkyModel`` object containing a dictionary
+   of ``SkyComponent`` objects (keyed by component ID) with all relevant astronomical
+   measurements for components within the requested field of view.
+
+5. **Output Format**: The LSM is written as a CSV file with named columns matching the
+   ``SkyComponent`` dataclass fields. Metadata is written as a YAML file in the parent
+   ``ska-sdm`` directory as specified in the Flow configuration.
+
+.. note::
+   The ``version`` parameter allows you to specify which catalogue version to query.
+   This supports multiple GSM catalogue versions in the database. Use semantic versioning
+   (e.g., \"1.0.0\", \"0.1.0\") or \"latest\" to query the most recent version.

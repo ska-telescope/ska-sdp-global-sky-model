@@ -25,13 +25,27 @@ import time
 from collections.abc import Generator
 from pathlib import Path
 
+import numpy as np
 import ska_sdp_config
+from fastapi import Depends
+from packaging.version import Version
 from ska_sdp_config.entity.flow import Flow, FlowSource
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    GlobalSkyModel,
+)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+    SkyComponent as SkyComponentDataclass,
+)
+from sqlalchemy.orm import Session
 
+from ska_sdp_global_sky_model.api.app.crud import q3c_radial_query
+from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.configuration.config import (
     REQUEST_WATCHER_TIMEOUT,
     SHARED_VOLUME_MOUNT,
+    get_db,
 )
+from ska_sdp_global_sky_model.utilities.local_sky_model import LocalSkyModel
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +55,13 @@ class QueryParameters:
     """The list of available and optional query parameters."""
 
     ra: float
-    """Right Ascension [rad]"""
+    """Right Ascension [degrees]"""
 
     dec: float
-    """Declination [rad]"""
+    """Declination [degrees]"""
 
     fov: float
-    """Field of View radius [rad]"""
+    """Field of View radius [degrees]"""
 
     version: str = "latest"
     """version of the GSM data"""
@@ -97,16 +111,19 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
 def _watcher_process_flow(watcher, flow, source):
     for txn in watcher.txn():
         _update_state(txn, flow, "FLOWING")
-
+        processing_block = txn.processing_block.get(flow.key.pb_id)
+        eb_id = processing_block.eb_id
     try:
         query_params = QueryParameters(**source.parameters)
+        if not query_params.version:
+            query_params.version = "latest"
     except TypeError as err:
         logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
         for txn in watcher.txn():
             _update_state(txn, flow, "FAILED", str(err)[27:])
         return
 
-    successful, reason = _process_flow(flow, query_params)
+    successful, reason = _process_flow(flow, eb_id, query_params)
 
     for txn in watcher.txn():
         _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
@@ -137,7 +154,9 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
         yield flow, source
 
 
-def _process_flow(flow: Flow, query_parameters: QueryParameters) -> (bool, str | None):
+def _process_flow(
+    flow: Flow, eb_id: str, query_parameters: QueryParameters
+) -> tuple[bool, str | None]:
     """Process the Flow entry"""
 
     output_location = SHARED_VOLUME_MOUNT / flow.sink.data_dir.pvc_subpath
@@ -146,14 +165,115 @@ def _process_flow(flow: Flow, query_parameters: QueryParameters) -> (bool, str |
     logger.info(" -> params: %s", query_parameters)
 
     try:
-        output_data = _query_gsm_for_lsm(query_parameters)
-        _write_metadata(output_location, flow)
-        _write_data(output_location, output_data)
+        db = next(get_db())
+        try:
+            output_data = _query_gsm_for_lsm(query_parameters, db)
+            _write_data(eb_id, output_location, output_data)
+        finally:
+            db.close()
     except Exception as err:  # pylint: disable=broad-exception-caught
+        logger.error(
+            "Failed to process flow %s with parameters %s: %s",
+            flow.key,
+            query_parameters,
+            err,
+        )
         logger.exception(err)
-        return False, str(err)
+        return False, f"Error processing flow {flow.key} with parameters {query_parameters}: {err}"
 
     return True, None
+
+
+def _resolve_version(version: str, db: Session) -> str:
+    """Resolve 'latest' to highest semantic version in database."""
+    if version != "latest":
+        return version
+
+    try:
+        versions = db.query(SkyComponent.version).distinct().all()
+        if not versions:
+            logger.error("No GSM versions available in database.")
+            raise ValueError("No GSM versions available in database.")
+
+        version_strings = [v[0] for v in versions]
+
+        # Parse and sort semantically
+        latest_version = max(version_strings, key=Version)
+
+        return latest_version
+
+    except Exception as e:
+        logger.exception("Failed to resolve version: %s", e)
+        raise
+
+
+def _query_gsm_for_lsm(
+    query_parameters: QueryParameters,
+    db: Session = Depends(get_db),
+) -> "GlobalSkyModel":
+    """
+    Query the Global Sky Model database for components within the specified field of view.
+
+    This function queries the GSM database to retrieve sky components within a circular
+    region defined by the provided coordinates and field of view. Results are returned
+    as a GlobalSkyModel object.
+
+    Args:
+        query_parameters: QueryParameters object containing:
+            - ra: Right Ascension in degrees
+            - dec: Declination in degrees
+            - fov: Field of view radius in degrees
+            - version: GSM catalogue version to query (e.g., "1.0.0", "latest")
+        db: Database session
+
+    Returns:
+        A GlobalSkyModel object from ska_sdp_datamodels.global_sky_model,
+        containing a dictionary of SkyComponent objects keyed by component ID.
+
+    Note:
+        - Empty GlobalSkyModel is returned if no components are found within the FOV
+    """
+    logger.info(
+        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (version=%s)",
+        query_parameters.ra,
+        query_parameters.dec,
+        query_parameters.fov,
+        query_parameters.version,
+    )
+
+    try:
+        resolved_version = _resolve_version(query_parameters.version, db)
+        # Query components within the field of view using spatial index
+        # pylint: disable=no-member,duplicate-code
+        sky_components = (
+            db.query(SkyComponent)
+            .where(
+                q3c_radial_query(
+                    SkyComponent.ra,
+                    SkyComponent.dec,
+                    query_parameters.ra,
+                    query_parameters.dec,
+                    query_parameters.fov,
+                )
+            )
+            .where(SkyComponent.version == resolved_version)
+            .all()
+        )
+
+        sky_components_dict = {}
+        for sky_component in sky_components:
+            sky_component_dict = sky_component.columns_to_dict()
+            # Remove database-specific fields that are not in SkyComponent dataclass
+            del sky_component_dict["id"]
+            del sky_component_dict["healpix_index"]
+            del sky_component_dict["version"]
+            sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
+
+        return GlobalSkyModel(metadata={}, components=sky_components_dict)
+
+    except Exception as e:
+        logger.exception("Error querying GSM database: %s", e)
+        raise
 
 
 def _update_state(
@@ -178,23 +298,113 @@ def _update_state(
         txn.flow.state(flow).create(new_state)
 
 
-# The next functions are meant to be replaced when we actually query the
-# data, as well as write the metadata and data to disk.
+def _write_data(
+    eb_id: str, output: Path, data: "GlobalSkyModel"
+):  # pylint: disable=too-many-locals
+    """Write the LSM to disk as a CSV file.
+
+    Args:
+        eb_id: Execution block ID
+        output: Path to the output directory
+        data: GlobalSkyModel object containing the components to write
+    """
+    logger.info("Writing LSM data to: %s", output)
+    logger.info("Number of components: %d", len(data.components))
+
+    # Create output directory if it doesn't exist
+    output.mkdir(parents=True, exist_ok=True)
+
+    # Define the output file path
+    lsm_file = output / "local_sky_model.csv"
+
+    # Get column names from SkyComponent dataclass
+    column_names = (
+        list(next(iter(data.components.values())).__annotations__.keys())
+        if data.components
+        else list(SkyComponentDataclass.__annotations__.keys())
+    )
+
+    # Create LocalSkyModel with the right size
+    local_model = LocalSkyModel.empty(
+        column_names=column_names,
+        num_rows=len(data.components),
+        max_vector_len=5,  # For spectral index vectors
+    )
+
+    # Think this should/could be done better...
+    try:
+        local_model.set_metadata({"execution_block_id": eb_id})
+        logger.debug("Set execution_block_id to: %s", eb_id)
+    except (ValueError, IndexError) as e:
+        logger.warning("Could not set execution_block_id to %s: %s", eb_id, e)
+
+    # Populate the LocalSkyModel with data from GlobalSkyModel
+    for row_idx, component in enumerate(data.components.values()):
+        row_data = {}
+        for field in column_names:
+            value = getattr(component, field, None)
+            # Handle None values in arrays (e.g., spec_idx with nulls)
+            if isinstance(value, (list, tuple)):
+                # Replace None with numpy.nan in arrays
+
+                value = [np.nan if v is None else v for v in value]
+            row_data[field] = value
+        local_model.set_row(row_idx, row_data)
+
+    # Find the ska-sdm directory for metadata
+    metadata_dir = _find_ska_sdm_dir(output)
+
+    # Handle empty components gracefully
+    logger.info(
+        "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
+    )
+    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
+
+    # Verify files were actually written
+    if lsm_file.exists():
+        logger.info("Successfully wrote LSM to %s", lsm_file)
+    else:
+        raise FileNotFoundError(f"LSM file was not created at {lsm_file}")
+
+    metadata_yaml = metadata_dir / "ska-data-product.yaml"
+    if metadata_yaml.exists():
+        logger.info("Metadata written to %s", metadata_yaml)
+    else:
+        logger.warning(
+            "Metadata file was not created at %s (this may be expected in tests)",
+            metadata_yaml,
+        )
 
 
-def _query_gsm_for_lsm(query_parameters: QueryParameters) -> list:  # pragma: no cover
-    """This is a stub of the search function"""
-    logger.debug("params: %s", query_parameters)
-    return []
+def _find_ska_sdm_dir(output: Path) -> Path:
+    """
+    Find the ska-sdm directory in the output path for metadata placement.
 
+    The function returns the first ``<pb_id>/ska-sdm`` parent directory of the
+    ``pvc_subpath``. If no ska-sdm directory is found in the path, a
+    FileNotFoundError is raised to enforce correct metadata placement.
 
-def _write_data(output: Path, data: list):  # pragma: no cover
-    """This is a stub to write the LSM to disk"""
-    logger.debug("output: %s", output)
-    logger.debug("data: %s", data)
+    Args:
+        output: Output path (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}
+        /ska-sdm/sky/{field_id})
 
+    Returns:
+        Path to the ska-sdm directory where the metadata file should be written.
 
-def _write_metadata(output: Path, flow: Flow):  # pragma: no cover
-    """This is a stub to write the Metadata"""
-    logger.debug("output: %s", output)
-    logger.debug("flow: %s", flow)
+    Raises:
+        FileNotFoundError: If no ska-sdm directory is found in the output path.
+    """
+    current = output
+    while current != current.parent:
+        if current.name == "ska-sdm":
+            return current
+        current = current.parent
+
+    # If ska-sdm not found, raise an error to enforce correct metadata placement
+    error_msg = (
+        f"Could not find 'ska-sdm' directory in path {output}. "
+        "Metadata file location is undefined. "
+        "Please ensure the output path includes a ska-sdm directory as required."
+    )
+    logger.error(error_msg)
+    raise FileNotFoundError(error_msg)
