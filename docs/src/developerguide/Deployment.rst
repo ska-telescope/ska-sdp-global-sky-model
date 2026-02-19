@@ -33,9 +33,9 @@ To start all services:
 
     $ docker compose up -d
 
-This will start all required services in the background. The API will be available at ``http://localhost:8000``.
+This will start all required services in the background. The API will be available at ``http://<GSM_API_URL>:8000``.
 
-**Interactive API documentation** is available at ``http://localhost:8000/docs``.
+**Interactive API documentation** is available at ``http://<GSM_API_URL>:8000/docs``.
 
 When this setup is running, the database schema should be initialised or migrated by running:
 

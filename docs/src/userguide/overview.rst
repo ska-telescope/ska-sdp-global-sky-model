@@ -78,7 +78,7 @@ Example Usage:
 
 .. code-block:: bash
 
-    curl -X GET http://localhost:8000/local_sky_model \
+    curl -X GET http://<GSM_API_URL>:8000/local_sky_model \
     -H 'Content-Type: application/json' \
     -d '{
         "ra": 123.456,

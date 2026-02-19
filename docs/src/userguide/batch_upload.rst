@@ -313,7 +313,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 .. code-block:: bash
 
     # Upload CSV files with catalogue metadata
-    curl -X POST "http://localhost:8000/upload-sky-survey-batch" \\
+    curl -X POST "http://<GSM_API_URL>:8000/upload-sky-survey-batch" \\
       -F "metadata_file=@metadata.json;type=application/json" \\
       -F "csv_files=@test_catalogue_1.csv;type=text/csv" \\
       -F "csv_files=@test_catalogue_2.csv;type=text/csv"
@@ -614,16 +614,16 @@ version information including upload dates, reference frequencies, epochs, and a
 .. code-block:: bash
 
     # List all catalogues
-    curl "http://localhost:8000/catalogue-metadata"
+    curl "http://<GSM_API_URL>:8000/catalogue-metadata"
 
     # Get specific catalogue versions
-    curl "http://localhost:8000/catalogue-metadata?catalogue_name=GLEAM"
+    curl "http://<GSM_API_URL>:8000/catalogue-metadata?catalogue_name=GLEAM"
 
     # Get specific version
-    curl "http://localhost:8000/catalogue-metadata?version=1.0.0"
+    curl "http://<GSM_API_URL>:8000/catalogue-metadata?version=1.0.0"
 
     # Combined search with limit
-    curl "http://localhost:8000/catalogue-metadata?catalogue_name=GLEAM&limit=10"
+    curl "http://<GSM_API_URL>:8000/catalogue-metadata?catalogue_name=GLEAM&limit=10"
 
 **Python Example**:
 
@@ -632,7 +632,7 @@ version information including upload dates, reference frequencies, epochs, and a
     import requests
 
     # Query all GLEAM catalogue versions
-    url = "http://localhost:8000/catalogue-metadata"
+    url = "http://<GSM_API_URL>:8000/catalogue-metadata"
     params = {"catalogue_name": "GLEAM"}
     
     response = requests.get(url, params=params)
@@ -653,7 +653,7 @@ Reject Staged Upload
     import requests
 
     upload_id = "550e8400-e29b-41d4-a716-446655440000"
-    url = f"http://localhost:8000/commit-upload/{upload_id}"
+    url = f"http://<GSM_API_URL>:8000/commit-upload/{upload_id}"
     
     response = requests.post(url)
     result = response.json()
