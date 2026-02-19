@@ -54,6 +54,8 @@ CHANGELOG
 - [Added] Re-instated postgres backend storage starting from version 0.1.4.
   (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
 
+- [Updated] ``/local_sky_model`` endpoint to take optional version (only semantic version)
+  (`MR82 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/82>`__)
 - [Updated] Asynchronous batch upload processing. Uploads now run in background tasks,
   returning immediately with "uploading" status while ingestion proceeds asynchronously.
   This keeps the API responsive during large file uploads.

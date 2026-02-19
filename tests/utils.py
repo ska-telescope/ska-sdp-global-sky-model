@@ -6,6 +6,7 @@ from sqlalchemy import JSON, StaticPool, create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 
+from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Use in-memory SQLite for testing
@@ -57,3 +58,14 @@ def replace_jsonb_sqlite(target, connection, **kw):  # pylint: disable=unused-ar
             for column in table.columns:
                 if isinstance(column.type, JSONB):
                     column.type = JSON()
+
+
+def clean_all_tables():
+    """Clean both staging and main tables for test isolation."""
+    db = next(override_get_db())
+    try:
+        db.query(SkyComponentStaging).delete()
+        db.query(SkyComponent).delete()
+        db.commit()
+    finally:
+        db.close()

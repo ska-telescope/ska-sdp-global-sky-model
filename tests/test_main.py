@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 from ska_sdp_global_sky_model.api.app.main import app, get_db, upload_manager, wait_for_db
 from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadStatus
-from tests.utils import override_get_db
+from tests.utils import clean_all_tables, override_get_db
 
 app.dependency_overrides[get_db] = override_get_db
 
@@ -21,17 +21,6 @@ def _clean_staging_table():
     db = next(override_get_db())
     try:
         db.query(SkyComponentStaging).delete()
-        db.commit()
-    finally:
-        db.close()
-
-
-def _clean_all_tables():
-    """Clean both staging and main tables for test isolation."""
-    db = next(override_get_db())
-    try:
-        db.query(SkyComponentStaging).delete()
-        db.query(SkyComponent).delete()
         db.commit()
     finally:
         db.close()
@@ -239,7 +228,7 @@ def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argumen
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "4", "fov": 5},
+        params={"ra": "90", "dec": "4", "fov": 5},
     )
 
     assert local_sky_model.status_code == 200
@@ -257,7 +246,7 @@ def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=u
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "4", "fov": 5, "version": "1.1.0"},
+        params={"ra": "90", "dec": "4", "fov": 5, "version": "1.1.0"},
     )
 
     assert local_sky_model.status_code == 200
@@ -275,7 +264,7 @@ def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unus
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "2", "fov": 0.2},
+        params={"ra": "90", "dec": "2", "fov": 0.2},
     )
 
     assert local_sky_model.status_code == 200
@@ -293,7 +282,7 @@ def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disabl
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "2", "fov": 5, "version": "2.0.0"},
+        params={"ra": "90", "dec": "2", "fov": 5, "version": "2.0.0"},
     )
 
     assert local_sky_model.status_code == 200
@@ -659,7 +648,7 @@ def test_review_upload_not_completed(myclient):
 
 def test_commit_upload_success(myclient):
     """Test successful commit of staged upload with versioning."""
-    _clean_all_tables()
+    clean_all_tables()
 
     # Create test data directly in staging table
     upload_id = "test-upload-commit-123"
@@ -715,7 +704,7 @@ def test_commit_upload_success(myclient):
 
 def test_commit_upload_increments_version(myclient):
     """Test that second commit increments version to 0.2.0."""
-    _clean_all_tables()
+    clean_all_tables()
 
     # Add existing data at version 0.1.0
     db = next(override_get_db())

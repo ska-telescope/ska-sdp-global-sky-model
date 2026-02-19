@@ -10,7 +10,7 @@ from starlette.testclient import TestClient
 from ska_sdp_global_sky_model.api.app.main import app
 from ska_sdp_global_sky_model.api.app.models import SkyComponent
 from ska_sdp_global_sky_model.configuration.config import Base
-from tests.utils import engine, override_get_db
+from tests.utils import clean_all_tables, engine, override_get_db
 
 
 @pytest.fixture(scope="module", name="myclient")
@@ -56,6 +56,7 @@ def set_up_db_data_fxt():
     ]
 
     # Add a component directly to the test database
+    # pylint: disable-next=stop-iteration-return
     db = next(override_get_db())
     try:
         # Add a component in the query region (RA ~45, Dec ~4)
@@ -64,3 +65,7 @@ def set_up_db_data_fxt():
             db.commit()
     finally:
         db.close()
+
+    yield
+
+    clean_all_tables()
