@@ -210,7 +210,7 @@ _add_dynamic_columns_to_model(
 
 _add_dynamic_columns_to_model(
     GlobalSkyModelMetadata,
-    GlobalSkyModelMetadata,
+    GSMMetadataDataclass,
     skip_columns={
         "id",
         "catalogue_name",
