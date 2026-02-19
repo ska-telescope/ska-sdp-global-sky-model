@@ -2686,30 +2686,32 @@ testing = ["fields", "hunter", "process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
 name = "python-benedict"
-version = "0.34.1"
+version = "0.35.0"
 description = "python-benedict is a dict subclass with keylist/keypath/keyattr support, normalized I/O operations (base64, csv, ini, json, pickle, plist, query-string, toml, xls, xml, yaml) and many utilities... for humans, obviously."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "python_benedict-0.34.1-py3-none-any.whl", hash = "sha256:f09711ca2d8e716ca40440f1e26dfa3ccff15e08f1baa88de594fbba799cf87a"},
-    {file = "python_benedict-0.34.1.tar.gz", hash = "sha256:0a81784c826c8983c485bb647ed5e6c8fad139c3921ea1844b21e41da0ff0dc0"},
+    {file = "python_benedict-0.35.0-py3-none-any.whl", hash = "sha256:4be33761812a2b8986b19f9dcb9df687feefd81c4cbb11becd044a5e28c340f6"},
+    {file = "python_benedict-0.35.0.tar.gz", hash = "sha256:ca825742cb60641939857417b799c6ca6680ba1ed7d3a92cf722103bc8dcb3ea"},
 ]
 
 [package.dependencies]
 python-fsutil = ">=0.9.3,<1.0.0"
 python-slugify = ">=7.0.0,<9.0.0"
 requests = ">=2.26.0,<3.0.0"
+typing_extensions = ">=4.13.2,<4.16.0"
+useful-types = ">=0.2.1,<0.3.0"
 
 [package.extras]
 all = ["python-benedict[io,parse,s3]"]
 html = ["beautifulsoup4 (>=4.12.0,<5.0.0)", "python-benedict[xml]"]
 io = ["python-benedict[html,toml,xls,xml,yaml]"]
-parse = ["ftfy (>=6.0.0,<7.0.0)", "mailchecker (>=4.1.0,<7.0.0)", "phonenumbers (>=8.12.0,<9.0.0)", "python-dateutil (>=2.8.0,<3.0.0)"]
+parse = ["ftfy (>=6.0.0,<7.0.0)", "mailchecker (>=4.1.0,<7.0.0)", "phonenumbers (>=8.12.0,<10.0.0)", "python-dateutil (>=2.8.0,<3.0.0)"]
 s3 = ["boto3 (>=1.24.89,<2.0.0)"]
 toml = ["toml (>=0.10.2,<1.0.0)"]
 xls = ["openpyxl (>=3.0.0,<4.0.0)", "xlrd (>=2.0.0,<3.0.0)"]
-xml = ["xmltodict (>=0.12.0,<1.0.0)"]
+xml = ["xmltodict (>=0.12.0,<2.0.0)"]
 yaml = ["pyyaml (>=6.0,<7.0)"]
 
 [[package]]
@@ -3302,20 +3304,20 @@ reference = "skao"
 
 [[package]]
 name = "ska-sdp-dataproduct-metadata"
-version = "1.1.0"
+version = "1.1.1"
 description = "SKA SDP Data Product Metadata"
 optional = false
 python-versions = ">=3.10,<4.0"
 groups = ["main"]
 files = [
-    {file = "ska_sdp_dataproduct_metadata-1.1.0-py3-none-any.whl", hash = "sha256:e2c816a3b99ef75f49d3a63d3a599663f0d562f6266eb809b1ec32503b9b8816"},
-    {file = "ska_sdp_dataproduct_metadata-1.1.0.tar.gz", hash = "sha256:5b3773fb7e40ad4a18ef1131430f094eb8997b57fb40d733d5189f969981b97d"},
+    {file = "ska_sdp_dataproduct_metadata-1.1.1-py3-none-any.whl", hash = "sha256:0b5d4123b3cee144b3e141617d0f33330e9a8a6838c9c7b9cef03264c17c4345"},
+    {file = "ska_sdp_dataproduct_metadata-1.1.1.tar.gz", hash = "sha256:eb1c9efce897fefbea42e5df7f551633403c1e52a662c64ee2ab5680a023089a"},
 ]
 
 [package.dependencies]
-jsonschema = ">=4.23,<5.0"
-python-benedict = ">=0.34.1,<0.35.0"
-ska-sdp-config = ">=1.4.0,<2.0.0"
+jsonschema = ">=4.26.0,<5.0.0"
+python-benedict = ">=0.35.0,<0.36.0"
+ska-sdp-config = ">=1.5.1,<2.0.0"
 ska-ser-logging = ">=0.4.3,<0.5.0"
 
 [package.source]
@@ -3992,6 +3994,21 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["backports-zstd (>=1.0.0) ; python_version < \"3.14\""]
 
 [[package]]
+name = "useful-types"
+version = "0.2.1"
+description = "A collection of useful types."
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "useful_types-0.2.1-py3-none-any.whl", hash = "sha256:0dca32763d7271b5c8c7c395c44c10d09dba47a41aec97dcb085041ad096e0e9"},
+    {file = "useful_types-0.2.1.tar.gz", hash = "sha256:870a0bcc8fcb7d0b2f14055438c1cab7e248fded942b0943a4d7019e7fbbdacd"},
+]
+
+[package.dependencies]
+typing_extensions = ">=4.7"
+
+[[package]]
 name = "uvicorn"
 version = "0.29.0"
 description = "The lightning-fast ASGI server."
@@ -4085,4 +4102,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "244d2a226217a1d33b0b12c289879a0e3e52b85aed28724d666dee97217e8d98"
+content-hash = "6e700bbffb00f19ff8a9c1ee49440d8c4a461d6a6d09466ac4e8db4b6e203e7f"
