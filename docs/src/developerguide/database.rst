@@ -143,10 +143,3 @@ If for some reason you need to downgrade the database (which shouldn't be needed
 .. code-block:: bash
 
     $ bash /db_downgrade.sh
-
-Using a Job
-...........
-
-A Job can be used, refer to the
-`SKA Testing chart <https://gitlab.com/ska-telescope/sdp/ska-sdp-integration/-/blob/master/charts/ska-sdp-testing/templates/gsm-postgres.yaml>`_
-for an example.
