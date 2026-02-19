@@ -125,7 +125,9 @@ def _clean_all_tables():
         db.close()
 
 
-def _mock_ingest_catalogue(db, metadata):  # pylint: disable=unused-argument
+def _mock_ingest_catalogue(
+    db, metadata, catalogue_content=None
+):  # pylint: disable=unused-argument
     """Simple mock that returns True without doing anything."""
     return True
 
@@ -696,6 +698,7 @@ def test_review_upload_success(myclient):
                 dec=20.0 + i,
                 i_pol=0.5 + i * 0.1,
                 healpix_index=12345,
+                version="0.1.0",
             )
             db.add(component)
         db.commit()
@@ -703,7 +706,7 @@ def test_review_upload_success(myclient):
         db.close()
 
     # Create upload status
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
     upload_status.state = "completed"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -726,7 +729,7 @@ def test_review_upload_not_completed(myclient):
 
     # Create upload in non-completed state
     upload_id = "test-upload-not-completed-123"
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
     upload_status.state = "uploading"  # Not completed
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -742,7 +745,7 @@ def test_commit_upload_not_completed(myclient):
 
     # Create upload in non-completed state
     upload_id = "test-upload-commit-not-done-123"
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
     upload_status.state = "uploading"  # Not completed
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -767,6 +770,7 @@ def test_reject_upload_success(myclient):
                 dec=20.0 + i,
                 i_pol=0.5,
                 healpix_index=12345,
+                version="0.1.0",
             )
             db.add(component)
         db.commit()
@@ -774,7 +778,7 @@ def test_reject_upload_success(myclient):
         db.close()
 
     # Create completed upload status
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
     upload_status.state = "completed"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 
@@ -802,7 +806,7 @@ def test_reject_upload_not_completed(myclient):
 
     # Create incomplete upload status
     upload_id = "test-upload-reject-incomplete-456"
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1)
+    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
     upload_status.state = "uploading"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
 

@@ -118,6 +118,7 @@ class GlobalSkyModelMetadata(Base):
     catalogue_name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     upload_id = Column(String, nullable=False, unique=True, index=True)
+    staging = Column(Boolean, nullable=False, default=True)
 
     # Additional metadata fields
     author = Column(String, nullable=True)
@@ -181,6 +182,9 @@ class SkyComponentStaging(Base):
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
+
+    # Version tracking - semantic versioning
+    version = Column(String, nullable=False)
 
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)

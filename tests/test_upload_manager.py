@@ -8,6 +8,7 @@ file handling, and upload state tracking.
 import pytest
 from fastapi import HTTPException
 
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.upload_manager import (
     UploadManager,
     UploadState,
@@ -44,6 +45,14 @@ class TestUploadStatus:  # pylint: disable=too-few-public-methods
 class TestUploadManager:
     """Tests for UploadManager class."""
 
+    catalogue_metadata = GlobalSkyModelMetadata(
+        version="1.0.0",
+        ref_freq=1.4e9,
+        epoch="J2000",
+        catalogue_name="TestCatalogue",
+        upload_id="test-upload-1",
+    )
+
     @pytest.fixture
     def manager(self):
         """Create an UploadManager instance."""
@@ -51,7 +60,7 @@ class TestUploadManager:
 
     def test_create_upload(self, manager):
         """Test creating a new upload."""
-        status = manager.create_upload(csv_file_count=3)
+        status = manager.create_upload(csv_file_count=3, metadata=self.catalogue_metadata)
 
         assert status.upload_id is not None
         assert status.total_csv_files == 3
@@ -59,11 +68,11 @@ class TestUploadManager:
         assert status.state == UploadState.UPLOADING
         assert status.errors == []
         assert status.csv_files == []
-        assert status.metadata is None
+        assert status.metadata == self.catalogue_metadata
 
     def test_get_status_success(self, manager):
         """Test retrieving upload status."""
-        created = manager.create_upload(csv_file_count=2)
+        created = manager.create_upload(csv_file_count=2, metadata=self.catalogue_metadata)
         retrieved = manager.get_status(created.upload_id)
 
         assert retrieved.upload_id == created.upload_id
@@ -79,7 +88,7 @@ class TestUploadManager:
 
     def test_mark_completed(self, manager):
         """Test marking an upload as completed."""
-        status = manager.create_upload(csv_file_count=1)
+        status = manager.create_upload(csv_file_count=1, metadata=self.catalogue_metadata)
         manager.mark_completed(status.upload_id)
 
         retrieved = manager.get_status(status.upload_id)
@@ -87,7 +96,7 @@ class TestUploadManager:
 
     def test_mark_failed(self, manager):
         """Test marking an upload as failed."""
-        status = manager.create_upload(csv_file_count=1)
+        status = manager.create_upload(csv_file_count=1, metadata=self.catalogue_metadata)
         error_msg = "Test error"
         manager.mark_failed(status.upload_id, error_msg)
 
@@ -97,7 +106,7 @@ class TestUploadManager:
 
     def test_cleanup(self, manager):
         """Test cleaning up upload data."""
-        status = manager.create_upload(csv_file_count=1)
+        status = manager.create_upload(csv_file_count=1, metadata=self.catalogue_metadata)
         status.csv_files.append(("test.csv", "data"))
 
         manager.cleanup(status.upload_id)
@@ -108,7 +117,7 @@ class TestUploadManager:
 
     def test_get_files(self, manager):
         """Test retrieving files from an upload."""
-        status = manager.create_upload(csv_file_count=2)
+        status = manager.create_upload(csv_file_count=2, metadata=self.catalogue_metadata)
         status.csv_files.append(("file1.csv", "data1"))
         status.csv_files.append(("file2.csv", "data2"))
 

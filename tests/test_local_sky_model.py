@@ -140,12 +140,6 @@ class TestLocalSkyModel:
         }
         model.set_header(header)
 
-        query_parameters = {
-            "ra": 2.9670,
-            "dec": -0.1745,
-            "fov": 0.0873,
-        }
-
         # Set special metadata values.
         # These have specific places in the YAML file
         # (currently, just the execution block ID).
@@ -168,7 +162,6 @@ class TestLocalSkyModel:
             # Save two copies of the LSM so we have two entries in the YAML.
             for csv_file_name in csv_file_names:
                 model.save(
-                    query_parameters=query_parameters,
                     path=csv_file_name,
                     metadata_dir=yaml_dir_name,
                 )

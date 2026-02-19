@@ -308,6 +308,7 @@ class TestSkyComponentStagingModel:
             dec=-67.89,
             i_pol=1.23,
             healpix_index=12345,
+            version="0.1.0",
         )
         db_session.add(staged)
         db_session.commit()
@@ -330,6 +331,7 @@ class TestSkyComponentStagingModel:
             dec=50.0,
             i_pol=1.0,
             healpix_index=11111,
+            version="0.1.0",
         )
         db_session.add(staged1)
         db_session.commit()
@@ -342,6 +344,7 @@ class TestSkyComponentStagingModel:
             dec=60.0,
             i_pol=2.0,
             healpix_index=22222,
+            version="0.1.0",
         )
         db_session.add(staged2)
         db_session.commit()
@@ -361,6 +364,7 @@ class TestSkyComponentStagingModel:
             dec=50.0,
             i_pol=1.0,
             healpix_index=11111,
+            version="0.1.0",
         )
         db_session.add(staged1)
         db_session.commit()
@@ -373,6 +377,7 @@ class TestSkyComponentStagingModel:
             dec=60.0,
             i_pol=2.0,
             healpix_index=22222,
+            version="0.1.0",
         )
         db_session.add(staged2)
         with pytest.raises(Exception):
@@ -558,7 +563,7 @@ class TestSkyComponentModelDataclassSync:
         """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
         expected_columns = set(SkyComponent.__annotations__.keys())
-        expected_columns.update(["id", "healpix_index", "version"])
+        expected_columns.update(["id", "healpix_index", "version", "staging"])
 
         # Get actual model columns
         inspector = inspect(engine)
@@ -641,6 +646,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
                 "uploaded_at",
                 "metadata",
                 "registry",
+                "staging",
             }
         )
 
@@ -664,7 +670,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + all database-specific fields
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 8
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 9
 
         # Get actual count
         inspector = inspect(engine)

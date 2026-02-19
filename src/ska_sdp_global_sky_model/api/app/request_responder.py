@@ -344,6 +344,11 @@ def _write_data(
         max_vector_len=5,  # For spectral index vectors
     )
 
+    local_model.set_header({"QUERY_CENTRE_RAJ2000_DEG": query_parameters.ra})
+    local_model.set_header({"QUERY_CENTRE_DEJ2000_DEG": query_parameters.dec})
+    local_model.set_header({"QUERY_RADIUS_DEG": query_parameters.fov})
+    local_model.set_header({"CATALOGUE_VERSION": query_parameters.version})
+
     # Think this should/could be done better...
     try:
         local_model.set_metadata(
@@ -373,9 +378,8 @@ def _write_data(
     logger.info(
         "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
     )
-    # Always convert QueryParameters dataclass to dict
-    query_parameters_dict = dataclasses.asdict(query_parameters)
-    local_model.save(query_parameters_dict, str(lsm_file), metadata_dir=str(metadata_dir))
+
+    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
 
     # Verify files were actually written
     if lsm_file.exists():

@@ -424,7 +424,7 @@ class LocalSkyModel:
 
         return model
 
-    def save(self, query_parameters: dict, path: str, metadata_dir: str) -> None:
+    def save(self, path: str, metadata_dir: str) -> None:
         """
         Save this sky model to a CSV text file.
 
@@ -440,21 +440,7 @@ class LocalSkyModel:
             format_string = ",".join(self.columns)
             out.write(f"# ({format_string}) = format\n")
             out.write(f"# NUMBER_OF_COMPONENTS: {self.num_rows}\n")
-            # Write query_parameters as header comments
-            if query_parameters:
-                # Write specific query parameters in required format and order
-                if "ra" in query_parameters:
-                    self.set_header({"QUERY_CENTRE_RAJ2000_DEG": query_parameters["ra"]})
-                if "dec" in query_parameters:
-                    self.set_header({"QUERY_CENTRE_DEJ2000_DEG": query_parameters["dec"]})
-                if "fov" in query_parameters:
-                    self.set_header({"QUERY_RADIUS_DEG": query_parameters["fov"]})
-                if "version" in query_parameters:
-                    self.set_header({"CATALOGUE_VERSION": query_parameters["version"]})
-                # Write any other query parameters in the generic format
-                for key, value in query_parameters.items():
-                    if key not in ("ra", "dec", "fov", "version"):
-                        self.set_header({f"QUERY_{key}": value})
+
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")
 
@@ -473,11 +459,9 @@ class LocalSkyModel:
         LOGGER.info("LSM file written successfully: %s (size: %d bytes)", path, file_size)
 
         # Write the YAML metadata file.
-        self.save_metadata(
-            os.path.join(metadata_dir, "ska-data-product.yaml"), path, query_parameters
-        )
+        self.save_metadata(os.path.join(metadata_dir, "ska-data-product.yaml"), path)
 
-    def save_metadata(self, yaml_path: str, lsm_path: str, query_parameters: dict) -> None:
+    def save_metadata(self, yaml_path: str, lsm_path: str) -> None:
         """
         Saves the metadata for this sky model to a YAML file.
         This is called by save(), so it should not normally be called
@@ -516,7 +500,6 @@ class LocalSkyModel:
         # Create the header dictionary.
         header = {
             "NUMBER_OF_COMPONENTS": self.num_rows,
-            "QUERY_PARAMETERS": query_parameters,
         }
         header.update(self._header)
 

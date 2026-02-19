@@ -18,7 +18,11 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 )
 from sqlalchemy.orm import Session
 
-from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
+from ska_sdp_global_sky_model.api.app.models import (
+    GlobalSkyModelMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
 from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
@@ -413,6 +417,7 @@ def _process_single_component(
     existing_component_id: set,
     staging: bool,
     upload_id: str | None,
+    version: str,
 ) -> tuple[dict | None, str | None]:
     """Process and validate a single component.
 
@@ -422,6 +427,7 @@ def _process_single_component(
         existing_component_id: Set of already seen component IDs (modified in-place).
         staging: Whether ingesting to staging table.
         upload_id: Upload identifier for staging records.
+        version: Catalogue version for the component.
 
     Returns:
         Tuple of (component_mapping, error_message). If valid, returns (mapping, None).
@@ -446,6 +452,8 @@ def _process_single_component(
     if staging and upload_id:
         component_mapping["upload_id"] = upload_id
 
+    component_mapping["version"] = version
+
     # Validate the component mapping
     is_valid, error_msg = validate_component_mapping(component_mapping, count)
     if not is_valid:
@@ -457,6 +465,7 @@ def _process_single_component(
 def process_component_data_batch(
     db: Session,
     catalogue_data,
+    version: str,
     batch_size: int = 500,
     staging: bool = False,
     upload_id: str | None = None,
@@ -507,7 +516,7 @@ def process_component_data_batch(
             )
 
         component_mapping, error_msg = _process_single_component(
-            src, count, existing_component_id, staging, upload_id
+            src, count, existing_component_id, staging, upload_id, version
         )
 
         if error_msg:
@@ -545,7 +554,9 @@ def process_component_data_batch(
     return True
 
 
-def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
+def ingest_catalogue(
+    db: Session, catalogue_metadata: GlobalSkyModelMetadata, catalogue_content: dict
+) -> bool:
     """Ingest catalogue data from in-memory CSV content into the database.
 
     Processes component data from CSV content provided in the catalogue metadata,
@@ -553,18 +564,18 @@ def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
 
     Args:
         db: SQLAlchemy database session.
-        catalogue_metadata: Catalogue metadata dictionary containing:
+        catalogue_metadata: Catalogue metadata object containing:
             - name: Name used for logging messages
             - catalogue_name: Catalogue identifier for logging
             - ingest: Dictionary with 'file_location' key containing a list of
               dictionaries, each with a 'content' key holding CSV data as a string
-
+        catalogue_content: Dictionary containing the actual CSV content to be ingested.
     Returns:
         True if all data was validated and ingested successfully, False otherwise.
     """
-    catalogue_name = catalogue_metadata["catalogue_name"]
-    staging = catalogue_metadata.get("staging", False)
-    upload_id = catalogue_metadata.get("upload_id")
+    catalogue_name = catalogue_metadata.catalogue_name
+    staging = catalogue_metadata.staging
+    upload_id = catalogue_metadata.upload_id
 
     logger.info(
         "Loading the %s catalogue (staging=%s)...",
@@ -573,7 +584,7 @@ def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
     )
 
     # Parse catalogue components from metadata
-    catalogue_data = parse_catalogue_components(catalogue_metadata["ingest"])
+    catalogue_data = parse_catalogue_components(catalogue_content["ingest"])
 
     for components in catalogue_data:
         if not components:
@@ -584,6 +595,7 @@ def ingest_catalogue(db: Session, catalogue_metadata) -> bool:
         if not process_component_data_batch(
             db,
             components,
+            version=catalogue_metadata.version,
             staging=staging,
             upload_id=upload_id,
         ):

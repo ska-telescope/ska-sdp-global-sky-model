@@ -37,7 +37,7 @@ def main():
     # Load metadata from JSON file
     metadata_path = Path(args.metadata_file)
     if not metadata_path.exists():
-        logger.error("Error: Metadata file not found: {metadata_path}")
+        logger.error(f"Error: Metadata file not found: {metadata_path}")
         sys.exit(1)
 
     with metadata_path.open("r", encoding="utf-8") as f:
@@ -47,7 +47,7 @@ def main():
     required_fields = ["version", "catalogue_name", "ref_freq", "epoch"]
     missing_fields = [field for field in required_fields if field not in metadata_json]
     if missing_fields:
-        logger.error("Error: Missing required fields in metadata file: {missing_fields}")
+        logger.error(f"Error: Missing required fields in metadata file: {missing_fields}")
         sys.exit(1)
 
     # Get DB session
@@ -70,24 +70,19 @@ def main():
             author=metadata_json.get("author"),
             reference=metadata_json.get("reference"),
             notes=metadata_json.get("notes"),
+            staging=False,
         )
         db.add(global_sky_model_metadata)
         db.commit()
 
         logger.info(
-            f"Created catalogue metadata: {metadata_json['catalogue_name']} "
-            f"v{metadata_json['version']}"
+            f"Created catalogue metadata: {global_sky_model_metadata.catalogue_name} "
+            f"{global_sky_model_metadata.version}"
+            f" with staging={global_sky_model_metadata.staging} and upload_id={global_sky_model_metadata.upload_id}"
         )
 
         # Build ingestion metadata structure
-        ingest_metadata = {
-            "version": metadata_json["version"],
-            "catalogue_name": metadata_json["catalogue_name"],
-            "description": metadata_json.get("description"),
-            "ref_freq": metadata_json["ref_freq"],
-            "epoch": metadata_json["epoch"],
-            "upload_id": upload_id,
-            "staging": False,  # Direct import goes to main table
+        catalogue_content = {
             "ingest": {"file_location": []},
         }
 
@@ -95,17 +90,17 @@ def main():
         for csv_file in args.csv_files:
             csv_path = Path(csv_file)
             if not csv_path.exists():
-                logger.error("Error: CSV file not found: {csv_path}")
+                logger.error(f"Error: CSV file not found: {csv_path}")
                 sys.exit(1)
 
-            ingest_metadata["ingest"]["file_location"].append(
+            catalogue_content["ingest"]["file_location"].append(
                 {"content": csv_path.read_text(encoding="utf-8")}
             )
 
-        logger.info("Ingesting {len(args.csv_files)} CSV file(s)...")
+        logger.info(f"Ingesting {len(args.csv_files)} CSV file(s)...")
 
         # Ingest the catalogue data
-        if not ingest_catalogue(db, ingest_metadata):
+        if not ingest_catalogue(db, global_sky_model_metadata, catalogue_content):
             logger.error("Error: Catalogue ingestion failed")
             if not args.ignore_import_failure:
                 sys.exit(1)
@@ -116,7 +111,7 @@ def main():
         )
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Error during import: {e}")
+        logger.error(f"Error during import: {e}")
         db.rollback()
         if not args.ignore_import_failure:
             sys.exit(1)

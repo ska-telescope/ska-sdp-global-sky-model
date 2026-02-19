@@ -7,13 +7,14 @@ including file validation, in-memory storage, metadata parsing, and upload state
 
 import csv
 import io
-import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
+
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,11 @@ class UploadStatus:
 
     upload_id: str
     total_csv_files: int
+    metadata: GlobalSkyModelMetadata
     uploaded_csv_files: int = 0
     state: UploadState = UploadState.PENDING
     errors: list[str] = field(default_factory=list)
     csv_files: list[tuple[str, str]] = field(default_factory=list)  # (filename, content as str)
-    metadata: dict | None = None  # Parsed catalogue metadata
 
     def to_dict(self) -> dict:
         """Convert status to dictionary."""
@@ -60,7 +61,7 @@ class UploadManager:
         """Initialize the upload manager."""
         self._uploads: dict[str, UploadStatus] = {}
 
-    def create_upload(self, csv_file_count: int) -> UploadStatus:
+    def create_upload(self, csv_file_count: int, metadata: GlobalSkyModelMetadata) -> UploadStatus:
         """
         Create a new upload tracking entry.
 
@@ -68,6 +69,8 @@ class UploadManager:
         ----------
         csv_file_count : int
             Number of CSV files in the batch
+        metadata : GlobalSkyModelMetadata
+            Metadata for the upload
 
         Returns
         -------
@@ -80,6 +83,7 @@ class UploadManager:
             upload_id=upload_id,
             total_csv_files=csv_file_count,
             state=UploadState.UPLOADING,
+            metadata=metadata,
         )
 
         self._uploads[upload_id] = status
@@ -110,72 +114,6 @@ class UploadManager:
             raise HTTPException(status_code=404, detail="Upload ID not found")
 
         return self._uploads[upload_id]
-
-    async def save_metadata_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
-        """
-        Parse and validate metadata JSON file.
-
-        Parameters
-        ----------
-        file : UploadFile
-            Metadata file to parse
-        upload_status : UploadStatus
-            Upload status tracking object
-
-        Raises
-        ------
-        HTTPException
-            If file is not valid JSON or missing required fields
-        """
-        contents = await file.read()
-
-        # Parse JSON
-        try:
-            text_content = contents.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Metadata file {file.filename} is not valid UTF-8 text.",
-            ) from exc
-
-        try:
-            metadata = json.loads(text_content)
-        except json.JSONDecodeError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Metadata file {file.filename} is not valid JSON: {str(exc)}",
-            ) from exc
-
-        # Validate required fields
-        required_fields = ["version", "catalogue_name", "description", "ref_freq", "epoch"]
-        missing_fields = [field for field in required_fields if field not in metadata]
-
-        if missing_fields:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Metadata file missing required fields: {', '.join(missing_fields)}. "
-                f"Required: {', '.join(required_fields)}",
-            )
-
-        # Validate ref_freq is numeric
-        try:
-            float(metadata["ref_freq"])
-        except (ValueError, TypeError) as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Invalid ref_freq value: {metadata.get('ref_freq')}. " "Must be numeric (Hz)."
-                ),
-            ) from exc
-
-        # Store parsed metadata
-        upload_status.metadata = metadata
-        logger.info(
-            "Parsed and validated metadata file %s (version: %s, catalogue: %s)",
-            file.filename,
-            metadata["version"],
-            metadata["catalogue_name"],
-        )
 
     async def save_csv_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
         """
