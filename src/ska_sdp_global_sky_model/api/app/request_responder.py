@@ -240,10 +240,10 @@ def _query_gsm_for_lsm(
         query_parameters.fov,
         query_parameters.version,
     )
-    logger.info("Using resolved version: %s", resolved_version)
 
     try:
         resolved_version = _resolve_version(query_parameters.version, db)
+        logger.info("Using resolved version: %s", resolved_version)
         # Query components within the field of view using spatial index
         # pylint: disable=no-member,duplicate-code
         sky_components = (
