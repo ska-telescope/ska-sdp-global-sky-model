@@ -15,7 +15,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
 
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
     _find_ska_sdm_dir,
@@ -450,6 +450,8 @@ def test_update_state_no_change():
 
 def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with components found"""
+    metadata = GlobalSkyModelMetadata(version="0.1.0")
+    db_session.add(metadata)
     component = SkyComponent(
         component_id="DictTestSource",
         ra=111.11,
@@ -486,6 +488,8 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
 def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with multiple components found"""
 
+    metadata = GlobalSkyModelMetadata(version="0.1.0")
+    db_session.add(metadata)
     component = SkyComponent(
         component_id="1",
         ra=2.9670,
