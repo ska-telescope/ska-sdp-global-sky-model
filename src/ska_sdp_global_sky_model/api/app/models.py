@@ -198,16 +198,6 @@ class SkyComponentStaging(Base):
 
 
 # Apply dynamic column generation to models
-_add_dynamic_columns_to_model(GlobalSkyModelMetadata, GSMMetadataDataclass)
-# For main table, skip component_id since it's defined explicitly
-# for the composite constraint with version
-_add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass, skip_columns={"component_id"})
-# For staging, skip component_id since it's defined explicitly
-# for the composite constraint
-_add_dynamic_columns_to_model(
-    SkyComponentStaging, SkyComponentDataclass, skip_columns={"component_id"}
-)
-
 _add_dynamic_columns_to_model(
     GlobalSkyModelMetadata,
     GSMMetadataDataclass,
@@ -221,4 +211,12 @@ _add_dynamic_columns_to_model(
         "notes",
         "uploaded_at",
     },
+)
+# For main table, skip component_id since it's defined explicitly
+# for the composite constraint with version
+_add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass, skip_columns={"component_id"})
+# For staging, skip component_id since it's defined explicitly
+# for the composite constraint
+_add_dynamic_columns_to_model(
+    SkyComponentStaging, SkyComponentDataclass, skip_columns={"component_id"}
 )
