@@ -481,12 +481,12 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="No staged data found")
 
         metadata = status.metadata
-        catalog_version = metadata["version"]
+        catalogue_version = metadata["version"]
         catalogue_name = metadata["catalogue_name"]
 
         # Create GlobalSkyModelMetadata record
         global_sky_model_metadata = GlobalSkyModelMetadata(
-            version=catalog_version,
+            version=catalogue_version,
             catalogue_name=catalogue_name,
             description=metadata.get("description", ""),
             upload_id=upload_id,
@@ -506,7 +506,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
                 k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
             }
             # Set catalogue version for ALL components
-            record_data["version"] = catalog_version
+            record_data["version"] = catalogue_version
 
             main_record = SkyComponent(**record_data)
             db.add(main_record)
@@ -523,7 +523,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             "Successfully committed upload %s: %d components with version %s",
             upload_id,
             len(staged_records),
-            catalog_version,
+            catalogue_version,
         )
 
         return {
@@ -531,7 +531,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             "message": f"Committed {len(staged_records)} \
                 components from catalogue '{catalogue_name}'",
             "records_committed": len(staged_records),
-            "version": catalog_version,
+            "version": catalogue_version,
             "catalogue_name": catalogue_name,
         }
 
@@ -600,7 +600,7 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/catalogue-metadata", summary="Query catalogue metadata")
-def get_catalog_metadata(
+def get_catalogue_metadata(
     catalogue_name: str | None = None,
     version: str | None = None,
     limit: int = 100,
@@ -652,9 +652,9 @@ def get_catalog_metadata(
     }
 
 
-@app.get("/catalogue-metadata/{catalog_id}", summary="Get specific catalogue metadata")
-def get_catalog_metadata_by_id(
-    catalog_id: int,
+@app.get("/catalogue-metadata/{catalogue_id}", summary="Get specific catalogue metadata")
+def get_catalogue_metadata_by_id(
+    catalogue_id: int,
     db: Session = Depends(get_db),
 ):
     """
@@ -662,7 +662,7 @@ def get_catalog_metadata_by_id(
 
     Parameters
     ----------
-    catalog_id : int
+    catalogue_id : int
         catalogue metadata ID
     db : Session
         Database session
@@ -678,10 +678,10 @@ def get_catalog_metadata_by_id(
         If catalogue not found
     """
     catalogue = (
-        db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.id == catalog_id).first()
+        db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.id == catalogue_id).first()
     )
 
     if not catalogue:
-        raise HTTPException(status_code=404, detail=f"catalogue with ID {catalog_id} not found")
+        raise HTTPException(status_code=404, detail=f"catalogue with ID {catalogue_id} not found")
 
     return catalogue.to_dict()
