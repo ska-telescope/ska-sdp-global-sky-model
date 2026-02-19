@@ -66,7 +66,7 @@ CHANGELOG
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
   - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables
   - Both models dynamically generate columns from their respective dataclasses at module import time
-  - Field names match ska-sdp-datamodels exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index`
+  - Field names match ska-sdp-datamodels exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index``
 
 - [Updated] Migrated from deprecated ``@app.on_event("startup")`` to modern FastAPI lifespan
   context manager for application startup and shutdown handling.
