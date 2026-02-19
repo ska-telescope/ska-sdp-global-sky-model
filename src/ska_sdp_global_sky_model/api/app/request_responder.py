@@ -343,7 +343,9 @@ def _write_data(
 
     # Think this should/could be done better...
     try:
-        local_model.set_metadata({"execution_block_id": eb_id})
+        local_model.set_metadata(
+            {"execution_block_id": eb_id, "catalogue_metadata": data.metadata}
+        )
         logger.debug("Set execution_block_id to: %s", eb_id)
     except (ValueError, IndexError) as e:
         logger.warning("Could not set execution_block_id to %s: %s", eb_id, e)
