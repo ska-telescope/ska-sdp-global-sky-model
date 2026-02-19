@@ -67,9 +67,9 @@ The following shows the contents of a small LSM file as an example:
 .. code-block:: text
 
    # (component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,ref_freq,spec_idx,log_spec_idx) = format
-   # NUMBER_OF_COMPONENTS: 3
-   # QUERY_CENTRE_RAJ2000=123.456
-   # QUERY_CENTRE_DEJ2000=45.678
+   # NUMBER_OF_COMPONENTS=3
+   # QUERY_CENTRE_RAJ2000_DEG=123.456
+   # QUERY_CENTRE_DEJ2000_DEG=45.678
    # QUERY_RADIUS_DEG=4.567
    J000011-000001,11.1,-1.234,10.0,100,10,1,1.01e+08,"[-0.7,0.01,0.123]",true
    J000022-000002,22.2,-2.345,20.0,200,20,2,1.02e+08,"[-0.7,0.02,0.123]",false
