@@ -14,43 +14,46 @@ A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_U
 
 1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
 
-.. image:: ../images/upload_init_screen.png
+.. figure:: ../images/upload_init_screen.png
    :alt: Upload Interface
-   :width: 700px
-   :height: 400px
+   :width: 600px
    :align: center
+
+   Initial upload interface screen
 
 2. Drag and drop CSV files, containing data for a single catalogue version, onto the upload zone (or click to browse)
 
-.. image:: ../images/upload_files_added.png
+.. figure:: ../images/upload_files_added.png
    :alt: Files added to upload
-   :width: 600px
-   :height: 400px
+   :width: 400px
    :align: center
+
+   Interface showing files selected for upload
 
 3. Click "Upload Files" to begin the upload
 4. Monitor the upload progress - status updates automatically
 5. Confirm the upload completed successfully and review the count of staged records
 
-.. image:: ../images/upload_completed.png
+.. figure:: ../images/upload_completed.png
    :alt: Upload completed
    :width: 350px
-   :height: 630px
    :align: center
+
+   Interface showing files have been uploaded and staged
 
 6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
 
-.. image:: ../images/upload_commit.png
+.. figure:: ../images/upload_commit.png
    :alt: Upload committed
-   :width: 500px
-   :height: 450px
+   :width: 400px
    :align: center
 
-.. image:: ../images/upload_reject.png
+.. figure:: ../images/upload_reject.png
    :alt: Upload rejected
-   :width: 500px
-   :height: 450px
+   :width: 400px
    :align: center
+
+   Confirm or reject uploaded data
 
 The browser interface also provides:
 
@@ -443,4 +446,3 @@ At minimum, you need the four required columns:
     component_id,ra,dec,i_pol
     J000001-350001,0.004,-35.0,0.25
     J000002-350002,0.008,-35.1,0.23
-
