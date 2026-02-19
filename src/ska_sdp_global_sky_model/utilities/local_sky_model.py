@@ -442,8 +442,19 @@ class LocalSkyModel:
             out.write(f"# NUMBER_OF_COMPONENTS: {self.num_rows}\n")
             # Write query_parameters as header comments
             if query_parameters:
+                # Write specific query parameters in required format and order
+                if "ra" in query_parameters:
+                    out.write(f"# QUERY_CENTRE_RAJ2000_DEG={query_parameters['ra']}\n")
+                if "dec" in query_parameters:
+                    out.write(f"# QUERY_CENTRE_DEJ2000_DEG={query_parameters['dec']}\n")
+                if "fov" in query_parameters:
+                    out.write(f"# QUERY_RADIUS_DEG={query_parameters['fov']}\n")
+                if "version" in query_parameters:
+                    out.write(f"# CATALOGUE_VERSION={query_parameters['version']}\n")
+                # Write any other query parameters in the generic format
                 for key, value in query_parameters.items():
-                    out.write(f"# QUERY_{key}={value}\n")
+                    if key not in ("ra", "dec", "fov", "version"):
+                        out.write(f"# QUERY_{key}={value}\n")
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")
 
