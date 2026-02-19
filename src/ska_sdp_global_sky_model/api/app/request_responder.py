@@ -190,7 +190,7 @@ def _resolve_version(version: str, db: Session) -> str:
         return version
 
     try:
-        versions = db.query(SkyComponent.version).distinct().all()
+        versions = db.query(GlobalSkyModelMetadata.version).distinct().all()
         if not versions:
             logger.error("No GSM versions available in database.")
             raise ValueError("No GSM versions available in database.")
