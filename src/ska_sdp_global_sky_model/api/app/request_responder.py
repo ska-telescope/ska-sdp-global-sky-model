@@ -39,7 +39,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.crud import q3c_radial_query
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.configuration.config import (
     REQUEST_WATCHER_TIMEOUT,
     SHARED_VOLUME_MOUNT,
@@ -168,7 +168,7 @@ def _process_flow(
         db = next(get_db())
         try:
             output_data = _query_gsm_for_lsm(query_parameters, db)
-            _write_data(eb_id, output_location, output_data)
+            _write_data(eb_id, query_parameters, output_location, output_data)
         finally:
             db.close()
     except Exception as err:  # pylint: disable=broad-exception-caught
@@ -260,6 +260,15 @@ def _query_gsm_for_lsm(
             .all()
         )
 
+        # Query metadata for this version
+
+        metadata_row = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.version == resolved_version)
+            .first()
+        )
+        metadata_dict = metadata_row.columns_to_dict() if metadata_row else {}
+
         sky_components_dict = {}
         for sky_component in sky_components:
             sky_component_dict = sky_component.columns_to_dict()
@@ -269,7 +278,7 @@ def _query_gsm_for_lsm(
             del sky_component_dict["version"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
-        return GlobalSkyModel(metadata={}, components=sky_components_dict)
+        return GlobalSkyModel(metadata=metadata_dict, components=sky_components_dict)
 
     except Exception as e:
         logger.exception("Error querying GSM database: %s", e)
@@ -299,7 +308,7 @@ def _update_state(
 
 
 def _write_data(
-    eb_id: str, output: Path, data: "GlobalSkyModel"
+    eb_id: str, query_parameters: dict, output: Path, data: "GlobalSkyModel"
 ):  # pylint: disable=too-many-locals
     """Write the LSM to disk as a CSV file.
 
@@ -309,6 +318,7 @@ def _write_data(
         data: GlobalSkyModel object containing the components to write
     """
     logger.info("Writing LSM data to: %s", output)
+    logger.info("Query parameters: %s", query_parameters)
     logger.info("Number of components: %d", len(data.components))
 
     # Create output directory if it doesn't exist
@@ -358,7 +368,7 @@ def _write_data(
     logger.info(
         "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
     )
-    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
+    local_model.save(query_parameters, str(lsm_file), metadata_dir=str(metadata_dir))
 
     # Verify files were actually written
     if lsm_file.exists():

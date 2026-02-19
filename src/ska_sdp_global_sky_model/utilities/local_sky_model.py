@@ -424,7 +424,7 @@ class LocalSkyModel:
 
         return model
 
-    def save(self, path: str, metadata_dir: str) -> None:
+    def save(self, query_parameters: dict, path: str, metadata_dir: str) -> None:
         """
         Save this sky model to a CSV text file.
 
@@ -434,12 +434,16 @@ class LocalSkyModel:
         :type metadata_dir: str
         """
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as out:
 
+        with open(path, "w", encoding="utf-8") as out:
             # Write the file header.
             format_string = ",".join(self.columns)
             out.write(f"# ({format_string}) = format\n")
             out.write(f"# NUMBER_OF_COMPONENTS: {self.num_rows}\n")
+            # Write query_parameters as header comments
+            if query_parameters:
+                for key, value in query_parameters.items():
+                    out.write(f"# QUERY_{key}={value}\n")
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")
 
@@ -458,9 +462,11 @@ class LocalSkyModel:
         LOGGER.info("LSM file written successfully: %s (size: %d bytes)", path, file_size)
 
         # Write the YAML metadata file.
-        self.save_metadata(os.path.join(metadata_dir, "ska-data-product.yaml"), path)
+        self.save_metadata(
+            os.path.join(metadata_dir, "ska-data-product.yaml"), path, query_parameters
+        )
 
-    def save_metadata(self, yaml_path: str, lsm_path: str) -> None:
+    def save_metadata(self, yaml_path: str, lsm_path: str, query_parameters: dict) -> None:
         """
         Saves the metadata for this sky model to a YAML file.
         This is called by save(), so it should not normally be called
@@ -499,6 +505,7 @@ class LocalSkyModel:
         # Create the header dictionary.
         header = {
             "NUMBER_OF_COMPONENTS": self.num_rows,
+            "QUERY_PARAMETERS": query_parameters,
         }
         header.update(self._header)
 

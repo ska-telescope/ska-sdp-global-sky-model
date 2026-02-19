@@ -123,7 +123,14 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
     )
     # Second argument is the db session, just verify it was called
     assert len(mock_filter_function.mock_calls) == 1
-    assert mock_write_data.mock_calls == [call(eb_id, path, mock_gsm)]
+    # The _write_data signature expects QueryParameters as the second argument
+    expected_query_parameters = QueryParameters(
+        ra=2.9670,
+        dec=-0.1745,
+        fov=0.0873,
+        version="latest",
+    )
+    assert mock_write_data.mock_calls == [call(eb_id, expected_query_parameters, path, mock_gsm)]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
@@ -328,7 +335,13 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     assert mock_query.mock_calls[0].args[0] == QueryParameters(
         ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
     )
-    assert mock_write.mock_calls == [call(eb_id, output_path, ["data"])]
+    expected_query_parameters = QueryParameters(
+        ra=2.9670,
+        dec=-0.1745,
+        fov=0.0873,
+        version="latest",
+    )
+    assert mock_write.mock_calls == [call(eb_id, expected_query_parameters, output_path, ["data"])]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
@@ -543,6 +556,11 @@ def test_write_data_integration(
         spec_idx=[0.9],
     )
 
+    query_parameters = {
+        "ra": 2.9670,
+        "dec": -0.1745,
+        "fov": 0.0873,
+    }
     # Create GlobalSkyModel
     gsm = GlobalSkyModel(
         metadata={},
@@ -564,7 +582,8 @@ def test_write_data_integration(
     # (metadata validation is tested separately in local_sky_model tests)
     with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
         # Write the data
-        _write_data(eb_id, output_dir, gsm)
+        qp = dict(query_parameters)
+        _write_data(eb_id, qp, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
@@ -598,8 +617,15 @@ def test_write_data_empty_components(tmp_path):
 
     eb_id = "eb-test-20260108-1234"
 
+    query_parameters = {
+        "ra": 2.9670,
+        "dec": -0.1745,
+        "fov": 0.0873,
+    }
+
     # Write the data (should handle empty components gracefully)
-    _write_data(eb_id, output_dir, gsm)
+    qp = dict(query_parameters)
+    _write_data(eb_id, qp, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
