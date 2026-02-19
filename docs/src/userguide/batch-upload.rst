@@ -13,11 +13,44 @@ Browser upload interface
 A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``).
 
 1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
+
+.. image:: ../images/upload_init_screen.png
+   :alt: Upload Interface
+   :width: 700px
+   :height: 400px
+   :align: center
+
 2. Drag and drop CSV files, containing data for a single catalogue version, onto the upload zone (or click to browse)
+
+.. image:: ../images/upload_files_added.png
+   :alt: Files added to upload
+   :width: 600px
+   :height: 400px
+   :align: center
+
 3. Click "Upload Files" to begin the upload
 4. Monitor the upload progress - status updates automatically
 5. Confirm the upload completed successfully and review the count of staged records
+
+.. image:: ../images/upload_completed.png
+   :alt: Upload completed
+   :width: 350px
+   :height: 630px
+   :align: center
+
 6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
+
+.. image:: ../images/upload_commit.png
+   :alt: Upload committed
+   :width: 500px
+   :height: 450px
+   :align: center
+
+.. image:: ../images/upload_reject.png
+   :alt: Upload rejected
+   :width: 500px
+   :height: 450px
+   :align: center
 
 The browser interface also provides:
 
