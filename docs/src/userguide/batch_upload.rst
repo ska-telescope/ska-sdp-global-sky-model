@@ -8,7 +8,6 @@ Overview
 
 The batch upload feature allows you to:
 
-- Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single sky model)
 - Provide catalog metadata via JSON file (required - includes version, name, description, reference frequency, and epoch)
 - Upload multiple CSV files simultaneously via API or browser interface (all files are combined into a single catalog version)
 - Stage uploads for review before committing to the main database

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Script to import a dataset directly from disk"""
 
+import logging
 import argparse
 import json
 import sys
@@ -11,6 +12,8 @@ from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.configuration.config import get_db
 
+logger = logging.getLogger(__name__)
+
 
 def main():
     """Main import script"""
@@ -18,7 +21,7 @@ def main():
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    print("Starting direct import script...")
+    logger.info("Starting direct import script...")
     parser.add_argument(
         "--ignore-import-failure", help="Don't exit with error on failure", action="store_true"
     )
@@ -34,7 +37,7 @@ def main():
     # Load metadata from JSON file
     metadata_path = Path(args.metadata_file)
     if not metadata_path.exists():
-        print(f"Error: Metadata file not found: {metadata_path}")
+        logger.error("Error: Metadata file not found: {metadata_path}")
         sys.exit(1)
 
     with metadata_path.open("r", encoding="utf-8") as f:
@@ -44,7 +47,7 @@ def main():
     required_fields = ["version", "catalogue_name", "ref_freq", "epoch"]
     missing_fields = [field for field in required_fields if field not in metadata_json]
     if missing_fields:
-        print(f"Error: Missing required fields in metadata file: {missing_fields}")
+        logger.error("Error: Missing required fields in metadata file: {missing_fields}")
         sys.exit(1)
 
     # Get DB session
@@ -71,7 +74,7 @@ def main():
         db.add(global_sky_model_metadata)
         db.commit()
 
-        print(
+        logger.info(
             f"Created catalog metadata: {metadata_json['catalogue_name']} "
             f"v{metadata_json['version']}"
         )
@@ -92,28 +95,28 @@ def main():
         for csv_file in args.csv_files:
             csv_path = Path(csv_file)
             if not csv_path.exists():
-                print(f"Error: CSV file not found: {csv_path}")
+                logger.error("Error: CSV file not found: {csv_path}")
                 sys.exit(1)
 
             ingest_metadata["ingest"]["file_location"].append(
                 {"content": csv_path.read_text(encoding="utf-8")}
             )
 
-        print(f"Ingesting {len(args.csv_files)} CSV file(s)...")
+        logger.info("Ingesting {len(args.csv_files)} CSV file(s)...")
 
         # Ingest the catalogue data
         if not ingest_catalogue(db, ingest_metadata):
-            print("Error: Catalog ingestion failed")
+            logger.error("Error: Catalog ingestion failed")
             if not args.ignore_import_failure:
                 sys.exit(1)
 
-        print(
+        logger.info(
             f"Successfully imported {metadata_json['catalogue_name']} "
             f"v{metadata_json['version']}"
         )
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error during import: {e}")
+        logger.error("Error during import: {e}")
         db.rollback()
         if not args.ignore_import_failure:
             sys.exit(1)
