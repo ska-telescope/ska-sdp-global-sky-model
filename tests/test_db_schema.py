@@ -416,7 +416,7 @@ class TestGlobalSkyModelMetadataModel:
             version="1.0.0",
             ref_freq=1.4e9,
             epoch="J2000",
-            catalogue_name="TestCatalog",
+            catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
 
@@ -435,7 +435,7 @@ class TestGlobalSkyModelMetadataModel:
             version="2.1.0",
             ref_freq=3e9,
             epoch="J2015.5",
-            catalogue_name="TestCatalog",
+            catalogue_name="TestCatalogue",
             upload_id="test-upload-2",
         )
         db_session.add(metadata)
@@ -455,21 +455,21 @@ class TestGlobalSkyModelMetadataModel:
             version="1.0.0",
             ref_freq=1.4e9,
             epoch="J2000",
-            catalogue_name="TestCatalog1",
+            catalogue_name="TestCatalogue1",
             upload_id="test-upload-1",
         )
         metadata2 = GlobalSkyModelMetadata(
             version="2.0.0",
             ref_freq=1.4e9,
             epoch="J2000",
-            catalogue_name="TestCatalog2",
+            catalogue_name="TestCatalogue2",
             upload_id="test-upload-2",
         )
         metadata3 = GlobalSkyModelMetadata(
             version="3.0.0",
             ref_freq=3.0e9,
             epoch="J2015",
-            catalogue_name="TestCatalog3",
+            catalogue_name="TestCatalogue3",
             upload_id="test-upload-3",
         )
 
@@ -494,7 +494,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             version="1.0.0",
             ref_freq=1.4e9,
             epoch="J2000",
-            catalogue_name="TestCatalog",
+            catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
         db_session.add(metadata)

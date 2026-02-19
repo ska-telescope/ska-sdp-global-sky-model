@@ -106,7 +106,7 @@ def main():
 
         # Ingest the catalogue data
         if not ingest_catalogue(db, ingest_metadata):
-            logger.error("Error: Catalog ingestion failed")
+            logger.error("Error: Catalogue ingestion failed")
             if not args.ignore_import_failure:
                 sys.exit(1)
 

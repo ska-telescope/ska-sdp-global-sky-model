@@ -237,7 +237,7 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
 )
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
-    metadata_file: UploadFile = File(..., description="Catalog metadata JSON file"),
+    metadata_file: UploadFile = File(..., description="catalogue metadata JSON file"),
     csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
     db: Session = Depends(get_db),
 ):
@@ -663,14 +663,14 @@ def get_catalog_metadata_by_id(
     Parameters
     ----------
     catalog_id : int
-        Catalog metadata ID
+        catalogue metadata ID
     db : Session
         Database session
 
     Returns
     -------
     dict
-        Catalog metadata record
+        catalogue metadata record
 
     Raises
     ------
@@ -682,6 +682,6 @@ def get_catalog_metadata_by_id(
     )
 
     if not catalogue:
-        raise HTTPException(status_code=404, detail=f"Catalog with ID {catalog_id} not found")
+        raise HTTPException(status_code=404, detail=f"catalogue with ID {catalog_id} not found")
 
     return catalogue.to_dict()

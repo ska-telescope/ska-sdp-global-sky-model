@@ -289,7 +289,6 @@ class UploadManager:
         if upload_id in self._uploads:
             # Clear file contents from memory
             self._uploads[upload_id].csv_files.clear()
-            # self._uploads[upload_id].metadata = None
             logger.info("Cleaned up upload %s from memory", upload_id)
 
     def get_files(self, upload_id: str) -> list[tuple[str, str]]:

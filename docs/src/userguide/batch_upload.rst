@@ -16,9 +16,9 @@ The batch upload feature allows you to:
 - Ensure atomic ingestion (all files succeed or none are ingested)
 - Process uploads asynchronously in the background for optimal API responsiveness
 - Automatic data validation at the schema level
-- Catalog-level semantic versioning for tracking catalogue releases
+- Catalogue-level semantic versioning for tracking catalogue releases
 
-Catalog Metadata File
+Catalogue Metadata File
 ~~~~~~~~~~~~~~~~~~~~~
 
 **Required for All Uploads**:
@@ -44,7 +44,7 @@ from ska-sdp-datamodels.
 
 **Required Fields**:
     - ``version``: Semantic version (e.g., "1.0.0") - must increment from previous versions
-    - ``catalogue_name``: Catalog identifier (e.g., "GLEAM", "RACS", "RCAL")
+    - ``catalogue_name``: Catalogue identifier (e.g., "GLEAM", "RACS", "RCAL")
     - ``description``: Human-readable description of the catalogue
     - ``ref_freq``: Reference frequency in Hz (float/integer)
     - ``epoch``: Epoch of observation (e.g., "J2000")
@@ -74,14 +74,14 @@ When committing staged data, the system sets the version for all components in t
    - Commit: Move data to main table with catalogue version from metadata
    - Reject: Discard all staged data for that upload
 
-**Catalog-Level Versioning**:
+**Catalogue-Level Versioning**:
 
 Version tracking is now done at the catalogue level, not per-component:
 
 - **Single version per upload**: All components in a batch receive the same version from metadata.json
 - **Semantic versioning**: Versions must follow ``major.minor.patch`` format (e.g., "1.0.0")
 - **Version increments**: Each new upload must have a version greater than all previous versions
-- **Catalog metadata table**: New ``global_sky_model_metadata`` table tracks catalogue versions, upload metadata, and timestamps
+- **Catalogue metadata table**: New ``global_sky_model_metadata`` table tracks catalogue versions, upload metadata, and timestamps
 - **Query capabilities**: Use ``GET /catalogue-metadata`` to list all catalogue versions and metadata
 
 This approach allows you to:
@@ -337,7 +337,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
     
     result = response.json()
     print(f"Upload ID: {result['upload_id']}")
-    print(f"Catalog: {result['catalogue_name']} v{result['version']}")
+    print(f"Catalogue: {result['catalogue_name']} v{result['version']}")
     print(f"Status: {result['status']}")  # Will be "uploading"
     
     # Poll for completion
@@ -540,9 +540,9 @@ upload information.
     result = response.json()
     
     print(f"Committed {result['records_committed']} records")
-    print(f"Catalog: {result['catalogue_name']} v{result['version']}")
+    print(f"Catalogue: {result['catalogue_name']} v{result['version']}")
 
-Query Catalog Metadata
+Query Catalogue Metadata
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 **Endpoint**: ``GET /catalogue-metadata``
@@ -646,7 +646,9 @@ version information including upload dates, reference frequencies, epochs, and a
         print(f"    Epoch: {catalogue['epoch']}")
 
 Reject Staged Upload
-~~~~~~~~~~~~~~~~~~~~~**Python Example**:
+~~~~~~~~~~~~~~~~~~~~~
+
+**Python Example**:
 
 .. code-block:: python
 
