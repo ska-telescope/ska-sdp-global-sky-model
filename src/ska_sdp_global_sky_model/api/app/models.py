@@ -114,6 +114,7 @@ class GlobalSkyModelMetadata(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    version = Column(String, nullable=False, unique=True, index=True)
     catalogue_name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     upload_id = Column(String, nullable=False, unique=True, index=True)
@@ -201,7 +202,7 @@ class SkyComponentStaging(Base):
 _add_dynamic_columns_to_model(
     GlobalSkyModelMetadata,
     GSMMetadataDataclass,
-    skip_columns={},
+    skip_columns={"version"},
 )
 # For main table, skip component_id since it's defined explicitly
 # for the composite constraint with version
