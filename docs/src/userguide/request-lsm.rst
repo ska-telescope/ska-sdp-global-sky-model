@@ -140,6 +140,6 @@ where:
      - float
      - Yes
    * - ``version``
-     - The version string of the GSM to select from (not implemented)
+     - The version string of the GSM to select from (only supports semantic versioning)
      - string
-     - Yes
+     - No

@@ -1,58 +1,83 @@
 CHANGELOG
 =========
 
-Development
------------
+0.3.0
+-----
+
+- [Updated] Documentation structure and content
+  (`MR81 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/81>`__)
+
+- [Removed] Unused endpoints(
+  (`MR79 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/79>`__)
+- [Removed] Code generation scripts (``generate_models.py``, ``db_config.py``) in favor of runtime dynamic generation
+  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
+- [Removed] Unused ``post_process`` function and ``to_json`` method from Source model
+  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
+- [Removed] Unused ``/optimise-json`` API endpoint
+  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
+- [Removed]Remove the dependencie on a running PostgreSQL instance for tests
+  (`MR59 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/59>`__)
+- [Removed] Helm chart
+  (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 
 - [BREAKING] Implemented catalogue-level versioning with metadata files. Upload endpoint now requires
   a metadata.json file containing catalogue version, name, description, reference frequency, and epoch.
   All components in an upload share a single semantic version from the metadata file.
 - [Added] Batch upload feature with staging table and review workflow for sky survey data:
+  (`MR74 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/74>`__)
+
   - New ``sky_component_staging`` table for temporary upload storage with ``upload_id`` tracking
   - Browser-based upload interface at ``/upload`` endpoint with drag-and-drop support
   - Dataset-level semantic versioning (0.1.0 → 0.2.0)
   - Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files
+
+- [Added] Script to add sample data to database
+  (`MR76 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/76>`__)
 - [Added] Batch upload endpoint ``/upload-sky-survey-batch`` for atomic multi-file ingestion.
   Supports tracking with upload IDs, status queries, and automatic cleanup of temporary files.
-- [Enhanced] Asynchronous batch upload processing. Uploads now run in background tasks,
-  returning immediately with "uploading" status while ingestion proceeds asynchronously.
-  This keeps the API responsive during large file uploads.
+  (`MR61 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/61>`__)
 - [Added] Schema-level data validation for uploaded components.
   Invalid components are logged with ingestion failing if any validation errors occur.
-- [Updated] Migrated from deprecated ``@app.on_event("startup")`` to modern FastAPI lifespan
-  context manager for application startup and shutdown handling.
   (`MR61 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/61>`__)
+- [Added] Scripts to upgrade/downgrade from migrations into scripts in container
+  (`MR72 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/72>`__)
+- [Added] Utilities to write a local sky model CSV file and associated metadata.
+  (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__,
+  `MR75 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/75>`__,
+  `MR77 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/77>`__)
+- [Added] etcd service to docker-compose setup and updated documentation
+  (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
+- [Added] Alembic migrations to ease schema management.
+  (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
 - [Added] Implemented ``_query_gsm_for_lsm`` function to query the Global Sky Model
   database and return components within a specified field of view as ``GlobalSkyModel`` objects.
   (`MR55 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/55>`__)
-- [Added] Utilities to write a local sky model CSV file and associated metadata.
-  (`MR71 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/71>`__)
+- [Added] Watcher for creating local sky models from Flow entries
+  (`MR51 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/51>`__)
+- [Added] Re-instated postgres backend storage starting from version 0.1.4.
+  (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
+
+- [Updated] ``/local_sky_model`` endpoint to take optional version (only semantic version)
+  (`MR82 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/82>`__)
+- [Updated] Asynchronous batch upload processing. Uploads now run in background tasks,
+  returning immediately with "uploading" status while ingestion proceeds asynchronously.
+  This keeps the API responsive during large file uploads.
+  (`MR61 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/61>`__)
 - [Updated] Dynamic database models for automatic synchronization with ska-sdp-datamodels.
+  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
+
   **Breaking Changes:**
+
   - Removed separate ``Telescope``, ``Band``, ``WideBandData``, and ``NarrowBandData`` tables
   - Database schema now consists of ``Source`` and ``GlobalSkyModelMetadata`` tables
   - Both models dynamically generate columns from their respective dataclasses at module import time
   - Field names match ska-sdp-datamodels exactly: ``ra``, ``dec``, ``i_pol``, ``healpix_index``
-- [Removed] Code generation scripts (``generate_models.py``, ``db_config.py``) in favor of runtime dynamic generation
-- [Removed] Unused ``post_process`` function and ``to_json`` method from Source model
-- [Removed] Unused ``/optimise-json`` API endpoint
-  (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
-- [Added] Alembic migrations to ease schema management.
-  (`MR57 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/57>`__)
-- Added etcd service to docker-compose setup and updated documentation
-  (`MR60 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/60>`__)
-- [Removed]Remove the dependencie on a running PostgreSQL instance for tests
-  (`MR59 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/59>`__)
-- [Added] Re-instated postgres backend storage starting from version 0.1.4.
-  (`MR49 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/49>`__)
-- [Added] Watcher for creating local sky models from Flow entries
-  (`MR51 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/51>`__)
-- [Removed] Helm chart
+
+- [Updated] Migrated from deprecated ``@app.on_event("startup")`` to modern FastAPI lifespan
+  context manager for application startup and shutdown handling.
+  (`MR61 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/61>`__)
+- [Updated] Logger ENV variable has changed behaviour, and remove links to Redis
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
-- [Modified] Logger ENV variable has changed behaviour, and remove links to Redis
-  (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
-- [Added] Scripts to upgrade/downgrade from migrations into scripts in container
-  (`MR72 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/72>`__)
 
 Note
 ----

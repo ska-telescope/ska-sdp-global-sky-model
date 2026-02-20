@@ -23,14 +23,16 @@ def main():
     )
     logger.info("Starting direct import script...")
     parser.add_argument(
-        "--ignore-import-failure", help="Don't exit with error on failure", action="store_true"
-    )
-    parser.add_argument(
         "--metadata-file",
         required=True,
         help="Path to catalogue metadata JSON file (contains version, catalogue_name, etc.)",
     )
-    parser.add_argument("csv_files", help="CSV files to include", nargs="+")
+    parser.add_argument("--catalogue_name", help="Name of catalogue", default="test_catalogue")
+    parser.add_argument("--version", help="Catalogue version", default="0.1.0")
+    parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
+    parser.add_argument(
+        "--ignore-import-failure", help="Don't exit with error on failure", action="store_true"
+    )
 
     args = parser.parse_args()
 
