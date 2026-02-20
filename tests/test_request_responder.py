@@ -618,7 +618,7 @@ def test_write_data_integration(
     assert "TEST002" in csv_content
     assert "45.0" in csv_content or "45" in csv_content
     assert "-30.0" in csv_content or "-30" in csv_content
-    assert "# NUMBER_OF_COMPONENTS=2" in csv_content
+    assert "# NUMBER_OF_COMPONENTS: 2" in csv_content
 
     # Note: metadata file is not checked here because MetaData is mocked
 
@@ -658,7 +658,7 @@ def test_write_data_empty_components(tmp_path):
     lines = csv_content.strip().split("\n")
     # Should have header comment lines but no data
     assert any("format" in line.lower() for line in lines)
-    assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
+    assert any("NUMBER_OF_COMPONENTS: 0" in line for line in lines)
 
 
 def test_find_ska_sdm_dir():
