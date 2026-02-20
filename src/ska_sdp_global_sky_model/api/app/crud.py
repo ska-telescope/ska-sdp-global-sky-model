@@ -41,7 +41,7 @@ def get_local_sky_model(
         db (Any): A database object containing the global sky model.
         ra (list[float]): A list containing right ascension values (in degrees).
         dec (list[float]): A list containing declination values (in degrees).
-        fov (float): Field of view (in arcminutes).
+        fov (float): Field of view (in degrees).
         version (str): The version of the sky model which the LSM is selected from.
 
     Returns:
