@@ -9,6 +9,7 @@ in a single atomic batch operation into the GSM database.
 
 The process allows the following:
 
+- Provide catalogue metadata via JSON file (required - includes version, name, description, reference frequency, and epoch)
 - Upload multiple CSV files simultaneously via API or browser interface.
 - CSV files uploaded in a single upload session will be part of the same catalogue version.
 - Track upload progress with a unique identifier.
@@ -39,18 +40,41 @@ Once the user ``commits`` the data, they are moved from the staging table into t
 main table. When the upload is ``rejected``, the data are removed form the staging
 table and are not moved to the main one.
 
-Automatic Versioning
-....................
+Catalogue Metadata File
+.......................
 
-When committing staged data, the system automatically handles versioning at the catalogue level:
+Every upload must include a ``metadata.json`` file containing catalogue-level information that applies 
+to all components in the catalogue. The metadata follows the ``GlobalSkyModelMetadata`` dataclass format 
+from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py>`_ with a few additional fields annotating the catalogue.
 
-- Initial catalogue version: If no data exist in the database yet, the new catalogue starts at version ``0.1.0``
-- Next catalogue version: Each new committed catalogue increments the minor version (e.g., ``0.1.0`` → ``0.2.0`` → ``0.3.0``)
+**Metadata File Format**:
 
-All records in the same commit (same upload session) share the same version number.
-Files uploaded in a new session (new ``upload_id``) will create a new catalogue version
-with an incremented version number.
+.. code-block:: json
 
+    {
+      "version": "1.0.0",
+      "catalogue_name": "GLEAM",
+      "description": "GaLactic and Extragalactic All-sky MWA Survey",
+      "ref_freq": 170000000,
+      "epoch": "J2000",
+      "author": "GLEAM Team",
+      "reference": "https://doi.org/10.1093/mnras/stw2337",
+      "notes": "170 MHz continuum survey"
+    }
+
+**Required Fields**:
+    - ``version``: Semantic version (e.g., "1.0.0") - must increment from previous versions
+    - ``catalogue_name``: Catalogue identifier (e.g., "GLEAM", "RACS", "RCAL")
+    - ``description``: Human-readable description of the catalogue
+    - ``ref_freq``: Reference frequency in Hz (float/integer)
+    - ``epoch``: Epoch of observation (e.g., "J2000")
+
+**Optional Fields**:
+    - ``author``: Author or team name
+    - ``reference``: DOI, URL, or citation
+    - ``notes``: Additional information
+
+Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its own version number as per the metadata json file. Uploading a new version requires incrementing the version number in the metadata file to ensure proper version tracking, duplicate version numbers are not allowed.
 
 .. _upload_csv_format:
 

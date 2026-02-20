@@ -5,7 +5,7 @@ model from it.
 """
 
 # pylint: disable=too-many-arguments, broad-exception-caught, not-callable
-import copy
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -20,15 +20,19 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
-from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
+from ska_sdp_global_sky_model.api.app.models import (
+    GlobalSkyModelMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
 from ska_sdp_global_sky_model.api.app.request_responder import start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (
-    STANDARD_CATALOGUE_METADATA,
     engine,
     get_db,
     templates,
 )
+from ska_sdp_global_sky_model.utilities.version_utils import is_version_increment
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +157,7 @@ dec:%s, fov:%s, version:%s",
     )
 
 
-def _run_ingestion_task(upload_id: str, survey_metadata: dict):
+def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetadata):
     """
     Run ingestion task in background to staging table.
 
@@ -165,7 +169,7 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
     ----------
     upload_id : str
         Upload identifier for tracking
-    survey_metadata : dict
+    catalogue_metadata : GlobalSkyModelMetadata
         Catalogue metadata for ingestion
     """
     db = None
@@ -179,15 +183,17 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
         # Ingest all files from memory to staging table
         for filename, content in files_data:
             # Deep copy to avoid modifying shared metadata
-            file_metadata = copy.deepcopy(survey_metadata)
             # Pass content directly
-            file_metadata["ingest"]["file_location"][0]["content"] = content
+            catalogue_content_files = {"ingest": {"file_location": [{"content": content}]}}
             # Set staging flag and upload_id for tracking
-            file_metadata["staging"] = True
-            file_metadata["upload_id"] = upload_id
+            catalogue_metadata.staging = True
 
-            logger.info("Ingesting file to staging: %s", filename)
-            if not ingest_catalogue(db, file_metadata):
+            logger.info(
+                "Ingesting file to staging: %s, catalogue_version=%s",
+                filename,
+                catalogue_metadata.version,
+            )
+            if not ingest_catalogue(db, catalogue_metadata, catalogue_content_files):
                 raise RuntimeError(f"Ingest failed for {filename}")
 
         # Mark as completed
@@ -227,74 +233,147 @@ def _run_ingestion_task(upload_id: str, survey_metadata: dict):
 
 @app.post(
     "/upload-sky-survey-batch",
-    summary="Upload sky survey CSV files in a batch",
-    description="All sky survey CSV files must upload successfully or none are ingested. "
+    summary="Upload sky survey CSV files with catalogue metadata",
+    description="Upload catalogue metadata file and CSV files for staging. "
     "Ingestion runs asynchronously - use the status endpoint to monitor progress.",
 )
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
-    files: list[UploadFile] = File(...),
+    metadata_file: UploadFile = File(..., description="catalogue metadata JSON file"),
+    csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
+    db: Session = Depends(get_db),
 ):
     """
-    Upload and ingest one or more sky survey CSV files atomically.
+    Upload catalogue metadata and CSV files for staging.
 
-    All files are first validated and written to a temporary staging directory.
-    Ingestion then runs in the background, allowing the API to remain responsive.
-    Use the status endpoint to monitor progress.
+    Requires a metadata.json file containing catalogue information and version,
+    plus one or more CSV files with component data.
 
     Parameters
     ----------
     background_tasks : BackgroundTasks
         FastAPI background task manager
-    files : list[UploadFile]
-        One or more CSV files containing standardized sky survey data.
-        Expected format: component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
+    metadata_file : UploadFile
+        JSON file with catalogue metadata (version, catalogue_name, description, etc.)
+    csv_files : list[UploadFile]
+        One or more CSV files containing component data
+    db : Session
+        Database session
 
     Raises
     ------
     HTTPException
-        If validation or initial upload fails
+        If validation fails or version is invalid
 
     Returns
     -------
     dict
-        Upload identifier for tracking status. Check /upload-sky-survey-status/{upload_id}
-        for completion status.
+        Upload identifier and status
     """
-    if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
-
-    # Use standard catalogue metadata
-    survey_metadata = copy.deepcopy(STANDARD_CATALOGUE_METADATA)
-
-    # Create upload tracking
-    upload_status = upload_manager.create_upload(len(files))
-    upload_id = upload_status.upload_id
+    if not csv_files:
+        raise HTTPException(status_code=400, detail="No CSV files provided")
 
     try:
-        # Validate and save all files (validation happens in save_file)
-        for file in files:
-            await upload_manager.save_file(file, upload_status)
+        metadata_file_contents = await metadata_file.read()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Failed to read metadata file {metadata_file.filename}: {exc}"
+        ) from exc
+
+    # Validate CSV structure
+    try:
+        metadata = json.loads(metadata_file_contents.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File {metadata_file.filename} is not valid UTF-8 text. "
+            f"CSV files must be text-based.",
+        ) from exc
+    except json.JSONDecodeError as exc:
+        logger.error("Metadata file %s is not valid JSON: %s", metadata_file.filename, exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Metadata file {metadata_file.filename} is not valid JSON: {exc}",
+        ) from exc
+
+    catalogue_metadata = GlobalSkyModelMetadata(
+        version=metadata.get("version"),
+        catalogue_name=metadata.get("catalogue_name", "UPLOAD"),
+        description=metadata.get("description", ""),
+        upload_id="upload_id_placeholder",  # Will be set after creating upload status
+        ref_freq=metadata.get("ref_freq"),
+        epoch=metadata.get("epoch"),
+        author=metadata.get("author"),
+        reference=metadata.get("reference"),
+        notes=metadata.get("notes"),
+    )
+
+    # Create upload tracking
+    upload_status = upload_manager.create_upload(len(csv_files), catalogue_metadata)
+    catalogue_metadata.upload_id = upload_status.upload_id
+
+    try:
+        logger.info(
+            "Received upload with metadata: version=%s, catalogue_name=%s, \
+            ref_freq=%s, epoch=%s, upload_id=%s",
+            catalogue_metadata.version,
+            catalogue_metadata.catalogue_name,
+            catalogue_metadata.ref_freq,
+            catalogue_metadata.epoch,
+            catalogue_metadata.upload_id,
+        )
+
+        # Validate version format and check it's an increment
+        existing_versions = [v[0] for v in db.query(GlobalSkyModelMetadata.version).all()]
+        is_valid, error_msg = is_version_increment(catalogue_metadata.version, existing_versions)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
+
+        # Check version doesn't already exist
+        existing = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.version == catalogue_metadata.version)
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Version '{catalogue_metadata.version}' already exists. "
+                f"Please use a higher version number.",
+            )
+
+        # Validate and save CSV files
+        for file in csv_files:
+            await upload_manager.save_csv_file(file, upload_status)
 
         # Schedule ingestion to run in background
-        background_tasks.add_task(_run_ingestion_task, upload_id, survey_metadata)
-        logger.info("Background task scheduled for upload %s", upload_id)
+        background_tasks.add_task(
+            _run_ingestion_task, catalogue_metadata.upload_id, catalogue_metadata
+        )
+
+        logger.info(
+            "Upload %s: metadata and %d CSV files saved, ingestion scheduled",
+            catalogue_metadata.upload_id,
+            len(csv_files),
+        )
 
         return {
-            "upload_id": upload_id,
+            "upload_id": catalogue_metadata.upload_id,
             "status": "uploading",
-            "message": "Files uploaded successfully. Ingestion running in background.",
+            "version": catalogue_metadata.version,
+            "catalogue_name": catalogue_metadata.catalogue_name,
+            "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. Ingestion running.",
         }
 
-    except HTTPException:
-        upload_manager.mark_failed(upload_id, "HTTP exception during upload")
-        upload_manager.cleanup(upload_id)
+    except HTTPException as exc:
+        upload_manager.mark_failed(catalogue_metadata.upload_id, str(exc.detail))
+        upload_manager.cleanup(catalogue_metadata.upload_id)
         raise
 
     except Exception as e:
         error_msg = str(e)
-        upload_manager.mark_failed(upload_id, error_msg)
-        upload_manager.cleanup(upload_id)
+        upload_manager.mark_failed(catalogue_metadata.upload_id, error_msg)
+        upload_manager.cleanup(catalogue_metadata.upload_id)
         raise HTTPException(
             status_code=500,
             detail=f"Sky survey upload failed: {error_msg}",
@@ -372,18 +451,25 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
     sample_start = max(1, count - len(sample) + 1)
     sample_end = count
 
-    return {
+    response = {
         "upload_id": upload_id,
         "total_records": count,
         "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
     }
+    # Add metadata details if available
+    if status.metadata:
+        response["metadata"] = status.metadata
+    return response
 
 
 @app.post("/commit-upload/{upload_id}")
 def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     """
-    Commit staged data to main database.
+    Commit staged data to main database with catalogue-level versioning.
+
+    Creates a GlobalSkyModelMetadata record and copies all components from staging
+    to the main table with the catalogue version.
 
     Parameters
     ----------
@@ -395,13 +481,24 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     Returns
     -------
     dict
-        Result of commit operation
+        Result of commit operation including version and catalogue info
+
+    Raises
+    ------
+    HTTPException
+        If upload not ready, no metadata, or commit fails
     """
     status = upload_manager.get_status(upload_id)
 
     if status.state != "completed":
         raise HTTPException(
             status_code=400, detail=f"Upload not ready for commit. Current state: {status.state}"
+        )
+
+    if not status.metadata:
+        raise HTTPException(
+            status_code=400,
+            detail="No metadata found for this upload. Cannot commit without catalogue metadata.",
         )
 
     try:
@@ -413,48 +510,21 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         if not staged_records:
             raise HTTPException(status_code=404, detail="No staged data found")
 
-        # Determine the version for the entire dataset
-        # All components in this upload will share the same version number
-        # Query the current maximum version across ALL components in the database
-        # Use the latest existing version from the metadata table once available.
-        max_version_result = db.query(func.max(SkyComponent.version)).scalar()
+        metadata = status.metadata
+        catalogue_version = metadata.version
+        catalogue_name = metadata.catalogue_name
 
-        # Helper function to increment minor version
-        def increment_minor_version(version_str):
-            """Increment minor version in semantic versioning (major.minor.patch).
+        db.add(status.metadata)
 
-            - If no existing version, start at 0.1.0 for first dataset.
-            - Subsequent uploads increment the minor part: 0.1.0 -> 0.2.0 -> 0.3.0
-            """
-            if not version_str:
-                return "0.1.0"
-            try:
-                parts = version_str.split(".")
-                major = int(parts[0]) if len(parts) > 0 else 0
-                minor = int(parts[1]) if len(parts) > 1 else 0
-                patch = int(parts[2]) if len(parts) > 2 else 0
-                return f"{major}.{minor + 1}.{patch}"
-            except (ValueError, IndexError):
-                return "0.1.0"
-
-        # Calculate the new version for this entire dataset upload
-        dataset_version = increment_minor_version(max_version_result)
-
-        logger.info(
-            "Assigning version %s to all %d components in upload %s",
-            dataset_version,
-            len(staged_records),
-            upload_id,
-        )
-
-        # Copy from staging to main table - all get the same dataset version
+        # Copy from staging to main table with catalogue version
         for staged in staged_records:
             # Create main table record from staged data
             # Exclude 'id' and 'upload_id' from staging table fields
             record_data = {
                 k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
             }
-            record_data["version"] = dataset_version
+            # Set catalogue version for ALL components
+            record_data["version"] = catalogue_version
 
             main_record = SkyComponent(**record_data)
             db.add(main_record)
@@ -467,12 +537,20 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         # Cleanup temp files
         upload_manager.cleanup(upload_id)
 
-        logger.info("Successfully committed upload %s", upload_id)
+        logger.info(
+            "Successfully committed upload %s: %d components with version %s",
+            upload_id,
+            len(staged_records),
+            catalogue_version,
+        )
 
         return {
             "status": "success",
-            "message": f"Committed {len(staged_records)} records to main database",
+            "message": f"Committed {len(staged_records)} \
+                components from catalogue '{catalogue_name}'",
             "records_committed": len(staged_records),
+            "version": catalogue_version,
+            "catalogue_name": catalogue_name,
         }
 
     except Exception as e:
@@ -537,3 +615,91 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
         db.rollback()
         logger.error("Failed to reject upload %s: %s", upload_id, e)
         raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}") from e
+
+
+@app.get("/catalogue-metadata", summary="Query catalogue metadata")
+def get_catalogue_metadata(
+    catalogue_name: str | None = None,
+    version: str | None = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    Query catalogue metadata records.
+
+    Search by catalogue name, version, or list all catalogues.
+    Results are ordered by upload date (newest first).
+
+    Parameters
+    ----------
+    catalogue_name : str, optional
+        Filter by catalogue name (case-insensitive partial match)
+    version : str, optional
+        Filter by exact version
+    limit : int, default 100
+        Maximum number of results to return
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        List of catalogue metadata records
+    """
+    query = db.query(GlobalSkyModelMetadata)
+
+    # Apply filters
+    if catalogue_name:
+        query = query.filter(GlobalSkyModelMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
+
+    if version:
+        query = query.filter(GlobalSkyModelMetadata.version == version)
+
+    # Order by most recent first
+    query = query.order_by(GlobalSkyModelMetadata.uploaded_at.desc())
+
+    # Apply limit
+    query = query.limit(limit)
+
+    # Execute query
+    results = query.all()
+
+    return {
+        "total": len(results),
+        "catalogues": [catalogue.to_dict() for catalogue in results],
+    }
+
+
+@app.get("/catalogue-metadata/{catalogue_id}", summary="Get specific catalogue metadata")
+def get_catalogue_metadata_by_id(
+    catalogue_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get catalogue metadata by ID.
+
+    Parameters
+    ----------
+    catalogue_id : int
+        catalogue metadata ID
+    db : Session
+        Database session
+
+    Returns
+    -------
+    dict
+        catalogue metadata record
+
+    Raises
+    ------
+    HTTPException
+        If catalogue not found
+    """
+    catalogue = (
+        db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.id == catalogue_id).first()
+    )
+
+    if not catalogue:
+        raise HTTPException(status_code=404, detail=f"catalogue with ID {catalogue_id} not found")
+
+    return catalogue.to_dict()

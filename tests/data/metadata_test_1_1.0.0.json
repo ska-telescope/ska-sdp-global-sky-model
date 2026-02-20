@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "catalogue_name": "TEST_CATALOGUE_1",
+  "description": "Test catalogue 1 for development and testing purposes",
+  "ref_freq": 200000000,
+  "epoch": "J2000",
+  "author": "SKA SDP Team",
+  "notes": "Sample test data for ska-sdp-global-sky-model"
+}

@@ -24,7 +24,11 @@ from ska_sdp_global_sky_model.api.app.ingest import (
     to_float,
     validate_component_mapping,
 )
-from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
+from ska_sdp_global_sky_model.api.app.models import (
+    GlobalSkyModelMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Test database setup
@@ -196,7 +200,7 @@ class TestBuildComponentMapping:
 
         mapping = build_component_mapping(component_dict)
 
-        assert mapping["spec_idx"] == [-0.7, None, None, None, None]
+        assert mapping["spec_idx"] == -0.7
 
     def test_mapping_with_spec_idx_invalid_string(self):
         """Test spec_idx with invalid string converts to None"""
@@ -210,8 +214,8 @@ class TestBuildComponentMapping:
 
         mapping = build_component_mapping(component_dict)
 
-        # Invalid string should create [None, None, None, None, None]
-        assert mapping["spec_idx"] == [None, None, None, None, None]
+        # Invalid string should create None
+        assert mapping["spec_idx"] is None
 
     def test_mapping_with_spec_idx_invalid_type(self):
         """Test spec_idx with invalid type (dict) creates None array"""
@@ -225,8 +229,8 @@ class TestBuildComponentMapping:
 
         mapping = build_component_mapping(component_dict)
 
-        # Invalid type should create [None, None, None, None, None]
-        assert mapping["spec_idx"] == [None, None, None, None, None]
+        # Invalid type should create None
+        assert mapping["spec_idx"] is None
 
     def test_mapping_with_polarization(self):
         """Test mapping with polarization parameters"""
@@ -396,7 +400,9 @@ class TestProcessComponentDataBatch:
             content = f.read()
         cf = ComponentFile(content)
 
-        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
+        result = process_component_data_batch(
+            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+        )
 
         assert result is True
         count = test_db.query(SkyComponentStaging).count()
@@ -410,12 +416,16 @@ class TestProcessComponentDataBatch:
         cf = ComponentFile(content)
 
         # First ingestion with upload_id 1
-        process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
+        process_component_data_batch(
+            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+        )
         count1 = test_db.query(SkyComponentStaging).count()
 
         # Second ingestion with different upload_id - should allow duplicates
         cf2 = ComponentFile(content)
-        process_component_data_batch(test_db, cf2, staging=True, upload_id="test-upload-2")
+        process_component_data_batch(
+            test_db, cf2, version="0.1.0", staging=True, upload_id="test-upload-2"
+        )
         count2 = test_db.query(SkyComponentStaging).count()
 
         # Both uploads should succeed with same component_ids
@@ -433,7 +443,9 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
+        result = process_component_data_batch(
+            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+        )
 
         # Should fail due to validation errors
         assert result is False
@@ -457,7 +469,7 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf)
+        result = process_component_data_batch(test_db, cf, version="0.1.0")
 
         # Should fail
         assert result is False
@@ -492,7 +504,9 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
+        result = process_component_data_batch(
+            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+        )
 
         # Should fail
         assert result is False
@@ -528,7 +542,9 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(valid_csv)
 
-        result = process_component_data_batch(test_db, cf, staging=True, upload_id="test-upload-1")
+        result = process_component_data_batch(
+            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+        )
 
         # Should succeed
         assert result is True
@@ -560,21 +576,18 @@ class TestIngestCatalogue:
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        catalogue_metadata = {
-            "name": "Test Catalogue",
-            "catalogue_name": "TEST",
-            "staging": True,
-            "upload_id": "test-upload-1",
-            "ingest": {
-                "file_location": [
-                    {
-                        "content": content,
-                    }
-                ]
-            },
-        }
+        catalogue_metadata = GlobalSkyModelMetadata(
+            version="1.0.0",
+            ref_freq=1.4e9,
+            epoch="J2000",
+            catalogue_name="TEST",
+            upload_id="test-upload-1",
+        )
+        catalogue_metadata.staging = True
 
-        result = ingest_catalogue(test_db, catalogue_metadata)
+        catalogue_content = {"ingest": {"file_location": [{"content": content}]}}
+
+        result = ingest_catalogue(test_db, catalogue_metadata, catalogue_content=catalogue_content)
 
         assert result is True
         count = test_db.query(SkyComponentStaging).count()
@@ -582,21 +595,18 @@ class TestIngestCatalogue:
 
     def test_empty_catalogue(self, test_db):
         """Test handling of empty catalogue with in-memory content"""
-        # Create empty CSV content
         empty_content = "component_id,ra,dec,i_pol\n"
 
-        catalogue_metadata = {
-            "name": "Empty Catalogue",
-            "catalogue_name": "EMPTY",
-            "ingest": {
-                "file_location": [
-                    {
-                        "content": empty_content,
-                    }
-                ]
-            },
-        }
+        catalogue_metadata = GlobalSkyModelMetadata(
+            version="1.0.0",
+            ref_freq=1.4e9,
+            epoch="J2000",
+            catalogue_name="EMPTY",
+            upload_id="test-upload-1",
+        )
+        catalogue_metadata.staging = True
 
-        result = ingest_catalogue(test_db, catalogue_metadata)
-        # Should succeed with empty catalogue
+        catalogue_content = {"ingest": {"file_location": [{"content": empty_content}]}}
+
+        result = ingest_catalogue(test_db, catalogue_metadata, catalogue_content=catalogue_content)
         assert result is True

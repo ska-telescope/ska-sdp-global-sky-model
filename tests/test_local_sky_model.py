@@ -161,7 +161,10 @@ class TestLocalSkyModel:
 
             # Save two copies of the LSM so we have two entries in the YAML.
             for csv_file_name in csv_file_names:
-                model.save(path=csv_file_name, metadata_dir=yaml_dir_name)
+                model.save(
+                    path=csv_file_name,
+                    metadata_dir=yaml_dir_name,
+                )
 
             # Load the CSV file into a new model.
             model2 = LocalSkyModel.load(csv_file_names[0])
@@ -228,3 +231,23 @@ class TestLocalSkyModel:
         # Test with None.
         tokens = LocalSkyModel.tokenize_line(None)
         assert not tokens
+
+    def test_format_vector_csv_output(self):
+        """Test CSV output for vector columns: single vs multi-element formatting."""
+        model = LocalSkyModel.empty(
+            column_names=["spec_idx"],
+            num_rows=3,
+        )
+        # Single float
+        model.set_value("spec_idx", 0, [0.111])
+        # Multi-element vector
+        model.set_value("spec_idx", 1, [0.111, 0.222])
+        # Empty vector
+        model.set_value("spec_idx", 2, [])
+
+        # Should be just the float
+        assert model.get_value_str("spec_idx", 0) == "0.111"
+        # Should be quoted bracketed
+        assert model.get_value_str("spec_idx", 1) == '"[0.111,0.222]"'
+        # Should be []
+        assert model.get_value_str("spec_idx", 2) == "[]"

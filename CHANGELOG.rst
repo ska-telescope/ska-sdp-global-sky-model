@@ -20,6 +20,9 @@ CHANGELOG
 - [Removed] Helm chart
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)
 
+- [BREAKING] Implemented catalogue-level versioning with metadata files. Upload endpoint now requires
+  a metadata.json file containing catalogue version, name, description, reference frequency, and epoch.
+  All components in an upload share a single semantic version from the metadata file.
 - [Added] Batch upload feature with staging table and review workflow for sky survey data:
   (`MR74 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/74>`__)
 

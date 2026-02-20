@@ -1,0 +1,7 @@
+{
+  "version": "1.1.0",
+  "catalogue_name": "RCAL",
+  "description": "Test RCAL catalogue",
+  "ref_freq": 1400000000,
+  "epoch": "J2000"
+}

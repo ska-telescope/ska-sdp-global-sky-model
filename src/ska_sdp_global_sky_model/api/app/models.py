@@ -24,9 +24,11 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
-from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.sql import func
+from sqlalchemy.types import DateTime
 
 from ska_sdp_global_sky_model.configuration.config import DB_SCHEMA, Base
 
@@ -107,11 +109,24 @@ def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
 class GlobalSkyModelMetadata(Base):
     """Metadata describing a GSM catalogue instance."""
 
-    __tablename__ = "globalskymodelmetadata"
+    __tablename__ = "global_sky_model_metadata"
     __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    version = Column(String, nullable=False, unique=True, index=True)
+    catalogue_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    upload_id = Column(String, nullable=False, unique=True, index=True)
+    staging = Column(Boolean, nullable=False, default=True)
+
+    # Additional metadata fields
+    author = Column(String, nullable=True)
+    reference = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # pylint: disable=not-callable
+    uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
@@ -168,6 +183,9 @@ class SkyComponentStaging(Base):
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
 
+    # Version tracking - semantic versioning
+    version = Column(String, nullable=False)
+
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)
 
@@ -185,7 +203,11 @@ class SkyComponentStaging(Base):
 
 
 # Apply dynamic column generation to models
-_add_dynamic_columns_to_model(GlobalSkyModelMetadata, GSMMetadataDataclass)
+_add_dynamic_columns_to_model(
+    GlobalSkyModelMetadata,
+    GSMMetadataDataclass,
+    skip_columns={"version"},
+)
 # For main table, skip component_id since it's defined explicitly
 # for the composite constraint with version
 _add_dynamic_columns_to_model(SkyComponent, SkyComponentDataclass, skip_columns={"component_id"})

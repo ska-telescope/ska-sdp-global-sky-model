@@ -140,9 +140,10 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 .. code-block:: bash
 
     # Upload one or more CSV files with standardized column names
-        curl -X POST "<GSM_API_URL>/upload-sky-survey-batch" \
-            -F "files=@test_catalogue_1.csv;type=text/csv" \\
-            -F "files=@test_catalogue_2.csv;type=text/csv"
+        curl -X POST "<GSM_API_URL>/upload-sky-survey-batch" \\
+            -F "metadata_file=@metadata.json;type=application/json" \\
+            -F "csv_files=@test_catalogue_1.csv;type=text/csv" \\
+            -F "csv_files=@test_catalogue_2.csv;type=text/csv"
 
 **Python Example**:
 
@@ -155,13 +156,15 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 
     # Upload multiple CSV files with standardized column names
     files = [
-        ("files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
-        ("files", ("test_catalogue_2.csv", open("test_catalogue_2.csv", "rb"), "text/csv")),
+        ("metadata_file", ("metadata.json", open("metadata.json", "rb"), "application/json")),
+        ("csv_files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
+        ("csv_files", ("test_catalogue_2.csv", open("test_catalogue_2.csv", "rb"), "text/csv")),
     ]
     response = requests.post(url, files=files)
 
     result = response.json()
     print(f"Upload ID: {result['upload_id']}")
+    print(f"Catalogue: {result['catalogue_name']} v{result['version']}")
     print(f"Status: {result['status']}")  # Will be "uploading"
 
     # Poll for completion
@@ -239,7 +242,7 @@ Retrieve the current status of a sky survey batch upload.
         status = response.json()
 
         print(f"State: {status['state']}")
-        print(f"Progress: {status['uploaded_files']}/{status['total_files']}")
+        print(f"Progress: {status['uploaded_csv_files']}/{status['total_csv_files']}")
 
         if status['state'] in ['completed', 'failed']:
             break
@@ -318,8 +321,9 @@ Commit Staged Upload
 
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
-Commit staged data to the main database with automatic dataset versioning. All components in the upload
-receive the same version number (the next minor version of the catalogue).
+Commit staged data to the main database with the catalogue version from the metadata file. All components 
+in the upload receive the same version. Creates a record in the ``global_sky_model_metadata`` table with the 
+upload information.
 
 .. list-table::
     :widths: 20, 50, 20, 10
@@ -342,6 +346,8 @@ receive the same version number (the next minor version of the catalogue).
         "message": "Upload committed successfully",
         "records_committed": 200,
         "upload_id": "550e8400-e29b-41d4-a716-446655440000"
+        "version": "1.0.0",
+        "catalogue_name": "Test catalogue"
     }
 
 **Example Usage**:

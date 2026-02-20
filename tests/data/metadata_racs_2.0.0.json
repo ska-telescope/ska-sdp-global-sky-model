@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "catalogue_name": "RACS",
+  "description": "Rapid ASKAP Continuum Survey",
+  "ref_freq": 887500000,
+  "epoch": "J2000",
+  "author": "RACS Team",
+  "reference": "https://doi.org/10.1017/pasa.2021.1",
+  "notes": "ASKAP 887.5 MHz survey"
+}
