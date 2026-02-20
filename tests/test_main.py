@@ -1,4 +1,4 @@
-# pylint: disable=no-member, stop-iteration-return
+# pylint: disable=duplicate-code
 """
 Basic testing of the API
 """
@@ -8,100 +8,12 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import JSON, create_engine, event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from ska_sdp_global_sky_model.api.app.main import app, get_db, upload_manager, wait_for_db
 from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadStatus
-from ska_sdp_global_sky_model.configuration.config import Base
-
-# Use in-memory SQLite for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,  # Use StaticPool to keep a single connection
-)
-
-
-# Register Q3C mock function for all SQLite connections
-@event.listens_for(engine, "connect")
-def register_q3c_mock(dbapi_conn, connection_record):  # pylint: disable=unused-argument
-    """Register a mock Q3C function for SQLite."""
-
-    def q3c_radial_query_mock(ra1, dec1, ra2, dec2, radius):
-        """Mock Q3C function that does a simple box check instead of proper spherical distance."""
-        # Simple box check - not accurate but sufficient for testing
-        ra_diff = abs(ra1 - ra2)
-        dec_diff = abs(dec1 - dec2)
-        # Treat radius as degrees and check if point is within box
-        return 1 if (ra_diff <= radius and dec_diff <= radius) else 0
-
-    dbapi_conn.create_function("q3c_radial_query", 5, q3c_radial_query_mock)
-
-
-# Make JSONB compatible with SQLite for tests
-# pylint: disable=duplicate-code
-@event.listens_for(Base.metadata, "before_create")
-def replace_jsonb_sqlite(target, connection, **kw):  # pylint: disable=unused-argument
-    """Replace JSONB with JSON and remove schema for SQLite."""
-    if connection.dialect.name == "sqlite":
-        for table in target.tables.values():
-            table.schema = None
-            for column in table.columns:
-                if isinstance(column.type, JSONB):
-                    column.type = JSON()
-
-
-TESTING_SESSION_LOCAL = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def override_get_db():
-    """
-    Create a local testing session.
-    """
-    try:
-        db = TESTING_SESSION_LOCAL()
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture()
-def test_db():
-    """
-    Database for test purposes.
-    """
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
+from tests.utils import clean_all_tables, override_get_db
 
 app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture(scope="module", name="myclient")
-def fixture_client():
-    """Create test client with mocked database startup and Q3C function."""
-    # Mock the database connection check and startup functions
-    with (
-        patch("ska_sdp_global_sky_model.api.app.main.wait_for_db"),
-        patch("ska_sdp_global_sky_model.api.app.main.start_thread"),
-        patch("ska_sdp_global_sky_model.api.app.main.engine", engine),
-    ):
-
-        # Create tables once for all tests
-        Base.metadata.create_all(bind=engine)
-
-        with TestClient(app) as client:
-            yield client
-            Base.metadata.drop_all(bind=engine)
 
 
 def _clean_staging_table():
@@ -109,17 +21,6 @@ def _clean_staging_table():
     db = next(override_get_db())
     try:
         db.query(SkyComponentStaging).delete()
-        db.commit()
-    finally:
-        db.close()
-
-
-def _clean_all_tables():
-    """Clean both staging and main tables for test isolation."""
-    db = next(override_get_db())
-    try:
-        db.query(SkyComponentStaging).delete()
-        db.query(SkyComponent).delete()
         db.commit()
     finally:
         db.close()
@@ -317,29 +218,76 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
     assert "J030853+053903" in response.text
 
 
-def test_local_sky_model(myclient):  # pylint: disable=unused-argument
-    """Unit test for the /local_sky_model path"""
+def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
 
-    # Add a component directly to the test database
-    db = next(override_get_db())
-    try:
-        # Add a component in the query region (RA ~45, Dec ~4)
-        component = SkyComponent(
-            component_id="J030420+022029", healpix_index=12345, ra=45, dec=4, version="1.0.2"
-        )
-        db.add(component)
-        db.commit()
-    finally:
-        db.close()
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    without a specified version
+    """
 
-    # Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra": "45", "dec": "4", "fov": 5, "version": "0.1.0"},
+        params={"ra": "90", "dec": "4", "fov": 5},
     )
 
     assert local_sky_model.status_code == 200
     assert "J030420+022029" in local_sky_model.text
+    assert "J031020+042029" in local_sky_model.text
+
+
+def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    but with version that only includes one component
+    """
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": "90", "dec": "4", "fov": 5, "version": "1.1.0"},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J030420+022029" not in local_sky_model.text
+    assert "J031020+042029" in local_sky_model.text
+
+
+def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    without version, with fov that only returns one object
+    """
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": "90", "dec": "2", "fov": 0.2},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J030420+022029" in local_sky_model.text
+    assert "J031020+042029" not in local_sky_model.text
+
+
+def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local_sky_model path
+
+    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    with version that does not exist
+    """
+
+    local_sky_model = myclient.get(
+        "/local_sky_model/",
+        params={"ra": "90", "dec": "2", "fov": 5, "version": "2.0.0"},
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J030420+022029" not in local_sky_model.text
+    assert "J031020+042029" not in local_sky_model.text
 
 
 def test_upload_batch_gleam_catalogue(myclient, monkeypatch):
@@ -700,7 +648,7 @@ def test_review_upload_not_completed(myclient):
 
 def test_commit_upload_success(myclient):
     """Test successful commit of staged upload with versioning."""
-    _clean_all_tables()
+    clean_all_tables()
 
     # Create test data directly in staging table
     upload_id = "test-upload-commit-123"
@@ -756,7 +704,7 @@ def test_commit_upload_success(myclient):
 
 def test_commit_upload_increments_version(myclient):
     """Test that second commit increments version to 0.2.0."""
-    _clean_all_tables()
+    clean_all_tables()
 
     # Add existing data at version 0.1.0
     db = next(override_get_db())

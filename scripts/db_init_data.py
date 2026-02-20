@@ -20,6 +20,9 @@ def main():
     parser.add_argument("--catalogue_name", help="Name of catalogue", default="test_catalogue")
     parser.add_argument("--version", help="Catalogue version", default="0.1.0")
     parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
+    parser.add_argument(
+        "--ignore-import-failure", help="Don't exit with error on failure", action="store_true"
+    )
 
     args = parser.parse_args()
 
@@ -44,7 +47,8 @@ def main():
     db.commit()
     
     if not ingest_catalogue(db, catalogue_config):
-        sys.exit(1)
+        if not args.ignore_import_failure:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
