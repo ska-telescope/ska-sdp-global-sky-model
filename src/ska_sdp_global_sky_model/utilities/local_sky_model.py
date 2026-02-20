@@ -439,7 +439,7 @@ class LocalSkyModel:
             # Write the file header.
             format_string = ",".join(self.columns)
             out.write(f"# ({format_string}) = format\n")
-            out.write(f"# NUMBER_OF_COMPONENTS: {self.num_rows}\n")
+            out.write(f"# NUMBER_OF_COMPONENTS={self.num_rows}\n")
 
             for key, value in self._header.items():
                 out.write(f"# {key}={str(value)}\n")

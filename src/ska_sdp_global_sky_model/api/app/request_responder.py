@@ -347,7 +347,7 @@ def _write_data(
     local_model.set_header({"QUERY_CENTRE_RAJ2000_DEG": query_parameters.ra})
     local_model.set_header({"QUERY_CENTRE_DEJ2000_DEG": query_parameters.dec})
     local_model.set_header({"QUERY_RADIUS_DEG": query_parameters.fov})
-    local_model.set_header({"CATALOGUE_VERSION": query_parameters.version})
+    local_model.set_header({"CATALOGUE_VERSION": data.metadata.get("version", "unknown")})
 
     # Think this should/could be done better...
     try:
