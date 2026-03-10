@@ -652,6 +652,7 @@ def query_gsm_metadata(
 
     query = qb.apply_filters(query)
     query = qb.apply_sort(query)
+    query = qb.apply_limit(query)
 
     rows = query.all()
 

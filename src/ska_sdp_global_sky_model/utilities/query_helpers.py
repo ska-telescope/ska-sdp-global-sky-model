@@ -208,6 +208,24 @@ class QueryBuilder:
 
         return query
 
+    def apply_limit(self, query):
+        """
+        Limit the number of rows returned.
+
+        Example
+        -------
+        ``limit=5``
+
+        Returns
+        -------
+        sqlalchemy.orm.Query
+            Query with limit applied.
+        """
+
+        limit = int(self.params.get("limit", 100))
+
+        return query.limit(limit)
+
     def get_selected_fields(self):
         """
         Determine which columns should be included in the response.
