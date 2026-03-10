@@ -1,4 +1,4 @@
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, too-many-lines
 """
 Basic testing of the API
 """
@@ -954,3 +954,105 @@ def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
         assert count == 0
     finally:
         db.close()
+
+
+def _insert_test_metadata():
+    """Insert multiple test metadata records for query tests."""
+    db = next(override_get_db())
+    try:
+        db.query(GlobalSkyModelMetadata).delete()
+        db.commit()
+        records = [
+            GlobalSkyModelMetadata(
+                version="v1.0",
+                catalogue_name="GLEAM",
+                description="First test catalogue",
+                upload_id="upload1",
+                staging=True,
+            ),
+            GlobalSkyModelMetadata(
+                version="v2.0",
+                catalogue_name="GLEAM Extended",
+                description="Second test catalogue",
+                upload_id="upload2",
+                staging=False,
+            ),
+            GlobalSkyModelMetadata(
+                version="v3.0",
+                catalogue_name="LOFAR",
+                description="Third test catalogue",
+                upload_id="upload3",
+                staging=True,
+            ),
+        ]
+        db.add_all(records)
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_query_metadata_basic(myclient):
+    """Test retrieving all metadata records with no filters."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/gsm-metadata/query")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 3
+
+
+def test_query_metadata_filter_version_and_name(myclient):
+    """Test filtering by version and partial catalogue name."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/gsm-metadata/query?version=v2.0&catalogue_name__contains=GLEAM")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 1
+    record = data[0]
+    assert record["version"] == "v2.0"
+    assert "GLEAM" in record["catalogue_name"]
+
+
+def test_query_metadata_sorting(myclient):
+    """Test sorting by version descending."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/gsm-metadata/query?sort=-version")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 3
+    versions = [r["version"] for r in data]
+    assert versions == sorted(versions, reverse=True)
+
+
+def test_query_metadata_fields_selection(myclient):
+    """Test selecting only specific columns."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/gsm-metadata/query?fields=version,catalogue_name")
+    assert response.status_code == 200
+
+    data = response.json()
+    for row in data:
+        assert set(row.keys()) == {"version", "catalogue_name"}
+
+
+def test_query_metadata_limit(myclient):
+    """Test limit parameter."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    # Limit 2
+    response = myclient.get("/gsm-metadata/query?limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
