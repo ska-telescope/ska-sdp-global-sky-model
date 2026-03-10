@@ -1,5 +1,5 @@
 # pylint: disable=no-member, too-many-locals, invalid-name,
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods, abstract-method, too-many-ancestors
 """
 CRUD functionality goes here.
 """
