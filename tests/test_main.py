@@ -1009,7 +1009,9 @@ def test_query_metadata_filter_version_and_name(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/catalogue-metadata/query?version=v2.0&catalogue_name__contains=GLEAM")
+    response = myclient.get(
+        "/catalogue-metadata/query?version=v2.0&catalogue_name__contains=GLEAM"
+    )
     assert response.status_code == 200
 
     data = response.json()
