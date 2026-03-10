@@ -626,7 +626,8 @@ def query_gsm_metadata(
     """
     Query catalogue metadata records.
 
-    Search by catalogue name, version, or list all catalogues.
+    Search by generic fields in the table (e.g catalogue name, version), or list all catalogues.
+    Supports operators for filtering responses.
     Results are ordered by upload date (newest first).
 
     Parameters
@@ -659,59 +660,6 @@ def query_gsm_metadata(
     fields = qb.get_selected_fields()
 
     return serialize_rows(rows, fields)
-
-
-# @app.get("/catalogue-metadata", summary="Query catalogue metadata")
-# def get_catalogue_metadata(
-#     catalogue_name: str | None = None,
-#     version: str | None = None,
-#     limit: int = 100,
-#     db: Session = Depends(get_db),
-# ):
-#     """
-#     Query catalogue metadata records.
-
-#     Search by catalogue name, version, or list all catalogues.
-#     Results are ordered by upload date (newest first).
-
-#     Parameters
-#     ----------
-#     catalogue_name : str, optional
-#         Filter by catalogue name (case-insensitive partial match)
-#     version : str, optional
-#         Filter by exact version
-#     limit : int, default 100
-#         Maximum number of results to return
-#     db : Session
-#         Database session
-
-#     Returns
-#     -------
-#     dict
-#         List of catalogue metadata records
-#     """
-#     query = db.query(GlobalSkyModelMetadata)
-
-#     # Apply filters
-#     if catalogue_name:
-#         query = query.filter(GlobalSkyModelMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
-
-#     if version:
-#         query = query.filter(GlobalSkyModelMetadata.version == version)
-
-#     # Order by most recent first
-#     query = query.order_by(GlobalSkyModelMetadata.uploaded_at.desc())
-
-#     # Apply limit
-#     query = query.limit(limit)
-
-#     # Execute query
-#     results = query.all()
-
-#     return {
-#         "total": len(results),
-#         "catalogues": [catalogue.to_dict() for catalogue in results],
-#     }
 
 
 @app.get("/catalogue-metadata/{catalogue_id}", summary="Get specific catalogue metadata")
