@@ -996,7 +996,7 @@ def test_query_metadata_basic(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/gsm-metadata/query")
+    response = myclient.get("/catalogue-metadata/query")
     assert response.status_code == 200
 
     data = response.json()
@@ -1009,7 +1009,7 @@ def test_query_metadata_filter_version_and_name(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/gsm-metadata/query?version=v2.0&catalogue_name__contains=GLEAM")
+    response = myclient.get("/catalogue-metadata/query?version=v2.0&catalogue_name__contains=GLEAM")
     assert response.status_code == 200
 
     data = response.json()
@@ -1024,7 +1024,7 @@ def test_query_metadata_sorting(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/gsm-metadata/query?sort=-version")
+    response = myclient.get("/catalogue-metadata/query?sort=-version")
     assert response.status_code == 200
 
     data = response.json()
@@ -1038,7 +1038,7 @@ def test_query_metadata_fields_selection(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/gsm-metadata/query?fields=version,catalogue_name")
+    response = myclient.get("/catalogue-metadata/query?fields=version,catalogue_name")
     assert response.status_code == 200
 
     data = response.json()
@@ -1052,7 +1052,7 @@ def test_query_metadata_limit(myclient):
     _insert_test_metadata()
 
     # Limit 2
-    response = myclient.get("/gsm-metadata/query?limit=2")
+    response = myclient.get("/catalogue-metadata/query?limit=2")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
