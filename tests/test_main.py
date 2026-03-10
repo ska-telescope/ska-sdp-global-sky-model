@@ -996,7 +996,7 @@ def test_query_metadata_basic(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/catalogue-metadata/query")
+    response = myclient.get("/catalogue-metadata")
     assert response.status_code == 200
 
     data = response.json()
@@ -1010,7 +1010,8 @@ def test_query_metadata_filter_version_and_name(myclient):
     _insert_test_metadata()
 
     response = myclient.get(
-        "/catalogue-metadata/query?version=v2.0&catalogue_name__contains=GLEAM"
+        "/catalogue-metadata",
+        params={"version": "v2.0", "catalogue_name__contains": "GLEAM"},
     )
     assert response.status_code == 200
 
@@ -1026,7 +1027,7 @@ def test_query_metadata_sorting(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/catalogue-metadata/query?sort=-version")
+    response = myclient.get("/catalogue-metadata", params={"sort": "-version"})
     assert response.status_code == 200
 
     data = response.json()
@@ -1040,7 +1041,7 @@ def test_query_metadata_fields_selection(myclient):
     clean_all_tables()
     _insert_test_metadata()
 
-    response = myclient.get("/catalogue-metadata/query?fields=version,catalogue_name")
+    response = myclient.get("/catalogue-metadata", params={"fields": "version,catalogue_name"})
     assert response.status_code == 200
 
     data = response.json()
@@ -1048,13 +1049,13 @@ def test_query_metadata_fields_selection(myclient):
         assert set(row.keys()) == {"version", "catalogue_name"}
 
 
-def test_query_metadata_limit(myclient):
+def test_query_metadata_pagination(myclient):
     """Test limit parameter."""
     clean_all_tables()
     _insert_test_metadata()
 
     # Limit 2
-    response = myclient.get("/catalogue-metadata/query?limit=2")
+    response = myclient.get("/catalogue-metadata", params={"limit": "2"})
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
