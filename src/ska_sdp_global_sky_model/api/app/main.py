@@ -32,6 +32,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     get_db,
     templates,
 )
+from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder, serialize_rows
 from ska_sdp_global_sky_model.utilities.version_utils import is_version_increment
 
 logger = logging.getLogger(__name__)
@@ -618,10 +619,8 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/catalogue-metadata", summary="Query catalogue metadata")
-def get_catalogue_metadata(
-    catalogue_name: str | None = None,
-    version: str | None = None,
-    limit: int = 100,
+def query_gsm_metadata(
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
@@ -646,28 +645,72 @@ def get_catalogue_metadata(
     dict
         List of catalogue metadata records
     """
+
+    qb = QueryBuilder(GlobalSkyModelMetadata, request.query_params)
+
     query = db.query(GlobalSkyModelMetadata)
 
-    # Apply filters
-    if catalogue_name:
-        query = query.filter(GlobalSkyModelMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
+    query = qb.apply_filters(query)
+    query = qb.apply_sort(query)
 
-    if version:
-        query = query.filter(GlobalSkyModelMetadata.version == version)
+    rows = query.all()
 
-    # Order by most recent first
-    query = query.order_by(GlobalSkyModelMetadata.uploaded_at.desc())
+    fields = qb.get_selected_fields()
 
-    # Apply limit
-    query = query.limit(limit)
+    return serialize_rows(rows, fields)
 
-    # Execute query
-    results = query.all()
 
-    return {
-        "total": len(results),
-        "catalogues": [catalogue.to_dict() for catalogue in results],
-    }
+# @app.get("/catalogue-metadata", summary="Query catalogue metadata")
+# def get_catalogue_metadata(
+#     catalogue_name: str | None = None,
+#     version: str | None = None,
+#     limit: int = 100,
+#     db: Session = Depends(get_db),
+# ):
+#     """
+#     Query catalogue metadata records.
+
+#     Search by catalogue name, version, or list all catalogues.
+#     Results are ordered by upload date (newest first).
+
+#     Parameters
+#     ----------
+#     catalogue_name : str, optional
+#         Filter by catalogue name (case-insensitive partial match)
+#     version : str, optional
+#         Filter by exact version
+#     limit : int, default 100
+#         Maximum number of results to return
+#     db : Session
+#         Database session
+
+#     Returns
+#     -------
+#     dict
+#         List of catalogue metadata records
+#     """
+#     query = db.query(GlobalSkyModelMetadata)
+
+#     # Apply filters
+#     if catalogue_name:
+#         query = query.filter(GlobalSkyModelMetadata.catalogue_name.ilike(f"%{catalogue_name}%"))
+
+#     if version:
+#         query = query.filter(GlobalSkyModelMetadata.version == version)
+
+#     # Order by most recent first
+#     query = query.order_by(GlobalSkyModelMetadata.uploaded_at.desc())
+
+#     # Apply limit
+#     query = query.limit(limit)
+
+#     # Execute query
+#     results = query.all()
+
+#     return {
+#         "total": len(results),
+#         "catalogues": [catalogue.to_dict() for catalogue in results],
+#     }
 
 
 @app.get("/catalogue-metadata/{catalogue_id}", summary="Get specific catalogue metadata")
