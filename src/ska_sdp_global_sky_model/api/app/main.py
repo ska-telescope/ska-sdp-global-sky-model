@@ -123,10 +123,11 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
 @app.get("/local_sky_model", response_class=HTMLResponse)
 async def get_local_sky_model_endpoint(
     request: Request,
-    ra: float,
-    dec: float,
-    fov: float,
+    ra_deg: float,
+    dec_deg: float,
+    fov_deg: float,
     version: str | None = None,
+    catalogue_name: str | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -134,10 +135,11 @@ async def get_local_sky_model_endpoint(
 
     Args:
         request (Request): HTTP request object.
-        ra (float): Right ascension of the observation point in degrees.
-        dec (float): Declination of the observation point in degrees.
-        fov (float): Field of view of the telescope in degrees.
+        ra_deg (float): Right ascension of the observation point in degrees.
+        dec_deg (float): Declination of the observation point in degrees.
+        fov_deg (float): Field of view of the telescope in degrees.
         version (str): Version of the global sky model. Optional.
+        catalogue_name (str): Catalogue name of the global sky model. Optional.
         db (Session): Database session object.
 
     Returns:
@@ -145,13 +147,14 @@ async def get_local_sky_model_endpoint(
     """
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, fov:%s, version:%s",
-        ra,
-        dec,
-        fov,
+dec:%s, fov:%s, version:%s, catalogue: %s",
+        ra_deg,
+        dec_deg,
+        fov_deg,
         version,
+        catalogue_name,
     )
-    local_model = get_local_sky_model(db, ra, dec, fov, version)
+    local_model = get_local_sky_model(db, ra_deg, dec_deg, fov_deg, version, catalogue_name)
     return templates.TemplateResponse(
         "table.html", {"request": request, "items": list(local_model)}
     )
@@ -301,7 +304,7 @@ async def upload_sky_survey_batch(
         catalogue_name=metadata.get("catalogue_name", "UPLOAD"),
         description=metadata.get("description", ""),
         upload_id="upload_id_placeholder",  # Will be set after creating upload status
-        ref_freq=metadata.get("ref_freq"),
+        ref_freq_hz=metadata.get("ref_freq_hz"),
         epoch=metadata.get("epoch"),
         author=metadata.get("author"),
         reference=metadata.get("reference"),
@@ -318,7 +321,7 @@ async def upload_sky_survey_batch(
             ref_freq=%s, epoch=%s, upload_id=%s",
             catalogue_metadata.version,
             catalogue_metadata.catalogue_name,
-            catalogue_metadata.ref_freq,
+            catalogue_metadata.ref_freq_hz,
             catalogue_metadata.epoch,
             catalogue_metadata.upload_id,
         )

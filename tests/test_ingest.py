@@ -66,7 +66,9 @@ def test_db():
 def sample_csv_file():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-        f.write("component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx\n")
+        f.write(
+            "component_id,ra_deg,dec_deg,i_pol_jy,major_ax_arcsec,minor_ax_arcsec,pos_ang_deg,spec_idx,log_spec_idx\n"
+        )
         f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,-0.7,false\n")
         f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,-0.8,true\n")
         f.write("J223344-556677,30.1,-20.5,0.8,,,,-0.5,false\n")
@@ -130,7 +132,7 @@ class TestComponentFile:
         rows = list(cf)
         assert len(rows) == 3
         assert rows[0]["component_id"] == "J001122-334455"
-        assert rows[0]["ra"] == "10.5"
+        assert rows[0]["ra_deg"] == "10.5"
 
     def test_component_file_invalid_content(self):
         """Test ComponentFile with invalid CSV format"""
@@ -157,44 +159,44 @@ class TestBuildComponentMapping:
         """Test building mapping with minimal required fields"""
         component_dict = {
             "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
+            "ra_deg": "10.5",
+            "dec_deg": "45.2",
+            "i_pol_jy": "1.5",
         }
 
         mapping = build_component_mapping(component_dict)
 
         assert mapping["component_id"] == "J001122-334455"
-        assert mapping["ra"] == 10.5
-        assert mapping["dec"] == 45.2
-        assert mapping["i_pol"] == 1.5
+        assert mapping["ra_deg"] == 10.5
+        assert mapping["dec_deg"] == 45.2
+        assert mapping["i_pol_jy"] == 1.5
         assert "healpix_index" in mapping
 
     def test_mapping_with_shape_params(self):
         """Test mapping with component shape parameters"""
         component_dict = {
             "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
-            "major_ax": "0.01",
-            "minor_ax": "0.008",
-            "pos_ang": "45.0",
+            "ra_deg": "10.5",
+            "dec_deg": "45.2",
+            "i_pol_jy": "1.5",
+            "major_ax_arcsec": "0.01",
+            "minor_ax_arcsec": "0.008",
+            "pos_ang_deg": "45.0",
         }
 
         mapping = build_component_mapping(component_dict)
 
-        assert mapping["major_ax"] == 0.01
-        assert mapping["minor_ax"] == 0.008
-        assert mapping["pos_ang"] == 45.0
+        assert mapping["major_ax_arcsec"] == 0.01
+        assert mapping["minor_ax_arcsec"] == 0.008
+        assert mapping["pos_ang_deg"] == 45.0
 
     def test_mapping_with_spectral_index(self):
         """Test mapping with spectral index"""
         component_dict = {
             "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
+            "ra_deg": "10.5",
+            "dec_deg": "45.2",
+            "i_pol_jy": "1.5",
             "spec_idx": "-0.7",
         }
 
@@ -206,9 +208,9 @@ class TestBuildComponentMapping:
         """Test spec_idx with invalid string converts to None"""
         component_dict = {
             "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
+            "ra_deg": "10.5",
+            "dec_deg": "45.2",
+            "i_pol_jy": "1.5",
             "spec_idx": "invalid",
         }
 
@@ -221,9 +223,9 @@ class TestBuildComponentMapping:
         """Test spec_idx with invalid type (dict) creates None array"""
         component_dict = {
             "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
+            "ra_deg": "10.5",
+            "dec_deg": "45.2",
+            "i_pol_jy": "1.5",
             "spec_idx": {"invalid": "type"},
         }
 
@@ -232,31 +234,13 @@ class TestBuildComponentMapping:
         # Invalid type should create None
         assert mapping["spec_idx"] is None
 
-    def test_mapping_with_polarization(self):
-        """Test mapping with polarization parameters"""
-        component_dict = {
-            "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
-            "q_pol": "0.1",
-            "u_pol": "0.2",
-            "v_pol": "0.05",
-        }
-
-        mapping = build_component_mapping(component_dict)
-
-        assert mapping["q_pol"] == 0.1
-        assert mapping["u_pol"] == 0.2
-        assert mapping["v_pol"] == 0.05
-
     def test_mapping_with_log_spec_idx(self):
         """Test log_spec_idx boolean conversion"""
         component_dict = {
             "component_id": "J001122-334455",
-            "ra": "10.5",
-            "dec": "45.2",
-            "i_pol": "1.5",
+            "ra_deg": "10.5",
+            "dec_deg": "45.2",
+            "i_pol_jy": "1.5",
             "log_spec_idx": "true",
         }
 
@@ -275,9 +259,9 @@ class TestValidateComponentMapping:
         """Test validation of minimal valid mapping"""
         mapping = {
             "component_id": "J001122-334455",
-            "ra": 10.5,
-            "dec": 45.2,
-            "i_pol": 1.5,
+            "ra_deg": 10.5,
+            "dec_deg": 45.2,
+            "i_pol_jy": 1.5,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is True
@@ -287,45 +271,45 @@ class TestValidateComponentMapping:
         """Test validation fails for missing required field"""
         mapping = {
             "component_id": "J001122-334455",
-            "ra": 10.5,
-            # Missing dec
-            "i_pol": 1.5,
+            "ra_deg": 10.5,
+            # Missing dec_deg
+            "i_pol_jy": 1.5,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
-        assert "dec" in error
+        assert "dec_deg" in error
 
     def test_invalid_ra_range(self):
         """Test validation fails for RA out of range"""
         mapping = {
             "component_id": "J001122-334455",
-            "ra": 400.0,  # Invalid
-            "dec": 45.2,
-            "i_pol": 1.5,
+            "ra_deg": 400.0,  # Invalid
+            "dec_deg": 45.2,
+            "i_pol_jy": 1.5,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
-        assert "ra" in error and "out of range" in error
+        assert "ra_deg" in error and "out of range" in error
 
     def test_invalid_dec_range(self):
         """Test validation fails for DEC out of range"""
         mapping = {
             "component_id": "J001122-334455",
-            "ra": 10.5,
-            "dec": 95.0,  # Invalid
-            "i_pol": 1.5,
+            "ra_deg": 10.5,
+            "dec_deg": 95.0,  # Invalid
+            "i_pol_jy": 1.5,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
-        assert "dec" in error and "out of range" in error
+        assert "dec_deg" in error and "out of range" in error
 
     def test_invalid_type(self):
         """Test validation fails for wrong type"""
         mapping = {
             "component_id": "J001122-334455",
-            "ra": "not_a_number",  # Invalid type
-            "dec": 45.2,
-            "i_pol": 1.5,
+            "ra_deg": "not_a_number",  # Invalid type
+            "dec_deg": 45.2,
+            "i_pol_jy": 1.5,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
@@ -348,18 +332,20 @@ class TestCommitBatch:
             {
                 "component_id": "J001122-334455",
                 "healpix_index": 12345,
-                "ra": 10.5,
-                "dec": 45.2,
-                "i_pol": 1.5,
+                "ra_deg": 10.5,
+                "dec_deg": 45.2,
+                "i_pol_deg": 1.5,
                 "version": "0.1.0",
+                "catalogue_name": "catalogue",
             },
             {
                 "component_id": "J223344-556677",
                 "healpix_index": 67890,
-                "ra": 30.1,
-                "dec": -20.5,
-                "i_pol": 0.8,
+                "ra_deg": 30.1,
+                "dec_deg": -20.5,
+                "i_pol_jy": 0.8,
                 "version": "0.1.0",
+                "catalogue_name": "catalogue",
             },
         ]
         commit_batch(test_db, component_objs)
@@ -401,7 +387,12 @@ class TestProcessComponentDataBatch:
         cf = ComponentFile(content)
 
         result = process_component_data_batch(
-            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+            test_db,
+            cf,
+            version="0.1.0",
+            staging=True,
+            upload_id="test-upload-1",
+            catalogue_name="test-catalogue",
         )
 
         assert result is True
@@ -417,14 +408,24 @@ class TestProcessComponentDataBatch:
 
         # First ingestion with upload_id 1
         process_component_data_batch(
-            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+            test_db,
+            cf,
+            version="0.1.0",
+            staging=True,
+            upload_id="test-upload-1",
+            catalogue_name="test-catalogue",
         )
         count1 = test_db.query(SkyComponentStaging).count()
 
         # Second ingestion with different upload_id - should allow duplicates
         cf2 = ComponentFile(content)
         process_component_data_batch(
-            test_db, cf2, version="0.1.0", staging=True, upload_id="test-upload-2"
+            test_db,
+            cf2,
+            version="0.1.0",
+            staging=True,
+            upload_id="test-upload-2",
+            catalogue_name="test-catalogue",
         )
         count2 = test_db.query(SkyComponentStaging).count()
 
@@ -444,7 +445,12 @@ class TestProcessComponentDataBatch:
         cf = ComponentFile(invalid_csv)
 
         result = process_component_data_batch(
-            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+            test_db,
+            cf,
+            version="0.1.0",
+            staging=True,
+            upload_id="test-upload-1",
+            catalogue_name="test-catalogue",
         )
 
         # Should fail due to validation errors
@@ -459,7 +465,7 @@ class TestProcessComponentDataBatch:
 
         # Create CSV with multiple invalid components
         invalid_csv = (
-            "component_id,ra,dec,i_pol\n"
+            "component_id,ra_deg,dec_deg,i_pol_jy\n"
             "J001122-334455,10.5,45.2,1.5\n"  # Valid
             "J112233-445566,400.0,30.1,2.3\n"  # Invalid RA
             "J223344-556677,30.1,95.0,0.8\n"  # Invalid DEC
@@ -469,7 +475,9 @@ class TestProcessComponentDataBatch:
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf, version="0.1.0")
+        result = process_component_data_batch(
+            test_db, cf, version="0.1.0", catalogue_name="test-catalogue"
+        )
 
         # Should fail
         assert result is False
@@ -505,7 +513,12 @@ class TestProcessComponentDataBatch:
         cf = ComponentFile(invalid_csv)
 
         result = process_component_data_batch(
-            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+            test_db,
+            cf,
+            version="0.1.0",
+            staging=True,
+            upload_id="test-upload-1",
+            catalogue_name="test-catalogue",
         )
 
         # Should fail
@@ -535,7 +548,7 @@ class TestProcessComponentDataBatch:
         caplog.set_level(logging.INFO)
 
         valid_csv = (
-            "component_id,ra,dec,i_pol\n"
+            "component_id,ra_deg,dec_deg,i_pol_jy\n"
             "J001122-334455,10.5,45.2,1.5\n"
             "J112233-445566,20.0,30.1,2.3\n"
         )
@@ -543,7 +556,12 @@ class TestProcessComponentDataBatch:
         cf = ComponentFile(valid_csv)
 
         result = process_component_data_batch(
-            test_db, cf, version="0.1.0", staging=True, upload_id="test-upload-1"
+            test_db,
+            cf,
+            version="0.1.0",
+            staging=True,
+            upload_id="test-upload-1",
+            catalogue_name="test-catalogue",
         )
 
         # Should succeed
@@ -578,7 +596,7 @@ class TestIngestCatalogue:
 
         catalogue_metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq=1.4e9,
+            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TEST",
             upload_id="test-upload-1",
@@ -599,7 +617,7 @@ class TestIngestCatalogue:
 
         catalogue_metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq=1.4e9,
+            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="EMPTY",
             upload_id="test-upload-1",

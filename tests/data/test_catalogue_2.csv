@@ -1,4 +1,4 @@
-component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
+component_id,ra_deg,dec_deg,i_pol_jy,major_ax_arcsec,minor_ax_arcsec,pos_ang_deg,spec_idx,log_spec_idx
 J030853+053903,47.222569,5.650958,0.098383,145.961,145.7133,89.461403,-1.066201,False
 J030525+040925,46.355034,4.157202,0.075818,144.642,139.1514,-88.614258,,False
 J032113+044916,50.307606,4.821351,0.078344,192.696,142.3867,88.243019,-0.562525,False

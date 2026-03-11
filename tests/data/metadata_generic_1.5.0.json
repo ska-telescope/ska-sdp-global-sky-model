@@ -2,6 +2,6 @@
   "version": "1.5.0",
   "catalogue_name": "GENERIC",
   "description": "Generic test catalogue",
-  "ref_freq": 1000000000,
+  "ref_freq_hz": 1000000000,
   "epoch": "J2000"
 }

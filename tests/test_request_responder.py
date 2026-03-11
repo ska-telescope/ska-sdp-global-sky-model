@@ -53,9 +53,10 @@ def fixture_valid_flow():
                 uri="gsm://request/lsm",
                 function="GlobalSkyModel.RequestLocalSkyModel",
                 parameters={
-                    "ra": 2.9670,
-                    "dec": -0.1745,
-                    "fov": 0.0873,
+                    "ra_deg": 2.9670,
+                    "dec_deg": -0.1745,
+                    "fov_deg": 0.0873,
+                    "catalogue_name": "catalogue",
                 },
             ),
         ],
@@ -119,16 +120,21 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
     assert mock_filter_function.mock_calls[0].args[0] == QueryParameters(
-        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        version="latest",
+        catalogue_name="catalogue",
     )
     # Second argument is the db session, just verify it was called
     assert len(mock_filter_function.mock_calls) == 1
     # The _write_data signature expects QueryParameters as the second argument
     expected_query_parameters = QueryParameters(
-        ra=2.9670,
-        dec=-0.1745,
-        fov=0.0873,
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
         version="latest",
+        catalogue_name="catalogue",
     )
     assert mock_write_data.mock_calls == [call(eb_id, expected_query_parameters, path, mock_gsm)]
 
@@ -228,7 +234,7 @@ def test_watcher_process_missing_parameter(
 ):
     """Test the happy path"""
 
-    del valid_flow.sources[0].parameters["fov"]
+    del valid_flow.sources[0].parameters["fov_deg"]
 
     mock_time.return_value = 1234.5678
     mock_txn = MagicMock()
@@ -281,7 +287,7 @@ def test_watcher_process_missing_parameter(
             {
                 "status": "FAILED",
                 "last_updated": 1234.5678,
-                "reason": "missing 1 required positional argument: 'fov'",
+                "reason": "missing 1 required positional argument: 'fov_deg'",
             }
         ),
     ]
@@ -333,13 +339,18 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
     assert mock_query.mock_calls[0].args[0] == QueryParameters(
-        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        version="latest",
+        catalogue_name="catalogue",
     )
     expected_query_parameters = QueryParameters(
-        ra=2.9670,
-        dec=-0.1745,
-        fov=0.0873,
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
         version="latest",
+        catalogue_name="catalogue",
     )
     assert mock_write.mock_calls == [call(eb_id, expected_query_parameters, output_path, ["data"])]
 
@@ -364,7 +375,11 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
     assert mock_query.mock_calls[0].args[0] == QueryParameters(
-        ra=2.9670, dec=-0.1745, fov=0.0873, version="latest"
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        version="latest",
+        catalogue_name="catalogue",
     )
     assert mock_write.mock_calls == []
 
@@ -458,22 +473,29 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         author="test",
         reference="test",
         notes="test",
-        ref_freq=20000000,
+        ref_freq_hz=20000000,
         epoch="test",
     )
     db_session.add(metadata)
     component = SkyComponent(
         component_id="DictTestSource",
-        ra=111.11,
-        dec=-22.22,
+        ra_deg=111.11,
+        dec_deg=-22.22,
         healpix_index=33333,
         version="0.1.0",
+        catalogue_name="test",
     )
     db_session.add(component)
     db_session.commit()
 
     # Execute the function
-    query_params = QueryParameters(ra=111.11, dec=-22.22, fov=180, version="latest")
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        version="latest",
+        catalogue_name="test",
+    )
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
@@ -482,15 +504,21 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     assert 1 in result.components
     sky_source = result.components[1]
     assert isinstance(sky_source, SkyComponentDataclass)
-    assert sky_source.ra == 111.11
-    assert sky_source.dec == -22.22
+    assert sky_source.ra_deg == 111.11
+    assert sky_source.dec_deg == -22.22
 
 
 def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
     """Test querying GSM for LSM with no version found"""
 
     # Execute the function
-    query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
+    query_params = QueryParameters(
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        version="latest",
+        catalogue_name="test",
+    )
     with pytest.raises(ValueError, match="No GSM versions available"):
         _query_gsm_for_lsm(query_params, db_session)
 
@@ -506,41 +534,46 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         author="test",
         reference="test",
         notes="test",
-        ref_freq=20000000,
+        ref_freq_hz=20000000,
         epoch="test",
     )
     db_session.add(metadata)
     component = SkyComponent(
         component_id="1",
-        ra=2.9670,
-        dec=-0.1745,
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
         healpix_index=1,
         version="0.1.0",
+        catalogue_name="test",
     )
     db_session.add(component)
 
     component_2 = SkyComponent(
         component_id="2",
-        ra=2.9680,
-        dec=-0.1755,
+        ra_deg=2.9680,
+        dec_deg=-0.1755,
         healpix_index=2,
         version="0.1.0",
+        catalogue_name="test",
     )
     db_session.add(component_2)
 
     component_3 = SkyComponent(
         component_id="3",
-        ra=2.9690,
-        dec=-0.1765,
+        ra_deg=2.9690,
+        dec_deg=-0.1765,
         healpix_index=3,
         version="0.1.0",
+        catalogue_name="test",
     )
     db_session.add(component_3)
 
     db_session.commit()
 
     # Execute the function
-    query_params = QueryParameters(ra=2.9670, dec=-0.1745, fov=0.0873, version="latest")
+    query_params = QueryParameters(
+        ra_deg=2.9670, dec_deg=-0.1745, fov_deg=0.0873, version="latest", catalogue_name="test"
+    )
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
@@ -562,28 +595,26 @@ def test_write_data_integration(
     # Create test components
     component1 = SkyComponentDataclass(
         component_id="TEST001",
-        ra=45.0,
-        dec=-30.0,
-        i_pol=1.5,
-        major_ax=0.01,
-        minor_ax=0.005,
-        pos_ang=45.0,
+        ra_deg=45.0,
+        dec_deg=-30.0,
+        i_pol_jy=1.5,
+        major_ax_arcsec=0.01,
+        minor_ax_arcsec=0.005,
+        pos_ang_deg=45.0,
         spec_idx=[0.8, -0.5],
         log_spec_idx=False,
     )
 
     component2 = SkyComponentDataclass(
         component_id="TEST002",
-        ra=46.0,
-        dec=-31.0,
-        i_pol=2.3,
+        ra_deg=46.0,
+        dec_deg=-31.0,
+        i_pol_jy=2.3,
         spec_idx=[0.9],
     )
 
     query_parameters = QueryParameters(
-        ra=2.9670,
-        dec=-0.1745,
-        fov=0.0873,
+        ra_deg=2.9670, dec_deg=-0.1745, fov_deg=0.0873, catalogue_name="catalogue"
     )
     # Create GlobalSkyModel
     gsm = GlobalSkyModel(
@@ -641,9 +672,7 @@ def test_write_data_empty_components(tmp_path):
     eb_id = "eb-test-20260108-1234"
 
     query_parameters = QueryParameters(
-        ra=2.9670,
-        dec=-0.1745,
-        fov=0.0873,
+        ra_deg=2.9670, dec_deg=-0.1745, fov_deg=0.0873, catalogue_name="catalogue"
     )
 
     # Write the data (should handle empty components gracefully)

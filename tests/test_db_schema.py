@@ -99,9 +99,9 @@ class TestSkyComponentModel:
         # Check for essential columns
         assert "id" in columns
         assert "component_id" in columns
-        assert "ra" in columns
-        assert "dec" in columns
-        assert "i_pol" in columns
+        assert "ra_deg" in columns
+        assert "dec_deg" in columns
+        assert "i_pol_jy" in columns
         assert "healpix_index" in columns
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
@@ -110,11 +110,12 @@ class TestSkyComponentModel:
         """Test creating a SkyComponent instance."""
         component = SkyComponentModel(
             component_id="TestSource1",
-            ra=123.45,
-            dec=-67.89,
-            i_pol=1.23,
+            ra_deg=123.45,
+            dec_deg=-67.89,
+            i_pol_jy=1.23,
             healpix_index=12345,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
 
         db_session.add(component)
@@ -126,28 +127,27 @@ class TestSkyComponentModel:
         )
         assert retrieved is not None
         assert retrieved.component_id == "TestSource1"
-        assert retrieved.ra == 123.45
-        assert retrieved.dec == -67.89
-        assert retrieved.i_pol == 1.23
+        assert retrieved.ra_deg == 123.45
+        assert retrieved.dec_deg == -67.89
+        assert retrieved.i_pol_jy == 1.23
         assert retrieved.healpix_index == 12345
+        assert retrieved.catalogue_name == "catalogue"
 
     def test_sky_component_with_optional_fields(self, db_session):
         """Test creating a SkyComponent with optional fields."""
         component = SkyComponentModel(
             component_id="TestSource2",
-            ra=45.67,
-            dec=12.34,
-            i_pol=5.67,
+            ra_deg=45.67,
+            dec_deg=12.34,
+            i_pol_jy=5.67,
             healpix_index=67890,
-            major_ax=0.001,
-            minor_ax=0.0005,
-            pos_ang=1.57,
+            major_ax_arcsec=0.001,
+            minor_ax_arcsec=0.0005,
+            pos_ang_deg=1.57,
             spec_idx=[1.0, -0.5, 0.1],
             log_spec_idx=True,
-            q_pol=0.1,
-            u_pol=0.2,
-            v_pol=0.05,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
 
         db_session.add(component)
@@ -156,24 +156,22 @@ class TestSkyComponentModel:
         retrieved = (
             db_session.query(SkyComponentModel).filter_by(component_id="TestSource2").first()
         )
-        assert retrieved.major_ax == 0.001
-        assert retrieved.minor_ax == 0.0005
-        assert retrieved.pos_ang == 1.57
+        assert retrieved.major_ax_arcsec == 0.001
+        assert retrieved.minor_ax_arcsec == 0.0005
+        assert retrieved.pos_ang_deg == 1.57
         assert retrieved.spec_idx == [1.0, -0.5, 0.1]
         assert retrieved.log_spec_idx is True
-        assert retrieved.q_pol == 0.1
-        assert retrieved.u_pol == 0.2
-        assert retrieved.v_pol == 0.05
 
     def test_sky_component_versioning_constraint(self, db_session):
         """Test that duplicate component_id + version raises constraint error."""
         component1 = SkyComponentModel(
             component_id="VersionedSource",
-            ra=100.0,
-            dec=50.0,
-            i_pol=1.0,
+            ra_deg=100.0,
+            dec_deg=50.0,
+            i_pol_jy=1.0,
             healpix_index=11111,
             version="0.0.0",
+            catalogue_name="catalogue",
         )
         db_session.add(component1)
         db_session.commit()
@@ -181,11 +179,12 @@ class TestSkyComponentModel:
         # Try to create duplicate component_id + version
         component2 = SkyComponentModel(
             component_id="VersionedSource",
-            ra=200.0,
-            dec=60.0,
-            i_pol=2.0,
+            ra_deg=200.0,
+            dec_deg=60.0,
+            i_pol_jy=2.0,
             healpix_index=22222,
             version="0.0.0",  # Duplicate version
+            catalogue_name="catalogue",
         )
         db_session.add(component2)
 
@@ -196,12 +195,13 @@ class TestSkyComponentModel:
         """Test the columns_to_dict method."""
         component = SkyComponentModel(
             component_id="DictTestSource",
-            ra=111.11,
-            dec=-22.22,
-            i_pol=3.33,
+            ra_deg=111.11,
+            dec_deg=-22.22,
+            i_pol_jy=3.33,
             healpix_index=33333,
-            major_ax=0.002,
+            major_ax_arcsec=0.002,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(component)
         db_session.commit()
@@ -211,22 +211,23 @@ class TestSkyComponentModel:
 
         assert isinstance(component_dict, dict)
         assert component_dict["component_id"] == "DictTestSource"
-        assert component_dict["ra"] == 111.11
-        assert component_dict["dec"] == -22.22
-        assert component_dict["i_pol"] == 3.33
+        assert component_dict["ra_deg"] == 111.11
+        assert component_dict["dec_deg"] == -22.22
+        assert component_dict["i_pol_jy"] == 3.33
         assert component_dict["healpix_index"] == 33333
-        assert component_dict["major_ax"] == 0.002
+        assert component_dict["major_ax_arcsec"] == 0.002
         assert "id" in component_dict
 
     def test_sky_component_nullable_fields(self, db_session):
         """Test that nullable fields can be None."""
         component = SkyComponentModel(
             component_id="NullTestSource",
-            ra=180.0,
-            dec=0.0,
-            i_pol=1.0,
+            ra_deg=180.0,
+            dec_deg=0.0,
+            i_pol_jy=1.0,
             healpix_index=55555,
             version="0.1.0",
+            catalogue_name="catalogue",
             # All optional fields left as None
         )
         db_session.add(component)
@@ -235,26 +236,24 @@ class TestSkyComponentModel:
         retrieved = (
             db_session.query(SkyComponentModel).filter_by(component_id="NullTestSource").first()
         )
-        assert retrieved.major_ax is None
-        assert retrieved.minor_ax is None
-        assert retrieved.pos_ang is None
+        assert retrieved.major_ax_arcsec is None
+        assert retrieved.minor_ax_arcsec is None
+        assert retrieved.pos_ang_deg is None
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
-        assert retrieved.q_pol is None
-        assert retrieved.u_pol is None
-        assert retrieved.v_pol is None
 
     def test_sky_component_spec_idx_as_json(self, db_session):
         """Test that spec_idx field properly stores JSON data."""
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
         component = SkyComponentModel(
             component_id="SpecIdxSource",
-            ra=90.0,
-            dec=45.0,
-            i_pol=2.0,
+            ra_deg=90.0,
+            dec_deg=45.0,
+            i_pol_jy=2.0,
             healpix_index=66666,
             spec_idx=spec_idx_values,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(component)
         db_session.commit()
@@ -271,19 +270,21 @@ class TestSkyComponentModel:
         # Create two versions of the same component
         component_v1 = SkyComponentModel(
             component_id="VersionedSource",
-            ra=100.0,
-            dec=50.0,
-            i_pol=1.0,
+            ra_deg=100.0,
+            dec_deg=50.0,
+            i_pol_jy=1.0,
             healpix_index=11111,
             version="0.0.0",
+            catalogue_name="catalogue",
         )
         component_v2 = SkyComponentModel(
             component_id="VersionedSource",
-            ra=100.1,
-            dec=50.1,
-            i_pol=1.1,
+            ra_deg=100.1,
+            dec_deg=50.1,
+            i_pol_jy=1.1,
             healpix_index=11111,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add_all([component_v1, component_v2])
         db_session.commit()
@@ -304,11 +305,12 @@ class TestSkyComponentStagingModel:
         staged = SkyComponentStaging(
             component_id="StagedSource1",
             upload_id="test-upload-123",
-            ra=123.45,
-            dec=-67.89,
-            i_pol=1.23,
+            ra_deg=123.45,
+            dec_deg=-67.89,
+            i_pol_jy=1.23,
             healpix_index=12345,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(staged)
         db_session.commit()
@@ -327,11 +329,12 @@ class TestSkyComponentStagingModel:
         staged1 = SkyComponentStaging(
             component_id="TestSource",
             upload_id="upload-001",
-            ra=100.0,
-            dec=50.0,
-            i_pol=1.0,
+            ra_deg=100.0,
+            dec_deg=50.0,
+            i_pol_jy=1.0,
             healpix_index=11111,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(staged1)
         db_session.commit()
@@ -340,11 +343,12 @@ class TestSkyComponentStagingModel:
         staged2 = SkyComponentStaging(
             component_id="TestSource",
             upload_id="upload-002",
-            ra=200.0,
-            dec=60.0,
-            i_pol=2.0,
+            ra_deg=200.0,
+            dec_deg=60.0,
+            i_pol_jy=2.0,
             healpix_index=22222,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(staged2)
         db_session.commit()
@@ -360,11 +364,12 @@ class TestSkyComponentStagingModel:
         staged1 = SkyComponentStaging(
             component_id="TestSource",
             upload_id="upload-001",
-            ra=100.0,
-            dec=50.0,
-            i_pol=1.0,
+            ra_deg=100.0,
+            dec_deg=50.0,
+            i_pol_jy=1.0,
             healpix_index=11111,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(staged1)
         db_session.commit()
@@ -373,11 +378,12 @@ class TestSkyComponentStagingModel:
         staged2 = SkyComponentStaging(
             component_id="TestSource",
             upload_id="upload-001",
-            ra=200.0,
-            dec=60.0,
-            i_pol=2.0,
+            ra_deg=200.0,
+            dec_deg=60.0,
+            i_pol_jy=2.0,
             healpix_index=22222,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db_session.add(staged2)
         with pytest.raises(Exception):
@@ -410,7 +416,7 @@ class TestGlobalSkyModelMetadataModel:
 
         assert "id" in columns
         assert "version" in columns
-        assert "ref_freq" in columns
+        assert "ref_freq_hz" in columns
         assert "epoch" in columns
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
@@ -419,7 +425,7 @@ class TestGlobalSkyModelMetadataModel:
         """Test creating a GlobalSkyModelMetadata instance."""
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq=1.4e9,
+            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
@@ -431,14 +437,14 @@ class TestGlobalSkyModelMetadataModel:
         retrieved = db_session.query(GlobalSkyModelMetadata).filter_by(version="1.0.0").first()
         assert retrieved is not None
         assert retrieved.version == "1.0.0"
-        assert retrieved.ref_freq == 1.4e9
+        assert retrieved.ref_freq_hz == 1.4e9
         assert retrieved.epoch == "J2000"
 
     def test_metadata_columns_to_dict_method(self, db_session):
         """Test the columns_to_dict method for GlobalSkyModelMetadata."""
         metadata = GlobalSkyModelMetadata(
             version="2.1.0",
-            ref_freq=3e9,
+            ref_freq_hz=3e9,
             epoch="J2015.5",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-2",
@@ -450,7 +456,7 @@ class TestGlobalSkyModelMetadataModel:
 
         assert isinstance(metadata_dict, dict)
         assert metadata_dict["version"] == "2.1.0"
-        assert metadata_dict["ref_freq"] == 3e9
+        assert metadata_dict["ref_freq_hz"] == 3e9
         assert metadata_dict["epoch"] == "J2015.5"
         assert "id" in metadata_dict
 
@@ -458,21 +464,21 @@ class TestGlobalSkyModelMetadataModel:
         """Test storing multiple metadata versions."""
         metadata1 = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq=1.4e9,
+            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue1",
             upload_id="test-upload-1",
         )
         metadata2 = GlobalSkyModelMetadata(
             version="2.0.0",
-            ref_freq=1.4e9,
+            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue2",
             upload_id="test-upload-2",
         )
         metadata3 = GlobalSkyModelMetadata(
             version="3.0.0",
-            ref_freq=3.0e9,
+            ref_freq_hz=3.0e9,
             epoch="J2015",
             catalogue_name="TestCatalogue3",
             upload_id="test-upload-3",
@@ -497,7 +503,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
         # Create metadata
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq=1.4e9,
+            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
@@ -507,19 +513,21 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
         # Create components
         component1 = SkyComponentModel(
             component_id="IntegrationSource1",
-            ra=100.0,
-            dec=50.0,
-            i_pol=1.5,
+            ra_deg=100.0,
+            dec_deg=50.0,
+            i_pol_jy=1.5,
             healpix_index=77777,
             version="0.1.0",
+            catalogue_name="TestCatalogue",
         )
         component2 = SkyComponentModel(
             component_id="IntegrationSource2",
-            ra=200.0,
-            dec=-30.0,
-            i_pol=2.5,
+            ra_deg=200.0,
+            dec_deg=-30.0,
+            i_pol_jy=2.5,
             healpix_index=88888,
             version="0.1.0",
+            catalogue_name="TestCatalogue",
         )
         db_session.add_all([component1, component2])
         db_session.commit()
@@ -563,7 +571,7 @@ class TestSkyComponentModelDataclassSync:
         """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
         expected_columns = set(SkyComponent.__annotations__.keys())
-        expected_columns.update(["id", "healpix_index", "version", "staging"])
+        expected_columns.update(["id", "healpix_index", "version", "staging", "catalogue_name"])
 
         # Get actual model columns
         inspector = inspect(engine)
@@ -584,8 +592,8 @@ class TestSkyComponentModelDataclassSync:
 
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
-        # Expected: all dataclass fields + 3 database-specific (id, healpix_index, version)
-        expected_count = len(SkyComponent.__annotations__) + 3
+        # Expected: all dataclass fields + 3 database-specific (id, healpix_index, version, catalogue_name)
+        expected_count = len(SkyComponent.__annotations__) + 4
 
         # Get actual count
         inspector = inspect(engine)
@@ -670,7 +678,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + all database-specific fields
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 9
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 8
 
         # Get actual count
         inspector = inspect(engine)

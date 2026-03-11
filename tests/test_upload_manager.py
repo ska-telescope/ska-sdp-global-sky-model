@@ -47,7 +47,7 @@ class TestUploadManager:
 
     catalogue_metadata = GlobalSkyModelMetadata(
         version="1.0.0",
-        ref_freq=1.4e9,
+        ref_freq_hz=1.4e9,
         epoch="J2000",
         catalogue_name="TestCatalogue",
         upload_id="test-upload-1",
