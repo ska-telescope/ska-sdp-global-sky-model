@@ -41,7 +41,7 @@ class TestLocalSkyModel:
             model.set_row(
                 i,
                 {
-                    "component_id": f"GLEAM J{10 * i:06d}-{i:06d}",
+                    "component_id": f"J{10 * i:06d}-{i:06d}",
                     "ra_deg": 11.0 * i,
                     "dec_deg": -i,
                     "i_pol_jy": 10.0 * i,
@@ -61,7 +61,7 @@ class TestLocalSkyModel:
 
         # Check that the values were set correctly.
         for i in range(num_rows):
-            assert model["component_id"][i] == f"GLEAM J{10 * i:06d}-{i:06d}"
+            assert model["component_id"][i] == f"J{10 * i:06d}-{i:06d}"
             assert model["ra_deg"][i] == 11.0 * i
             assert model["dec_deg"][i] == -i
             assert model["i_pol_jy"][i] == 10.0 * i
@@ -103,7 +103,7 @@ class TestLocalSkyModel:
             model.set_row(
                 i,
                 {
-                    "component_id": f"GLEAM J{10 * i:06d}-{i:06d}",
+                    "component_id": f"J{10 * i:06d}-{i:06d}",
                     "ra_deg": 11.0 * i,
                     "dec_deg": -i,
                     "i_pol_jy": 10.0 * i,
@@ -152,7 +152,7 @@ class TestLocalSkyModel:
 
             # Check that the values were read correctly.
             for i in range(model2.num_rows):
-                assert model2["component_id"][i] == f"GLEAM J{10 * i:06d}-{i:06d}"
+                assert model2["component_id"][i] == f"J{10 * i:06d}-{i:06d}"
                 assert model2["ra_deg"][i] == pytest.approx(11.0 * i)
                 assert model2["dec_deg"][i] == pytest.approx(-i)
                 assert model2["i_pol_jy"][i] == pytest.approx(10.0 * i)
