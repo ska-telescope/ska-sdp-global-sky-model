@@ -20,15 +20,12 @@ class TestLocalSkyModel:
         # Define the columns we can store using the list of names.
         column_names = [
             "component_id",
-            "ra",
-            "dec",
-            "i_pol",
-            "ref_freq",
+            "ra_deg",
+            "dec_deg",
+            "i_pol_jy",
+            "ref_freq_hz",
             "spec_idx",
             "log_spec_idx",
-            "q_pol",
-            "u_pol",
-            "v_pol",
         ]
         num_rows = 100
         model = LocalSkyModel.empty(
@@ -45,21 +42,17 @@ class TestLocalSkyModel:
                 i,
                 {
                     "component_id": f"GLEAM J{10 * i:06d}-{i:06d}",
-                    "ra": 11.0 * i,
-                    "dec": -i,
-                    "i_pol": 10.0 * i,
+                    "ra_deg": 11.0 * i,
+                    "dec_deg": -i,
+                    "i_pol_jy": 10.0 * i,
                     "spec_idx": [-0.7, i / 100.0, 0.123],
                     "log_spec_idx": bool(i % 2),
-                    "ref_freq": 100e6 + 1e6 * i,
-                    "q_pol": 2.0 * i,
-                    "u_pol": -1.1 * i,
-                    "v_pol": 0.1 * i,
+                    "ref_freq_hz": 100e6 + 1e6 * i,
                 },
             )
 
         # Override some values.
-        model.set_value("q_pol", 3, 300)
-        model.set_value("ref_freq", 2, 300e6)
+        model.set_value("ref_freq_hz", 2, 300e6)
         model.set_value("spec_idx", 1, [0.987, 0.654])
 
         # Assert that an error is raised when trying to set an unknown field.
@@ -69,9 +62,9 @@ class TestLocalSkyModel:
         # Check that the values were set correctly.
         for i in range(num_rows):
             assert model["component_id"][i] == f"GLEAM J{10 * i:06d}-{i:06d}"
-            assert model["ra"][i] == 11.0 * i
-            assert model["dec"][i] == -i
-            assert model["i_pol"][i] == 10.0 * i
+            assert model["ra_deg"][i] == 11.0 * i
+            assert model["dec_deg"][i] == -i
+            assert model["i_pol_jy"][i] == 10.0 * i
             assert bool(model["log_spec_idx"][i]) == bool(i % 2)
             if i == 1:
                 # Overridden value.
@@ -82,16 +75,9 @@ class TestLocalSkyModel:
                 assert numpy.allclose(model["spec_idx"][i], [-0.7, i / 100.0, 0.123])
             if i == 2:
                 # Overridden value.
-                assert model["ref_freq"][i] == 300e6
+                assert model["ref_freq_hz"][i] == 300e6
             else:
-                assert model["ref_freq"][i] == 100e6 + 1e6 * i
-            if i == 3:
-                # Overridden value.
-                assert model["q_pol"][i] == 300
-            else:
-                assert model["q_pol"][i] == 2.0 * i
-            assert model["u_pol"][i] == -1.1 * i
-            assert model["v_pol"][i] == 0.1 * i
+                assert model["ref_freq_hz"][i] == 100e6 + 1e6 * i
 
     # pylint: disable=too-many-locals
     def test_save_and_load(self):
@@ -99,15 +85,12 @@ class TestLocalSkyModel:
         # Define the columns we can store using the list of names.
         column_names = [
             "component_id",
-            "ra",
-            "dec",
-            "i_pol",
-            "ref_freq",
+            "ra_deg",
+            "dec_deg",
+            "i_pol_jy",
+            "ref_freq_hz",
             "spec_idx",
             "log_spec_idx",
-            "q_pol",
-            "u_pol",
-            "v_pol",
         ]
         num_rows = 20000
         model = LocalSkyModel.empty(
@@ -121,15 +104,12 @@ class TestLocalSkyModel:
                 i,
                 {
                     "component_id": f"GLEAM J{10 * i:06d}-{i:06d}",
-                    "ra": 11.0 * i,
-                    "dec": -i,
-                    "i_pol": 10.0 * i,
+                    "ra_deg": 11.0 * i,
+                    "dec_deg": -i,
+                    "i_pol_jy": 10.0 * i,
                     "spec_idx": [-0.7, i / 100.0, 0.123],
                     "log_spec_idx": bool(i % 2),
-                    "ref_freq": 100e6 + 1e6 * i,
-                    "q_pol": 2.0 * i,
-                    "u_pol": -1.1 * i,
-                    "v_pol": 0.1 * i,
+                    "ref_freq_hz": 100e6 + 1e6 * i,
                 },
             )
 
@@ -173,15 +153,12 @@ class TestLocalSkyModel:
             # Check that the values were read correctly.
             for i in range(model2.num_rows):
                 assert model2["component_id"][i] == f"GLEAM J{10 * i:06d}-{i:06d}"
-                assert model2["ra"][i] == pytest.approx(11.0 * i)
-                assert model2["dec"][i] == pytest.approx(-i)
-                assert model2["i_pol"][i] == pytest.approx(10.0 * i)
+                assert model2["ra_deg"][i] == pytest.approx(11.0 * i)
+                assert model2["dec_deg"][i] == pytest.approx(-i)
+                assert model2["i_pol_jy"][i] == pytest.approx(10.0 * i)
                 assert bool(model2["log_spec_idx"][i]) == bool(i % 2)
                 assert numpy.allclose(model2["spec_idx"][i], [-0.7, i / 100.0, 0.123])
-                assert model2["ref_freq"][i] == pytest.approx(100e6 + 1e6 * i)
-                assert model2["q_pol"][i] == pytest.approx(2.0 * i)
-                assert model2["u_pol"][i] == pytest.approx(-1.1 * i)
-                assert model2["v_pol"][i] == pytest.approx(0.1 * i)
+                assert model2["ref_freq_hz"][i] == pytest.approx(100e6 + 1e6 * i)
 
             # Check that the metadata YAML file was written correctly.
             with open(yaml_path, encoding="utf-8") as stream:
@@ -237,6 +214,7 @@ class TestLocalSkyModel:
         model = LocalSkyModel.empty(
             column_names=["spec_idx"],
             num_rows=3,
+            max_vector_len=5
         )
         # Single float
         model.set_value("spec_idx", 0, [0.111])
@@ -245,9 +223,7 @@ class TestLocalSkyModel:
         # Empty vector
         model.set_value("spec_idx", 2, [])
 
-        # Should be just the float
-        assert model.get_value_str("spec_idx", 0) == "0.111"
-        # Should be quoted bracketed
-        assert model.get_value_str("spec_idx", 1) == '"[0.111,0.222]"'
-        # Should be []
-        assert model.get_value_str("spec_idx", 2) == "[]"
+        # See PHX-409.
+        assert model.get_value_str("spec_idx", 0) == '"[0.111,,,,]"'
+        assert model.get_value_str("spec_idx", 1) == '"[0.111,0.222,,,]"'
+        assert model.get_value_str("spec_idx", 2) == '"[,,,,]"'
