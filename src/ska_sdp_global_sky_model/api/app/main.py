@@ -32,7 +32,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     get_db,
     templates,
 )
-from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder, serialize_rows
+from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 from ska_sdp_global_sky_model.utilities.version_utils import is_version_increment
 
 logger = logging.getLogger(__name__)
@@ -647,19 +647,7 @@ def query_gsm_metadata(
         List of catalogue metadata records
     """
 
-    qb = QueryBuilder(GlobalSkyModelMetadata, request.query_params)
-
-    query = db.query(GlobalSkyModelMetadata)
-
-    query = qb.apply_filters(query)
-    query = qb.apply_sort(query)
-    query = qb.apply_limit(query)
-
-    rows = query.all()
-
-    fields = qb.get_selected_fields()
-
-    return serialize_rows(rows, fields)
+    return QueryBuilder(GlobalSkyModelMetadata, request.query_params).query(db)
 
 
 @app.get("/catalogue-metadata/{catalogue_id}", summary="Get specific catalogue metadata")

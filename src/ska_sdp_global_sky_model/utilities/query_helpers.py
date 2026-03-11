@@ -2,6 +2,10 @@
 Adds generic querying for catalogue metadata.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 OPERATORS = {
     "eq": lambda c, v: c == v,
     "ne": lambda c, v: c != v,
@@ -56,6 +60,7 @@ def convert_value(column, value: str):
         return python_type(value)
 
     except Exception:  # pylint: disable=broad-exception-caught
+        logger.error("Failed to convert %s to python type.", value)
         return value
 
 
@@ -131,6 +136,8 @@ class QueryBuilder:
         """
 
         for key, value in self.params.items():
+
+            logger.debug("Key/Value pairs in query parameters: %s: %s", key, value)
 
             if key in ("limit", "sort", "fields"):
                 continue
@@ -251,6 +258,32 @@ class QueryBuilder:
         fields = fields_param.split(",")
 
         return [f for f in fields if f in self.valid_columns]
+
+    def query(self, db):
+        """
+        Execute the query and return serialized results.
+
+        Parameters
+        ----------
+        db : sqlalchemy.orm.Session
+            Database session used to construct and execute the query.
+
+        Returns
+        -------
+        list[dict]
+            Serialized query results.
+        """
+        query = db.query(self.model)
+
+        filter_query = self.apply_filters(query)
+        sort_filter_query = self.apply_sort(filter_query)
+        limit_sort_filter_query = self.apply_limit(sort_filter_query)
+
+        rows = limit_sort_filter_query.all()
+
+        fields = self.get_selected_fields()
+
+        return serialize_rows(rows, fields)
 
 
 def serialize_rows(rows, selected_fields=None):
