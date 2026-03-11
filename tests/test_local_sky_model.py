@@ -211,11 +211,7 @@ class TestLocalSkyModel:
 
     def test_format_vector_csv_output(self):
         """Test CSV output for vector columns: single vs multi-element formatting."""
-        model = LocalSkyModel.empty(
-            column_names=["spec_idx"],
-            num_rows=3,
-            max_vector_len=5
-        )
+        model = LocalSkyModel.empty(column_names=["spec_idx"], num_rows=3, max_vector_len=5)
         # Single float
         model.set_value("spec_idx", 0, [0.111])
         # Multi-element vector
