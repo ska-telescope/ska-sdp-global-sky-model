@@ -67,7 +67,8 @@ def sample_csv_file():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(
-            "component_id,ra_deg,dec_deg,i_pol_jy,major_ax_arcsec,minor_ax_arcsec,pos_ang_deg,spec_idx,log_spec_idx\n"
+            "component_id,ra_deg,dec_deg,i_pol_jy,major_ax_arcsec,"
+            "minor_ax_arcsec,pos_ang_deg,spec_idx,log_spec_idx\n"
         )
         f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,-0.7,false\n")
         f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,-0.8,true\n")

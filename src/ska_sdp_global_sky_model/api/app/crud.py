@@ -22,7 +22,7 @@ class q3c_radial_query(GenericFunction):
     name = "q3c_radial_query"
 
 
-# pylint: disable=unused-argument
+# pylint: disable-next=unused-argument,too-many-arguments,too-many-positional-arguments
 def get_local_sky_model(
     db,
     ra_deg: float,

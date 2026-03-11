@@ -592,7 +592,8 @@ class TestSkyComponentModelDataclassSync:
 
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
-        # Expected: all dataclass fields + 3 database-specific (id, healpix_index, version, catalogue_name)
+        # Expected: all dataclass fields + 3 database-specific
+        #   (id, healpix_index, version, catalogue_name)
         expected_count = len(SkyComponent.__annotations__) + 4
 
         # Get actual count
