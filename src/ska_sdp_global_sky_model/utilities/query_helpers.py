@@ -275,11 +275,11 @@ class QueryBuilder:
         """
         query = db.query(self.model)
 
-        filter_query = self.apply_filters(query)
-        sort_filter_query = self.apply_sort(filter_query)
-        limit_sort_filter_query = self.apply_limit(sort_filter_query)
+        query = self.apply_filters(query)
+        query = self.apply_sort(query)
+        query = self.apply_limit(query)
 
-        rows = limit_sort_filter_query.all()
+        rows = query.all()
 
         fields = self.get_selected_fields()
 
