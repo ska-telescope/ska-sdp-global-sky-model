@@ -438,8 +438,8 @@ the required standardized format:
 .. code-block:: text
 
     component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,b_arcsec,pa_deg,spec_idx,log_spec_idx
-    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,"[-0.419238]",False
-    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,"[-1.074094]",False
+    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,"[-0.419238,,,,]",False
+    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,"[-1.074094,,,,]",False
 
 These test catalogues contain 100 components each and are used throughout the test suite as reference examples.
 
