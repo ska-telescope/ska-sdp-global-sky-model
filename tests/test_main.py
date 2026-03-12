@@ -225,7 +225,7 @@ def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argumen
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra_deg": "90", "dec_deg": "4", "fov_deg": 5},
+        params={"ra_deg": "90", "dec_deg": "4", "fov_deg": 5, "catalogue_name": "catalogue"},
     )
 
     assert local_sky_model.status_code == 200
@@ -243,7 +243,13 @@ def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=u
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra_deg": "90", "dec_deg": "4", "fov_deg": 5, "version": "1.1.0"},
+        params={
+            "ra_deg": "90",
+            "dec_deg": "4",
+            "fov_deg": 5,
+            "version": "1.1.0",
+            "catalogue_name": "catalogue",
+        },
     )
 
     assert local_sky_model.status_code == 200
@@ -261,7 +267,7 @@ def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unus
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra_deg": "90", "dec_deg": "2", "fov_deg": 0.2},
+        params={"ra_deg": "90", "dec_deg": "2", "fov_deg": 0.2, "catalogue_name": "catalogue"},
     )
 
     assert local_sky_model.status_code == 200
@@ -279,7 +285,13 @@ def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disabl
 
     local_sky_model = myclient.get(
         "/local_sky_model/",
-        params={"ra_deg": "90", "dec_deg": "2", "fov_deg": 5, "version": "2.0.0"},
+        params={
+            "ra_deg": "90",
+            "dec_deg": "2",
+            "fov_deg": 5,
+            "version": "2.0.0",
+            "catalogue_name": "catalogue",
+        },
     )
 
     assert local_sky_model.status_code == 200

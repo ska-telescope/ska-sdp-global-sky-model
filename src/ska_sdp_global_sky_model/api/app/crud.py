@@ -28,8 +28,8 @@ def get_local_sky_model(
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
+    catalogue_name: str,
     version: str | None = None,
-    catalogue_name: str | None = None,
 ) -> list:
     """
     Retrieves a local sky model (LSM) from a global sky model for a specific celestial observation.
@@ -63,8 +63,7 @@ def get_local_sky_model(
     if version:
         query = query.where(SkyComponent.version == version)
 
-    if catalogue_name:
-        query = query.where(SkyComponent.catalogue_name == catalogue_name)
+    query = query.where(SkyComponent.catalogue_name == catalogue_name)
 
     sky_components = query.all()
 

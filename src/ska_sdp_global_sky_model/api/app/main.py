@@ -126,8 +126,8 @@ async def get_local_sky_model_endpoint(
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
+    catalogue_name: str,
     version: str | None = None,
-    catalogue_name: str | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -154,7 +154,7 @@ dec:%s, fov:%s, version:%s, catalogue: %s",
         version,
         catalogue_name,
     )
-    local_model = get_local_sky_model(db, ra_deg, dec_deg, fov_deg, version, catalogue_name)
+    local_model = get_local_sky_model(db, ra_deg, dec_deg, fov_deg, catalogue_name, version)
     return templates.TemplateResponse(
         "table.html", {"request": request, "items": list(local_model)}
     )
