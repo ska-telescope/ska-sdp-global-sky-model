@@ -5,7 +5,7 @@ include .make/python.mk
 
 PYTHON_LINE_LENGTH = 99
 CHANGELOG_FILE = CHANGELOG.rst
-MIGRATION_NOTE = New Migration Note
+MIGRATION_NOTE ?= New Migration Note
 
 build:
 	docker compose pull

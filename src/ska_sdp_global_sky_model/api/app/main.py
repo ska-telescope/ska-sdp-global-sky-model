@@ -304,7 +304,6 @@ async def upload_sky_survey_batch(
         catalogue_name=metadata.get("catalogue_name", "UPLOAD"),
         description=metadata.get("description", ""),
         upload_id="upload_id_placeholder",  # Will be set after creating upload status
-        ref_freq_hz=metadata.get("ref_freq_hz"),
         epoch=metadata.get("epoch"),
         author=metadata.get("author"),
         reference=metadata.get("reference"),
@@ -318,10 +317,9 @@ async def upload_sky_survey_batch(
     try:
         logger.info(
             "Received upload with metadata: version=%s, catalogue_name=%s, \
-            ref_freq=%s, epoch=%s, upload_id=%s",
+            epoch=%s, upload_id=%s",
             catalogue_metadata.version,
             catalogue_metadata.catalogue_name,
-            catalogue_metadata.ref_freq_hz,
             catalogue_metadata.epoch,
             catalogue_metadata.upload_id,
         )

@@ -141,9 +141,9 @@ class TestSkyComponentModel:
             dec_deg=12.34,
             i_pol_jy=5.67,
             healpix_index=67890,
-            major_ax_arcsec=0.001,
-            minor_ax_arcsec=0.0005,
-            pos_ang_deg=1.57,
+            a_arcsec=0.001,
+            b_arcsec=0.0005,
+            pa_deg=1.57,
             spec_idx=[1.0, -0.5, 0.1],
             log_spec_idx=True,
             version="0.1.0",
@@ -156,9 +156,9 @@ class TestSkyComponentModel:
         retrieved = (
             db_session.query(SkyComponentModel).filter_by(component_id="TestSource2").first()
         )
-        assert retrieved.major_ax_arcsec == 0.001
-        assert retrieved.minor_ax_arcsec == 0.0005
-        assert retrieved.pos_ang_deg == 1.57
+        assert retrieved.a_arcsec == 0.001
+        assert retrieved.b_arcsec == 0.0005
+        assert retrieved.pa_deg == 1.57
         assert retrieved.spec_idx == [1.0, -0.5, 0.1]
         assert retrieved.log_spec_idx is True
 
@@ -199,7 +199,7 @@ class TestSkyComponentModel:
             dec_deg=-22.22,
             i_pol_jy=3.33,
             healpix_index=33333,
-            major_ax_arcsec=0.002,
+            a_arcsec=0.002,
             version="0.1.0",
             catalogue_name="catalogue",
         )
@@ -215,7 +215,7 @@ class TestSkyComponentModel:
         assert component_dict["dec_deg"] == -22.22
         assert component_dict["i_pol_jy"] == 3.33
         assert component_dict["healpix_index"] == 33333
-        assert component_dict["major_ax_arcsec"] == 0.002
+        assert component_dict["a_arcsec"] == 0.002
         assert "id" in component_dict
 
     def test_sky_component_nullable_fields(self, db_session):
@@ -236,9 +236,9 @@ class TestSkyComponentModel:
         retrieved = (
             db_session.query(SkyComponentModel).filter_by(component_id="NullTestSource").first()
         )
-        assert retrieved.major_ax_arcsec is None
-        assert retrieved.minor_ax_arcsec is None
-        assert retrieved.pos_ang_deg is None
+        assert retrieved.a_arcsec is None
+        assert retrieved.b_arcsec is None
+        assert retrieved.pa_deg is None
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
 
@@ -416,7 +416,6 @@ class TestGlobalSkyModelMetadataModel:
 
         assert "id" in columns
         assert "version" in columns
-        assert "ref_freq_hz" in columns
         assert "epoch" in columns
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
@@ -425,7 +424,6 @@ class TestGlobalSkyModelMetadataModel:
         """Test creating a GlobalSkyModelMetadata instance."""
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
@@ -437,14 +435,12 @@ class TestGlobalSkyModelMetadataModel:
         retrieved = db_session.query(GlobalSkyModelMetadata).filter_by(version="1.0.0").first()
         assert retrieved is not None
         assert retrieved.version == "1.0.0"
-        assert retrieved.ref_freq_hz == 1.4e9
         assert retrieved.epoch == "J2000"
 
     def test_metadata_columns_to_dict_method(self, db_session):
         """Test the columns_to_dict method for GlobalSkyModelMetadata."""
         metadata = GlobalSkyModelMetadata(
             version="2.1.0",
-            ref_freq_hz=3e9,
             epoch="J2015.5",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-2",
@@ -456,7 +452,7 @@ class TestGlobalSkyModelMetadataModel:
 
         assert isinstance(metadata_dict, dict)
         assert metadata_dict["version"] == "2.1.0"
-        assert metadata_dict["ref_freq_hz"] == 3e9
+        assert metadata_dict["catalogue_name"] == "TestCatalogue"
         assert metadata_dict["epoch"] == "J2015.5"
         assert "id" in metadata_dict
 
@@ -464,21 +460,18 @@ class TestGlobalSkyModelMetadataModel:
         """Test storing multiple metadata versions."""
         metadata1 = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue1",
             upload_id="test-upload-1",
         )
         metadata2 = GlobalSkyModelMetadata(
             version="2.0.0",
-            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue2",
             upload_id="test-upload-2",
         )
         metadata3 = GlobalSkyModelMetadata(
             version="3.0.0",
-            ref_freq_hz=3.0e9,
             epoch="J2015",
             catalogue_name="TestCatalogue3",
             upload_id="test-upload-3",
@@ -503,7 +496,6 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
         # Create metadata
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
@@ -519,6 +511,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             healpix_index=77777,
             version="0.1.0",
             catalogue_name="TestCatalogue",
+            ref_freq_hz=1.4e9,
         )
         component2 = SkyComponentModel(
             component_id="IntegrationSource2",
@@ -528,6 +521,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             healpix_index=88888,
             version="0.1.0",
             catalogue_name="TestCatalogue",
+            ref_freq_hz=1.4e9,
         )
         db_session.add_all([component1, component2])
         db_session.commit()

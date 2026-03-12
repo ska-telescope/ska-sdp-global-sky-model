@@ -45,7 +45,7 @@ python-multipart = "^0.0.9"
 healpy = "^1.19.0"
 alembic = "^1.13.2"
 ska-sdp-config = "^1.5.1"
-ska-sdp-datamodels = { version = "1.1.0+dev.c39e358ca", source = "ska-sdp-datamodels" }
+ska-sdp-datamodels = { version = "1.1.0+dev.cd3cf5009", source = "ska-sdp-datamodels" }
 ska-sdp-dataproduct-metadata = "^1.1.1"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
 PyYAML = "^6.0.0"
@@ -84,6 +84,9 @@ line-length = 99
 [tool.pylint.main]
 # auto generated files.
 ignore-paths = ["src/ska_sdp_global_sky_model/alembic/versions"]
+
+[tool.pylint]
+jobs = 0
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

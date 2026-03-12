@@ -67,12 +67,12 @@ def sample_csv_file():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(
-            "component_id,ra_deg,dec_deg,i_pol_jy,major_ax_arcsec,"
-            "minor_ax_arcsec,pos_ang_deg,spec_idx,log_spec_idx\n"
+            "component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,"
+            "b_arcsec,pa_deg,spec_idx,log_spec_idx,ref_freq_hz\n"
         )
-        f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,-0.7,false\n")
-        f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,-0.8,true\n")
-        f.write("J223344-556677,30.1,-20.5,0.8,,,,-0.5,false\n")
+        f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,-0.7,false,3000000000\n")
+        f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,-0.8,true,3000000000\n")
+        f.write("J223344-556677,30.1,-20.5,0.8,,,,-0.5,false,3000000000\n")
         temp_path = Path(f.name)
 
     yield temp_path
@@ -180,16 +180,16 @@ class TestBuildComponentMapping:
             "ra_deg": "10.5",
             "dec_deg": "45.2",
             "i_pol_jy": "1.5",
-            "major_ax_arcsec": "0.01",
-            "minor_ax_arcsec": "0.008",
-            "pos_ang_deg": "45.0",
+            "a_arcsec": "0.01",
+            "b_arcsec": "0.008",
+            "pa_deg": "45.0",
         }
 
         mapping = build_component_mapping(component_dict)
 
-        assert mapping["major_ax_arcsec"] == 0.01
-        assert mapping["minor_ax_arcsec"] == 0.008
-        assert mapping["pos_ang_deg"] == 45.0
+        assert mapping["a_arcsec"] == 0.01
+        assert mapping["b_arcsec"] == 0.008
+        assert mapping["pa_deg"] == 45.0
 
     def test_mapping_with_spectral_index(self):
         """Test mapping with spectral index"""
@@ -263,6 +263,7 @@ class TestValidateComponentMapping:
             "ra_deg": 10.5,
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
+            "ref_freq_hz": 300e6,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is True
@@ -275,6 +276,7 @@ class TestValidateComponentMapping:
             "ra_deg": 10.5,
             # Missing dec_deg
             "i_pol_jy": 1.5,
+            "ref_freq_hz": 300e6,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
@@ -287,6 +289,7 @@ class TestValidateComponentMapping:
             "ra_deg": 400.0,  # Invalid
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
+            "ref_freq_hz": 300e6,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
@@ -299,6 +302,7 @@ class TestValidateComponentMapping:
             "ra_deg": 10.5,
             "dec_deg": 95.0,  # Invalid
             "i_pol_jy": 1.5,
+            "ref_freq_hz": 300e6,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
@@ -311,6 +315,7 @@ class TestValidateComponentMapping:
             "ra_deg": "not_a_number",  # Invalid type
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
+            "ref_freq_hz": 300e6,
         }
         is_valid, error = validate_component_mapping(mapping)
         assert is_valid is False
@@ -466,12 +471,12 @@ class TestProcessComponentDataBatch:
 
         # Create CSV with multiple invalid components
         invalid_csv = (
-            "component_id,ra_deg,dec_deg,i_pol_jy\n"
-            "J001122-334455,10.5,45.2,1.5\n"  # Valid
-            "J112233-445566,400.0,30.1,2.3\n"  # Invalid RA
-            "J223344-556677,30.1,95.0,0.8\n"  # Invalid DEC
-            "J334455-667788,20.0,10.0,-1.0\n"  # Valid (i_pol no longer validated)
-            "J445566-778899,50.0,20.0,2.0\n"  # Valid
+            "component_id,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
+            "J001122-334455,10.5,45.2,1.5,300000000\n"  # Valid
+            "J112233-445566,400.0,30.1,2.3,300000000\n"  # Invalid RA
+            "J223344-556677,30.1,95.0,0.8,300000000\n"  # Invalid DEC
+            "J334455-667788,20.0,10.0,-1.0,300000000\n"  # Valid (i_pol no longer validated)
+            "J445566-778899,50.0,20.0,2.0,300000000\n"  # Valid
         )
 
         cf = ComponentFile(invalid_csv)
@@ -549,9 +554,9 @@ class TestProcessComponentDataBatch:
         caplog.set_level(logging.INFO)
 
         valid_csv = (
-            "component_id,ra_deg,dec_deg,i_pol_jy\n"
-            "J001122-334455,10.5,45.2,1.5\n"
-            "J112233-445566,20.0,30.1,2.3\n"
+            "component_id,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
+            "J001122-334455,10.5,45.2,1.5,300000000\n"
+            "J112233-445566,20.0,30.1,2.3,300000000\n"
         )
 
         cf = ComponentFile(valid_csv)
@@ -597,7 +602,6 @@ class TestIngestCatalogue:
 
         catalogue_metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="TEST",
             upload_id="test-upload-1",
@@ -618,7 +622,6 @@ class TestIngestCatalogue:
 
         catalogue_metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            ref_freq_hz=1.4e9,
             epoch="J2000",
             catalogue_name="EMPTY",
             upload_id="test-upload-1",

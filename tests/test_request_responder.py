@@ -473,7 +473,6 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         author="test",
         reference="test",
         notes="test",
-        ref_freq_hz=20000000,
         epoch="test",
     )
     db_session.add(metadata)
@@ -484,6 +483,7 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         healpix_index=33333,
         version="0.1.0",
         catalogue_name="test",
+        ref_freq_hz=20000000,
     )
     db_session.add(component)
     db_session.commit()
@@ -534,7 +534,6 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         author="test",
         reference="test",
         notes="test",
-        ref_freq_hz=20000000,
         epoch="test",
     )
     db_session.add(metadata)
@@ -545,6 +544,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         healpix_index=1,
         version="0.1.0",
         catalogue_name="test",
+        ref_freq_hz=20000000,
     )
     db_session.add(component)
 
@@ -555,6 +555,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         healpix_index=2,
         version="0.1.0",
         catalogue_name="test",
+        ref_freq_hz=20000000,
     )
     db_session.add(component_2)
 
@@ -565,6 +566,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         healpix_index=3,
         version="0.1.0",
         catalogue_name="test",
+        ref_freq_hz=20000000,
     )
     db_session.add(component_3)
 
@@ -598,11 +600,12 @@ def test_write_data_integration(
         ra_deg=45.0,
         dec_deg=-30.0,
         i_pol_jy=1.5,
-        major_ax_arcsec=0.01,
-        minor_ax_arcsec=0.005,
-        pos_ang_deg=45.0,
+        a_arcsec=0.01,
+        b_arcsec=0.005,
+        pa_deg=45.0,
         spec_idx=[0.8, -0.5],
         log_spec_idx=False,
+        ref_freq_hz=300e6,
     )
 
     component2 = SkyComponentDataclass(
@@ -611,6 +614,7 @@ def test_write_data_integration(
         dec_deg=-31.0,
         i_pol_jy=2.3,
         spec_idx=[0.9],
+        ref_freq_hz=300e6,
     )
 
     query_parameters = QueryParameters(

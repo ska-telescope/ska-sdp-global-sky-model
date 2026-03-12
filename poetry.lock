@@ -3282,14 +3282,14 @@ reference = "skao"
 
 [[package]]
 name = "ska-sdp-datamodels"
-version = "1.1.0+dev.c39e358ca"
+version = "1.1.0+dev.cd3cf5009"
 description = "SKA SDP Python-based Data Models"
 optional = false
 python-versions = ">=3.10,<4.0"
 groups = ["main"]
 files = [
-    {file = "ska_sdp_datamodels-1.1.0+dev.c39e358ca-py3-none-any.whl", hash = "sha256:e8ec5fd6e7a1f0ddbe2b5da7954921c43a9e73fdb239c5dd3a279a6cea226927"},
-    {file = "ska_sdp_datamodels-1.1.0+dev.c39e358ca.tar.gz", hash = "sha256:d4c7a56c86ab2786b5c64b285089d735e64f853af27898b8af7f95c5e087fb8d"},
+    {file = "ska_sdp_datamodels-1.1.0+dev.cd3cf5009-py3-none-any.whl", hash = "sha256:190f1fa562f04390098d58cd1157bd1ac2ae95a6779b08dea75480d4a8870856"},
+    {file = "ska_sdp_datamodels-1.1.0+dev.cd3cf5009.tar.gz", hash = "sha256:361fa94fb8026ae57641dd672650ed53a8e36171d33cbd5015aa01a5b2d8f050"},
 ]
 
 [package.dependencies]
@@ -4111,4 +4111,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "c848872e8904bbc606d9a28cd8ab866125f674fefc8e3eadf2a40cd5f7a33db3"
+content-hash = "da4d3257988b27c0618675bbda387e74e3348b26e2380247f9e165192b364708"
