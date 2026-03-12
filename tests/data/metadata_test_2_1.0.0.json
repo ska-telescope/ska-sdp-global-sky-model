@@ -2,7 +2,6 @@
   "version": "1.0.0",
   "catalogue_name": "TEST_CATALOGUE_2",
   "description": "Test catalogue 2 for development and testing purposes",
-  "ref_freq_hz": 200000000,
   "epoch": "J2000",
   "author": "SKA SDP Team",
   "notes": "Sample test data for ska-sdp-global-sky-model"

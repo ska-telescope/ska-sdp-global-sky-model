@@ -44,7 +44,7 @@ def main():
         metadata_json = json.load(f)
 
     # Validate required fields
-    required_fields = ["version", "catalogue_name", "ref_freq_hz", "epoch"]
+    required_fields = ["version", "catalogue_name", "epoch"]
     missing_fields = [field for field in required_fields if field not in metadata_json]
     if missing_fields:
         logger.error("Error: Missing required fields in metadata file: %s", missing_fields)
@@ -65,7 +65,6 @@ def main():
                 "description", f"Import of {metadata_json['catalogue_name']}"
             ),
             upload_id=upload_id,
-            ref_freq_hz=metadata_json["ref_freq_hz"],
             epoch=metadata_json["epoch"],
             author=metadata_json.get("author"),
             reference=metadata_json.get("reference"),
