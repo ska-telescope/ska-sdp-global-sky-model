@@ -321,8 +321,8 @@ Commit Staged Upload
 
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
-Commit staged data to the main database with the catalogue version from the metadata file. All components 
-in the upload receive the same version. Creates a record in the ``global_sky_model_metadata`` table with the 
+Commit staged data to the main database with the catalogue version from the metadata file. All components
+in the upload receive the same version. Creates a record in the ``global_sky_model_metadata`` table with the
 upload information.
 
 .. list-table::
@@ -437,9 +437,9 @@ the required standardized format:
 
 .. code-block:: text
 
-    component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx
-    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,-0.419238,False
-    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,-1.074094,False
+    component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,b_arcsec,pa_deg,spec_idx,log_spec_idx
+    J025837+035057,44.656883,3.849425,0.835419,142.417,132.7302,3.451346,"[-0.419238]",False
+    J030420+022029,46.084633,2.341634,0.29086,137.107,134.2583,-0.666618,"[-1.074094]",False
 
 These test catalogues contain 100 components each and are used throughout the test suite as reference examples.
 
@@ -449,6 +449,6 @@ At minimum, you need the four required columns:
 
 .. code-block:: text
 
-    component_id,ra,dec,i_pol
+    component_id,ra_deg,dec_deg,i_pol_jy
     J000001-350001,0.004,-35.0,0.25
     J000002-350002,0.008,-35.1,0.23
