@@ -67,9 +67,9 @@ def sample_csv_file():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write("component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,spec_idx,log_spec_idx\n")
-        f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,-0.7,false\n")
-        f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,-0.8,true\n")
-        f.write("J223344-556677,30.1,-20.5,0.8,,,,-0.5,false\n")
+        f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,\"[-0.7,,,,]\",false\n")
+        f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,\"[-0.8,,,,]\",true\n")
+        f.write("J223344-556677,30.1,-20.5,0.8,,,,\"[-0.5,,,,]\",false\n")
         temp_path = Path(f.name)
 
     yield temp_path
@@ -195,12 +195,12 @@ class TestBuildComponentMapping:
             "ra": "10.5",
             "dec": "45.2",
             "i_pol": "1.5",
-            "spec_idx": "-0.7",
+            "spec_idx": "[-0.7,,,,]",
         }
 
         mapping = build_component_mapping(component_dict)
 
-        assert mapping["spec_idx"] == -0.7
+        assert mapping["spec_idx"] == [-0.7, None, None, None, None]
 
     def test_mapping_with_spec_idx_invalid_string(self):
         """Test spec_idx with invalid string converts to None"""
