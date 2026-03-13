@@ -1,6 +1,13 @@
 CHANGELOG
 =========
 
+Development
+-----------
+
+- [Added] Endpoint for querying metadata table that supports generic queries and multiple operators
+  (`MR83 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/83>`__)
+
+
 0.3.0
 -----
 

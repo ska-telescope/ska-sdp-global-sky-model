@@ -1,4 +1,4 @@
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, too-many-lines
 """
 Basic testing of the API
 """
@@ -972,3 +972,167 @@ def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
         assert count == 0
     finally:
         db.close()
+
+
+def _insert_test_metadata():
+    """Insert multiple test metadata records for query tests."""
+    db = next(override_get_db())
+    try:
+        db.query(GlobalSkyModelMetadata).delete()
+        db.commit()
+        records = [
+            GlobalSkyModelMetadata(
+                version="1.0",
+                catalogue_name="GLEAM",
+                description="First test catalogue",
+                upload_id="upload1",
+                staging=True,
+            ),
+            GlobalSkyModelMetadata(
+                version="2.0",
+                catalogue_name="GLEAM Extended",
+                description="Second test catalogue",
+                upload_id="upload2",
+                staging=False,
+            ),
+            GlobalSkyModelMetadata(
+                version="3.0",
+                catalogue_name="LOFAR",
+                description="Third test catalogue",
+                upload_id="upload3",
+                staging=True,
+            ),
+        ]
+        db.add_all(records)
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_query_metadata_basic(myclient):
+    """Test retrieving all metadata records with no filters."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/catalogue-metadata")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 3
+
+
+def test_query_metadata_filter_version_and_name(myclient):
+    """Test filtering by version and partial catalogue name."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get(
+        "/catalogue-metadata",
+        params={"version": "2.0", "catalogue_name__contains": "GLEAM"},
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 1
+    record = data[0]
+    assert record["version"] == "2.0"
+    assert "GLEAM" in record["catalogue_name"]
+
+
+def test_query_metadata_sorting(myclient):
+    """Test sorting by version descending."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/catalogue-metadata", params={"sort": "-version"})
+    assert response.status_code == 200
+
+    data = response.json()
+    assert len(data) == 3
+    versions = [r["version"] for r in data]
+    assert versions == sorted(versions, reverse=True)
+
+
+def test_query_metadata_fields_selection(myclient):
+    """Test selecting only specific columns."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/catalogue-metadata", params={"fields": "version,catalogue_name"})
+    assert response.status_code == 200
+
+    data = response.json()
+    for row in data:
+        assert set(row.keys()) == {"version", "catalogue_name"}
+
+
+def test_query_metadata_pagination(myclient):
+    """Test limit parameter."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    # Limit 2
+    response = myclient.get("/catalogue-metadata", params={"limit": "2"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+
+
+def test_query_metadata_gt_lt(myclient):
+    """Test __gt and __lt operators on version field."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    # __gt operator
+    response = myclient.get("/catalogue-metadata", params={"version__gt": "1.5"})
+    assert response.status_code == 200
+    data = response.json()
+    versions = [r["version"] for r in data]
+    assert all(float(v) > 1.5 for v in versions)
+    assert len(versions) == 2
+
+    # __lt operator
+    response = myclient.get("/catalogue-metadata", params={"version__lt": "3.0"})
+    assert response.status_code == 200
+    data = response.json()
+    versions = [r["version"] for r in data]
+    assert all(float(v) < 3.0 for v in versions)
+    assert len(versions) == 2
+
+
+def test_query_metadata_in_operator(myclient):
+    """Test __in operator on catalogue_name."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get("/catalogue-metadata", params={"catalogue_name__in": "LOFAR,GLEAM"})
+    assert response.status_code == 200
+    data = response.json()
+    names = [r["catalogue_name"] for r in data]
+    assert set(names) == {"LOFAR", "GLEAM"}
+
+
+def test_query_metadata_combined_operators(myclient):
+    """Test combination of filters with sorting and fields selection."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get(
+        "/catalogue-metadata",
+        params={
+            "version__gt": "1.0",
+            "version__lt": "3.0",
+            "fields": "version,catalogue_name",
+            "sort": "-version",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should only include version 2.0
+    assert len(data) == 1
+    row = data[0]
+    assert row.keys() == {"version", "catalogue_name"}
+    assert row["version"] == "2.0"
+    assert row["catalogue_name"] == "GLEAM Extended"
