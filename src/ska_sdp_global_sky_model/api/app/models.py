@@ -114,8 +114,8 @@ class GlobalSkyModelMetadata(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    version = Column(String, nullable=False, unique=True, index=True)
-    catalogue_name = Column(String, nullable=False)
+    version = Column(String, nullable=False, index=True)
+    catalogue_name = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     upload_id = Column(String, nullable=False, unique=True, index=True)
     staging = Column(Boolean, nullable=False, default=True)
@@ -127,6 +127,9 @@ class GlobalSkyModelMetadata(Base):
 
     # pylint: disable=not-callable
     uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
+    __table_args__ = (
+        UniqueConstraint("version", "catalogue_name", name="_version_catalogue_name_uc"),
+    )
 
     def columns_to_dict(self):
         """Return a dictionary representation of a row."""
@@ -152,13 +155,14 @@ class SkyComponent(Base):
     healpix_index = Column(BigInteger, index=True, nullable=False)
 
     # Version tracking - semantic versioning
-    version = Column(String, nullable=False)
+    version = Column(String, nullable=False, index=True)
+    catalogue_name = Column(String, nullable=False, index=True)
 
     # Add component_id explicitly so we can reference it in __table_args__
     component_id = Column(String, nullable=False, index=True)
 
     __table_args__ = (
-        UniqueConstraint("component_id", "version", name="uq_component_version"),
+        UniqueConstraint("component_id", "version", "catalogue_name", name="uq_component_version"),
         {"schema": DB_SCHEMA},
     )
 
@@ -185,6 +189,7 @@ class SkyComponentStaging(Base):
 
     # Version tracking - semantic versioning
     version = Column(String, nullable=False)
+    catalogue_name = Column(String, nullable=False)
 
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)
@@ -206,7 +211,7 @@ class SkyComponentStaging(Base):
 _add_dynamic_columns_to_model(
     GlobalSkyModelMetadata,
     GSMMetadataDataclass,
-    skip_columns={"version"},
+    skip_columns={"version", "catalogue_name"},
 )
 # For main table, skip component_id since it's defined explicitly
 # for the composite constraint with version

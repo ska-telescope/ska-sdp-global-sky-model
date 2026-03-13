@@ -33,16 +33,13 @@ The allowed column names, and associated types, are:
    :widths: 22, 12, 66
 
    ``component_id``, string, "Name of component."
-   ``ra``, float, "Right Ascension of component."
-   ``dec``, float, "Declination of component."
-   ``i_pol``, float, "Stokes I flux of component, in Jy."
-   ``q_pol``, float, "Stokes Q flux of component, in Jy."
-   ``u_pol``, float, "Stokes U flux of component, in Jy."
-   ``v_pol``, float, "Stokes V flux of component, in Jy."
-   ``major_ax``, float, "Gaussian source FWHM major axis, in arcsec."
-   ``minor_ax``, float, "Gaussian source FWHM minor axis, in arcsec"
-   ``pos_ang``, float, "Position angle of Gaussian major axis, in degrees."
-   ``ref_freq``, float, "Reference frequency for source fluxes, in Hz."
+   ``ra_deg``, float, "Right Ascension of component."
+   ``dec_deg``, float, "Declination of component."
+   ``i_pol_jy``, float, "Stokes I flux of component, in Jy."
+   ``a_arcsec``, float, "Gaussian source FWHM major axis, in arcsec."
+   ``b_arcsec``, float, "Gaussian source FWHM minor axis, in arcsec"
+   ``pa_deg``, float, "Position angle of Gaussian major axis, in degrees."
+   ``ref_freq_hz``, float, "Reference frequency for source fluxes, in Hz."
    ``spec_idx``, float[5], "Spectral index polynomial coefficients; may be a
    vector, with a CSV list of values enclosed in brackets and quotes;
    up to 5 terms may be present."
@@ -66,7 +63,7 @@ The following shows the contents of a small LSM file as an example:
 
 .. code-block:: text
 
-   # (component_id,ra,dec,i_pol,major_ax,minor_ax,pos_ang,ref_freq,spec_idx,log_spec_idx) = format
+   # (component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,b_arcsec,pa_deg,ref_freq_hz,spec_idx,log_spec_idx) = format
    # NUMBER_OF_COMPONENTS=3
    # QUERY_CENTRE_RAJ2000_DEG=123.456
    # QUERY_CENTRE_DEJ2000_DEG=45.678

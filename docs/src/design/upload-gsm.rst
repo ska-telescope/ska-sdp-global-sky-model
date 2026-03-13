@@ -9,7 +9,7 @@ in a single atomic batch operation into the GSM database.
 
 The process allows the following:
 
-- Provide catalogue metadata via JSON file (required - includes version, name, description, reference frequency, and epoch)
+- Provide catalogue metadata via JSON file (required - includes version, name, description, and epoch)
 - Upload multiple CSV files simultaneously via API or browser interface.
 - CSV files uploaded in a single upload session will be part of the same catalogue version.
 - Track upload progress with a unique identifier.
@@ -43,8 +43,8 @@ table and are not moved to the main one.
 Catalogue Metadata File
 .......................
 
-Every upload must include a ``metadata.json`` file containing catalogue-level information that applies 
-to all components in the catalogue. The metadata follows the ``GlobalSkyModelMetadata`` dataclass format 
+Every upload must include a ``metadata.json`` file containing catalogue-level information that applies
+to all components in the catalogue. The metadata follows the ``GlobalSkyModelMetadata`` dataclass format
 from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels/-/blob/main/src/ska_sdp_datamodels/global_sky_model/global_sky_model.py>`_ with a few additional fields annotating the catalogue.
 
 **Metadata File Format**:
@@ -55,7 +55,6 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
       "version": "1.0.0",
       "catalogue_name": "GLEAM",
       "description": "GaLactic and Extragalactic All-sky MWA Survey",
-      "ref_freq": 170000000,
       "epoch": "J2000",
       "author": "GLEAM Team",
       "reference": "https://doi.org/10.1093/mnras/stw2337",
@@ -66,7 +65,6 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
     - ``version``: Semantic version (e.g., "1.0.0") - must increment from previous versions
     - ``catalogue_name``: Catalogue identifier (e.g., "GLEAM", "RACS", "RCAL")
     - ``description``: Human-readable description of the catalogue
-    - ``ref_freq``: Reference frequency in Hz (float/integer)
     - ``epoch``: Epoch of observation (e.g., "J2000")
 
 **Optional Fields**:
@@ -74,7 +72,7 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
     - ``reference``: DOI, URL, or citation
     - ``notes``: Additional information
 
-Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its own version number as per the metadata json file. Uploading a new version requires incrementing the version number in the metadata file to ensure proper version tracking, duplicate version numbers are not allowed.
+Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its own version number as per the metadata JSON file. Uploading a new version requires incrementing the version number in the metadata file to ensure proper version tracking, duplicate version numbers are not allowed.
 
 .. _upload_csv_format:
 
@@ -89,9 +87,10 @@ the default will be loaded into the database.
 Required columns:
 
 - ``component_id``: Unique component identifier (string)
-- ``ra``: Right ascension (J2000) in degrees (float)
-- ``dec``: Declination (J2000) in degrees (float)
-- ``i_pol``: I polarization flux at reference frequency in Janskys (float)
+- ``ra_deg``: Right ascension (J2000) in degrees (float)
+- ``dec_deg``: Declination (J2000) in degrees (float)
+- ``i_pol_jy``: I polarization flux at reference frequency in Janskys (float)
+- ``ref_freq_hz``: Reference frequency in Hz (float/integer)
 
 Data Validation
 ^^^^^^^^^^^^^^^
@@ -116,15 +115,19 @@ The following checks are performed:
       - string
       - Yes
       - Must be present, non-empty, and unique (across all files in batch)
-    * - ``ra``
+    * - ``ra_deg``
       - float
       - Yes
       - Must be numeric, range: 0 to 360 degrees
-    * - ``dec``
+    * - ``dec_deg``
       - float
       - Yes
       - Must be numeric, range: -90 to 90 degrees
-    * - ``i_pol``
+    * - ``i_pol_jy``
+      - float
+      - Yes
+      - Must be numeric
+    * - ``ref_freq_hz``
       - float
       - Yes
       - Must be numeric
