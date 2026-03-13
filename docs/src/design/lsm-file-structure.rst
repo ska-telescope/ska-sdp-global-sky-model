@@ -46,7 +46,6 @@ The allowed column names, and associated types, are:
    ``log_spec_idx``, boolean, "Boolean flag: If true, spectral
    indices are logarithmic, otherwise linear; see the
    `LOFAR Wiki page on LogarithmicSI <https://www.astron.nl/lofarwiki/doku.php?id=public:user_software:documentation:makesourcedb#logarithmic_spectral_index>`_."
-   ``ref_freq_hz``, float, "Reference frequency for component flux."
 
 Other lines in the header section will contain the query parameters used, and
 the total number of source components in the file.
