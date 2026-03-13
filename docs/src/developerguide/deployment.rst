@@ -31,13 +31,13 @@ Running an ``etcd`` instance:
 The repository contains two `Dockerfiles <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/tree/main/images>`_,
 one for creating a local PostgreSQL database and another for the GSM Service.
 
-Building the PostgreSQL DB:
+Building the PostgreSQL DB (note the dot at the end of the command):
 
 .. code-block::
 
     docker build -t gsm-db -f images/ska-sdp-global-sky-model-db/Dockerfile .
 
-Running the PostgreSQL DB:
+Running the PostgreSQL DB (for a temporary DB, remove the ``--mount...`` line):
 
 .. code-block::
 
@@ -88,7 +88,8 @@ Then run the API directly:
 
 .. code-block:: bash
 
-    $ uvicorn ska_sdp_global_sky_model.api.app.main:app --reload --host 0.0.0.0 --port 80 --app-dir /usr/src
+    $ POSTGRES_HOST=localhost poetry run uvicorn \
+      ska_sdp_global_sky_model.api.app.main:app --reload
 
 The API will be available at ``http://localhost:8000``.
 To access the API documentation, navigate to ``http://localhost:8000/docs``

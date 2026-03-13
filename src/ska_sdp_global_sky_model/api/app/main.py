@@ -138,8 +138,8 @@ async def get_local_sky_model_endpoint(
         ra_deg (float): Right ascension of the observation point in degrees.
         dec_deg (float): Declination of the observation point in degrees.
         fov_deg (float): Field of view of the telescope in degrees.
+        catalogue_name (str): Catalogue name of the global sky model.
         version (str): Version of the global sky model. Optional.
-        catalogue_name (str): Catalogue name of the global sky model. Optional.
         db (Session): Database session object.
 
     Returns:
