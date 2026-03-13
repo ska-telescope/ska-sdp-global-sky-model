@@ -9,8 +9,8 @@ from pathlib import Path
 import ska_ser_logging
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm import as_declarative, sessionmaker
 from starlette.config import Config
 
 ENV_FILE = Path(".env")

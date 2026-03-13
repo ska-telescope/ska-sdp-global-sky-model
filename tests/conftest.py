@@ -48,10 +48,20 @@ def set_up_db_data_fxt():
     """
     components = [
         SkyComponent(
-            component_id="J030420+022029", healpix_index=12345, ra=90, dec=2, version="1.0.2"
+            component_id="J030420+022029",
+            healpix_index=12345,
+            ra_deg=90,
+            dec_deg=2,
+            version="1.0.2",
+            catalogue_name="catalogue",
         ),
         SkyComponent(
-            component_id="J031020+042029", healpix_index=12340, ra=92, dec=4, version="1.1.0"
+            component_id="J031020+042029",
+            healpix_index=12340,
+            ra_deg=92,
+            dec_deg=4,
+            version="1.1.0",
+            catalogue_name="catalogue",
         ),
     ]
 
