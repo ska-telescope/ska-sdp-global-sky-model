@@ -59,21 +59,29 @@ a suffix to the parameter name.
 
 Supported operators include:
 
-+--------------+----------------------------------------------+----------------------------+
-| Operator     | Description                                  | Example                    |
-+==============+==============================================+============================+
-| ``eq``       | Equality comparison (default)                | ``version=1.0.0``          |
-+--------------+----------------------------------------------+----------------------------+
-| ``gt``       | Greater than                                 | ``version__gt=1.0``        |
-+--------------+----------------------------------------------+----------------------------+
-| ``lt``       | Less than                                    | ``version__lt=2.0``        |
-+--------------+----------------------------------------------+----------------------------+
-| ``in``       | Match any value in a comma-separated list    | ``catalogue_name__in=GLEAM,LOFAR`` |
-+--------------+----------------------------------------------+----------------------------+
+.. list-table:: Supported filter operators
+   :widths: 20 50 30
+   :header-rows: 1
+
+   * - Operator
+     - Description
+     - Example
+   * - ``eq``
+     - Equality comparison (default)
+     - ``version=1.0.0``
+   * - ``gt``
+     - Greater than
+     - ``version__gt=1.0``
+   * - ``lt``
+     - Less than
+     - ``version__lt=2.0``
+   * - ``in``
+     - Match any value in a comma-separated list
+     - ``catalogue_name__in=GLEAM,LOFAR``
 
 Example:
 
-.. code-block:: http
+.. code-block:: text
 
     GET /catalogue-metadata?version__gt=1.0
 
@@ -89,13 +97,13 @@ Prefix a field with ``-`` to sort in descending order.
 
 Examples:
 
-.. code-block:: http
+.. code-block:: text
 
     GET /catalogue-metadata?sort=version
 
 Sort results by version ascending.
 
-.. code-block:: http
+.. code-block:: text
 
     GET /catalogue-metadata?sort=-version
 
@@ -110,7 +118,7 @@ This accepts a comma-separated list of column names.
 
 Example:
 
-.. code-block:: http
+.. code-block:: text
 
     GET /catalogue-metadata?fields=version,catalogue_name
 
@@ -136,7 +144,7 @@ The number of returned records can be limited using the ``limit`` parameter.
 
 Example:
 
-.. code-block:: http
+.. code-block:: text
 
     GET /catalogue-metadata?limit=10
 
