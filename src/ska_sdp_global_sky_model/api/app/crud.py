@@ -49,14 +49,16 @@ def get_local_sky_model(
         list: A list containing the LSM data objects.
     """
 
-    # Query sky components within field of view
+    radius_deg = fov_deg / 2
+
+    # Query sky components within radius
     query = db.query(SkyComponent).where(
         q3c_radial_query(
             SkyComponent.ra_deg,
             SkyComponent.dec_deg,
             ra_deg,
             dec_deg,
-            fov_deg,
+            radius_deg,
         )
     )
 
