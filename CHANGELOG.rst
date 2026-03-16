@@ -4,8 +4,14 @@ CHANGELOG
 Development
 -----------
 
-- [Updated] Allow requests of sky components to include operators on any component field
+- [Updated] Allow more search operators in LSM lookup
+  (`MR87 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/87>`__)
+- [Updated] Write all Spectral Index Vectors with a fixed length
+  (`MR85 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/85>`__)
+- [Updated] Updated models to follow latest standard
   (`MR84 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/84>`__)
+- [Updated] Allow requests of sky components to include operators on any component field
+  (`MR83 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/83>`__)
 - [Added] Endpoint for querying metadata table that supports generic queries and multiple operators
   (`MR83 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/83>`__)
 
