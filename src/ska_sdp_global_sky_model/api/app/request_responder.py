@@ -18,7 +18,6 @@ The states are updated as follows:
 - When failed: ``FAILED``, with a ``reason`` field
 """
 
-import dataclasses
 import logging
 import threading
 import time
@@ -46,25 +45,110 @@ from ska_sdp_global_sky_model.configuration.config import (
     get_db,
 )
 from ska_sdp_global_sky_model.utilities.local_sky_model import LocalSkyModel
+from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 
 logger = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
 class QueryParameters:
-    """The list of available and optional query parameters."""
+    """This class manages the query parameters and
+    helper methods which are used to query the database."""
 
-    ra: float
-    """Right Ascension [degrees]"""
+    def __init__(
+        self, ra: float, dec: float, fov: float, version: str = "latest", **query_parameters
+    ):
+        """Init method setting the query parameters
 
-    dec: float
-    """Declination [degrees]"""
+        Args:
+            - ra: The ra component of the fov
+            - dec: The dec component of the fov
+            - fov: The field of view
+            - version: The version components should be selected from
+            - query_parameters: All additional query parameters possibly including __ operators
 
-    fov: float
-    """Field of View radius [degrees]"""
+        """
+        self.ra = ra
+        self.dec = dec
+        self.fov = fov
+        self.version = version
+        self.component_queries = {}
+        self.metadata_queries = {}
+        for key, value in query_parameters.items():
+            if "__" in key:
+                field = key.split("__")[0]
+            else:
+                field = key
+            if field in SkyComponentDataclass.__annotations__.keys():
+                self.component_queries[key] = value
+            elif key in GlobalSkyModelMetadata.__annotations__.keys():
+                self.metadata_queries[key] = value
+            else:
+                logger.warning("The QueryParameter %s=%s was not valid", key, value)
 
-    version: str = "latest"
-    """version of the GSM data"""
+    def sky_components(self, db) -> list[SkyComponent]:
+        """Get the sky components based on the query parameters
+        Args:
+            - db: The database handle
+
+        Returns:
+            - The query response of SkyComponents
+        """
+        # Query components within the field of view using spatial index
+        # pylint: disable=no-member,duplicate-code
+        sky_components_query = (
+            db.query(SkyComponent)
+            .where(
+                q3c_radial_query(
+                    SkyComponent.ra,
+                    SkyComponent.dec,
+                    self.ra,
+                    self.dec,
+                    self.fov,
+                )
+            )
+            .where(SkyComponent.version == self.get_version(db))
+        )
+        query_builder = QueryBuilder(SkyComponent, self.component_queries)
+        sky_components_query = query_builder.apply_filters(sky_components_query)
+        return sky_components_query.all()
+
+    def get_version(self, db: Session) -> str:
+        """Get version. If was 'latest' set convert to latest semantic version in database.
+        Args:
+            - db: The database handle
+        Returns:
+            - The version string
+        """
+        if self.version is None or self.version != "latest":
+            return self.version
+
+        try:
+            versions = db.query(GlobalSkyModelMetadata.version).all()
+            if not versions:
+                logger.error("No GSM versions available in database.")
+                raise ValueError("No GSM versions available in database.")
+
+            version_strings = [v[0] for v in versions]
+
+            # Parse and sort semantically
+            latest_version = max(version_strings, key=Version)
+
+            return latest_version
+
+        except Exception as e:
+            logger.exception("Failed to resolve version: %s", e)
+            raise
+
+    def __eq__(self, other):
+        """Check equality between query parameter classes."""
+        # Check if the other object is an instance of the same class
+        if not isinstance(other, QueryParameters):
+            return NotImplemented
+
+        return all(
+            getattr(self, var) == getattr(other, var)
+            for var in ["ra", "dec", "fov", "version", "component_queries", "metadata_queries"]
+        )
 
 
 def start_thread():  # pragma: no cover
@@ -184,29 +268,6 @@ def _process_flow(
     return True, None
 
 
-def _resolve_version(version: str, db: Session) -> str:
-    """Resolve 'latest' to highest semantic version in database."""
-    if version != "latest":
-        return version
-
-    try:
-        versions = db.query(GlobalSkyModelMetadata.version).all()
-        if not versions:
-            logger.error("No GSM versions available in database.")
-            raise ValueError("No GSM versions available in database.")
-
-        version_strings = [v[0] for v in versions]
-
-        # Parse and sort semantically
-        latest_version = max(version_strings, key=Version)
-
-        return latest_version
-
-    except Exception as e:
-        logger.exception("Failed to resolve version: %s", e)
-        raise
-
-
 def _query_gsm_for_lsm(
     query_parameters: QueryParameters,
     db: Session = Depends(get_db),
@@ -242,24 +303,8 @@ def _query_gsm_for_lsm(
     )
 
     try:
-        resolved_version = _resolve_version(query_parameters.version, db)
+        resolved_version = query_parameters.get_version(db)
         logger.info("Using resolved version: %s", resolved_version)
-        # Query components within the field of view using spatial index
-        # pylint: disable=no-member,duplicate-code
-        sky_components = (
-            db.query(SkyComponent)
-            .where(
-                q3c_radial_query(
-                    SkyComponent.ra,
-                    SkyComponent.dec,
-                    query_parameters.ra,
-                    query_parameters.dec,
-                    query_parameters.fov,
-                )
-            )
-            .where(SkyComponent.version == resolved_version)
-            .all()
-        )
 
         # Query metadata for this version
 
@@ -271,7 +316,7 @@ def _query_gsm_for_lsm(
         metadata_dict = metadata_row.columns_to_dict() if metadata_row else {}
 
         sky_components_dict = {}
-        for sky_component in sky_components:
+        for sky_component in query_parameters.sky_components(db):
             sky_component_dict = sky_component.columns_to_dict()
             # Remove database-specific fields that are not in SkyComponent dataclass
             del sky_component_dict["id"]
