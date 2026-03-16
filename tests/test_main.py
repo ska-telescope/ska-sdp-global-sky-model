@@ -216,14 +216,14 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
 
 def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argument
     """
-    Unit test for the /local_sky_model path
+    Unit test for the /local-sky-model path
 
     Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     without a specified version
     """
 
     local_sky_model = myclient.get(
-        "/local_sky_model/",
+        "/local-sky-model/",
         params={"ra": "90", "dec": "4", "fov": 5},
     )
 
@@ -234,14 +234,14 @@ def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argumen
 
 def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=unused-argument
     """
-    Unit test for the /local_sky_model path
+    Unit test for the /local-sky-model path
 
     Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     but with version that only includes one component
     """
 
     local_sky_model = myclient.get(
-        "/local_sky_model/",
+        "/local-sky-model/",
         params={"ra": "90", "dec": "4", "fov": 5, "version": "1.1.0"},
     )
 
@@ -252,14 +252,14 @@ def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=u
 
 def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unused-argument
     """
-    Unit test for the /local_sky_model path
+    Unit test for the /local-sky-model path
 
     Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     without version, with fov that only returns one object
     """
 
     local_sky_model = myclient.get(
-        "/local_sky_model/",
+        "/local-sky-model/",
         params={"ra": "90", "dec": "2", "fov": 0.2},
     )
 
@@ -270,14 +270,14 @@ def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unus
 
 def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disable=unused-argument
     """
-    Unit test for the /local_sky_model path
+    Unit test for the /local-sky-model path
 
     Query in the region covered by test data (RA ~42-50, Dec ~0-7)
     with version that does not exist
     """
 
     local_sky_model = myclient.get(
-        "/local_sky_model/",
+        "/local-sky-model/",
         params={"ra": "90", "dec": "2", "fov": 5, "version": "2.0.0"},
     )
 
