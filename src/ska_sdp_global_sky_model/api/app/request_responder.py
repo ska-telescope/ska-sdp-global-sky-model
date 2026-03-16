@@ -422,6 +422,11 @@ def _write_data(
     local_model.set_header({"CATALOGUE_VERSION": data.metadata.get("version", "unknown")})
     local_model.set_header({"CATALOGUE_NAME": data.metadata.get("catalogue_name", "unknown")})
 
+    for key, value in (
+        query_parameters.component_queries | query_parameters.metadata_queries
+    ).items():
+        local_model.set_header({f"QUERY_EXTRA_{key}": value})
+
     # Think this should/could be done better...
     try:
         local_model.set_metadata(
