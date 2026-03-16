@@ -246,7 +246,7 @@ class LocalSkyModel:
     def _format_vector(vec_row: numpy.ndarray, num_terms: int) -> str:
         """
         Returns a string containing a row-vector, enclosed in
-        square brackets and quotes if it contains multiple values.
+        square brackets and quotes.
         (The extra quotes are to help other CSV loaders deal with the vector
         as a single token.)
 
@@ -257,17 +257,11 @@ class LocalSkyModel:
         :return: Formatted string.
         :rtype: str
         """
-        if num_terms <= 0:
-            return "[]"
-        if num_terms == 1:
-            return str(vec_row[0])
         parts: list[str] = []
         for i in range(num_terms):
             value = float(vec_row[i])
-            if math.isnan(value):
-                break
-            parts.append(f"{value:g}")
-        return "[]" if not parts else '"[' + ",".join(parts) + ']"'
+            parts.append(f"{value:g}" if not math.isnan(value) else "")
+        return '"[' + ",".join(parts) + ']"'
 
     @staticmethod
     def _get_column_type(
@@ -585,7 +579,7 @@ class LocalSkyModel:
         if column_type == "vector_float":
             return self._format_vector(
                 self._cols[name][row_index],
-                self._cols[name + self._NUM_TERMS][row_index],
+                self.max_vector_len,
             )
         value = float(self._cols[name][row_index])
         return "" if math.isnan(value) else f"{value:.15g}"

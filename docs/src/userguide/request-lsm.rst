@@ -36,10 +36,11 @@ layout should match the following:
                 uri="gsm://request/lsm",
                 function="GlobalSkyModel.RequestLocalSkyModel",
                 parameters={
-                    "ra": 2.9670,
-                    "dec": -0.1745,
-                    "fov": 0.0873,
+                    "ra_deg": 2.9670,
+                    "dec_deg": -0.1745,
+                    "fov_deg": 0.0873,
                     "version": "latest",
+                    "catalogue_name": "name",
                 },
             )
         ],
@@ -105,17 +106,17 @@ To access these on a local instance of the GSM, navigate to ``GET /components``
 
 The following table will be displayed:
 
-+----+----------------+---------+----------------+-----------+-----------+-------+----------+----------+---------+----------+--------------+-------+-------+-------+
-| Id | Healpix_index  | Version | Component_id   | Ra        | Dec       | I_pol | Major_ax | Minor_ax | Pos_ang | Spec_idx | Log_spec_idx | Q_pol | U_pol | V_pol |
-+====+================+=========+================+===========+===========+=======+==========+==========+=========+==========+==============+=======+=======+=======+
-| 1  | 72434864       | 0.0.0   | J023255-053134 | 38.230309 | -5.526247 | None  | None     | None     | None    | None     | None         | None  | None  | None  |
-+----+----------------+---------+----------------+-----------+-----------+-------+----------+----------+---------+----------+--------------+-------+-------+-------+
++----+----------------+---------+----------------+----------------+-----------+-----------+----------+----------+----------+---------+----------+--------------+-------------+
+| Id | Healpix_index  | Version | Catalogue_name | Component_id   | Ra_deg    | Dec_deg   | I_pol_jy | A_arcsec | B_arcsec | Pa_deg  | Spec_idx | Log_spec_idx | Ref_freq_hz |
++====+================+=========+================+================+===========+===========+==========+==========+==========+=========+==========+==============+=============+
+| 1  | 72434864       | 0.0.0   | generic        | J023255-053134 | 38.230309 | -5.526247 | None     | None     | None     | None    | None     | None         | 17000000    |
++----+----------------+---------+----------------+----------------+-----------+-----------+----------+----------+----------+---------+----------+--------------+-------------+
 
 Local Sky Model
 ...............
 
 To access the LSM (filtered list of components) navigate to
-``GET /local_sky_model?ra={ra}&dec={dec}&fov={fov}&version={version}``
+``GET /local_sky_model?ra_deg={ra_deg}&dec_deg={dec_deg}&fov_deg={fov_deg}&version={version}&catalogue_name={catalogue_name}``
 
 where:
 
@@ -127,15 +128,15 @@ where:
      - Description
      - Data Type
      - Required
-   * - ``ra``
+   * - ``ra_deg``
      - The right ascension of the centre of the cone search (in degrees)
      - float
      - Yes
-   * - ``dec``
+   * - ``dec_deg``
      - The declination of the centre of the cone search (in degrees)
      - float
      - Yes
-   * - ``fov``
+   * - ``fov_deg``
      - The field of view of the cone search (in degrees)
      - float
      - Yes
@@ -143,3 +144,7 @@ where:
      - The version string of the GSM to select from (only supports semantic versioning)
      - string
      - No
+   * - ``catalogue_name``
+     - The catalogue name string of the GSM to select from
+     - string
+     - Yes

@@ -198,10 +198,11 @@ def test_components(myclient):  # pylint: disable=unused-argument,redefined-oute
         component = SkyComponent(
             component_id="J030853+053903",
             healpix_index=12345,
-            ra=47.222569,
-            dec=5.650958,
-            i_pol=0.098383,
+            ra_deg=47.222569,
+            dec_deg=5.650958,
+            i_pol_jy=0.098383,
             version="0.1.0",
+            catalogue_name="catalogue",
         )
         db.add(component)
         db.commit()
@@ -224,11 +225,11 @@ def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argumen
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
-        params={"ra": "90", "dec": "4", "fov": 5},
+        params={"ra_deg": "90", "dec_deg": "4", "fov_deg": 5, "catalogue_name": "catalogue"},
     )
 
     assert local_sky_model.status_code == 200
-    assert "J030420+022029" in local_sky_model.text
+    assert "J030420+022029" not in local_sky_model.text
     assert "J031020+042029" in local_sky_model.text
 
 
@@ -242,12 +243,18 @@ def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=u
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
-        params={"ra": "90", "dec": "4", "fov": 5, "version": "1.1.0"},
+        params={
+            "ra_deg": "90",
+            "dec_deg": "4",
+            "fov_deg": 5,
+            "version": "1.0.2",
+            "catalogue_name": "catalogue",
+        },
     )
 
     assert local_sky_model.status_code == 200
-    assert "J030420+022029" not in local_sky_model.text
-    assert "J031020+042029" in local_sky_model.text
+    assert "J030420+022029" in local_sky_model.text
+    assert "J031020+042029" not in local_sky_model.text
 
 
 def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unused-argument
@@ -260,7 +267,13 @@ def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unus
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
-        params={"ra": "90", "dec": "2", "fov": 0.2},
+        params={
+            "ra_deg": "90",
+            "dec_deg": "2",
+            "fov_deg": 0.2,
+            "catalogue_name": "catalogue",
+            "version": "1.0.2",
+        },
     )
 
     assert local_sky_model.status_code == 200
@@ -278,7 +291,13 @@ def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disabl
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
-        params={"ra": "90", "dec": "2", "fov": 5, "version": "2.0.0"},
+        params={
+            "ra_deg": "90",
+            "dec_deg": "2",
+            "fov_deg": 5,
+            "version": "2.0.0",
+            "catalogue_name": "catalogue",
+        },
     )
 
     assert local_sky_model.status_code == 200
@@ -657,11 +676,12 @@ def test_review_upload_success(myclient):
             component = SkyComponentStaging(
                 component_id=f"TEST{i:05d}",
                 upload_id=upload_id,
-                ra=10.0 + i,
-                dec=20.0 + i,
-                i_pol=0.5 + i * 0.1,
+                ra_deg=10.0 + i,
+                dec_deg=20.0 + i,
+                i_pol_jy=0.5 + i * 0.1,
                 healpix_index=12345,
                 version="0.1.0",
+                catalogue_name="catalogue",
             )
             db.add(component)
         db.commit()
@@ -714,11 +734,12 @@ def test_commit_upload_success(myclient):
             component = SkyComponentStaging(
                 component_id=f"COMMIT_TEST{i:05d}",
                 upload_id=upload_id,
-                ra=10.0 + i,
-                dec=20.0 + i,
-                i_pol=0.5,
+                ra_deg=10.0 + i,
+                dec_deg=20.0 + i,
+                i_pol_jy=0.5,
                 healpix_index=12345,
                 version="0.1.0",
+                catalogue_name="catalogue",
             )
             db.add(component)
         db.commit()
@@ -776,11 +797,12 @@ def test_commit_upload_increments_version(myclient):
         for i in range(3):
             component = SkyComponent(
                 component_id=f"EXISTING{i:05d}",
-                ra=5.0 + i,
-                dec=15.0 + i,
-                i_pol=0.3,
+                ra_deg=5.0 + i,
+                dec_deg=15.0 + i,
+                i_pol_jy=0.3,
                 healpix_index=11111,
                 version="0.1.0",
+                catalogue_name="catalogue",
             )
             db.add(component)
         db.commit()
@@ -795,11 +817,12 @@ def test_commit_upload_increments_version(myclient):
             component = SkyComponentStaging(
                 component_id=f"NEW{i:05d}",
                 upload_id=upload_id,
-                ra=10.0 + i,
-                dec=20.0 + i,
-                i_pol=0.5,
+                ra_deg=10.0 + i,
+                dec_deg=20.0 + i,
+                i_pol_jy=0.5,
                 healpix_index=12345,
                 version="0.2.0",
+                catalogue_name="catalogue",
             )
             db.add(component)
         db.commit()
@@ -860,11 +883,12 @@ def test_reject_upload_success(myclient):
             component = SkyComponentStaging(
                 component_id=f"REJECT_TEST{i:03d}",
                 upload_id=upload_id,
-                ra=10.0 + i,
-                dec=20.0 + i,
-                i_pol=0.5,
+                ra_deg=10.0 + i,
+                dec_deg=20.0 + i,
+                i_pol_jy=0.5,
                 healpix_index=12345,
                 version="0.1.0",
+                catalogue_name="catalogue",
             )
             db.add(component)
         db.commit()

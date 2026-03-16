@@ -50,27 +50,36 @@ from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 class QueryParameters:
     """This class manages the query parameters and
     helper methods which are used to query the database."""
 
     def __init__(
-        self, ra: float, dec: float, fov: float, version: str = "latest", **query_parameters
+        self,
+        ra_deg: float,
+        dec_deg: float,
+        fov_deg: float,
+        catalogue_name: str,
+        version: str = "latest",
+        **query_parameters,
     ):
         """Init method setting the query parameters
 
         Args:
-            - ra: The ra component of the fov
-            - dec: The dec component of the fov
-            - fov: The field of view
+            - ra_deg: The ra component of the fov
+            - dec_deg: The dec component of the fov
+            - fov_deg: The field of view
+            - catalogue_name: The catalogue the components should be selected from
             - version: The version components should be selected from
             - query_parameters: All additional query parameters possibly including __ operators
 
         """
-        self.ra = ra
-        self.dec = dec
-        self.fov = fov
+        self.ra_deg = ra_deg
+        self.dec_deg = dec_deg
+        self.fov_deg = fov_deg
         self.version = version
+        self.catalogue_name = catalogue_name
         self.component_queries = {}
         self.metadata_queries = {}
         for key, value in query_parameters.items():
@@ -99,14 +108,15 @@ class QueryParameters:
             db.query(SkyComponent)
             .where(
                 q3c_radial_query(
-                    SkyComponent.ra,
-                    SkyComponent.dec,
-                    self.ra,
-                    self.dec,
-                    self.fov,
+                    SkyComponent.ra_deg,
+                    SkyComponent.dec_deg,
+                    self.ra_deg,
+                    self.dec_deg,
+                    self.fov_deg,
                 )
             )
             .where(SkyComponent.version == self.get_version(db))
+            .where(SkyComponent.catalogue_name == self.catalogue_name)
         )
         query_builder = QueryBuilder(SkyComponent, self.component_queries)
         sky_components_query = query_builder.apply_filters(sky_components_query)
@@ -123,7 +133,11 @@ class QueryParameters:
             return self.version
 
         try:
-            versions = db.query(GlobalSkyModelMetadata.version).all()
+            versions = (
+                db.query(GlobalSkyModelMetadata.version)
+                .where(GlobalSkyModelMetadata.catalogue_name == self.catalogue_name)
+                .all()
+            )
             if not versions:
                 logger.error("No GSM versions available in database.")
                 raise ValueError("No GSM versions available in database.")
@@ -147,7 +161,15 @@ class QueryParameters:
 
         return all(
             getattr(self, var) == getattr(other, var)
-            for var in ["ra", "dec", "fov", "version", "component_queries", "metadata_queries"]
+            for var in [
+                "ra_deg",
+                "dec_deg",
+                "fov_deg",
+                "version",
+                "catalogue_name",
+                "component_queries",
+                "metadata_queries",
+            ]
         )
 
 
@@ -281,10 +303,11 @@ def _query_gsm_for_lsm(
 
     Args:
         query_parameters: QueryParameters object containing:
-            - ra: Right Ascension in degrees
-            - dec: Declination in degrees
-            - fov: Field of view radius in degrees
+            - ra_deg: Right Ascension in degrees
+            - dec_deg: Declination in degrees
+            - fov_deg: Field of view radius in degrees
             - version: GSM catalogue version to query (e.g., "1.0.0", "latest")
+            - catalogue_name: GSM catalogue name to query
         db: Database session
 
     Returns:
@@ -295,11 +318,12 @@ def _query_gsm_for_lsm(
         - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
     logger.info(
-        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (version=%s)",
-        query_parameters.ra,
-        query_parameters.dec,
-        query_parameters.fov,
+        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (version=%s, catalogue=%s)",
+        query_parameters.ra_deg,
+        query_parameters.dec_deg,
+        query_parameters.fov_deg,
         query_parameters.version,
+        query_parameters.catalogue_name,
     )
 
     try:
@@ -322,6 +346,7 @@ def _query_gsm_for_lsm(
             del sky_component_dict["id"]
             del sky_component_dict["healpix_index"]
             del sky_component_dict["version"]
+            del sky_component_dict["catalogue_name"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
         return GlobalSkyModel(metadata=metadata_dict, components=sky_components_dict)
@@ -389,10 +414,13 @@ def _write_data(
         max_vector_len=5,  # For spectral index vectors
     )
 
-    local_model.set_header({"QUERY_CENTRE_RAJ2000_DEG": query_parameters.ra})
-    local_model.set_header({"QUERY_CENTRE_DEJ2000_DEG": query_parameters.dec})
-    local_model.set_header({"QUERY_RADIUS_DEG": query_parameters.fov})
+    local_model.set_header({"QUERY_CENTRE_RAJ2000_DEG": query_parameters.ra_deg})
+    local_model.set_header({"QUERY_CENTRE_DEJ2000_DEG": query_parameters.dec_deg})
+    local_model.set_header({"QUERY_RADIUS_DEG": query_parameters.fov_deg})
+    local_model.set_header({"QUERY_CATALOGUE_VERSION": query_parameters.version})
+    local_model.set_header({"QUERY_CATALOGUE_NAME": query_parameters.catalogue_name})
     local_model.set_header({"CATALOGUE_VERSION": data.metadata.get("version", "unknown")})
+    local_model.set_header({"CATALOGUE_NAME": data.metadata.get("catalogue_name", "unknown")})
 
     # Think this should/could be done better...
     try:

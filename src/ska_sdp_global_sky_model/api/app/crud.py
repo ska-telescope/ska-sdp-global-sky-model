@@ -22,12 +22,13 @@ class q3c_radial_query(GenericFunction):
     name = "q3c_radial_query"
 
 
-# pylint: disable=unused-argument
+# pylint: disable-next=unused-argument,too-many-arguments,too-many-positional-arguments
 def get_local_sky_model(
     db,
-    ra: float,
-    dec: float,
-    fov: float,
+    ra_deg: float,
+    dec_deg: float,
+    fov_deg: float,
+    catalogue_name: str,
     version: str | None = None,
 ) -> list:
     """
@@ -48,19 +49,23 @@ def get_local_sky_model(
         list: A list containing the LSM data objects.
     """
 
-    # Query sky components within field of view
+    radius_deg = fov_deg / 2
+
+    # Query sky components within radius
     query = db.query(SkyComponent).where(
         q3c_radial_query(
-            SkyComponent.ra,
-            SkyComponent.dec,
-            ra,
-            dec,
-            fov,
+            SkyComponent.ra_deg,
+            SkyComponent.dec_deg,
+            ra_deg,
+            dec_deg,
+            radius_deg,
         )
     )
 
     if version:
         query = query.where(SkyComponent.version == version)
+
+    query = query.where(SkyComponent.catalogue_name == catalogue_name)
 
     sky_components = query.all()
 

@@ -225,7 +225,7 @@ def build_component_mapping(component_dict: dict) -> dict:
 
     # Database-specific field (not in dataclass)
     component_mapping["healpix_index"] = compute_hpx_healpy(
-        component_dict.get("ra"), component_dict.get("dec")
+        component_dict.get("ra_deg"), component_dict.get("dec_deg")
     )
 
     # Dynamically map all dataclass fields
@@ -328,8 +328,8 @@ def _get_field_validation_rules() -> dict[str, tuple[float | None, float | None]
     """
     return {
         # Coordinates - queryable fields
-        "ra": (0, 360),
-        "dec": (-90, 90),
+        "ra_deg": (0, 360),
+        "dec_deg": (-90, 90),
     }
 
 
@@ -418,6 +418,7 @@ def _process_single_component(
     staging: bool,
     upload_id: str | None,
     version: str,
+    catalogue_name: str,
 ) -> tuple[dict | None, str | None]:
     """Process and validate a single component.
 
@@ -428,6 +429,7 @@ def _process_single_component(
         staging: Whether ingesting to staging table.
         upload_id: Upload identifier for staging records.
         version: Catalogue version for the component.
+        catalogue_name: Cataloge name for the component.
 
     Returns:
         Tuple of (component_mapping, error_message). If valid, returns (mapping, None).
@@ -453,6 +455,7 @@ def _process_single_component(
         component_mapping["upload_id"] = upload_id
 
     component_mapping["version"] = version
+    component_mapping["catalogue_name"] = catalogue_name
 
     # Validate the component mapping
     is_valid, error_msg = validate_component_mapping(component_mapping, count)
@@ -466,6 +469,7 @@ def process_component_data_batch(
     db: Session,
     catalogue_data,
     version: str,
+    catalogue_name: str,
     batch_size: int = 500,
     staging: bool = False,
     upload_id: str | None = None,
@@ -516,7 +520,7 @@ def process_component_data_batch(
             )
 
         component_mapping, error_msg = _process_single_component(
-            src, count, existing_component_id, staging, upload_id, version
+            src, count, existing_component_id, staging, upload_id, version, catalogue_name
         )
 
         if error_msg:
@@ -596,6 +600,7 @@ def ingest_catalogue(
             db,
             components,
             version=catalogue_metadata.version,
+            catalogue_name=catalogue_metadata.catalogue_name,
             staging=staging,
             upload_id=upload_id,
         ):
