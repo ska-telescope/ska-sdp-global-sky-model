@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Updated] Allow requests of sky components to include operators on any component field
+  (`MR84 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/84>`__)
 - [Added] Endpoint for querying metadata table that supports generic queries and multiple operators
   (`MR83 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/83>`__)
 
