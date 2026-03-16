@@ -70,9 +70,9 @@ def sample_csv_file():
             "component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,"
             "b_arcsec,pa_deg,spec_idx,log_spec_idx,ref_freq_hz\n"
         )
-        f.write("J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,-0.7,false,3000000000\n")
-        f.write("J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,-0.8,true,3000000000\n")
-        f.write("J223344-556677,30.1,-20.5,0.8,,,,-0.5,false,3000000000\n")
+        f.write('J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,"[-0.7,,,,]",false,3000000000\n')
+        f.write('J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,"[-0.8,,,,]",true,3000000000\n')
+        f.write('J223344-556677,30.1,-20.5,0.8,,,,"[-0.5,,,,]",false,3000000000\n')
         temp_path = Path(f.name)
 
     yield temp_path
@@ -198,12 +198,12 @@ class TestBuildComponentMapping:
             "ra_deg": "10.5",
             "dec_deg": "45.2",
             "i_pol_jy": "1.5",
-            "spec_idx": "-0.7",
+            "spec_idx": "[-0.7,,,,]",
         }
 
         mapping = build_component_mapping(component_dict)
 
-        assert mapping["spec_idx"] == -0.7
+        assert mapping["spec_idx"] == [-0.7, None, None, None, None]
 
     def test_mapping_with_spec_idx_invalid_string(self):
         """Test spec_idx with invalid string converts to None"""

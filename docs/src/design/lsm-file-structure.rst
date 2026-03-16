@@ -33,16 +33,15 @@ The allowed column names, and associated types, are:
    :widths: 22, 12, 66
 
    ``component_id``, string, "Name of component."
-   ``ra_deg``, float, "Right Ascension of component."
-   ``dec_deg``, float, "Declination of component."
+   ``ra_deg``, float, "Right Ascension of component, in degrees."
+   ``dec_deg``, float, "Declination of component, in degrees."
    ``i_pol_jy``, float, "Stokes I flux of component, in Jy."
-   ``a_arcsec``, float, "Gaussian source FWHM major axis, in arcsec."
-   ``b_arcsec``, float, "Gaussian source FWHM minor axis, in arcsec"
+   ``a_arcsec``, float, "Gaussian source FWHM semi-major axis, in arcsec."
+   ``b_arcsec``, float, "Gaussian source FWHM semi-minor axis, in arcsec."
    ``pa_deg``, float, "Position angle of Gaussian major axis, in degrees."
    ``ref_freq_hz``, float, "Reference frequency for source fluxes, in Hz."
-   ``spec_idx``, float[5], "Spectral index polynomial coefficients; may be a
-   vector, with a CSV list of values enclosed in brackets and quotes;
-   up to 5 terms may be present."
+   ``spec_idx``, float[5], "Spectral index polynomial coefficients; a vector
+   of length 5, with a CSV list of values enclosed in brackets and quotes."
    ``log_spec_idx``, boolean, "Boolean flag: If true, spectral
    indices are logarithmic, otherwise linear; see the
    `LOFAR Wiki page on LogarithmicSI <https://www.astron.nl/lofarwiki/doku.php?id=public:user_software:documentation:makesourcedb#logarithmic_spectral_index>`_."
@@ -51,10 +50,11 @@ Other lines in the header section will contain the query parameters used, and
 the total number of source components in the file.
 The remainder of the file contains the CSV data table.
 
-Note that the ``spec_idx`` column may contain multiple values enclosed inside a
-vector, themselves also separated by commas: in this case, quotes will be
-present around the vector in order to aid CSV parsers and ensure that values
-inside the vector are not split prematurely (when the main columns are loaded).
+Note that the ``spec_idx`` column contains multiple values enclosed inside a
+vector, themselves also separated by commas.
+Quotes will be present around the vector in order to aid CSV parsers and
+ensure that values inside the vector are not split prematurely (when the main
+columns are loaded).
 
 Example LSM file
 ^^^^^^^^^^^^^^^^
