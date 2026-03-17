@@ -1,4 +1,4 @@
-"""New Migration Note
+"""Updating nullable for version columns in staging and metadata tables
 
 Revision ID: 5203c3819ac2
 Revises: ecd5d36e707a

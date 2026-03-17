@@ -497,8 +497,8 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         # Auto-compute the next version for this catalogue by incrementing the minor version
         # of the current latest committed version, independently per catalogue name.
         existing_versions = [
-            v[0]
-            for v in db.query(GlobalSkyModelMetadata.version)
+            versions[0]
+            for versions in db.query(GlobalSkyModelMetadata.version)
             .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
             .filter(GlobalSkyModelMetadata.version.isnot(None))
             .all()
