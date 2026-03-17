@@ -58,7 +58,7 @@ A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_U
 The browser interface also provides:
 
     - Real-time status monitoring
-    - Displays version information of the committed data
+    - Displays the auto-assigned version of the committed data
     - Displays errors if upload fails
 
 The expected CSV format is described at :ref:`upload_csv_format` and examples are shown at :ref:`example_upload_csv`.
@@ -110,6 +110,9 @@ Upload and ingest one or more sky survey CSV files to the staging table.
 All files in the batch are combined into a single sky model.
 If any file fails validation or ingestion, the entire batch is rolled back.
 
+The catalogue version is **not** supplied by the user — it is automatically assigned when the
+upload is committed (see :ref:`commit_upload_ep`).
+
 .. list-table::
     :widths: 20, 50, 20, 10
     :header-rows: 1
@@ -118,7 +121,12 @@ If any file fails validation or ingestion, the entire batch is rolled back.
       - Description
       - Data Type
       - Required
-    * - ``files``
+    * - ``metadata_file``
+      - JSON file with catalogue metadata (``catalogue_name``, ``description``, ``epoch``,
+        ``author``, ``reference``, ``notes``). The ``version`` field is ignored if present.
+      - File (JSON)
+      - Yes
+    * - ``csv_files``
       - One or more CSV files containing standardized sky survey data
       - list[File]
       - Yes
@@ -129,7 +137,8 @@ If any file fails validation or ingestion, the entire batch is rolled back.
 
     {
         "upload_id": "550e8400-e29b-41d4-a716-446655440000",
-        "status": "uploading"
+        "status": "uploading",
+        "catalogue_name": "GLEAM"
     }
 
 The endpoint returns immediately with status "uploading". Ingestion to staging table proceeds
@@ -139,7 +148,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 
 .. code-block:: bash
 
-    # Upload one or more CSV files with standardized column names
+    # Upload metadata and one or more CSV files
         curl -X POST "<GSM_API_URL>/upload-sky-survey-batch" \\
             -F "metadata_file=@metadata.json;type=application/json" \\
             -F "csv_files=@test_catalogue_1.csv;type=text/csv" \\
@@ -154,7 +163,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 
     url = "<GSM_API_URL>/upload-sky-survey-batch"
 
-    # Upload multiple CSV files with standardized column names
+    # Upload metadata and multiple CSV files
     files = [
         ("metadata_file", ("metadata.json", open("metadata.json", "rb"), "application/json")),
         ("csv_files", ("test_catalogue_1.csv", open("test_catalogue_1.csv", "rb"), "text/csv")),
@@ -164,7 +173,7 @@ asynchronously in the background. Use the status endpoint to monitor completion,
 
     result = response.json()
     print(f"Upload ID: {result['upload_id']}")
-    print(f"Catalogue: {result['catalogue_name']} v{result['version']}")
+    print(f"Catalogue: {result['catalogue_name']}")
     print(f"Status: {result['status']}")  # Will be "uploading"
 
     # Poll for completion
@@ -321,9 +330,12 @@ Commit Staged Upload
 
 **Endpoint**: ``POST /commit-upload/{upload_id}``
 
-Commit staged data to the main database with the catalogue version from the metadata file. All components 
-in the upload receive the same version. Creates a record in the ``global_sky_model_metadata`` table with the 
-upload information.
+Commit staged data to the main database. The catalogue version is **automatically assigned** at
+commit time by incrementing the minor version of the previous latest version for that catalogue
+(e.g. ``0.1.0`` → ``0.2.0``). If no prior version exists for the catalogue, ``0.1.0`` is used.
+Versioning is independent per catalogue name. All components in the upload receive the same
+new version. A record is created in the ``global_sky_model_metadata`` table with the version
+and upload information.
 
 .. list-table::
     :widths: 20, 50, 20, 10

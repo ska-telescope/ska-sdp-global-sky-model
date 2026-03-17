@@ -10,6 +10,7 @@ import pytest
 from ska_sdp_global_sky_model.utilities.version_utils import (
     compare_versions,
     get_latest_version,
+    increment_minor_version,
     is_valid_semantic_version,
     is_version_increment,
     parse_semantic_version,
@@ -273,3 +274,39 @@ class TestGetLatestVersion:
         versions = ["0.0.0", "0.1.0", "1.0.0"]
         result = get_latest_version(versions)
         assert result == "1.0.0"
+
+
+class TestIncrementMinorVersion:
+    """Tests for increment_minor_version function."""
+
+    def test_none_returns_initial_version(self):
+        """When no existing version, return 0.1.0 for first upload."""
+        assert increment_minor_version(None) == "0.1.0"
+
+    def test_empty_string_returns_initial_version(self):
+        """Empty string treated as no existing version."""
+        assert increment_minor_version("") == "0.1.0"
+
+    def test_increments_minor_from_zero(self):
+        """0.1.0 increments to 0.2.0."""
+        assert increment_minor_version("0.1.0") == "0.2.0"
+
+    def test_increments_minor_sequential(self):
+        """Successive minor increments: 0.2.0 -> 0.3.0."""
+        assert increment_minor_version("0.2.0") == "0.3.0"
+
+    def test_increments_minor_preserves_major(self):
+        """Major version is preserved: 1.3.0 -> 1.4.0."""
+        assert increment_minor_version("1.3.0") == "1.4.0"
+
+    def test_increments_minor_preserves_patch(self):
+        """Patch version is preserved: 1.2.5 -> 1.3.5."""
+        assert increment_minor_version("1.2.5") == "1.3.5"
+
+    def test_invalid_version_returns_initial(self):
+        """Invalid version string falls back to 0.1.0."""
+        assert increment_minor_version("invalid") == "0.1.0"
+
+    def test_large_minor_version(self):
+        """Large minor version incremented correctly: 0.99.0 -> 0.100.0."""
+        assert increment_minor_version("0.99.0") == "0.100.0"

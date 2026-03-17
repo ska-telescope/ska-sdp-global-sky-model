@@ -33,7 +33,10 @@ from ska_sdp_global_sky_model.configuration.config import (
     templates,
 )
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
-from ska_sdp_global_sky_model.utilities.version_utils import is_version_increment
+from ska_sdp_global_sky_model.utilities.version_utils import (
+    get_latest_version,
+    increment_minor_version,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -245,29 +248,27 @@ async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
     metadata_file: UploadFile = File(..., description="catalogue metadata JSON file"),
     csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
-    db: Session = Depends(get_db),
 ):
     """
     Upload catalogue metadata and CSV files for staging.
 
-    Requires a metadata.json file containing catalogue information and version,
-    plus one or more CSV files with component data.
+    Requires a metadata.json file containing catalogue information, plus one or more CSV
+    files with component data. The catalogue version is NOT specified here — it is
+    auto-assigned when the upload is committed.
 
     Parameters
     ----------
     background_tasks : BackgroundTasks
         FastAPI background task manager
     metadata_file : UploadFile
-        JSON file with catalogue metadata (version, catalogue_name, description, etc.)
+        JSON file with catalogue metadata (catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
-    db : Session
-        Database session
 
     Raises
     ------
     HTTPException
-        If validation fails or version is invalid
+        If validation fails
 
     Returns
     -------
@@ -300,8 +301,9 @@ async def upload_sky_survey_batch(
             detail=f"Metadata file {metadata_file.filename} is not valid JSON: {exc}",
         ) from exc
 
+    # Version is not accepted from metadata - it is auto-assigned per catalogue at commit time.
     catalogue_metadata = GlobalSkyModelMetadata(
-        version=metadata.get("version"),
+        version=None,
         catalogue_name=metadata.get("catalogue_name", "UPLOAD"),
         description=metadata.get("description", ""),
         upload_id="upload_id_placeholder",  # Will be set after creating upload status
@@ -317,32 +319,11 @@ async def upload_sky_survey_batch(
 
     try:
         logger.info(
-            "Received upload with metadata: version=%s, catalogue_name=%s, \
-            epoch=%s, upload_id=%s",
-            catalogue_metadata.version,
+            "Received upload with metadata: catalogue_name=%s, epoch=%s, upload_id=%s",
             catalogue_metadata.catalogue_name,
             catalogue_metadata.epoch,
             catalogue_metadata.upload_id,
         )
-
-        # Validate version format and check it's an increment
-        existing_versions = [v[0] for v in db.query(GlobalSkyModelMetadata.version).all()]
-        is_valid, error_msg = is_version_increment(catalogue_metadata.version, existing_versions)
-        if not is_valid:
-            raise HTTPException(status_code=400, detail=error_msg)
-
-        # Check version doesn't already exist
-        existing = (
-            db.query(GlobalSkyModelMetadata)
-            .filter(GlobalSkyModelMetadata.version == catalogue_metadata.version)
-            .first()
-        )
-        if existing:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Version '{catalogue_metadata.version}' already exists. "
-                f"Please use a higher version number.",
-            )
 
         # Validate and save CSV files
         for file in csv_files:
@@ -362,7 +343,6 @@ async def upload_sky_survey_batch(
         return {
             "upload_id": catalogue_metadata.upload_id,
             "status": "uploading",
-            "version": catalogue_metadata.version,
             "catalogue_name": catalogue_metadata.catalogue_name,
             "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. Ingestion running.",
         }
@@ -513,8 +493,28 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="No staged data found")
 
         metadata = status.metadata
-        catalogue_version = metadata.version
         catalogue_name = metadata.catalogue_name
+
+        # Auto-compute the next version for this catalogue by incrementing the minor version
+        # of the current latest committed version, independently per catalogue name.
+        existing_versions = [
+            v[0]
+            for v in db.query(GlobalSkyModelMetadata.version)
+            .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
+            .filter(GlobalSkyModelMetadata.version.isnot(None))
+            .all()
+        ]
+        latest_version = get_latest_version(existing_versions)
+        catalogue_version = increment_minor_version(latest_version)
+        metadata.version = catalogue_version
+
+        logger.info(
+            "Auto-assigned version %s to upload %s for catalogue '%s' (previous latest: %s)",
+            catalogue_version,
+            upload_id,
+            catalogue_name,
+            latest_version or "none",
+        )
 
         db.add(status.metadata)
 

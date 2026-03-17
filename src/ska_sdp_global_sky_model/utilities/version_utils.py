@@ -111,6 +111,31 @@ def is_version_increment(new_version: str, existing_versions: list[str]) -> tupl
     return (True, "")
 
 
+def increment_minor_version(version_str: Optional[str]) -> str:
+    """
+    Increment the minor version of a semantic version string.
+
+    Used to auto-assign a new version to each catalogue upload on a
+    per-catalogue basis, without requiring the user to specify a version.
+
+    - If no existing version (None or empty), starts at "0.1.0" for the first upload.
+    - Otherwise increments the minor component: 0.1.0 -> 0.2.0 -> 0.3.0, etc.
+
+    Args:
+        version_str: Current latest version string in "major.minor.patch" format, or None.
+
+    Returns:
+        New version string with minor version incremented.
+    """
+    if not version_str:
+        return "0.1.0"
+    parsed = parse_semantic_version(version_str)
+    if parsed is None:
+        return "0.1.0"
+    major, minor, patch = parsed
+    return f"{major}.{minor + 1}.{patch}"
+
+
 def get_latest_version(versions: list[str]) -> Optional[str]:
     """
     Get the latest (highest) version from a list of version strings.
