@@ -253,8 +253,7 @@ async def upload_sky_survey_batch(
     Upload catalogue metadata and CSV files for staging.
 
     Requires a metadata.json file containing catalogue information, plus one or more CSV
-    files with component data. The catalogue version is NOT specified here — it is
-    auto-assigned when the upload is committed.
+    files with component data.
 
     Parameters
     ----------
@@ -549,7 +548,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         return {
             "status": "success",
             "message": f"Committed {len(staged_records)} \
-                components from catalogue '{catalogue_name}'",
+components from catalogue '{catalogue_name}'",
             "records_committed": len(staged_records),
             "version": catalogue_version,
             "catalogue_name": catalogue_name,

@@ -123,7 +123,7 @@ upload is committed (see :ref:`commit_upload_ep`).
       - Required
     * - ``metadata_file``
       - JSON file with catalogue metadata (``catalogue_name``, ``description``, ``epoch``,
-        ``author``, ``reference``, ``notes``). The ``version`` field is ignored if present.
+        ``author``, ``reference``, ``notes``).
       - File (JSON)
       - Yes
     * - ``csv_files``
@@ -291,6 +291,7 @@ Returns total record count and the last 10 staged records to confirm all data lo
     {
         "upload_id": "550e8400-e29b-41d4-a716-446655440000",
         "total_records": 200,
+        "sample_range": "91-100",
         "sample": [
             {
                 "component_id": "J025837+035057",
@@ -299,7 +300,18 @@ Returns total record count and the last 10 staged records to confirm all data lo
                 "i_pol": 0.8354,
                 "version": null
             }
-        ]
+        ],
+        "metadata": {
+            "version": null,
+            "catalogue_name": "TEST_CATALOGUE_1",
+            "description": "Test catalogue 1 for development and testing purposes",
+            "upload_id": "550e8400-e29b-41d4-a716-446655440000",
+            "epoch": "J2000",
+            "author": "SKA SDP Team",
+            "reference": null,
+            "notes": "Sample test data for ska-sdp-global-sky-model",
+            "staging": true
+        }
     }
 
 **Example Usage**:
@@ -355,10 +367,10 @@ and upload information.
 .. code-block:: json
 
     {
-        "message": "Upload committed successfully",
+        "message": "success",
         "records_committed": 200,
         "upload_id": "550e8400-e29b-41d4-a716-446655440000"
-        "version": "1.0.0",
+        "version": "0.2.0",
         "catalogue_name": "Test catalogue"
     }
 

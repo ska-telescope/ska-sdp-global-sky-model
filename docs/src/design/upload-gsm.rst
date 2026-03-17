@@ -9,7 +9,7 @@ in a single atomic batch operation into the GSM database.
 
 The process allows the following:
 
-- Provide catalogue metadata via JSON file (required - includes version, name, description, and epoch)
+- Provide catalogue metadata via JSON file (required - includes name, description, and epoch)
 - Upload multiple CSV files simultaneously via API or browser interface.
 - CSV files uploaded in a single upload session will be part of the same catalogue version.
 - Track upload progress with a unique identifier.
@@ -18,7 +18,6 @@ The process allows the following:
   commit or reject the upload.
 - Ensure atomic ingestion (all files succeed or none are ingested).
 - Automatic data validation at the schema level.
-- Version control with semantic versioning of the catalogue.
 
 Batch uploads run asynchronously as background tasks. This design keeps the API responsive
 during large uploads and allows multiple concurrent batch operations.
@@ -52,7 +51,6 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
 .. code-block:: json
 
     {
-      "version": "1.0.0",
       "catalogue_name": "GLEAM",
       "description": "GaLactic and Extragalactic All-sky MWA Survey",
       "epoch": "J2000",
@@ -62,7 +60,6 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
     }
 
 **Required Fields**:
-    - ``version``: Semantic version (e.g., "1.0.0") - must increment from previous versions
     - ``catalogue_name``: Catalogue identifier (e.g., "GLEAM", "RACS", "RCAL")
     - ``description``: Human-readable description of the catalogue
     - ``epoch``: Epoch of observation (e.g., "J2000")
@@ -72,7 +69,7 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
     - ``reference``: DOI, URL, or citation
     - ``notes``: Additional information
 
-Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its own version number as per the metadata JSON file. Uploading a new version requires incrementing the version number in the metadata file to ensure proper version tracking, duplicate version numbers are not allowed.
+Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its minor version number incremented from the last version of that catalogue in the database.
 
 .. _upload_csv_format:
 
