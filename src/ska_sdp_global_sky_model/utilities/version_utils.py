@@ -23,7 +23,7 @@ def parse_semantic_version(version: str) -> Optional[tuple[int, int, int]]:
     return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
 
 
-def increment_minor_version(version_str: Optional[str]) -> str:
+def increment_minor_version(version_str: str | None) -> str:
     """
     Increment the minor version of a semantic version string.
 
@@ -48,7 +48,7 @@ def increment_minor_version(version_str: Optional[str]) -> str:
     return f"{major}.{minor + 1}.{patch}"
 
 
-def get_latest_version(versions: list[str]) -> Optional[str]:
+def get_latest_version(versions: list[str]) -> str | None:
     """
     Get the latest (highest) version from a list of version strings.
 
