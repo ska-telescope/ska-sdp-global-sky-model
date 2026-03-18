@@ -18,14 +18,13 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from ska_sdp_global_sky_model.api.app.crud import get_local_sky_model
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
 from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.api.app.request_responder import start_thread
+from ska_sdp_global_sky_model.api.app.request_responder import QueryParameters, start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import (
     engine,
@@ -124,14 +123,14 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@app.get("/local_sky_model", response_class=HTMLResponse)
+@app.get("/local-sky-model", response_class=HTMLResponse)
 async def get_local_sky_model_endpoint(
     request: Request,
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
     catalogue_name: str,
-    version: str | None = None,
+    version: str = "latest",
     db: Session = Depends(get_db),
 ):
     """
@@ -149,6 +148,12 @@ async def get_local_sky_model_endpoint(
     Returns:
         html: An HTML template response of the LSM in table format.
     """
+    query_parameters = dict(request.query_params)
+    # Remove mandatory fields
+    _ = [
+        query_parameters.pop(param, None)
+        for param in ["ra_deg", "dec_deg", "fov_deg", "version", "catalogue_name"]
+    ]
     logger.info(
         "Requesting local sky model with the following parameters: ra:%s, \
 dec:%s, fov:%s, version:%s, catalogue: %s",
@@ -158,7 +163,10 @@ dec:%s, fov:%s, version:%s, catalogue: %s",
         version,
         catalogue_name,
     )
-    local_model = get_local_sky_model(db, ra_deg, dec_deg, fov_deg, catalogue_name, version)
+    query_params = QueryParameters(
+        ra_deg, dec_deg, fov_deg, catalogue_name, version, **query_parameters
+    )
+    local_model = query_params.sky_components(db)
     return templates.TemplateResponse(
         "table.html", {"request": request, "items": list(local_model)}
     )

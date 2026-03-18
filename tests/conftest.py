@@ -8,7 +8,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from ska_sdp_global_sky_model.api.app.main import app
-from ska_sdp_global_sky_model.api.app.models import SkyComponent
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.configuration.config import Base
 from tests.utils import clean_all_tables, engine, override_get_db
 
@@ -72,7 +72,10 @@ def set_up_db_data_fxt():
         # Add a component in the query region (RA ~45, Dec ~4)
         for component in components:
             db.add(component)
-            db.commit()
+        db.add(
+            GlobalSkyModelMetadata(version="1.1.0", catalogue_name="catalogue", upload_id="id1")
+        )
+        db.commit()
     finally:
         db.close()
 

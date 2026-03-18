@@ -68,6 +68,7 @@ def clean_all_tables():
     """Clean staging, main sky component, and catalogue metadata tables for test isolation."""
     db = next(override_get_db())
     try:
+        db.query(GlobalSkyModelMetadata).delete()
         db.query(SkyComponentStaging).delete()
         db.query(SkyComponent).delete()
         db.query(GlobalSkyModelMetadata).delete()

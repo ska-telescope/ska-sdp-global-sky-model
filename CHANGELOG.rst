@@ -7,6 +7,12 @@ Development
 - [Changed] Catalogue version is now auto-assigned at commit time by incrementing the minor
   version per catalogue (e.g. ``0.1.0`` → ``0.2.0``), independently for each catalogue name.
   The ``version`` field has been removed from the upload metadata JSON — it is ignored if present.
+- [Updated] Allow requests of sky components to include operators on any component field
+  (`MR87 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/87>`__)
+- [Updated] Write all Spectral Index Vectors with a fixed length
+  (`MR85 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/85>`__)
+- [Updated] Updated models to follow latest standard
+  (`MR84 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/84>`__)
 - [Added] Endpoint for querying metadata table that supports generic queries and multiple operators
   (`MR83 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/83>`__)
 
