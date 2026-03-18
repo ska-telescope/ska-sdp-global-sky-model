@@ -6,7 +6,11 @@ from sqlalchemy import JSON, StaticPool, create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import sessionmaker
 
-from ska_sdp_global_sky_model.api.app.models import SkyComponent, SkyComponentStaging
+from ska_sdp_global_sky_model.api.app.models import (
+    GlobalSkyModelMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
 from ska_sdp_global_sky_model.configuration.config import Base
 
 # Use in-memory SQLite for testing
@@ -64,6 +68,7 @@ def clean_all_tables():
     """Clean both staging and main tables for test isolation."""
     db = next(override_get_db())
     try:
+        db.query(GlobalSkyModelMetadata).delete()
         db.query(SkyComponentStaging).delete()
         db.query(SkyComponent).delete()
         db.commit()
