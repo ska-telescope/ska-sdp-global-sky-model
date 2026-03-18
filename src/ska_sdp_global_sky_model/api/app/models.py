@@ -114,7 +114,8 @@ class GlobalSkyModelMetadata(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
-    version = Column(String, nullable=False, index=True)
+    # version is nullable here - it is auto-assigned at commit time, not at upload time
+    version = Column(String, nullable=True, index=True)
     catalogue_name = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     upload_id = Column(String, nullable=False, unique=True, index=True)
@@ -187,8 +188,8 @@ class SkyComponentStaging(Base):
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
 
-    # Version tracking - semantic versioning
-    version = Column(String, nullable=False)
+    # version is nullable - set to None during staging, assigned at commit time
+    version = Column(String, nullable=True)
     catalogue_name = Column(String, nullable=False)
 
     # Track which upload batch this belongs to

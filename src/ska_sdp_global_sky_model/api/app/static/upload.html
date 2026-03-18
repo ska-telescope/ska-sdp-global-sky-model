@@ -566,7 +566,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showAlert('success', `✓ Success! ${data.records_committed} records committed with versioning.`);
+                    showAlert('success', `✓ Success! ${data.records_committed} records committed as version ${data.version} (catalogue: ${data.catalogue_name}).`);
                     reviewSection.style.display = 'none';
                     selectedFiles = [];
                     fileInput.value = '';

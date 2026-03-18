@@ -11,6 +11,7 @@ from pathlib import Path
 from ska_sdp_global_sky_model.api.app.ingest import ingest_catalogue
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.configuration.config import get_db
+from ska_sdp_global_sky_model.utilities.version_utils import get_latest_version, increment_minor_version
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def main():
     parser.add_argument(
         "--metadata-file",
         required=True,
-        help="Path to catalogue metadata JSON file (contains version, catalogue_name, etc.)",
+        help="Path to catalogue metadata JSON file (contains catalogue_name, etc.)",
     )
     parser.add_argument("csv_files", help="CSV Files to include", nargs="+")
     parser.add_argument(
@@ -44,7 +45,7 @@ def main():
         metadata_json = json.load(f)
 
     # Validate required fields
-    required_fields = ["version", "catalogue_name", "epoch"]
+    required_fields = ["catalogue_name"]
     missing_fields = [field for field in required_fields if field not in metadata_json]
     if missing_fields:
         logger.error("Error: Missing required fields in metadata file: %s", missing_fields)
@@ -57,15 +58,31 @@ def main():
         # Generate unique upload_id for this import
         upload_id = f"init-{uuid.uuid4()}"
 
+        # Auto-compute the next version for this catalogue
+        catalogue_name = metadata_json["catalogue_name"]
+        existing_versions = [
+            versions[0]
+            for versions in db.query(GlobalSkyModelMetadata.version)
+            .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
+            .filter(GlobalSkyModelMetadata.version.isnot(None))
+            .all()
+        ]
+        catalogue_version = increment_minor_version(get_latest_version(existing_versions))
+        logger.info(
+            "Auto-assigned version %s for catalogue '%s' (previous latest: %s)",
+            catalogue_version,
+            catalogue_name,
+            get_latest_version(existing_versions) or "none",
+        )
+
         # Create catalogue metadata entry
         global_sky_model_metadata = GlobalSkyModelMetadata(
-            version=metadata_json["version"],
-            catalogue_name=metadata_json["catalogue_name"],
+            version=catalogue_version,
+            catalogue_name=catalogue_name,
             description=metadata_json.get(
                 "description", f"Import of {metadata_json['catalogue_name']}"
             ),
             upload_id=upload_id,
-            epoch=metadata_json["epoch"],
             author=metadata_json.get("author"),
             reference=metadata_json.get("reference"),
             notes=metadata_json.get("notes"),
@@ -107,7 +124,7 @@ def main():
                 sys.exit(1)
 
         logger.info(
-            "Successfully imported %s v%s",
+            "Successfully imported %s versions%s",
             metadata_json["catalogue_name"],
             metadata_json["version"],
         )
