@@ -23,7 +23,7 @@ in the database.
 
 Example request:
 
-.. code-block:: http
+.. code-block::
 
     GET /catalogue-metadata
 
