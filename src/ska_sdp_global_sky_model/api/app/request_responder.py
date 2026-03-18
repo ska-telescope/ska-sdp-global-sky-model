@@ -30,11 +30,12 @@ from fastapi import Depends
 from packaging.version import Version
 from ska_sdp_config.entity.flow import Flow, FlowSource
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModel, LocalSkyModel
+    GlobalSkyModel,
 )
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
+from ska_sdp_datamodels.global_sky_model.local_sky_model import LocalSkyModel
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.crud import q3c_radial_query
