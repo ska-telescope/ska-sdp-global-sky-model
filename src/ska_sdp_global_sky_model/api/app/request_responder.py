@@ -30,7 +30,7 @@ from fastapi import Depends
 from packaging.version import Version
 from ska_sdp_config.entity.flow import Flow, FlowSource
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModel,
+    GlobalSkyModel, LocalSkyModel
 )
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
@@ -44,7 +44,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     SHARED_VOLUME_MOUNT,
     get_db,
 )
-from ska_sdp_global_sky_model.utilities.local_sky_model import LocalSkyModel
+from ska_sdp_global_sky_model.utilities.local_sky_model import save_lsm_with_metadata
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 
 logger = logging.getLogger(__name__)
@@ -408,7 +408,7 @@ def _write_data(
     )
 
     # Create LocalSkyModel with the right size
-    local_model = LocalSkyModel.empty(
+    local_model = LocalSkyModel(
         column_names=column_names,
         num_rows=len(data.components),
         max_vector_len=5,  # For spectral index vectors
@@ -427,15 +427,6 @@ def _write_data(
     ).items():
         local_model.set_header({f"QUERY_EXTRA_{key}": value})
 
-    # Think this should/could be done better...
-    try:
-        local_model.set_metadata(
-            {"execution_block_id": eb_id, "catalogue_metadata": data.metadata}
-        )
-        logger.debug("Set execution_block_id to: %s", eb_id)
-    except (ValueError, IndexError) as e:
-        logger.warning("Could not set execution_block_id to %s: %s", eb_id, e)
-
     # Populate the LocalSkyModel with data from GlobalSkyModel
     for row_idx, component in enumerate(data.components.values()):
         row_data = {}
@@ -444,7 +435,6 @@ def _write_data(
             # Handle None values in arrays (e.g., spec_idx with nulls)
             if isinstance(value, (list, tuple)):
                 # Replace None with numpy.nan in arrays
-
                 value = [np.nan if v is None else v for v in value]
             row_data[field] = value
         local_model.set_row(row_idx, row_data)
@@ -457,7 +447,12 @@ def _write_data(
         "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
     )
 
-    local_model.save(str(lsm_file), metadata_dir=str(metadata_dir))
+    save_lsm_with_metadata(
+        local_model,
+        {"execution_block_id": eb_id, "catalogue_metadata": data.metadata},
+        str(lsm_file),
+        str(metadata_dir),
+    )
 
     # Verify files were actually written
     if lsm_file.exists():
