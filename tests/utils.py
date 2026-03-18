@@ -65,12 +65,13 @@ def replace_jsonb_sqlite(target, connection, **kw):  # pylint: disable=unused-ar
 
 
 def clean_all_tables():
-    """Clean both staging and main tables for test isolation."""
+    """Clean staging, main sky component, and catalogue metadata tables for test isolation."""
     db = next(override_get_db())
     try:
         db.query(GlobalSkyModelMetadata).delete()
         db.query(SkyComponentStaging).delete()
         db.query(SkyComponent).delete()
+        db.query(GlobalSkyModelMetadata).delete()
         db.commit()
     finally:
         db.close()
