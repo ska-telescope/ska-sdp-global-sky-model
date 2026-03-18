@@ -73,6 +73,7 @@ def _generate_catalogue(name: str, version: str, mid: tuple[float, float], count
                 dec_deg=d,
                 version=version,
                 catalogue_name=name,
+                pa_deg=i,
             )
         )
     return objs

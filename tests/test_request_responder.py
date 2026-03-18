@@ -589,6 +589,78 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     assert isinstance(result.components[3], SkyComponentDataclass)
 
 
+def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F811
+    """Test querying GSM for LSM with multiple components found, and using an extra param"""
+
+    metadata = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        epoch="test",
+    )
+    db_session.add(metadata)
+    component = SkyComponent(
+        component_id="1",
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        healpix_index=1,
+        version="0.1.0",
+        catalogue_name="test",
+        ref_freq_hz=20000000,
+        pa_deg=5,
+    )
+    db_session.add(component)
+
+    component_2 = SkyComponent(
+        component_id="2",
+        ra_deg=2.9680,
+        dec_deg=-0.1755,
+        healpix_index=2,
+        version="0.1.0",
+        catalogue_name="test",
+        ref_freq_hz=20000000,
+        pa_deg=5,
+    )
+    db_session.add(component_2)
+
+    component_3 = SkyComponent(
+        component_id="3",
+        ra_deg=2.9690,
+        dec_deg=-0.1765,
+        healpix_index=3,
+        version="0.1.0",
+        catalogue_name="test",
+        ref_freq_hz=20000000,
+        pa_deg=8,
+    )
+    db_session.add(component_3)
+
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        version="latest",
+        catalogue_name="test",
+        pa_deg__lt=6,
+    )
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert len(result.components) == 2
+    assert 1 in result.components
+    assert 2 in result.components
+    assert isinstance(result.components[1], SkyComponentDataclass)
+    assert isinstance(result.components[2], SkyComponentDataclass)
+
+
 def test_write_data_integration(
     db_session, tmp_path  # noqa: F811  # pylint: disable=unused-argument,redefined-outer-name
 ):

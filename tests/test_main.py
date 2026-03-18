@@ -286,6 +286,34 @@ def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unus
         assert f"A000100+000{i:0>3d}" in local_sky_model.text
 
 
+def test_local_sky_model_extra_param(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local-sky-model path
+
+    Query in the region covered by test data (RA ~70, Dec ~4, +-4)
+    without version, and limiting another value.
+    """
+
+    local_sky_model = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": 70,
+            "dec_deg": 4,
+            "fov_deg": 4,
+            "catalogue_name": "catalogue2",
+            "version": "1.0.0",
+            "pa_deg__lt": 100,
+        },
+    )
+
+    assert local_sky_model.status_code == 200
+    assert local_sky_model.text.count("A000100") == 20
+    for i in range(80, 100):
+        assert f"A000100+000{i:0>3d}" in local_sky_model.text
+    for i in range(100, 120):
+        assert f"A000100+000{i:0>3d}" not in local_sky_model.text
+
+
 def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disable=unused-argument
     """
     Unit test for the /local-sky-model path
