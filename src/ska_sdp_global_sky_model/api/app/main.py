@@ -116,7 +116,7 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     components = db.query(SkyComponent).all()
     logger.info("Retrieved all point sources for all %s components", str(len(components)))
     return templates.TemplateResponse(
-        "table.html", {"request": request, "items": list(components)}
+        request=request, name="table.html", context={"items": list(components)}
     )
 
 
@@ -165,7 +165,7 @@ dec:%s, fov:%s, version:%s, catalogue: %s",
     )
     local_model = query_params.sky_components(db)
     return templates.TemplateResponse(
-        "table.html", {"request": request, "items": list(local_model)}
+        request=request, name="table.html", context={"items": list(local_model)}
     )
 
 
