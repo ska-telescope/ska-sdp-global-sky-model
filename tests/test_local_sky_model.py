@@ -6,8 +6,8 @@ import os
 import tempfile
 
 import yaml
-
 from ska_sdp_datamodels.global_sky_model import LocalSkyModel
+
 from ska_sdp_global_sky_model.utilities.local_sky_model import save_lsm_with_metadata
 
 
