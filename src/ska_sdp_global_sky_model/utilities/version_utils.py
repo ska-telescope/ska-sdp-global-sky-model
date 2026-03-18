@@ -3,10 +3,9 @@ Utility functions for semantic version validation and comparison.
 """
 
 import re
-from typing import Optional
 
 
-def parse_semantic_version(version: str) -> Optional[tuple[int, int, int]]:
+def parse_semantic_version(version: str) -> tuple[int, int, int] | None:
     """
     Parse a semantic version string into (major, minor, patch) tuple.
 
