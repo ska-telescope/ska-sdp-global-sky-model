@@ -219,25 +219,27 @@ def test_local_sky_model(myclient, set_up_db):  # pylint: disable=unused-argumen
     """
     Unit test for the /local-sky-model path
 
-    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    Query in the region covered by test data (RA ~80, Dec ~4 +- 1)
     without a specified version
     """
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
-        params={"ra_deg": "90", "dec_deg": "4", "fov_deg": 5, "catalogue_name": "catalogue"},
+        params={"ra_deg": 80, "dec_deg": 4, "fov_deg": 1, "catalogue_name": "catalogue3"},
     )
 
     assert local_sky_model.status_code == 200
-    assert "J030420+022029" not in local_sky_model.text
-    assert "J031020+042029" in local_sky_model.text
+
+    assert local_sky_model.text.count("N000100") == 11
+    for i in range(5, 16):
+        assert f"N000100+0000{i:0>2d}" in local_sky_model.text
 
 
 def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=unused-argument
     """
     Unit test for the /local-sky-model path
 
-    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
+    Query in the region covered by test data (RA ~90, Dec ~2 +- 5)
     but with version that only includes one component
     """
 
@@ -245,40 +247,42 @@ def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=u
         "/local-sky-model/",
         params={
             "ra_deg": "90",
-            "dec_deg": "4",
+            "dec_deg": "2",
             "fov_deg": 5,
-            "version": "1.0.2",
-            "catalogue_name": "catalogue",
+            "version": "0.1.0",
+            "catalogue_name": "catalogue1",
         },
     )
 
     assert local_sky_model.status_code == 200
-    assert "J030420+022029" in local_sky_model.text
-    assert "J031020+042029" not in local_sky_model.text
+    assert local_sky_model.text.count("W000010") == 20
+    for i in range(20):
+        assert f"W000010+0000{i:0>2d}" in local_sky_model.text
 
 
 def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unused-argument
     """
     Unit test for the /local-sky-model path
 
-    Query in the region covered by test data (RA ~42-50, Dec ~0-7)
-    without version, with fov that only returns one object
+    Query in the region covered by test data (RA ~70, Dec ~4, +-4)
+    without version, with fov that only returns 41/200 objects
     """
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
         params={
-            "ra_deg": "90",
-            "dec_deg": "2",
-            "fov_deg": 0.2,
-            "catalogue_name": "catalogue",
-            "version": "1.0.2",
+            "ra_deg": 70,
+            "dec_deg": 4,
+            "fov_deg": 4,
+            "catalogue_name": "catalogue2",
+            "version": "1.0.0",
         },
     )
 
     assert local_sky_model.status_code == 200
-    assert "J030420+022029" in local_sky_model.text
-    assert "J031020+042029" not in local_sky_model.text
+    assert local_sky_model.text.count("A000100") == 41
+    for i in range(80, 121):
+        assert f"A000100+000{i:0>3d}" in local_sky_model.text
 
 
 def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disable=unused-argument
@@ -301,8 +305,7 @@ def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disabl
     )
 
     assert local_sky_model.status_code == 200
-    assert "J030420+022029" not in local_sky_model.text
-    assert "J031020+042029" not in local_sky_model.text
+    assert local_sky_model.text.count("0+0") == 0
 
 
 def test_upload_batch_gleam_catalog(myclient, monkeypatch):
