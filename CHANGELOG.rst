@@ -4,6 +4,9 @@ CHANGELOG
 Development
 -----------
 
+- [Updated] Move LocalSkyModel class to ska-sdp-datamodels repository to
+  provide CSV read functionality for pipelines
+  (`MR92 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/92>`__)
 - [Changed] Catalogue version is now auto-assigned at commit time by incrementing the minor
   version per catalogue (e.g. ``0.1.0`` → ``0.2.0``), independently for each catalogue name.
   The ``version`` field has been removed from the upload metadata JSON — it is ignored if present.
