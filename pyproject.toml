@@ -45,8 +45,7 @@ python-multipart = "^0.0.9"
 healpy = "^1.19.0"
 alembic = "^1.13.2"
 ska-sdp-config = "^1.5.1"
-# ska-sdp-datamodels = { version = "1.1.0+dev.dd761f0da", source = "ska-sdp-datamodels" }
-ska-sdp-datamodels = { git = "https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels.git", branch = "phx-410-move-lsm-to-datamodels" }
+ska-sdp-datamodels = { version = "1.1.1+dev.5b4a01424", source = "ska-sdp-datamodels" }
 ska-sdp-dataproduct-metadata = "^1.1.1"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
 PyYAML = "^6.0.0"
