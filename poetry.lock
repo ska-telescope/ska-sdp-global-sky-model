@@ -3282,33 +3282,34 @@ reference = "skao"
 
 [[package]]
 name = "ska-sdp-datamodels"
-version = "1.1.0"
+version = "1.1.1+dev.c5b4a0142"
 description = "SKA SDP Python-based Data Models"
 optional = false
-python-versions = "^3.10"
+python-versions = ">=3.10,<4.0"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "ska_sdp_datamodels-1.1.1+dev.c5b4a0142-py3-none-any.whl", hash = "sha256:f6c02f6402259f01261bd28c7a38c0371d5c1d4fdb36b46734610f16f4528bf0"},
+    {file = "ska_sdp_datamodels-1.1.1+dev.c5b4a0142.tar.gz", hash = "sha256:a47e26b1dc804ea71ce8b3898ffd82ebbd69d80c8d35415d401865060f1f26a9"},
+]
 
 [package.dependencies]
-astroplan = "^0.10"
-astropy = "^6.1"
-h5py = "^3.12"
-msgpack = "^1.1"
-msgpack-numpy = "^0.4.8"
+astroplan = ">=0.10,<0.11"
+astropy = ">=6.1,<7.0"
+h5py = ">=3.12,<4.0"
+msgpack = ">=1.1,<2.0"
+msgpack-numpy = ">=0.4.8,<0.5.0"
 numpy = ">=1.26"
-pandas = "^2.2"
-ska-telmodel = "^1.19"
-xarray = "^2024.9, <2024.11"
+pandas = ">=2.2,<3.0"
+ska-telmodel = ">=1.19,<2.0"
+xarray = ">=2024.9,<2024.11"
 
 [package.extras]
 python-casacore = ["python-casacore (>=3.6,<4.0)"]
 
 [package.source]
-type = "git"
-url = "https://gitlab.com/ska-telescope/sdp/ska-sdp-datamodels.git"
-reference = "phx-410-move-lsm-to-datamodels"
-resolved_reference = "dd761f0da4a671d59ba863091b8b6a5a99fad0a2"
+type = "legacy"
+url = "https://gitlab.com/api/v4/projects/40032008/packages/pypi/simple"
+reference = "ska-sdp-datamodels"
 
 [[package]]
 name = "ska-sdp-dataproduct-metadata"
@@ -4110,4 +4111,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "235038f456b08fc41208ee93ab250188a15586618a449bb3e4b7b4f2bd443187"
+content-hash = "136503c784a42e81ef5f4a858b5a39d46f4c0667ee7470bab9502c1faf21416f"
