@@ -30,7 +30,7 @@ logger.info("Logging started for ska-sdp-global-sky-model-api")
 DB_NAME: str = config("POSTGRES_DB_NAME", default="postgres")
 POSTGRES_USER: str = config("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
-DB: str = config("POSTGRES_HOST", default="db")
+DB: str = config("POSTGRES_HOST", default="localhost")
 DB_SCHEMA: str = config("POSTGRES_SCHEMA_NAME", default="public")
 DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 
