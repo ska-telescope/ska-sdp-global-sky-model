@@ -70,31 +70,36 @@ Updating schema
 ~~~~~~~~~~~~~~~
 
 The schema is migrated to the latest version by running ``alembic migrate``.
-This can either be done in the docker compose environment:
+
+There are 2 helper commands to do this:
+
+* ``make migrate`` - will migrate the database forwards
+* ``make migrate-rollback`` - will rollback a single migration
+
+For both commands there are some variables that can be used:
+
+* ``RUN_LOCATION`` which can be ``local``, ``docker`` or ``kubernetes`` which will run
+  on one of the 3 environments.
+
+Note that for the ``kubernetes`` commands you also need:
+
+* ``SDP_NAMESPACE`` - the namespace in which the GSM is deployed.
+* ``GSM_POD`` - the name of the GSM pod to use (use the API not the database)
 
 .. code-block:: bash
+   :caption: Migrate a local instance
 
-    $ make compose-migrate
-
-Alternatively if this the container is set up using k8s the following command
-can be run inside the container:
+    make migrate
 
 .. code-block:: bash
+   :caption: Migrate an instance using docker
 
-    $ make k8s-migrate
-
-The schema changes can be rolled back to a previous version by running ``alembic rollback -1``.
-This is available in docker compose:
+    make migrate RUN_LOCATION=docker
 
 .. code-block:: bash
+   :caption: Migrate a kubernetes instance
 
-    $ make compose-migrate-rollback
-
-and in the k8s container by:
-
-.. code-block:: bash
-
-    $ make k8s-migrate-rollback
+    KUBECONFIG=kubeconfig make migrate RUN_LOCATION=kubernetes SDP_NAMESPACE=dp-phoenix GSM_POD=ska-sdp-gsm-7954755b4f-vjxxz
 
 Schema changes
 ~~~~~~~~~~~~~~
@@ -104,18 +109,23 @@ migration file (versions) and added to git.
 It is important that the environment is using the public schema in the PostgreSQL schema.
 
 This file may be created manually and added to the folder ``alembic/versions/``.
-Alternatively this file may be generated. This is done by running in docker compose:
+Alternatively this file may be generated. This is done by running a helper command:
 
 .. code-block:: bash
+   :caption: Create migration on local setup
 
-    $ make compose-create-migration MIGRATION_NOTE='migration_text'
-
-or inside the container
+    make migrate-create MIGRATION_NOTE="upgrading schema"
 
 .. code-block:: bash
+   :caption: Create migration on a docker instance
 
-   $ make k8s-create-migration
+    make migrate-create RUN_LOCATION=docker MIGRATION_NOTE="upgrading schema"
 
+
+.. note::
+
+    Migrations cannot be created in kubernetes, as this would cause them to not
+    be persisted in the repo.
 
 Running migration in Kubernetes
 --------------------------------
