@@ -18,7 +18,7 @@ migrations
 *.sqlite3
 
 ### dotenv ###
-#.env
+.env
 
 ### macOS ###
 # General
