@@ -3313,21 +3313,20 @@ reference = "ska-sdp-datamodels"
 
 [[package]]
 name = "ska-sdp-dataproduct-metadata"
-version = "1.1.1"
+version = "1.1.2"
 description = "SKA SDP Data Product Metadata"
 optional = false
 python-versions = ">=3.10,<4.0"
 groups = ["main"]
 files = [
-    {file = "ska_sdp_dataproduct_metadata-1.1.1-py3-none-any.whl", hash = "sha256:0b5d4123b3cee144b3e141617d0f33330e9a8a6838c9c7b9cef03264c17c4345"},
-    {file = "ska_sdp_dataproduct_metadata-1.1.1.tar.gz", hash = "sha256:eb1c9efce897fefbea42e5df7f551633403c1e52a662c64ee2ab5680a023089a"},
+    {file = "ska_sdp_dataproduct_metadata-1.1.2-py3-none-any.whl", hash = "sha256:ed503f7fa1af5fe5c702de2f9d9eeb3318f7483752a76480466d5dec05d2d783"},
+    {file = "ska_sdp_dataproduct_metadata-1.1.2.tar.gz", hash = "sha256:de59f8a0e2e080510c5fdd5a568264b71f634c73d33c29bfbb3e92e43d740950"},
 ]
 
 [package.dependencies]
 jsonschema = ">=4.26.0,<5.0.0"
 python-benedict = ">=0.35.0,<0.36.0"
 ska-sdp-config = ">=1.5.1,<2.0.0"
-ska-ser-logging = ">=0.4.3,<0.5.0"
 
 [package.source]
 type = "legacy"
@@ -4111,4 +4110,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "c60930b398fe699cd6d0da301a85de1670208ae30ae01e11402cab04400b2899"
+content-hash = "4491fe6fa5e62c345f349adbc18677d401041767c745d54e7ca78a3e94fbc693"
