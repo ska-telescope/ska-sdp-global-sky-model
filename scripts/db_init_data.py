@@ -124,9 +124,8 @@ def main():
                 sys.exit(1)
 
         logger.info(
-            "Successfully imported %s versions%s",
+            "Successfully imported %s",
             metadata_json["catalogue_name"],
-            metadata_json["version"],
         )
 
     except Exception as e:  # pylint: disable=broad-exception-caught

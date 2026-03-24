@@ -4,15 +4,17 @@ CHANGELOG
 Development
 -----------
 
-- [Updated] Move LocalSkyModel class to ska-sdp-datamodels repository to
+- [Update] Added generic migration commands for developers
+  (`MR 94 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/94>`__)
+- [Update] Move LocalSkyModel class to ska-sdp-datamodels repository to
   provide CSV read functionality for pipelines
   (`MR92 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/92>`__)
-- [Update] Removed depcrecation warning, added more tests
-  (`MR90 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/90`__)
+- [Update] Removed deprecation warning, added more tests
+  (`MR90 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/90>`__)
 - [Changed] Catalogue version is now auto-assigned at commit time by incrementing the minor
   version per catalogue (e.g. ``0.1.0`` → ``0.2.0``), independently for each catalogue name.
   The ``version`` field has been removed from the upload metadata JSON — it is ignored if present.
-  (`MR89 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/89`__)
+  (`MR89 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/89>`__)
 - [Fix] Fix use of FOV, converting it to radius
   (`MR88 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/88>`__)
 - [Updated] Allow requests of sky components to include operators on any component field

@@ -35,6 +35,7 @@ services:
       SDP_CONFIG_HOST: 'etcd'
       SDP_CONFIG_PORT: '2379'
       SDP_LOG_LEVEL: 'INFO'
+      POSTGRES_HOST: 'db'
 
   db:
     build:
