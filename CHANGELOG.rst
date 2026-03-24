@@ -6,6 +6,9 @@ Development
 
 - [Update] Added generic migration commands for developers
   (`MR 94 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/94>`__)
+- [Update] Move LocalSkyModel class to ska-sdp-datamodels repository to
+  provide CSV read functionality for pipelines
+  (`MR92 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/92>`__)
 - [Update] Removed deprecation warning, added more tests
   (`MR90 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/90>`__)
 - [Changed] Catalogue version is now auto-assigned at commit time by incrementing the minor
