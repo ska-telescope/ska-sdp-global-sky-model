@@ -4,8 +4,10 @@ CHANGELOG
 Development
 -----------
 
+- [Update] Make the GSM aware of the Resource Management
+  (`MR95 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/95>`__)
 - [Update] Added generic migration commands for developers
-  (`MR 94 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/94>`__)
+  (`MR94 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/94>`__)
 - [Update] Move LocalSkyModel class to ska-sdp-datamodels repository to
   provide CSV read functionality for pipelines
   (`MR92 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/92>`__)
