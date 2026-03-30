@@ -673,7 +673,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + all database-specific fields
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 8
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 3
 
         # Get actual count
         inspector = inspect(engine)

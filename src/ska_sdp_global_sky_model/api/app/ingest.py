@@ -221,8 +221,6 @@ def build_component_mapping(component_dict: dict) -> dict:
     component_mapping = {}
     dataclass_fields = _get_dataclass_fields()
 
-    component_mapping["component_id"] = str(component_dict.get("component_id"))
-
     # Database-specific field (not in dataclass)
     component_mapping["healpix_index"] = compute_hpx_healpy(
         component_dict.get("ra_deg"), component_dict.get("dec_deg")
@@ -230,12 +228,13 @@ def build_component_mapping(component_dict: dict) -> dict:
 
     # Dynamically map all dataclass fields
     for field_name, field_type in dataclass_fields.items():
-        if field_name == "component_id":
-            continue  # Already handled above
-
         value = component_dict.get(field_name)
         if value is None:
             continue  # Skip missing optional fields
+
+        if field_type is str:
+            component_mapping[field_name] = str(value)
+            continue
 
         # Handle special fields with custom processing
         if _process_special_field(field_name, value, component_mapping):

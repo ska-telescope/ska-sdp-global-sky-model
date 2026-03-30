@@ -67,12 +67,18 @@ def sample_csv_file():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(
-            "component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,"
+            "component_id,source_id,epoch,ra_deg,dec_deg,i_pol_jy,a_arcsec,"
             "b_arcsec,pa_deg,spec_idx,log_spec_idx,ref_freq_hz\n"
         )
-        f.write('J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,"[-0.7,,,,]",false,3000000000\n')
-        f.write('J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,"[-0.8,,,,]",true,3000000000\n')
-        f.write('J223344-556677,30.1,-20.5,0.8,,,,"[-0.5,,,,]",false,3000000000\n')
+        f.write(
+            'J001122-334455,S1234,2026.2247,10.5,45.2,1.5,0.01,0.008,45.0,"[-0.7,,,,]",false,'
+            "3000000000\n"
+        )
+        f.write(
+            'J112233-445566,S1234,2026.2247,20.3,30.1,2.3,0.02,0.015,90.0,"[-0.8,,,,]",true,'
+            "3000000000\n"
+        )
+        f.write('J223344-556677,S1234,2026.2247,30.1,-20.5,0.8,,,,"[-0.5,,,,]",false,3000000000\n')
         temp_path = Path(f.name)
 
     yield temp_path
@@ -260,6 +266,8 @@ class TestValidateComponentMapping:
         """Test validation of minimal valid mapping"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 10.5,
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
@@ -273,6 +281,8 @@ class TestValidateComponentMapping:
         """Test validation fails for missing required field"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 10.5,
             # Missing dec_deg
             "i_pol_jy": 1.5,
@@ -286,6 +296,8 @@ class TestValidateComponentMapping:
         """Test validation fails for RA out of range"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 400.0,  # Invalid
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
@@ -299,6 +311,8 @@ class TestValidateComponentMapping:
         """Test validation fails for DEC out of range"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 10.5,
             "dec_deg": 95.0,  # Invalid
             "i_pol_jy": 1.5,
@@ -312,6 +326,8 @@ class TestValidateComponentMapping:
         """Test validation fails for wrong type"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": "not_a_number",  # Invalid type
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
@@ -390,6 +406,7 @@ class TestProcessComponentDataBatch:
         """Test processing valid component data from in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
+        print(content)
         cf = ComponentFile(content)
 
         result = process_component_data_batch(
@@ -471,12 +488,12 @@ class TestProcessComponentDataBatch:
 
         # Create CSV with multiple invalid components
         invalid_csv = (
-            "component_id,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
-            "J001122-334455,10.5,45.2,1.5,300000000\n"  # Valid
-            "J112233-445566,400.0,30.1,2.3,300000000\n"  # Invalid RA
-            "J223344-556677,30.1,95.0,0.8,300000000\n"  # Invalid DEC
-            "J334455-667788,20.0,10.0,-1.0,300000000\n"  # Valid (i_pol no longer validated)
-            "J445566-778899,50.0,20.0,2.0,300000000\n"  # Valid
+            "component_id,source_id,epoch,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
+            "J001122-334455,S1234,2025.2247,10.5,45.2,1.5,300000000\n"  # Valid
+            "J112233-445566,S1234,2025.2247,400.0,30.1,2.3,300000000\n"  # Invalid RA
+            "J223344-556677,S1234,2025.2247,30.1,95.0,0.8,300000000\n"  # Invalid DEC
+            "J334455-667788,S1234,2025.2247,20.0,10.0,-1.0,300000000\n"  # Valid (i_pol no longer validated)
+            "J445566-778899,S1234,2025.2247,50.0,20.0,2.0,300000000\n"  # Valid
         )
 
         cf = ComponentFile(invalid_csv)
@@ -554,9 +571,9 @@ class TestProcessComponentDataBatch:
         caplog.set_level(logging.INFO)
 
         valid_csv = (
-            "component_id,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
-            "J001122-334455,10.5,45.2,1.5,300000000\n"
-            "J112233-445566,20.0,30.1,2.3,300000000\n"
+            "component_id,source_id,epoch,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
+            "J001122-334455,S1234,2026.2247,10.5,45.2,1.5,300000000\n"
+            "J112233-445566,S1234,2026.2247,20.0,30.1,2.3,300000000\n"
         )
 
         cf = ComponentFile(valid_csv)

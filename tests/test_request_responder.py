@@ -669,6 +669,8 @@ def test_write_data_integration(
     # Create test components
     component1 = SkyComponentDataclass(
         component_id="TEST001",
+        source_id="S1",
+        epoch=2026.2247,
         ra_deg=45.0,
         dec_deg=-30.0,
         i_pol_jy=1.5,
@@ -682,6 +684,8 @@ def test_write_data_integration(
 
     component2 = SkyComponentDataclass(
         component_id="TEST002",
+        source_id="S1",
+        epoch=2026.2247,
         ra_deg=46.0,
         dec_deg=-31.0,
         i_pol_jy=2.3,
