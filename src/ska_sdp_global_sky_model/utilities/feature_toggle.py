@@ -15,6 +15,7 @@ class FeatureToggle:
         """
         self._name = name
         self._default = default
+        self._key = str("feature_" + self._name).upper()
 
     def set_default(self, default: bool) -> None:
         """Set feature default toggle value.
@@ -30,9 +31,6 @@ class FeatureToggle:
         :returns: Toggle value.
 
         """
-        env_var = str("feature_" + self._name).upper()
-        if env_var in os.environ:
-            value = os.environ.get(env_var) == "1"
-        else:
-            value = self._default
-        return value
+        if self._key in os.environ:
+            return os.environ.get(self._key, "")[:1].upper() in ("1", "T", "Y")
+        return self._default
