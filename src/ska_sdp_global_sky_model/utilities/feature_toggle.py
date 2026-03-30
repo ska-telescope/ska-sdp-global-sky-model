@@ -1,6 +1,9 @@
 """Feature toggle."""
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureToggle:
@@ -16,6 +19,7 @@ class FeatureToggle:
         self._name = name
         self._default = default
         self._key = str("feature_" + self._name).upper()
+        logger.debug("Feature ENV key: '%s'", self._key)
 
     def set_default(self, default: bool) -> None:
         """Set feature default toggle value.
@@ -32,5 +36,7 @@ class FeatureToggle:
 
         """
         if self._key in os.environ:
-            return os.environ.get(self._key, "")[:1].upper() in ("1", "T", "Y")
+            v = os.environ.get(self._key, "")[:1].upper()
+            logger.debug("Feature check [%s=%s]", self._key, v)
+            return v in ("1", "T", "Y")
         return self._default
