@@ -13,6 +13,8 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import as_declarative, sessionmaker
 from starlette.config import Config
 
+from ska_sdp_global_sky_model.utilities.feature_toggle import FeatureToggle
+
 ENV_FILE = Path(".env")
 if not ENV_FILE.exists():
     ENV_FILE = None
@@ -41,6 +43,8 @@ NEST: bool = config("NEST", default="True").upper() == "TRUE"
 REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
 SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
 
+
+resource_toggle = FeatureToggle("RESOURCE_MANAGEMENT_TOGGLE", default=False)
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)

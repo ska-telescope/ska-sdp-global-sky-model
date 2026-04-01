@@ -26,6 +26,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _watcher_process,
     _write_data,
 )
+from ska_sdp_global_sky_model.configuration.config import resource_toggle
 from tests.test_db_schema import db_session  # noqa: F401
 
 # pylint: disable=too-many-arguments
@@ -68,8 +69,11 @@ def fixture_valid_flow():
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow):
+def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow, monkeypatch):
     """Test the happy path"""
+
+    monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
+    resource_toggle.is_active = lambda: True
 
     mock_time.return_value = 1234.5678
     mock_txn = MagicMock()
@@ -295,8 +299,17 @@ def test_watcher_process_missing_parameter(
     assert mock_write_data.mock_calls == []
 
 
-def test_get_flows_filtering(valid_flow):
+@pytest.mark.parametrize(
+    "resource_management, expected_state",
+    [
+        (False, "PENDING"),
+        (True, "INITIALISED"),
+    ],
+)
+def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, expected_state):
     """Test that we can get flows and filter them correctly"""
+    monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1" if resource_management else "0")
+    resource_toggle.is_active = lambda: resource_management
 
     txn = MagicMock()
 
@@ -307,7 +320,7 @@ def test_get_flows_filtering(valid_flow):
         (valid_flow.key, valid_flow),
         (flow2.key, flow2),
     ]
-    txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
+    txn.flow.state.return_value.get.return_value = {"status": expected_state}
 
     output = list(_get_flows(txn))
 
