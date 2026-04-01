@@ -26,6 +26,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _watcher_process,
     _write_data,
 )
+from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT
 from tests.test_db_schema import db_session  # noqa: F401
 
 # pylint: disable=too-many-arguments
@@ -43,7 +44,7 @@ def fixture_valid_flow():
             data_dir=PVCPath(
                 k8s_namespaces=[],
                 k8s_pvc_name="",
-                pvc_mount_path="/mnt/data",
+                pvc_mount_path=str(SHARED_VOLUME_MOUNT),
                 pvc_subpath=pathlib.Path(f"product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/field1"),
             ),
             paths=[],
@@ -96,7 +97,7 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
 
     _watcher_process(mock_config)
 
-    path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
+    path = SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath
     eb_id = "eb-test-20260108-1234"
 
     assert mock_config.mock_calls == [call.watcher(timeout=30)]
@@ -326,7 +327,7 @@ def test_process_flow(mock_query, mock_write, valid_flow):
 
     mock_query.return_value = ["data"]
 
-    output_path = pathlib.Path("/mnt/data") / valid_flow.sink.data_dir.pvc_subpath
+    output_path = SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath
     eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
@@ -473,16 +474,15 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         author="test",
         reference="test",
         notes="test",
-        epoch="test",
     )
     db_session.add(metadata)
+    db_session.commit()
     component = SkyComponent(
         component_id="DictTestSource",
         ra_deg=111.11,
         dec_deg=-22.22,
         healpix_index=33333,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component)
@@ -534,16 +534,15 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         author="test",
         reference="test",
         notes="test",
-        epoch="test",
     )
     db_session.add(metadata)
+    db_session.commit()
     component = SkyComponent(
         component_id="1",
         ra_deg=2.9670,
         dec_deg=-0.1745,
         healpix_index=1,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component)
@@ -553,8 +552,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra_deg=2.9680,
         dec_deg=-0.1755,
         healpix_index=2,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component_2)
@@ -564,8 +562,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         ra_deg=2.9690,
         dec_deg=-0.1765,
         healpix_index=3,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component_3)
@@ -600,16 +597,15 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         author="test",
         reference="test",
         notes="test",
-        epoch="test",
     )
     db_session.add(metadata)
+    db_session.commit()
     component = SkyComponent(
         component_id="1",
         ra_deg=2.9670,
         dec_deg=-0.1745,
         healpix_index=1,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
         pa_deg=5,
     )
@@ -620,8 +616,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         ra_deg=2.9680,
         dec_deg=-0.1755,
         healpix_index=2,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
         pa_deg=5,
     )
@@ -632,8 +627,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         ra_deg=2.9690,
         dec_deg=-0.1765,
         healpix_index=3,
-        version="0.1.0",
-        catalogue_name="test",
+        gsm_id=metadata.id,
         ref_freq_hz=20000000,
         pa_deg=8,
     )

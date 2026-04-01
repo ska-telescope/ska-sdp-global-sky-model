@@ -105,6 +105,8 @@ class QueryParameters:
         """
         # Query components within the field of view using spatial index
         # pylint: disable=no-member,duplicate-code
+        metadata_records = self._get_metadata_records(db)
+        ids = [record.id for record in metadata_records]
         sky_components_query = (
             db.query(SkyComponent)
             .where(
@@ -116,12 +118,21 @@ class QueryParameters:
                     self.fov_deg,
                 )
             )
-            .where(SkyComponent.version == self.get_version(db))
-            .where(SkyComponent.catalogue_name == self.catalogue_name)
+            .where(SkyComponent.gsm_id.in_(ids))
         )
         query_builder = QueryBuilder(SkyComponent, self.component_queries)
         sky_components_query = query_builder.apply_filters(sky_components_query)
-        return sky_components_query.all()
+        return metadata_records, sky_components_query.all()
+
+    def _get_metadata_records(self, db) -> list[GlobalSkyModelMetadata]:
+        metadata_query = (
+            db.query(GlobalSkyModelMetadata)
+            .where(GlobalSkyModelMetadata.version == self.get_version(db))
+            .where(GlobalSkyModelMetadata.catalogue_name == self.catalogue_name)
+        )
+        query_builder = QueryBuilder(GlobalSkyModelMetadata, self.metadata_queries)
+        metadata_query = query_builder.apply_filters(metadata_query)
+        return metadata_query.all()
 
     def get_version(self, db: Session) -> str:
         """Get version. If was 'latest' set convert to latest semantic version in database.
@@ -333,24 +344,19 @@ def _query_gsm_for_lsm(
 
         # Query metadata for this version
 
-        metadata_row = (
-            db.query(GlobalSkyModelMetadata)
-            .filter(GlobalSkyModelMetadata.version == resolved_version)
-            .first()
-        )
-        metadata_dict = metadata_row.columns_to_dict() if metadata_row else {}
-
         sky_components_dict = {}
-        for sky_component in query_parameters.sky_components(db):
+        metadata_records, sky_components = query_parameters.sky_components(db)
+        for sky_component in sky_components:
             sky_component_dict = sky_component.columns_to_dict()
             # Remove database-specific fields that are not in SkyComponent dataclass
             del sky_component_dict["id"]
+            del sky_component_dict["gsm_id"]
             del sky_component_dict["healpix_index"]
-            del sky_component_dict["version"]
-            del sky_component_dict["catalogue_name"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
-        return GlobalSkyModel(metadata=metadata_dict, components=sky_components_dict)
+        return GlobalSkyModel(
+            metadata=metadata_records[0].columns_to_dict(), components=sky_components_dict
+        )
 
     except Exception as e:
         logger.exception("Error querying GSM database: %s", e)

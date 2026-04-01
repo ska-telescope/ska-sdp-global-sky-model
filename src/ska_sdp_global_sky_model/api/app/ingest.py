@@ -416,8 +416,7 @@ def _process_single_component(
     existing_component_id: set,
     staging: bool,
     upload_id: str | None,
-    version: str,
-    catalogue_name: str,
+    gsm_id: int,
 ) -> tuple[dict | None, str | None]:
     """Process and validate a single component.
 
@@ -453,8 +452,7 @@ def _process_single_component(
     if staging and upload_id:
         component_mapping["upload_id"] = upload_id
 
-    component_mapping["version"] = version
-    component_mapping["catalogue_name"] = catalogue_name
+    component_mapping["gsm_id"] = gsm_id
 
     # Validate the component mapping
     is_valid, error_msg = validate_component_mapping(component_mapping, count)
@@ -467,8 +465,7 @@ def _process_single_component(
 def process_component_data_batch(
     db: Session,
     catalogue_data,
-    version: str,
-    catalogue_name: str,
+    gsm_id: int,
     batch_size: int = 500,
     staging: bool = False,
     upload_id: str | None = None,
@@ -501,7 +498,10 @@ def process_component_data_batch(
         # Empty set for staging - allow duplicates across uploads
         existing_component_id = set()
     else:
-        existing_component_id = {r[0] for r in db.query(model_class.component_id).all()}
+        existing_component_id = {
+            r.component_id
+            for r in db.query(model_class).filter(model_class.gsm_id == gsm_id).all()
+        }
 
     # Phase 1: Validate all data and collect valid components
     component_objs = []
@@ -519,7 +519,7 @@ def process_component_data_batch(
             )
 
         component_mapping, error_msg = _process_single_component(
-            src, count, existing_component_id, staging, upload_id, version, catalogue_name
+            src, count, existing_component_id, staging, upload_id, gsm_id
         )
 
         if error_msg:
@@ -598,8 +598,7 @@ def ingest_catalogue(
         if not process_component_data_batch(
             db,
             components,
-            version=catalogue_metadata.version,
-            catalogue_name=catalogue_metadata.catalogue_name,
+            gsm_id=catalogue_metadata.id,
             staging=staging,
             upload_id=upload_id,
         ):

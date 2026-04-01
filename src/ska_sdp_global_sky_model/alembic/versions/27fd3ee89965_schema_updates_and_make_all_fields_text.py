@@ -1,8 +1,8 @@
 """schema updates and make all fields text
 
-Revision ID: f0e33aa2056d
+Revision ID: 27fd3ee89965
 Revises: 5203c3819ac2
-Create Date: 2026-03-30 10:57:42.243297
+Create Date: 2026-03-31 08:22:45.396913
 
 """
 from typing import Sequence
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f0e33aa2056d'
+revision: str = '27fd3ee89965'
 down_revision: str | None = '5203c3819ac2'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -34,10 +34,7 @@ def upgrade() -> None:
                existing_type=sa.VARCHAR(),
                type_=sa.Text(),
                existing_nullable=True)
-    op.alter_column('global_sky_model_metadata', 'epoch',
-               existing_type=sa.VARCHAR(),
-               type_=sa.Text(),
-               existing_nullable=True)
+    op.drop_column('global_sky_model_metadata', 'epoch')
     op.add_column('sky_component', sa.Column('source_id', sa.Text(), nullable=True))
     op.add_column('sky_component', sa.Column('epoch', sa.Float(), nullable=True))
     op.add_column('sky_component_staging', sa.Column('source_id', sa.Text(), nullable=True))
@@ -51,10 +48,7 @@ def downgrade() -> None:
     op.drop_column('sky_component_staging', 'source_id')
     op.drop_column('sky_component', 'epoch')
     op.drop_column('sky_component', 'source_id')
-    op.alter_column('global_sky_model_metadata', 'epoch',
-               existing_type=sa.Text(),
-               type_=sa.VARCHAR(),
-               existing_nullable=True)
+    op.add_column('global_sky_model_metadata', sa.Column('epoch', sa.VARCHAR(), autoincrement=False, nullable=True))
     op.alter_column('global_sky_model_metadata', 'reference',
                existing_type=sa.Text(),
                type_=sa.VARCHAR(),

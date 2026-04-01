@@ -24,7 +24,17 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
-from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.sql import func
@@ -146,19 +156,16 @@ class SkyComponent(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    gsm_id = mapped_column(ForeignKey("global_sky_model_metadata.id"))
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
-
-    # Version tracking - semantic versioning
-    version = Column(String, nullable=False, index=True)
-    catalogue_name = Column(String, nullable=False, index=True)
 
     # Add component_id explicitly so we can reference it in __table_args__
     component_id = Column(String, nullable=False, index=True)
 
     __table_args__ = (
-        UniqueConstraint("component_id", "version", "catalogue_name", name="uq_component_version"),
+        UniqueConstraint("component_id", "gsm_id", name="uq_component_version"),
         {"schema": DB_SCHEMA},
     )
 
@@ -179,13 +186,10 @@ class SkyComponentStaging(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    gsm_id = mapped_column(ForeignKey("global_sky_model_metadata.id"))
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
-
-    # version is nullable - set to None during staging, assigned at commit time
-    version = Column(String, nullable=True)
-    catalogue_name = Column(String, nullable=False)
 
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)

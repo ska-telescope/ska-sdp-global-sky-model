@@ -66,6 +66,9 @@ def get_db():
     """
     try:
         db = session_local()
+
+        # allow for detached objects (like the upload manager)
+        db.expire_on_commit = False
         yield db
     finally:
         db.close()

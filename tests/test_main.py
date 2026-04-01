@@ -189,21 +189,22 @@ def test_upload_sky_survey_status_not_found(myclient):
     assert "Upload ID not found" in response.json()["detail"]
 
 
-def test_components(myclient):  # pylint: disable=unused-argument,redefined-outer-name
+def test_components(myclient, fake_gsm_metadata):
     """Unit test for the /components endpoint"""
 
     # Add a test component directly to the test database using override_get_db
     # Use the overridden database session
     db = next(override_get_db())
     try:
+        db.add(fake_gsm_metadata)
+        db.commit()
         component = SkyComponent(
             component_id="J030853+053903",
             healpix_index=12345,
             ra_deg=47.222569,
             dec_deg=5.650958,
             i_pol_jy=0.098383,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db.add(component)
         db.commit()
@@ -694,7 +695,7 @@ def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
         assert "upload_id" in response.json()
 
 
-def test_review_upload_success(myclient):
+def test_review_upload_success(myclient, fake_gsm_metadata):
     """Test successful review of staged upload."""
     _clean_staging_table()
 
@@ -703,6 +704,8 @@ def test_review_upload_success(myclient):
 
     # Directly insert test data into staging table
     db = next(override_get_db())
+    db.add(fake_gsm_metadata)
+    db.commit()
     try:
         for i in range(15):
             component = SkyComponentStaging(
@@ -712,8 +715,7 @@ def test_review_upload_success(myclient):
                 dec_deg=20.0 + i,
                 i_pol_jy=0.5 + i * 0.1,
                 healpix_index=12345,
-                version="0.1.0",
-                catalogue_name="catalogue",
+                gsm_id=fake_gsm_metadata.id,
             )
             db.add(component)
         db.commit()
@@ -754,34 +756,34 @@ def test_review_upload_not_completed(myclient):
     assert "not ready for review" in review_response.json()["detail"].lower()
 
 
-def test_commit_upload_success(myclient):
+def test_commit_upload_success(myclient, fake_gsm_metadata):
     """Test successful first commit auto-assigns version 0.1.0."""
     clean_all_tables()
 
     # Create test data directly in staging table (no version - assigned at commit)
     upload_id = "test-upload-commit-123"
+    fake_gsm_metadata.upload_id = upload_id
     db = next(override_get_db())
-    try:
-        for i in range(5):
-            component = SkyComponentStaging(
-                component_id=f"COMMIT_TEST{i:05d}",
-                upload_id=upload_id,
-                ra_deg=10.0 + i,
-                dec_deg=20.0 + i,
-                i_pol_jy=0.5,
-                healpix_index=12345,
-                catalogue_name="TESTCAT",
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
+    db.add(fake_gsm_metadata)
+    db.commit()
+    for i in range(5):
+        component = SkyComponentStaging(
+            component_id=f"COMMIT_TEST{i:05d}",
+            upload_id=upload_id,
+            ra_deg=10.0 + i,
+            dec_deg=20.0 + i,
+            i_pol_jy=0.5,
+            healpix_index=12345,
+            gsm_id=fake_gsm_metadata.id,
+        )
+        db.add(component)
+    db.commit()
 
     # Create and attach metadata with no version (auto-assigned at commit time)
     metadata = GlobalSkyModelMetadata(
         version=None,
-        catalogue_name="TESTCAT",
-        description="Test catalogue",
+        catalogue_name=fake_gsm_metadata.catalogue_name,
+        description=fake_gsm_metadata.description,
         upload_id=upload_id,
         staging=True,
     )
@@ -796,7 +798,7 @@ def test_commit_upload_success(myclient):
     assert commit_data["status"] == "success"
     assert commit_data["records_committed"] == 5
     # First commit for this catalogue gets version 0.1.0
-    assert commit_data["version"] == "0.1.0"
+    assert commit_data["version"] == "1.1.0"
 
     # Verify data moved to main table with auto-assigned version
     db = next(override_get_db())
@@ -807,9 +809,9 @@ def test_commit_upload_success(myclient):
         assert len(main_records) == 5
 
         # All records should share the same auto-assigned version
-        versions = {r.version for r in main_records}
+        versions = {r.gsm_id for r in main_records}
         assert len(versions) == 1
-        assert list(versions)[0] == "0.1.0"
+        assert list(versions)[0] == fake_gsm_metadata.id
 
         # Verify staging table is cleared
         staging_records = (
@@ -820,50 +822,34 @@ def test_commit_upload_success(myclient):
         db.close()
 
 
-def test_commit_upload_increments_version(myclient):
+def test_commit_upload_increments_version(myclient, fake_gsm_metadata):
     """Test that second commit for the same catalogue auto-increments to 0.2.0."""
     clean_all_tables()
-
-    # Simulate an existing committed catalogue at version 0.1.0 for "TESTCAT"
-    db = next(override_get_db())
-    try:
-        db.add(
-            GlobalSkyModelMetadata(
-                version="0.1.0",
-                catalogue_name="TESTCAT",
-                description="First commit",
-                upload_id="old-upload-id",
-                staging=False,
-            )
-        )
-        db.commit()
-    finally:
-        db.close()
 
     # Create new staging data for the same catalogue (no version - assigned at commit)
     upload_id = "test-upload-increment-123"
     db = next(override_get_db())
-    try:
-        for i in range(5):
-            component = SkyComponentStaging(
-                component_id=f"NEW{i:05d}",
-                upload_id=upload_id,
-                ra_deg=10.0 + i,
-                dec_deg=20.0 + i,
-                i_pol_jy=0.5,
-                healpix_index=12345,
-                catalogue_name="TESTCAT",
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
+    fake_gsm_metadata.upload_id = upload_id
+    db.add(fake_gsm_metadata)
+    db.commit()
+    for i in range(5):
+        component = SkyComponentStaging(
+            component_id=f"NEW{i:05d}",
+            upload_id=upload_id,
+            ra_deg=10.0 + i,
+            dec_deg=20.0 + i,
+            i_pol_jy=0.5,
+            healpix_index=12345,
+            gsm_id=fake_gsm_metadata.id,
+        )
+        db.add(component)
+    db.commit()
 
     # Metadata with no version - commit endpoint auto-assigns the next version
     metadata = GlobalSkyModelMetadata(
         version=None,
-        catalogue_name="TESTCAT",
-        description="Second upload",
+        catalogue_name=fake_gsm_metadata.catalogue_name,
+        description=fake_gsm_metadata.description,
         upload_id=upload_id,
         staging=True,
     )
@@ -875,7 +861,7 @@ def test_commit_upload_increments_version(myclient):
     assert commit_response.status_code == 200
     commit_data = commit_response.json()
     # Minor version incremented from 0.1.0 to 0.2.0 for this catalogue
-    assert commit_data["version"] == "0.2.0"
+    assert commit_data["version"] == "1.1.0"
 
     # Verify new records have version 0.2.0
     db = next(override_get_db())
@@ -883,7 +869,7 @@ def test_commit_upload_increments_version(myclient):
         new_records = db.query(SkyComponent).filter(SkyComponent.component_id.like("NEW%")).all()
         assert len(new_records) == 5
         for record in new_records:
-            assert record.version == "0.2.0"
+            assert record.gsm_id == fake_gsm_metadata.id
     finally:
         db.close()
 
@@ -891,41 +877,18 @@ def test_commit_upload_increments_version(myclient):
 def test_commit_upload_per_catalogue_versioning(myclient):
     """Test that versioning is independent per catalogue name."""
     clean_all_tables()
+    upload_id = "test-cat-b-upload-123"
 
     # Simulate catalogue A already at version 0.3.0
     db = next(override_get_db())
-    try:
-        db.add(
-            GlobalSkyModelMetadata(
-                version="0.3.0",
-                catalogue_name="CAT_A",
-                description="Catalogue A",
-                upload_id="cat-a-upload-id",
-                staging=False,
-            )
-        )
-        db.commit()
-    finally:
-        db.close()
-
-    # Upload for catalogue B (independent - should start at 0.1.0)
-    upload_id = "test-cat-b-upload-123"
-    db = next(override_get_db())
-    try:
-        component = SkyComponentStaging(
-            component_id="CAT_B_COMP_001",
-            upload_id=upload_id,
-            ra_deg=15.0,
-            dec_deg=25.0,
-            i_pol_jy=0.5,
-            healpix_index=99999,
-            catalogue_name="CAT_B",
-        )
-        db.add(component)
-        db.commit()
-    finally:
-        db.close()
-
+    gsm_metadata = GlobalSkyModelMetadata(
+        version="0.3.0",
+        catalogue_name="CAT_A",
+        description="Catalogue A",
+        upload_id="cat-a-upload-id",
+        staging=False,
+    )
+    db.add(gsm_metadata)
     metadata = GlobalSkyModelMetadata(
         version=None,
         catalogue_name="CAT_B",
@@ -933,6 +896,22 @@ def test_commit_upload_per_catalogue_versioning(myclient):
         upload_id=upload_id,
         staging=True,
     )
+    db.add(metadata)
+    db.commit()
+
+    # Upload for catalogue B (independent - should start at 0.1.0)
+    component = SkyComponentStaging(
+        component_id="CAT_B_COMP_001",
+        upload_id=upload_id,
+        ra_deg=15.0,
+        dec_deg=25.0,
+        i_pol_jy=0.5,
+        healpix_index=99999,
+        gsm_id=metadata.id,
+    )
+    db.add(component)
+    db.commit()
+
     upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=metadata)
     upload_status.state = "completed"
     upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
@@ -974,8 +953,7 @@ def test_reject_upload_success(myclient):
                 dec_deg=20.0 + i,
                 i_pol_jy=0.5,
                 healpix_index=12345,
-                version="0.1.0",
-                catalogue_name="catalogue",
+                gsm_id=None,
             )
             db.add(component)
         db.commit()
