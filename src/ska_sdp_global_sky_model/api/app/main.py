@@ -225,6 +225,9 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
 
         # Mark as completed
         upload_manager.mark_completed(upload_id)
+        catalogue = db.get(GlobalSkyModelMetadata, catalogue_metadata.id)
+        catalogue.staging = False
+        db.commit()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
     except Exception as e:
