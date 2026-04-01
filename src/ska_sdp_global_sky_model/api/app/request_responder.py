@@ -44,6 +44,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     REQUEST_WATCHER_TIMEOUT,
     SHARED_VOLUME_MOUNT,
     get_db,
+    resource_toggle,
 )
 from ska_sdp_global_sky_model.utilities.local_sky_model import save_lsm_with_metadata
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
@@ -265,8 +266,11 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
         if status in ["COMPLETED", "FAILED"]:
             continue
 
-        if status != "INITIALISED":
-            logger.debug("%s -> not in correct state %s != INITIALISED", key, state.get("status"))
+        expected_state = "INITIALISED" if resource_toggle.is_active() else "PENDING"
+        if status != expected_state:
+            logger.debug(
+                "%s -> not in correct state %s != %s", key, state.get("status"), expected_state
+            )
             continue
 
         yield flow, source
