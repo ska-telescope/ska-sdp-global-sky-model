@@ -344,7 +344,8 @@ def test_upload_batch_gleam_catalog(myclient, monkeypatch):
     metadata_file = Path("tests/data/metadata_gleam_1.0.0.json")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
+        "ska_sdp_global_sky_model.api.app.main._run_ingestion_task",
+        lambda upload_id, catalogue_metadata: upload_manager.mark_completed(upload_id),
     )
 
     with metadata_file.open("rb") as metadata_f, file_path.open("rb") as f:
@@ -374,7 +375,8 @@ def test_upload_batch_racs_catalog(myclient, monkeypatch):
     metadata_file = Path("tests/data/metadata_racs_2.0.0.json")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
+        "ska_sdp_global_sky_model.api.app.main._run_ingestion_task",
+        lambda upload_id, catalogue_metadata: upload_manager.mark_completed(upload_id),
     )
 
     with metadata_file.open("rb") as metadata_f, file_path.open("rb") as f:
@@ -474,7 +476,8 @@ def test_upload_batch_mixed_catalogs(myclient, monkeypatch):  # pylint: disable=
     metadata_file = Path("tests/data/metadata_gleam_1.0.0.json")
 
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
+        "ska_sdp_global_sky_model.api.app.main._run_ingestion_task",
+        lambda upload_id, catalogue_metadata: upload_manager.mark_completed(upload_id),
     )
 
     # Test uploading multiple files with GLEAM catalogue
