@@ -87,15 +87,6 @@ app.add_middleware(
 upload_manager = UploadManager()
 
 
-def _get_db_session():
-    """Get a fresh database session for background tasks."""
-    db = next(get_db())
-    try:
-        return db
-    finally:
-        pass  # Don't close here, will be closed after use
-
-
 @app.get("/ping", summary="Ping the API")
 def ping():
     """Returns {"ping": "live"} when called"""
@@ -200,7 +191,7 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
     db = None
     try:
         # Get fresh database session
-        db = _get_db_session()
+        db = next(get_db())
         catalogue_metadata.staging = True
         db.add(catalogue_metadata)
         db.commit()

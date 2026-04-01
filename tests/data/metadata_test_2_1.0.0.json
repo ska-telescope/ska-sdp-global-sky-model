@@ -1,7 +1,6 @@
 {
   "catalogue_name": "TEST_CATALOGUE_2",
   "description": "Test catalogue 2 for development and testing purposes",
-  "epoch": "J2000",
   "author": "SKA SDP Team",
   "notes": "Sample test data for ska-sdp-global-sky-model"
 }
