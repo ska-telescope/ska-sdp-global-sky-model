@@ -8,9 +8,7 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from ska_sdp_config.entity import Flow
 from ska_sdp_config.entity.flow import DataProduct, FlowSource, PVCPath
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModel,
-)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import GlobalSkyModel
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )

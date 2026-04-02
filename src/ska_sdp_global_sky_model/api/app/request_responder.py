@@ -29,9 +29,7 @@ import ska_sdp_config
 from fastapi import Depends
 from packaging.version import Version
 from ska_sdp_config.entity.flow import Flow, FlowSource
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModel,
-)
+from ska_sdp_datamodels.global_sky_model.global_sky_model import GlobalSkyModel
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )

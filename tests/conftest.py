@@ -67,7 +67,7 @@ def _generate_catalogue(name: str, version: str, mid: tuple[float, float], count
         r, d = mr + i / 5, md + i / 5
         objs.append(
             SkyComponent(
-                component_id=f"{code}{version.replace('.',''):0>6}+{i:0>6}",
+                component_id=f"{code}{version.replace('.', ''):0>6}+{i:0>6}",
                 healpix_index=compute_hpx_healpy(r, d),
                 ra_deg=r,
                 dec_deg=d,

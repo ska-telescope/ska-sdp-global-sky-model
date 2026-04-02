@@ -148,3 +148,17 @@ where:
      - The catalogue name string of the GSM to select from
      - string
      - Yes
+
+In addition to the required cone-search parameters, extra query parameters may be
+used to filter sky component columns. These use the same
+``column__operator=value`` syntax described in :ref:`querying_data`.
+
+For example, to restrict the result to components whose ``i_pol_jy`` value is
+between 0.5 Jy and 1.0 Jy inclusive:
+
+.. code-block:: text
+
+    GET /local-sky-model?ra_deg=70&dec_deg=4&fov_deg=1&catalogue_name=example&version=1.0.0&i_pol_jy__gte=0.5&i_pol_jy__lte=1.0
+
+This applies the range filter after the spatial cone search and after selecting
+the requested catalogue version.

@@ -26,11 +26,7 @@ from ska_sdp_global_sky_model.api.app.models import (
 )
 from ska_sdp_global_sky_model.api.app.request_responder import QueryParameters, start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import (
-    engine,
-    get_db,
-    templates,
-)
+from ska_sdp_global_sky_model.configuration.config import engine, get_db, templates
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 from ska_sdp_global_sky_model.utilities.version_utils import (
     get_latest_version,

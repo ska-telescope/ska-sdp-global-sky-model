@@ -33,6 +33,7 @@ repository contains the code for the GSM service.
   :caption: User Guide
 
   userguide/overview
+  userguide/querying-data
   userguide/batch-upload
   userguide/request-lsm
   userguide/catalogue-metadata
