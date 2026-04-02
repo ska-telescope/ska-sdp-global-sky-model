@@ -46,7 +46,7 @@ SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/dat
 
 resource_toggle = FeatureToggle("RESOURCE_MANAGEMENT_TOGGLE", default=False)
 
-API_URL: str = config("API_URL", "/")
+API_URL: str = config("API_URL", default="")
 
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
