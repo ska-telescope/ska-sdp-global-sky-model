@@ -164,6 +164,10 @@ dec:%s, fov:%s, version:%s, catalogue: %s",
     )
     _, local_model = query_params.sky_components(db)
     output_rows = [r.columns_to_dict() for r in local_model]
+    for row in output_rows:
+        del row["gsm_id"]
+        del row["id"]
+        del row["healpix_index"]
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": output_rows}
     )
