@@ -10,11 +10,6 @@ This applies to:
 - ``/catalogue-metadata`` for catalogue metadata rows.
 - ``/local-sky-model`` for sky component rows (after cone search and catalogue selection).
 
-Filter syntax
-^^^^^^^^^^^^^
-
-Use ``column__operator=value``. If no operator is provided, equality is used.
-
 Supported operators
 ^^^^^^^^^^^^^^^^^^^
 
