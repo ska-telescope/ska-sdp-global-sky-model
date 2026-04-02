@@ -30,6 +30,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     engine,
     get_db,
     templates,
+    API_URL
 )
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 from ska_sdp_global_sky_model.utilities.version_utils import (
@@ -70,7 +71,7 @@ async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     logger.info("Shutting down application...")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, root_path=API_URL)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []
