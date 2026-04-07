@@ -445,7 +445,7 @@ def _write_data(
         local_model.set_row(row_idx, row_data)
 
     # Find the ska-sdm directory for metadata
-    metadata_dir = _find_ska_sdm_dir(output)
+    metadata_dir = output
 
     # Handle empty components gracefully
     logger.info(
