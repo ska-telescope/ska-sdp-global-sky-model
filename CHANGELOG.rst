@@ -4,6 +4,13 @@ CHANGELOG
 Development
 -----------
 
+- [Breaking change, Update] Update datamodels to latest
+  (`MR96 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/96>`__)
+
+  - Move Catalogue level metadata from components to the catalogue
+  - Remove redundant fields
+  - Cleanup data files
+  - Allow docs pages to work in a kubernetes cluster
 - [Update] Make the GSM aware of the Resource Management
   (`MR95 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/95>`__)
 - [Update] Added generic migration commands for developers

@@ -26,11 +26,7 @@ from ska_sdp_global_sky_model.api.app.models import (
 )
 from ska_sdp_global_sky_model.api.app.request_responder import QueryParameters, start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import (
-    engine,
-    get_db,
-    templates,
-)
+from ska_sdp_global_sky_model.configuration.config import API_URL, engine, get_db, templates
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 from ska_sdp_global_sky_model.utilities.version_utils import (
     get_latest_version,
@@ -70,7 +66,7 @@ async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     logger.info("Shutting down application...")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, root_path=API_URL)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []
@@ -85,15 +81,6 @@ app.add_middleware(
 
 # Initialize upload manager
 upload_manager = UploadManager()
-
-
-def _get_db_session():
-    """Get a fresh database session for background tasks."""
-    db = next(get_db())
-    try:
-        return db
-    finally:
-        pass  # Don't close here, will be closed after use
 
 
 @app.get("/ping", summary="Ping the API")
@@ -116,10 +103,19 @@ def upload_interface():
 def get_point_components(request: Request, db: Session = Depends(get_db)):
     """Retrieve all point components"""
     logger.info("Retrieving all point components...")
-    components = db.query(SkyComponent).all()
-    logger.info("Retrieved all point sources for all %s components", str(len(components)))
+    # components = db.query(SkyComponent).all()
+    components = (
+        db.query(SkyComponent, GlobalSkyModelMetadata)
+        .filter(SkyComponent.gsm_id == GlobalSkyModelMetadata.id)
+        .all()
+    )
+    output_rows = [r[1].columns_to_dict() | r[0].columns_to_dict() for r in components]
+    for row in output_rows:
+        del row["gsm_id"]
+        del row["upload_id"]
+    logger.info("Retrieved all point sources for all %s components", str(len(output_rows)))
     return templates.TemplateResponse(
-        request=request, name="table.html", context={"items": list(components)}
+        request=request, name="table.html", context={"items": list(output_rows)}
     )
 
 
@@ -166,9 +162,14 @@ dec:%s, fov:%s, version:%s, catalogue: %s",
     query_params = QueryParameters(
         ra_deg, dec_deg, fov_deg, catalogue_name, version, **query_parameters
     )
-    local_model = query_params.sky_components(db)
+    _, local_model = query_params.sky_components(db)
+    output_rows = [r.columns_to_dict() for r in local_model]
+    for row in output_rows:
+        del row["gsm_id"]
+        del row["id"]
+        del row["healpix_index"]
     return templates.TemplateResponse(
-        request=request, name="table.html", context={"items": list(local_model)}
+        request=request, name="table.html", context={"items": output_rows}
     )
 
 
@@ -190,7 +191,10 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
     db = None
     try:
         # Get fresh database session
-        db = _get_db_session()
+        db = next(get_db())
+        catalogue_metadata.staging = True
+        db.add(catalogue_metadata)
+        db.commit()
 
         # Get files from memory
         files_data = upload_manager.get_files(upload_id)
@@ -201,7 +205,6 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
             # Pass content directly
             catalogue_content_files = {"ingest": {"file_location": [{"content": content}]}}
             # Set staging flag and upload_id for tracking
-            catalogue_metadata.staging = True
 
             logger.info(
                 "Ingesting file to staging: %s, catalogue_version=%s",
@@ -213,6 +216,9 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
 
         # Mark as completed
         upload_manager.mark_completed(upload_id)
+        catalogue = db.get(GlobalSkyModelMetadata, catalogue_metadata.id)
+        catalogue.staging = False
+        db.commit()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
     except Exception as e:
@@ -314,7 +320,6 @@ async def upload_sky_survey_batch(
         catalogue_name=metadata.get("catalogue_name", "UPLOAD"),
         description=metadata.get("description", ""),
         upload_id="upload_id_placeholder",  # Will be set after creating upload status
-        epoch=metadata.get("epoch"),
         author=metadata.get("author"),
         reference=metadata.get("reference"),
         notes=metadata.get("notes"),
@@ -326,9 +331,8 @@ async def upload_sky_survey_batch(
 
     try:
         logger.info(
-            "Received upload with metadata: catalogue_name=%s, epoch=%s, upload_id=%s",
+            "Received upload with metadata: catalogue_name=%s, upload_id=%s",
             catalogue_metadata.catalogue_name,
-            catalogue_metadata.epoch,
             catalogue_metadata.upload_id,
         )
 
@@ -523,7 +527,13 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             latest_version or "none",
         )
 
-        db.add(status.metadata)
+        fetch_existing = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+            .all()[0]
+        )
+        fetch_existing.version = catalogue_version
+        db.commit()
 
         # Copy from staging to main table with catalogue version
         for staged in staged_records:
@@ -532,8 +542,6 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             record_data = {
                 k: v for k, v in staged.columns_to_dict().items() if k not in ["id", "upload_id"]
             }
-            # Set catalogue version for ALL components
-            record_data["version"] = catalogue_version
 
             main_record = SkyComponent(**record_data)
             db.add(main_record)
@@ -565,6 +573,7 @@ components from catalogue '{catalogue_name}'",
     except Exception as e:
         db.rollback()
         logger.error("Failed to commit upload %s: %s", upload_id, e)
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}") from e
 
 

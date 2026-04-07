@@ -92,11 +92,12 @@ def main():
         db.commit()
 
         logger.info(
-            "Created catalogue metadata: %s %s with staging=%s and upload_id=%s",
+            "Created catalogue metadata: %s %s with staging=%s and upload_id=%s (id=%d)",
             global_sky_model_metadata.catalogue_name,
             global_sky_model_metadata.version,
             global_sky_model_metadata.staging,
             global_sky_model_metadata.upload_id,
+            global_sky_model_metadata.id
         )
 
         # Build ingestion metadata structure

@@ -46,6 +46,8 @@ SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/dat
 
 resource_toggle = FeatureToggle("RESOURCE_MANAGEMENT_TOGGLE", default=False)
 
+API_URL: str = config("API_URL", default="")
+
 engine = create_engine(DB_URL)
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -70,6 +72,9 @@ def get_db():
     """
     try:
         db = session_local()
+
+        # allow for detached objects (like the upload manager)
+        db.expire_on_commit = False
         yield db
     finally:
         db.close()

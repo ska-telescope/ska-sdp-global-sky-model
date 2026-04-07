@@ -106,16 +106,17 @@ class TestSkyComponentModel:
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
-    def test_sky_component_create_instance(self, db_session):
+    def test_sky_component_create_instance(self, db_session, fake_gsm_metadata):
         """Test creating a SkyComponent instance."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         component = SkyComponentModel(
             component_id="TestSource1",
             ra_deg=123.45,
             dec_deg=-67.89,
             i_pol_jy=1.23,
             healpix_index=12345,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
 
         db_session.add(component)
@@ -131,10 +132,12 @@ class TestSkyComponentModel:
         assert retrieved.dec_deg == -67.89
         assert retrieved.i_pol_jy == 1.23
         assert retrieved.healpix_index == 12345
-        assert retrieved.catalogue_name == "catalogue"
+        assert retrieved.gsm_id == fake_gsm_metadata.id
 
-    def test_sky_component_with_optional_fields(self, db_session):
+    def test_sky_component_with_optional_fields(self, db_session, fake_gsm_metadata):
         """Test creating a SkyComponent with optional fields."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         component = SkyComponentModel(
             component_id="TestSource2",
             ra_deg=45.67,
@@ -146,8 +149,7 @@ class TestSkyComponentModel:
             pa_deg=1.57,
             spec_idx=[1.0, -0.5, 0.1],
             log_spec_idx=True,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
 
         db_session.add(component)
@@ -162,16 +164,17 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx == [1.0, -0.5, 0.1]
         assert retrieved.log_spec_idx is True
 
-    def test_sky_component_versioning_constraint(self, db_session):
+    def test_sky_component_versioning_constraint(self, db_session, fake_gsm_metadata):
         """Test that duplicate component_id + version raises constraint error."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         component1 = SkyComponentModel(
             component_id="VersionedSource",
             ra_deg=100.0,
             dec_deg=50.0,
             i_pol_jy=1.0,
             healpix_index=11111,
-            version="0.0.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(component1)
         db_session.commit()
@@ -183,16 +186,17 @@ class TestSkyComponentModel:
             dec_deg=60.0,
             i_pol_jy=2.0,
             healpix_index=22222,
-            version="0.0.0",  # Duplicate version
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(component2)
 
         with pytest.raises(Exception):  # Should raise IntegrityError
             db_session.commit()
 
-    def test_sky_component_columns_to_dict_method(self, db_session):
+    def test_sky_component_columns_to_dict_method(self, db_session, fake_gsm_metadata):
         """Test the columns_to_dict method."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         component = SkyComponentModel(
             component_id="DictTestSource",
             ra_deg=111.11,
@@ -200,8 +204,7 @@ class TestSkyComponentModel:
             i_pol_jy=3.33,
             healpix_index=33333,
             a_arcsec=0.002,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(component)
         db_session.commit()
@@ -218,16 +221,17 @@ class TestSkyComponentModel:
         assert component_dict["a_arcsec"] == 0.002
         assert "id" in component_dict
 
-    def test_sky_component_nullable_fields(self, db_session):
+    def test_sky_component_nullable_fields(self, db_session, fake_gsm_metadata):
         """Test that nullable fields can be None."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         component = SkyComponentModel(
             component_id="NullTestSource",
             ra_deg=180.0,
             dec_deg=0.0,
             i_pol_jy=1.0,
             healpix_index=55555,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
             # All optional fields left as None
         )
         db_session.add(component)
@@ -242,9 +246,11 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
 
-    def test_sky_component_spec_idx_as_json(self, db_session):
+    def test_sky_component_spec_idx_as_json(self, db_session, fake_gsm_metadata):
         """Test that spec_idx field properly stores JSON data."""
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         component = SkyComponentModel(
             component_id="SpecIdxSource",
             ra_deg=90.0,
@@ -252,8 +258,7 @@ class TestSkyComponentModel:
             i_pol_jy=2.0,
             healpix_index=66666,
             spec_idx=spec_idx_values,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(component)
         db_session.commit()
@@ -265,8 +270,17 @@ class TestSkyComponentModel:
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
 
-    def test_sky_component_versioning(self, db_session):
+    def test_sky_component_versioning(self, db_session, fake_gsm_metadata):
         """Test versioning support, same component_id can have multiple versions."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
+        second_metadata = GlobalSkyModelMetadata(
+            version="2.0.0",
+            catalogue_name="EMPTY",
+            upload_id="test-upload-2",
+        )
+        db_session.add(second_metadata)
+        db_session.commit()
         # Create two versions of the same component
         component_v1 = SkyComponentModel(
             component_id="VersionedSource",
@@ -274,8 +288,7 @@ class TestSkyComponentModel:
             dec_deg=50.0,
             i_pol_jy=1.0,
             healpix_index=11111,
-            version="0.0.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         component_v2 = SkyComponentModel(
             component_id="VersionedSource",
@@ -283,8 +296,7 @@ class TestSkyComponentModel:
             dec_deg=50.1,
             i_pol_jy=1.1,
             healpix_index=11111,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=second_metadata.id,
         )
         db_session.add_all([component_v1, component_v2])
         db_session.commit()
@@ -294,14 +306,16 @@ class TestSkyComponentModel:
             db_session.query(SkyComponentModel).filter_by(component_id="VersionedSource").all()
         )
         assert len(all_versions) == 2
-        assert {v.version for v in all_versions} == {"0.0.0", "0.1.0"}
+        assert {v.gsm_id for v in all_versions} == {fake_gsm_metadata.id, second_metadata.id}
 
 
 class TestSkyComponentStagingModel:
     """Tests for the SkyComponentStaging SQLAlchemy model."""
 
-    def test_staging_basic_functionality(self, db_session):
+    def test_staging_basic_functionality(self, db_session, fake_gsm_metadata):
         """Test basic SkyComponentStaging CRUD operations."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         staged = SkyComponentStaging(
             component_id="StagedSource1",
             upload_id="test-upload-123",
@@ -309,8 +323,7 @@ class TestSkyComponentStagingModel:
             dec_deg=-67.89,
             i_pol_jy=1.23,
             healpix_index=12345,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(staged)
         db_session.commit()
@@ -324,8 +337,10 @@ class TestSkyComponentStagingModel:
         assert retrieved.component_id == "StagedSource1"
         assert retrieved.upload_id == "test-upload-123"
 
-    def test_staging_allows_same_component_different_uploads(self, db_session):
+    def test_staging_allows_same_component_different_uploads(self, db_session, fake_gsm_metadata):
         """Test that same component_id can exist in different uploads."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         staged1 = SkyComponentStaging(
             component_id="TestSource",
             upload_id="upload-001",
@@ -333,8 +348,7 @@ class TestSkyComponentStagingModel:
             dec_deg=50.0,
             i_pol_jy=1.0,
             healpix_index=11111,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(staged1)
         db_session.commit()
@@ -347,8 +361,7 @@ class TestSkyComponentStagingModel:
             dec_deg=60.0,
             i_pol_jy=2.0,
             healpix_index=22222,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(staged2)
         db_session.commit()
@@ -359,8 +372,10 @@ class TestSkyComponentStagingModel:
         )
         assert len(all_records) == 2
 
-    def test_staging_unique_constraint_violation(self, db_session):
+    def test_staging_unique_constraint_violation(self, db_session, fake_gsm_metadata):
         """Test that duplicate component_id + upload_id raises constraint error."""
+        db_session.add(fake_gsm_metadata)
+        db_session.commit()
         staged1 = SkyComponentStaging(
             component_id="TestSource",
             upload_id="upload-001",
@@ -368,8 +383,7 @@ class TestSkyComponentStagingModel:
             dec_deg=50.0,
             i_pol_jy=1.0,
             healpix_index=11111,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(staged1)
         db_session.commit()
@@ -382,8 +396,7 @@ class TestSkyComponentStagingModel:
             dec_deg=60.0,
             i_pol_jy=2.0,
             healpix_index=22222,
-            version="0.1.0",
-            catalogue_name="catalogue",
+            gsm_id=fake_gsm_metadata.id,
         )
         db_session.add(staged2)
         with pytest.raises(Exception):
@@ -416,7 +429,7 @@ class TestGlobalSkyModelMetadataModel:
 
         assert "id" in columns
         assert "version" in columns
-        assert "epoch" in columns
+        assert "catalogue_name" in columns
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
@@ -424,7 +437,6 @@ class TestGlobalSkyModelMetadataModel:
         """Test creating a GlobalSkyModelMetadata instance."""
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            epoch="J2000",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
@@ -435,13 +447,11 @@ class TestGlobalSkyModelMetadataModel:
         retrieved = db_session.query(GlobalSkyModelMetadata).filter_by(version="1.0.0").first()
         assert retrieved is not None
         assert retrieved.version == "1.0.0"
-        assert retrieved.epoch == "J2000"
 
     def test_metadata_columns_to_dict_method(self, db_session):
         """Test the columns_to_dict method for GlobalSkyModelMetadata."""
         metadata = GlobalSkyModelMetadata(
             version="2.1.0",
-            epoch="J2015.5",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-2",
         )
@@ -453,26 +463,22 @@ class TestGlobalSkyModelMetadataModel:
         assert isinstance(metadata_dict, dict)
         assert metadata_dict["version"] == "2.1.0"
         assert metadata_dict["catalogue_name"] == "TestCatalogue"
-        assert metadata_dict["epoch"] == "J2015.5"
         assert "id" in metadata_dict
 
     def test_metadata_multiple_versions(self, db_session):
         """Test storing multiple metadata versions."""
         metadata1 = GlobalSkyModelMetadata(
             version="1.0.0",
-            epoch="J2000",
             catalogue_name="TestCatalogue1",
             upload_id="test-upload-1",
         )
         metadata2 = GlobalSkyModelMetadata(
             version="2.0.0",
-            epoch="J2000",
             catalogue_name="TestCatalogue2",
             upload_id="test-upload-2",
         )
         metadata3 = GlobalSkyModelMetadata(
             version="3.0.0",
-            epoch="J2015",
             catalogue_name="TestCatalogue3",
             upload_id="test-upload-3",
         )
@@ -496,7 +502,6 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
         # Create metadata
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            epoch="J2000",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
@@ -509,8 +514,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             dec_deg=50.0,
             i_pol_jy=1.5,
             healpix_index=77777,
-            version="0.1.0",
-            catalogue_name="TestCatalogue",
+            gsm_id=metadata.id,
             ref_freq_hz=1.4e9,
         )
         component2 = SkyComponentModel(
@@ -519,8 +523,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             dec_deg=-30.0,
             i_pol_jy=2.5,
             healpix_index=88888,
-            version="0.1.0",
-            catalogue_name="TestCatalogue",
+            gsm_id=metadata.id,
             ref_freq_hz=1.4e9,
         )
         db_session.add_all([component1, component2])
@@ -565,7 +568,7 @@ class TestSkyComponentModelDataclassSync:
         """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
         expected_columns = set(SkyComponent.__annotations__.keys())
-        expected_columns.update(["id", "healpix_index", "version", "staging", "catalogue_name"])
+        expected_columns.update(["id", "healpix_index", "gsm_id"])
 
         # Get actual model columns
         inspector = inspect(engine)
@@ -588,7 +591,7 @@ class TestSkyComponentModelDataclassSync:
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + 3 database-specific
         #   (id, healpix_index, version, catalogue_name)
-        expected_count = len(SkyComponent.__annotations__) + 4
+        expected_count = len(SkyComponent.__annotations__) + 3
 
         # Get actual count
         inspector = inspect(engine)
@@ -673,7 +676,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + all database-specific fields
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 8
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 3
 
         # Get actual count
         inspector = inspect(engine)

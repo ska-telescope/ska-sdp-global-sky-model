@@ -67,12 +67,18 @@ def sample_csv_file():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(
-            "component_id,ra_deg,dec_deg,i_pol_jy,a_arcsec,"
+            "component_id,source_id,epoch,ra_deg,dec_deg,i_pol_jy,a_arcsec,"
             "b_arcsec,pa_deg,spec_idx,log_spec_idx,ref_freq_hz\n"
         )
-        f.write('J001122-334455,10.5,45.2,1.5,0.01,0.008,45.0,"[-0.7,,,,]",false,3000000000\n')
-        f.write('J112233-445566,20.3,30.1,2.3,0.02,0.015,90.0,"[-0.8,,,,]",true,3000000000\n')
-        f.write('J223344-556677,30.1,-20.5,0.8,,,,"[-0.5,,,,]",false,3000000000\n')
+        f.write(
+            'J001122-334455,S1234,2026.2247,10.5,45.2,1.5,0.01,0.008,45.0,"[-0.7,,,,]",false,'
+            "3000000000\n"
+        )
+        f.write(
+            'J112233-445566,S1234,2026.2247,20.3,30.1,2.3,0.02,0.015,90.0,"[-0.8,,,,]",true,'
+            "3000000000\n"
+        )
+        f.write('J223344-556677,S1234,2026.2247,30.1,-20.5,0.8,,,,"[-0.5,,,,]",false,3000000000\n')
         temp_path = Path(f.name)
 
     yield temp_path
@@ -260,6 +266,8 @@ class TestValidateComponentMapping:
         """Test validation of minimal valid mapping"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 10.5,
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
@@ -273,6 +281,8 @@ class TestValidateComponentMapping:
         """Test validation fails for missing required field"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 10.5,
             # Missing dec_deg
             "i_pol_jy": 1.5,
@@ -286,6 +296,8 @@ class TestValidateComponentMapping:
         """Test validation fails for RA out of range"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 400.0,  # Invalid
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
@@ -299,6 +311,8 @@ class TestValidateComponentMapping:
         """Test validation fails for DEC out of range"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": 10.5,
             "dec_deg": 95.0,  # Invalid
             "i_pol_jy": 1.5,
@@ -312,6 +326,8 @@ class TestValidateComponentMapping:
         """Test validation fails for wrong type"""
         mapping = {
             "component_id": "J001122-334455",
+            "source_id": "s1",
+            "epoch": 2026.2247,
             "ra_deg": "not_a_number",  # Invalid type
             "dec_deg": 45.2,
             "i_pol_jy": 1.5,
@@ -386,29 +402,33 @@ class TestParseCatalogueComponents:  # pylint: disable=too-few-public-methods
 class TestProcessComponentDataBatch:
     """Tests for process_component_data_batch function"""
 
-    def test_process_valid_components(self, test_db, sample_csv_file):
+    def test_process_valid_components(self, test_db, sample_csv_file, fake_gsm_metadata):
         """Test processing valid component data from in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
+        test_db.add(fake_gsm_metadata)
+        test_db.commit()
         cf = ComponentFile(content)
 
         result = process_component_data_batch(
             test_db,
             cf,
-            version="0.1.0",
+            gsm_id=fake_gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
-            catalogue_name="test-catalogue",
         )
 
         assert result is True
         count = test_db.query(SkyComponentStaging).count()
         assert count == 3
 
-    def test_skip_duplicate_component_id(self, test_db, sample_csv_file):
+    def test_skip_duplicate_component_id(self, test_db, sample_csv_file, fake_gsm_metadata):
         """Test that duplicate component IDs are allowed across different uploads"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
+
+        test_db.add(fake_gsm_metadata)
+        test_db.commit()
 
         cf = ComponentFile(content)
 
@@ -416,10 +436,9 @@ class TestProcessComponentDataBatch:
         process_component_data_batch(
             test_db,
             cf,
-            version="0.1.0",
+            gsm_id=fake_gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
-            catalogue_name="test-catalogue",
         )
         count1 = test_db.query(SkyComponentStaging).count()
 
@@ -428,17 +447,16 @@ class TestProcessComponentDataBatch:
         process_component_data_batch(
             test_db,
             cf2,
-            version="0.1.0",
+            gsm_id=fake_gsm_metadata.id,
             staging=True,
             upload_id="test-upload-2",
-            catalogue_name="test-catalogue",
         )
         count2 = test_db.query(SkyComponentStaging).count()
 
         # Both uploads should succeed with same component_ids
         assert count2 == count1 * 2  # Double the components (different upload_ids)
 
-    def test_validation_errors_prevent_ingestion(self, test_db):
+    def test_validation_errors_prevent_ingestion(self, test_db, fake_gsm_metadata):
         """Test that validation errors prevent any data from being ingested (all-or-nothing)"""
         # Create CSV with mix of valid and invalid components
         invalid_csv = (
@@ -448,15 +466,17 @@ class TestProcessComponentDataBatch:
             "J223344-556677,30.1,-20.5,0.8\n"  # Valid
         )
 
+        test_db.add(fake_gsm_metadata)
+        test_db.commit()
+
         cf = ComponentFile(invalid_csv)
 
         result = process_component_data_batch(
             test_db,
             cf,
-            version="0.1.0",
+            gsm_id=fake_gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
-            catalogue_name="test-catalogue",
         )
 
         # Should fail due to validation errors
@@ -465,25 +485,26 @@ class TestProcessComponentDataBatch:
         count = test_db.query(SkyComponentStaging).count()
         assert count == 0
 
-    def test_all_validation_errors_collected(self, test_db, caplog):
+    def test_all_validation_errors_collected(self, test_db, caplog, fake_gsm_metadata):
         """Test that all validation errors are collected and logged"""
         caplog.set_level(logging.ERROR)
 
         # Create CSV with multiple invalid components
         invalid_csv = (
-            "component_id,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
-            "J001122-334455,10.5,45.2,1.5,300000000\n"  # Valid
-            "J112233-445566,400.0,30.1,2.3,300000000\n"  # Invalid RA
-            "J223344-556677,30.1,95.0,0.8,300000000\n"  # Invalid DEC
-            "J334455-667788,20.0,10.0,-1.0,300000000\n"  # Valid (i_pol no longer validated)
-            "J445566-778899,50.0,20.0,2.0,300000000\n"  # Valid
+            "component_id,source_id,epoch,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
+            "J001122-334455,S1234,2025.2247,10.5,45.2,1.5,300000000\n"  # Valid
+            "J112233-445566,S1234,2025.2247,400.0,30.1,2.3,300000000\n"  # Invalid RA
+            "J223344-556677,S1234,2025.2247,30.1,95.0,0.8,300000000\n"  # Invalid DEC
+            "J334455-667788,S1234,2025.2247,20.0,10.0,-1.0,300000000\n"  # Valid
+            "J445566-778899,S1234,2025.2247,50.0,20.0,2.0,300000000\n"  # Valid
         )
+
+        test_db.add(fake_gsm_metadata)
+        test_db.commit()
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(
-            test_db, cf, version="0.1.0", catalogue_name="test-catalogue"
-        )
+        result = process_component_data_batch(test_db, cf, fake_gsm_metadata.id)
 
         # Should fail
         assert result is False
@@ -504,7 +525,7 @@ class TestProcessComponentDataBatch:
         error_messages = [log for log in error_logs if "Row" in log and "component_id:" in log]
         assert len(error_messages) == 2  # Only RA and DEC validation errors
 
-    def test_validation_phase_before_ingestion(self, test_db, caplog):
+    def test_validation_phase_before_ingestion(self, test_db, caplog, fake_gsm_metadata):
         """Test that all validation happens before any ingestion"""
         caplog.set_level(logging.INFO)
 
@@ -516,15 +537,17 @@ class TestProcessComponentDataBatch:
             "J223344-556677,400.0,-20.5,0.8\n"  # Invalid RA (last row)
         )
 
+        test_db.add(fake_gsm_metadata)
+        test_db.commit()
+
         cf = ComponentFile(invalid_csv)
 
         result = process_component_data_batch(
             test_db,
             cf,
-            version="0.1.0",
+            gsm_id=fake_gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
-            catalogue_name="test-catalogue",
         )
 
         # Should fail
@@ -549,25 +572,27 @@ class TestProcessComponentDataBatch:
         # Should NOT have ingestion message since validation failed
         assert ingestion_msg_found is False
 
-    def test_successful_ingestion_after_validation(self, test_db, caplog):
+    def test_successful_ingestion_after_validation(self, test_db, caplog, fake_gsm_metadata):
         """Test that ingestion proceeds only after all validation passes"""
         caplog.set_level(logging.INFO)
 
         valid_csv = (
-            "component_id,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
-            "J001122-334455,10.5,45.2,1.5,300000000\n"
-            "J112233-445566,20.0,30.1,2.3,300000000\n"
+            "component_id,source_id,epoch,ra_deg,dec_deg,i_pol_jy,ref_freq_hz\n"
+            "J001122-334455,S1234,2026.2247,10.5,45.2,1.5,300000000\n"
+            "J112233-445566,S1234,2026.2247,20.0,30.1,2.3,300000000\n"
         )
+
+        test_db.add(fake_gsm_metadata)
+        test_db.commit()
 
         cf = ComponentFile(valid_csv)
 
         result = process_component_data_batch(
             test_db,
             cf,
-            version="0.1.0",
+            gsm_id=fake_gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
-            catalogue_name="test-catalogue",
         )
 
         # Should succeed
@@ -602,11 +627,12 @@ class TestIngestCatalogue:
 
         catalogue_metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            epoch="J2000",
             catalogue_name="TEST",
             upload_id="test-upload-1",
         )
         catalogue_metadata.staging = True
+        test_db.add(catalogue_metadata)
+        test_db.commit()
 
         catalogue_content = {"ingest": {"file_location": [{"content": content}]}}
 
@@ -622,11 +648,12 @@ class TestIngestCatalogue:
 
         catalogue_metadata = GlobalSkyModelMetadata(
             version="1.0.0",
-            epoch="J2000",
             catalogue_name="EMPTY",
             upload_id="test-upload-1",
         )
         catalogue_metadata.staging = True
+        test_db.add(catalogue_metadata)
+        test_db.commit()
 
         catalogue_content = {"ingest": {"file_location": [{"content": empty_content}]}}
 
