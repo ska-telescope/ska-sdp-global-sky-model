@@ -473,37 +473,3 @@ def _write_data(
             "Metadata file was not created at %s (this may be expected in tests)",
             metadata_yaml,
         )
-
-
-def _find_ska_sdm_dir(output: Path) -> Path:
-    """
-    Find the ska-sdm directory in the output path for metadata placement.
-
-    The function returns the first ``<pb_id>/ska-sdm`` parent directory of the
-    ``pvc_subpath``. If no ska-sdm directory is found in the path, a
-    FileNotFoundError is raised to enforce correct metadata placement.
-
-    Args:
-        output: Output path (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}
-        /ska-sdm/sky/{field_id})
-
-    Returns:
-        Path to the ska-sdm directory where the metadata file should be written.
-
-    Raises:
-        FileNotFoundError: If no ska-sdm directory is found in the output path.
-    """
-    current = output
-    while current != current.parent:
-        if current.name == "ska-sdm":
-            return current
-        current = current.parent
-
-    # If ska-sdm not found, raise an error to enforce correct metadata placement
-    error_msg = (
-        f"Could not find 'ska-sdm' directory in path {output}. "
-        "Metadata file location is undefined. "
-        "Please ensure the output path includes a ska-sdm directory as required."
-    )
-    logger.error(error_msg)
-    raise FileNotFoundError(error_msg)
