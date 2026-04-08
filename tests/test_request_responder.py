@@ -57,7 +57,7 @@ def fixture_valid_flow():
                     "dec_deg": -0.1745,
                     "fov_deg": 0.0873,
                     "catalogue_name": "catalogue",
-                    "metadata_path": "ska-sdm/sky",
+                    "metadata_path": "test/path",
                 },
             ),
         ],
@@ -140,7 +140,9 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
         version="latest",
         catalogue_name="catalogue",
     )
-    assert mock_write_data.mock_calls == [call(eb_id, expected_query_parameters, path, mock_gsm)]
+    assert mock_write_data.mock_calls == [
+        call(eb_id, expected_query_parameters, path, mock_gsm, "test/path")
+    ]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
