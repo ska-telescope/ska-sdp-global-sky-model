@@ -265,8 +265,6 @@ def test_watcher_process_missing_parameters(mock_query, mock_write, mock_time, v
         mock_processing_block.eb_id = "eb-test-20260108-1234"
         mock_txn.processing_block.get.return_value = mock_processing_block
 
-        from ska_sdp_global_sky_model.api.app.request_responder import _watcher_process
-
         _watcher_process(mock_config)
 
         update_calls = [c for c in mock_txn.mock_calls if c[0] == "flow.state().update"]
