@@ -232,51 +232,63 @@ def test_state_not_initialised(mock_filter_function, mock_write_data, valid_flow
     assert mock_write_data.mock_calls == []
 
 
+@pytest.mark.parametrize(
+    "missing_param,expected_error",
+    [
+        ("fov_deg", "missing 1 required positional argument: 'fov_deg'"),
+        ("metadata_path", "Missing required parameter: metadata_path"),
+    ],
+)
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_watcher_process_missing_parameters(mock_query, mock_write, mock_time, valid_flow):
+def test_watcher_process_missing_parameters(
+    mock_query, mock_write, mock_time, valid_flow, missing_param, expected_error
+):
     """Test that _watcher_process_flow fails when required parameters are missing."""
 
-    scenarios = [
-        ("fov_deg", "missing 1 required positional argument: 'fov_deg'"),
-        ("metadata_path", "Missing required parameter: metadata_path"),
+    # Copy flow so we don't mutate the fixture
+    flow_copy = Flow(
+        key=valid_flow.key,
+        sink=valid_flow.sink,
+        sources=[
+            FlowSource(
+                uri=valid_flow.sources[0].uri,
+                function=valid_flow.sources[0].function,
+                parameters=dict(valid_flow.sources[0].parameters),
+            )
+        ],
+        data_model=valid_flow.data_model,
+        expiry_time=valid_flow.expiry_time,
+    )
+
+    # Remove the parameter for this scenario
+    flow_copy.sources[0].parameters.pop(missing_param, None)
+
+    mock_time.return_value = 1234.5678
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_config = MagicMock()
+    mock_config.watcher.return_value = [mock_watcher]
+    mock_watcher.txn.return_value = [mock_txn]
+
+    mock_txn.flow.state.return_value.get.side_effect = [
+        {"status": "INITIALISED"},
+        {"status": "INITIALISED"},
+        {"status": "FLOWING"},
     ]
+    mock_txn.flow.query_values.return_value = [(flow_copy.key, flow_copy)]
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
 
-    for missing_param, expected_error in scenarios:
-        flow_copy = valid_flow
-        flow_copy.sources[0].parameters = dict(valid_flow.sources[0].parameters)
-        flow_copy.sources[0].parameters.pop(missing_param, None)
+    _watcher_process(mock_config)
 
-        mock_time.return_value = 1234.5678
+    update_calls = [c for c in mock_txn.mock_calls if c[0] == "flow.state().update"]
+    last_update = update_calls[-1].args[0]
 
-        mock_txn = MagicMock()
-        mock_watcher = MagicMock()
-        mock_config = MagicMock()
-        mock_config.watcher.return_value = [mock_watcher]
-        mock_watcher.txn.return_value = [mock_txn]
-        mock_txn.flow.state.return_value.get.side_effect = [
-            {"status": "INITIALISED"},
-            {"status": "INITIALISED"},
-            {"status": "FLOWING"},
-        ]
-        mock_txn.flow.query_values.return_value = [(flow_copy.key, flow_copy)]
-        mock_processing_block = MagicMock()
-        mock_processing_block.eb_id = "eb-test-20260108-1234"
-        mock_txn.processing_block.get.return_value = mock_processing_block
-
-        _watcher_process(mock_config)
-
-        update_calls = [c for c in mock_txn.mock_calls if c[0] == "flow.state().update"]
-        last_update = update_calls[-1].args[0]
-        assert last_update["status"] == "FAILED"
-        assert expected_error in last_update["reason"]
-
-        mock_query.reset_mock()
-        mock_write.reset_mock()
-        mock_txn.reset_mock()
-        mock_watcher.reset_mock()
-        mock_config.reset_mock()
+    assert last_update["status"] == "FAILED"
+    assert expected_error in last_update["reason"]
 
 
 @pytest.mark.parametrize(
