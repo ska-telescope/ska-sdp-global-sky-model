@@ -242,9 +242,7 @@ def test_state_not_initialised(mock_filter_function, mock_write_data, valid_flow
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_watcher_process_missing_parameters(
-    mock_query, mock_write, mock_time, valid_flow, missing_param, expected_error
-):
+def test_watcher_process_missing_parameters(mock_time, valid_flow, missing_param, expected_error):
     """Test that _watcher_process_flow fails when required parameters are missing."""
 
     # Copy flow so we don't mutate the fixture
