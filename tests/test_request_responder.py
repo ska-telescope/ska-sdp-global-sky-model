@@ -343,7 +343,9 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
-        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
+        valid_flow,
+        eb_id,
+        QueryParameters(**valid_flow.sources[0].parameters, metadata_path="test"),
     )
 
     assert success is True
@@ -379,7 +381,9 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     eb_id = "eb-test-20260108-1234"
 
     success, reason = _process_flow(
-        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
+        valid_flow,
+        eb_id,
+        QueryParameters(**valid_flow.sources[0].parameters, metadata_path="test"),
     )
 
     assert success is False
@@ -723,7 +727,7 @@ def test_write_data_integration(
     # (metadata validation is tested separately in local_sky_model tests)
     with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
         # Write the data
-        _write_data(eb_id, query_parameters, output_dir, gsm)
+        _write_data(eb_id, query_parameters, output_dir, gsm, metadata_path="test")
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
@@ -762,7 +766,7 @@ def test_write_data_empty_components(tmp_path):
     )
 
     # Write the data (should handle empty components gracefully)
-    _write_data(eb_id, query_parameters, output_dir, gsm)
+    _write_data(eb_id, query_parameters, output_dir, gsm, metadata_path="test")
 
     # Verify CSV file was created
     csv_file = output_dir / "local_sky_model.csv"
