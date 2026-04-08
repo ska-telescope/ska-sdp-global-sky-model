@@ -268,8 +268,9 @@ def test_watcher_process_missing_parameters(mock_query, mock_write, mock_time, v
         _watcher_process(mock_config)
 
         update_calls = [c for c in mock_txn.mock_calls if c[0] == "flow.state().update"]
-        assert update_calls[-1].kwargs["status"] == "FAILED"
-        assert expected_error in update_calls[-1].kwargs["reason"]
+        last_update = update_calls[-1].args[0]
+        assert last_update["status"] == "FAILED"
+        assert expected_error in last_update["reason"]
 
         mock_query.reset_mock()
         mock_write.reset_mock()
