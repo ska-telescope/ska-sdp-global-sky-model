@@ -410,7 +410,11 @@ def _update_state(
 
 
 def _write_data(
-    eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel", metadata_path: str
+    eb_id: str,
+    query_parameters: QueryParameters,
+    output: Path,
+    data: "GlobalSkyModel",
+    metadata_path: str,
 ):  # pylint: disable=too-many-locals
     """
     Write the LSM to disk as a CSV file.
