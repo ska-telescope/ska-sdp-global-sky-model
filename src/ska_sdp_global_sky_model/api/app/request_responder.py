@@ -57,6 +57,8 @@ class QueryParameters:
     """This class manages the query parameters and
     helper methods which are used to query the database."""
 
+    NON_QUERY_PARAMS = {"metadata_path"}
+
     def __init__(
         self,
         ra_deg: float,
@@ -93,6 +95,8 @@ class QueryParameters:
                 self.component_queries[key] = value
             elif key in GlobalSkyModelMetadata.__annotations__.keys():
                 self.metadata_queries[key] = value
+            elif key in self.NON_QUERY_PARAMS:
+                continue
             else:
                 logger.warning("The QueryParameter %s=%s was not valid", key, value)
 
@@ -232,17 +236,33 @@ def _watcher_process_flow(watcher, flow, source):
         _update_state(txn, flow, "FLOWING")
         processing_block = txn.processing_block.get(flow.key.pb_id)
         eb_id = processing_block.eb_id
+
     try:
         query_params = QueryParameters(**source.parameters)
         if not query_params.version:
             query_params.version = "latest"
-    except TypeError as err:
-        logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
+
+        metadata_path = source.parameters.get("metadata_path")
+        if not metadata_path:
+            raise ValueError("Missing required parameter: metadata_path")
+
+    except (TypeError, ValueError) as err:
+        logger.error(
+            "%s -> Invalid parameters: %s | Error: %s",
+            flow.key,
+            source.parameters,
+            err,
+        )
         for txn in watcher.txn():
-            _update_state(txn, flow, "FAILED", str(err)[27:])
+            _update_state(txn, flow, "FAILED", str(err))
         return
 
-    successful, reason = _process_flow(flow, eb_id, query_params)
+    successful, reason = _process_flow(
+        flow,
+        eb_id,
+        query_params,
+        metadata_path,
+    )
 
     for txn in watcher.txn():
         _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
@@ -277,7 +297,7 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
 
 
 def _process_flow(
-    flow: Flow, eb_id: str, query_parameters: QueryParameters
+    flow: Flow, eb_id: str, query_parameters: QueryParameters, metadata_path: str
 ) -> tuple[bool, str | None]:
     """Process the Flow entry"""
 
@@ -290,7 +310,7 @@ def _process_flow(
         db = next(get_db())
         try:
             output_data = _query_gsm_for_lsm(query_parameters, db)
-            _write_data(eb_id, query_parameters, output_location, output_data)
+            _write_data(eb_id, query_parameters, output_location, output_data, metadata_path)
         finally:
             db.close()
     except Exception as err:  # pylint: disable=broad-exception-caught
@@ -390,7 +410,7 @@ def _update_state(
 
 
 def _write_data(
-    eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel"
+    eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel", metadata_path: str
 ):  # pylint: disable=too-many-locals
     """
     Write the LSM to disk as a CSV file.
@@ -450,8 +470,9 @@ def _write_data(
             row_data[field] = value
         local_model.set_row(row_idx, row_data)
 
-    # Find the ska-sdm directory for metadata
-    metadata_dir = _find_ska_sdm_dir(output)
+    metadata_dir = SHARED_VOLUME_MOUNT / metadata_path
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Metadata directory resolved to: %s", metadata_dir)
 
     # Handle empty components gracefully
     logger.info(
@@ -479,37 +500,3 @@ def _write_data(
             "Metadata file was not created at %s (this may be expected in tests)",
             metadata_yaml,
         )
-
-
-def _find_ska_sdm_dir(output: Path) -> Path:
-    """
-    Find the ska-sdm directory in the output path for metadata placement.
-
-    The function returns the first ``<pb_id>/ska-sdm`` parent directory of the
-    ``pvc_subpath``. If no ska-sdm directory is found in the path, a
-    FileNotFoundError is raised to enforce correct metadata placement.
-
-    Args:
-        output: Output path (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}
-        /ska-sdm/sky/{field_id})
-
-    Returns:
-        Path to the ska-sdm directory where the metadata file should be written.
-
-    Raises:
-        FileNotFoundError: If no ska-sdm directory is found in the output path.
-    """
-    current = output
-    while current != current.parent:
-        if current.name == "ska-sdm":
-            return current
-        current = current.parent
-
-    # If ska-sdm not found, raise an error to enforce correct metadata placement
-    error_msg = (
-        f"Could not find 'ska-sdm' directory in path {output}. "
-        "Metadata file location is undefined. "
-        "Please ensure the output path includes a ska-sdm directory as required."
-    )
-    logger.error(error_msg)
-    raise FileNotFoundError(error_msg)

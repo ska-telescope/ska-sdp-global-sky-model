@@ -774,16 +774,3 @@ def test_write_data_empty_components(tmp_path):
     # Should have header comment lines but no data
     assert any("format" in line.lower() for line in lines)
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
-
-
-def test_find_ska_sdm_dir():
-    """Test _find_ska_sdm_dir helper function"""
-    # Test with ska-sdm in path
-    test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm/sky/field1")
-    result = _find_ska_sdm_dir(test_path)
-    assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
-
-    # Test with ska-sdm as the current directory
-    test_path = pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
-    result = _find_ska_sdm_dir(test_path)
-    assert result == pathlib.Path("/mnt/data/product/eb-123/ska-sdp/pb-456/ska-sdm")
