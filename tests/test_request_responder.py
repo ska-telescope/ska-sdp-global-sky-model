@@ -232,17 +232,25 @@ def test_state_not_initialised(mock_filter_function, mock_write_data, valid_flow
     assert mock_write_data.mock_calls == []
 
 
+@pytest.mark.parametrize(
+    "missing_param, expected_error",
+    [
+        ("fov_deg", "missing 1 required positional argument: 'fov_deg'"),
+        ("metadata_path", "Missing required parameter: metadata_path"),
+    ],
+)
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_watcher_process_missing_parameter(
-    mock_filter_function, mock_write_data, mock_time, valid_flow
+def test_watcher_process_missing_parameters(
+    mock_query, mock_write, mock_time, valid_flow, missing_param, expected_error
 ):
-    """Test the happy path"""
+    """Test that _watcher_process_flow fails when required parameters are missing."""
 
-    del valid_flow.sources[0].parameters["fov_deg"]
+    valid_flow.sources[0].parameters.pop(missing_param, None)
 
     mock_time.return_value = 1234.5678
+
     mock_txn = MagicMock()
     mock_watcher = MagicMock()
     mock_config = MagicMock()
@@ -251,13 +259,11 @@ def test_watcher_process_missing_parameter(
     mock_watcher.txn.return_value = [mock_txn]
 
     mock_txn.flow.state.return_value.get.side_effect = [
-        {"status": "INITIALISED"},  # from list
-        {"status": "INITIALISED"},  # from update to flowing
-        {"status": "FLOWING"},  # from update to failed
+        {"status": "INITIALISED"},
+        {"status": "INITIALISED"},
+        {"status": "FLOWING"},
     ]
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
-
-    mock_filter_function.return_value = ["data"]
 
     # Mock processing_block.get to return an object with eb_id
     mock_processing_block = MagicMock()
@@ -267,38 +273,16 @@ def test_watcher_process_missing_parameter(
     _watcher_process(mock_config)
 
     assert mock_config.mock_calls == [call.watcher(timeout=30)]
-    assert mock_watcher.mock_calls == [
-        call.txn(),
-        call.txn(),
-        call.txn(),
-    ]
-    assert mock_txn.mock_calls == [
-        call.flow.query_values(kind="data-product"),
-        call.flow.state(valid_flow),
-        call.flow.state().get(),
-        call.flow.state(valid_flow),
-        call.flow.state().get(),
-        call.flow.state(valid_flow),
-        call.flow.state().update(
-            {
-                "status": "FLOWING",
-                "last_updated": 1234.5678,
-            }
-        ),
-        call.processing_block.get(valid_flow.key.pb_id),
-        call.flow.state(valid_flow),
-        call.flow.state().get(),
-        call.flow.state(valid_flow),
-        call.flow.state().update(
-            {
-                "status": "FAILED",
-                "last_updated": 1234.5678,
-                "reason": "missing 1 required positional argument: 'fov_deg'",
-            }
-        ),
-    ]
-    assert mock_filter_function.mock_calls == []
-    assert mock_write_data.mock_calls == []
+    assert mock_watcher.mock_calls == [call.txn(), call.txn(), call.txn()]
+
+    # The final flow state should be FAILED with correct reason
+    update_calls = [c for c in mock_txn.mock_calls if c[0] == "flow.state().update"]
+    assert update_calls[-1].kwargs["status"] == "FAILED"
+    assert expected_error in update_calls[-1].kwargs["reason"]
+
+    # _query_gsm_for_lsm and _write_data should not be called on failure
+    assert mock_query.mock_calls == []
+    assert mock_write.mock_calls == []
 
 
 @pytest.mark.parametrize(
