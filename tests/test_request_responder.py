@@ -345,7 +345,8 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     success, reason = _process_flow(
         valid_flow,
         eb_id,
-        QueryParameters(**valid_flow.sources[0].parameters, metadata_path="test"),
+        QueryParameters(**valid_flow.sources[0].parameters),
+        metadata_path="test/path",
     )
 
     assert success is True
@@ -367,13 +368,15 @@ def test_process_flow(mock_query, mock_write, valid_flow):
         version="latest",
         catalogue_name="catalogue",
     )
-    assert mock_write.mock_calls == [call(eb_id, expected_query_parameters, output_path, ["data"])]
+    assert mock_write.mock_calls == [
+        call(eb_id, expected_query_parameters, output_path, ["data"], "test/path")
+    ]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow_exception(mock_query, mock_write, valid_flow):
-    """Test that we cann start the processing for a flow"""
+    """Test that we can start the processing for a flow"""
 
     mock_query.return_value = ["data"]
 
@@ -383,7 +386,8 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     success, reason = _process_flow(
         valid_flow,
         eb_id,
-        QueryParameters(**valid_flow.sources[0].parameters, metadata_path="test"),
+        QueryParameters(**valid_flow.sources[0].parameters),
+        metadata_path="test/path",
     )
 
     assert success is False
