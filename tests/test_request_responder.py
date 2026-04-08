@@ -18,7 +18,6 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
-    _find_ska_sdm_dir,
     _get_flows,
     _process_flow,
     _query_gsm_for_lsm,
