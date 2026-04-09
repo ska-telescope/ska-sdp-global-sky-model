@@ -5,7 +5,7 @@ Development
 -----------
 
 - [Update] Add all metadata to Local Sky Model and fix bug with resource management
-  (`MR <>`__`)
+  (`MR99 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/99>`__`)
 - [Breaking change, Update] Update datamodels to latest
   (`MR96 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/96>`__)
 
