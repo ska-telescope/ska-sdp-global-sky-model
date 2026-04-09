@@ -427,28 +427,19 @@ def _write_data(
         max_vector_len=5,  # For spectral index vectors
     )
 
-    local_model.set_header(
-        {
-            "QUERY_CENTRE_RAJ2000_DEG": query_parameters.ra_deg,
-            "QUERY_CENTRE_DEJ2000_DEG": query_parameters.dec_deg,
-            "QUERY_RADIUS_DEG": query_parameters.fov_deg,
-            "QUERY_CATALOGUE_VERSION": query_parameters.version,
-            "QUERY_CATALOGUE_NAME": query_parameters.catalogue_name,
-        }
-        | {
-            f"QUERY_METADATA_{key}".upper(): value
-            for key, value in (query_parameters.metadata_queries).items()
-        }
-        | {
-            f"QUERY_COMPONENTS_{key}".upper(): value
-            for key, value in (query_parameters.component_queries).items()
-        }
-        | {
-            f"CATALOGUE_METADATA_{key}".upper(): value
-            for key, value in data.metadata.items()
-            if key not in ("staging", "upload_id", "id")
-        }
-    )
+    header = {
+        f"CATALOGUE_METADATA_{key}".upper(): value
+        for key, value in data.metadata.items()
+        if key not in ("staging", "upload_id", "id")
+    }
+    for key, value in query_parameters.__dict__.items():
+        if isinstance(value, dict):
+            for key2, val2 in value.items():
+                header[f"QUERY_{key}_{key2}".upper()] = val2
+        else:
+            header[f"QUERY_{key}".upper()] = value
+
+    local_model.set_header(header)
 
     # Populate the LocalSkyModel with data from GlobalSkyModel
     for row_idx, component in enumerate(data.components.values()):
