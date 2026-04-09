@@ -479,4 +479,3 @@ def _write_data(
             "Metadata file was not created at %s (this may be expected in tests)",
             metadata_yaml,
         )
-
