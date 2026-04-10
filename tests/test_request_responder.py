@@ -299,13 +299,15 @@ def test_watcher_process_missing_parameter(
 
 
 @pytest.mark.parametrize(
-    "resource_management, expected_state",
+    "resource_management, flow_state, found",
     [
-        (False, "PENDING"),
-        (True, "INITIALISED"),
+        (False, "PENDING", True),
+        (False, "INITIALISED", True),
+        (True, "INITIALISED", True),
+        (True, "PENDING", False),
     ],
 )
-def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, expected_state):
+def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, flow_state, found):
     """Test that we can get flows and filter them correctly"""
     monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1" if resource_management else "0")
     resource_toggle.is_active = lambda: resource_management
@@ -319,11 +321,14 @@ def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, expec
         (valid_flow.key, valid_flow),
         (flow2.key, flow2),
     ]
-    txn.flow.state.return_value.get.return_value = {"status": expected_state}
+    txn.flow.state.return_value.get.return_value = {"status": flow_state}
 
     output = list(_get_flows(txn))
 
-    assert output == [(valid_flow, valid_flow.sources[0])]
+    if found:
+        assert output == [(valid_flow, valid_flow.sources[0])]
+    else:
+        assert len(output) == 0
     assert txn.mock_calls == [
         call.flow.query_values(kind="data-product"),
         call.flow.state(valid_flow),
