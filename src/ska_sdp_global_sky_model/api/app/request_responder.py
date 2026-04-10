@@ -82,6 +82,11 @@ class QueryParameters:
         self.fov_deg = fov_deg
         self.version = version
         self.catalogue_name = catalogue_name
+
+        self.sub_path = query_parameters.pop("sub_path", None)
+        if not self.sub_path:
+            raise ValueError("Missing required parameter: 'sub_path'")
+
         self.component_queries = {}
         self.metadata_queries = {}
         for key, value in query_parameters.items():
@@ -236,7 +241,7 @@ def _watcher_process_flow(watcher, flow, source):
         query_params = QueryParameters(**source.parameters)
         if not query_params.version:
             query_params.version = "latest"
-    except TypeError as err:
+    except (TypeError, ValueError) as err:
         logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
         for txn in watcher.txn():
             _update_state(txn, flow, "FAILED", str(err)[27:])
@@ -411,7 +416,10 @@ def _write_data(
     output.mkdir(parents=True, exist_ok=True)
 
     # Define the output file path
-    lsm_file = output / "local_sky_model.csv"
+    sub_path = Path(query_parameters.sub_path)
+
+    lsm_file = output / sub_path
+    lsm_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Get column names from SkyComponent dataclass
     column_names = (
