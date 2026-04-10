@@ -266,10 +266,12 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
         if status in ["COMPLETED", "FAILED"]:
             continue
 
-        expected_state = "INITIALISED" if resource_toggle.is_active() else "PENDING"
-        if status != expected_state:
+        expected_states = ["INITIALISED"]
+        if not resource_toggle.is_active():
+            expected_states += ["PENDING"]
+        if status not in expected_states:
             logger.debug(
-                "%s -> not in correct state %s != %s", key, state.get("status"), expected_state
+                "%s -> not in correct state %s != %s", key, state.get("status"), expected_states
             )
             continue
 
@@ -425,18 +427,19 @@ def _write_data(
         max_vector_len=5,  # For spectral index vectors
     )
 
-    local_model.set_header({"QUERY_CENTRE_RAJ2000_DEG": query_parameters.ra_deg})
-    local_model.set_header({"QUERY_CENTRE_DEJ2000_DEG": query_parameters.dec_deg})
-    local_model.set_header({"QUERY_RADIUS_DEG": query_parameters.fov_deg})
-    local_model.set_header({"QUERY_CATALOGUE_VERSION": query_parameters.version})
-    local_model.set_header({"QUERY_CATALOGUE_NAME": query_parameters.catalogue_name})
-    local_model.set_header({"CATALOGUE_VERSION": data.metadata.get("version", "unknown")})
-    local_model.set_header({"CATALOGUE_NAME": data.metadata.get("catalogue_name", "unknown")})
+    header = {
+        f"CATALOGUE_METADATA_{key}".upper(): value
+        for key, value in data.metadata.items()
+        if key not in ("staging", "upload_id", "id")
+    }
+    for key, value in query_parameters.__dict__.items():
+        if isinstance(value, dict):
+            for key2, val2 in value.items():
+                header[f"QUERY_{key}_{key2}".upper()] = val2
+        else:
+            header[f"QUERY_{key}".upper()] = value
 
-    for key, value in (
-        query_parameters.component_queries | query_parameters.metadata_queries
-    ).items():
-        local_model.set_header({f"QUERY_EXTRA_{key}": value})
+    local_model.set_header(header)
 
     # Populate the LocalSkyModel with data from GlobalSkyModel
     for row_idx, component in enumerate(data.components.values()):
