@@ -52,7 +52,7 @@ from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 logger = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments, too-many-instance-attributes
 class QueryParameters:
     """This class manages the query parameters and
     helper methods which are used to query the database."""
