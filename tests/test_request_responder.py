@@ -57,6 +57,7 @@ def fixture_valid_flow():
                     "dec_deg": -0.1745,
                     "fov_deg": 0.0873,
                     "catalogue_name": "catalogue",
+                    "sub_path": "test/foo/bar",
                 },
             ),
         ],

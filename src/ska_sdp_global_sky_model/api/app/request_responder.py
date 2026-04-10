@@ -84,7 +84,7 @@ class QueryParameters:
         self.catalogue_name = catalogue_name
 
         self.sub_path = query_parameters.pop("sub_path", None)
-        if not self.sub_path:
+        if self.sub_path is None:
             raise ValueError("Missing required parameter: 'sub_path'")
 
         self.component_queries = {}
