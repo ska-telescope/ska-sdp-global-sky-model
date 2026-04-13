@@ -84,8 +84,6 @@ class QueryParameters:
         self.catalogue_name = catalogue_name
 
         self.sub_path = query_parameters.pop("sub_path", None)
-        if self.sub_path is None:
-            raise ValueError("Missing required parameter: 'sub_path'")
 
         self.component_queries = {}
         self.metadata_queries = {}
@@ -416,7 +414,10 @@ def _write_data(
     output.mkdir(parents=True, exist_ok=True)
 
     # Define the output file path
-    sub_path = Path(query_parameters.sub_path)
+    sub_path = query_parameters.sub_path
+    if not sub_path:
+        raise ValueError("Missing required parameter: 'sub_path'")
+    sub_path = Path(sub_path)
 
     lsm_file = output / sub_path
     lsm_file.parent.mkdir(parents=True, exist_ok=True)
