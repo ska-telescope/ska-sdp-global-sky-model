@@ -52,7 +52,7 @@ from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 logger = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments, too-many-instance-attributes
 class QueryParameters:
     """This class manages the query parameters and
     helper methods which are used to query the database."""
@@ -82,6 +82,9 @@ class QueryParameters:
         self.fov_deg = fov_deg
         self.version = version
         self.catalogue_name = catalogue_name
+
+        self.sub_path = query_parameters.pop("sub_path", None)
+
         self.component_queries = {}
         self.metadata_queries = {}
         for key, value in query_parameters.items():
@@ -236,7 +239,7 @@ def _watcher_process_flow(watcher, flow, source):
         query_params = QueryParameters(**source.parameters)
         if not query_params.version:
             query_params.version = "latest"
-    except TypeError as err:
+    except (TypeError, ValueError) as err:
         logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
         for txn in watcher.txn():
             _update_state(txn, flow, "FAILED", str(err)[27:])
@@ -411,7 +414,13 @@ def _write_data(
     output.mkdir(parents=True, exist_ok=True)
 
     # Define the output file path
-    lsm_file = output / "local_sky_model.csv"
+    sub_path = query_parameters.sub_path
+    if not sub_path:
+        raise ValueError("Missing required parameter: 'sub_path'")
+    sub_path = Path(sub_path)
+
+    lsm_file = output / sub_path
+    lsm_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Get column names from SkyComponent dataclass
     column_names = (
@@ -453,8 +462,8 @@ def _write_data(
             row_data[field] = value
         local_model.set_row(row_idx, row_data)
 
-    # Find the ska-sdm directory for metadata
-    metadata_dir = _find_ska_sdm_dir(output)
+    # Use the base path for the metadata location
+    metadata_dir = output
 
     # Handle empty components gracefully
     logger.info(
@@ -482,37 +491,3 @@ def _write_data(
             "Metadata file was not created at %s (this may be expected in tests)",
             metadata_yaml,
         )
-
-
-def _find_ska_sdm_dir(output: Path) -> Path:
-    """
-    Find the ska-sdm directory in the output path for metadata placement.
-
-    The function returns the first ``<pb_id>/ska-sdm`` parent directory of the
-    ``pvc_subpath``. If no ska-sdm directory is found in the path, a
-    FileNotFoundError is raised to enforce correct metadata placement.
-
-    Args:
-        output: Output path (e.g., /mnt/data/product/{eb_id}/ska-sdp/{pb_id}
-        /ska-sdm/sky/{field_id})
-
-    Returns:
-        Path to the ska-sdm directory where the metadata file should be written.
-
-    Raises:
-        FileNotFoundError: If no ska-sdm directory is found in the output path.
-    """
-    current = output
-    while current != current.parent:
-        if current.name == "ska-sdm":
-            return current
-        current = current.parent
-
-    # If ska-sdm not found, raise an error to enforce correct metadata placement
-    error_msg = (
-        f"Could not find 'ska-sdm' directory in path {output}. "
-        "Metadata file location is undefined. "
-        "Please ensure the output path includes a ska-sdm directory as required."
-    )
-    logger.error(error_msg)
-    raise FileNotFoundError(error_msg)
