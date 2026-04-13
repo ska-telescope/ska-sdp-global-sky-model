@@ -57,7 +57,7 @@ def fixture_valid_flow():
                     "dec_deg": -0.1745,
                     "fov_deg": 0.0873,
                     "catalogue_name": "catalogue",
-                    "sub_path": "test",
+                    "sub_path": "test/lsm.csv",
                 },
             ),
         ],
@@ -129,7 +129,7 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
         fov_deg=0.0873,
         version="latest",
         catalogue_name="catalogue",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     # Second argument is the db session, just verify it was called
     assert len(mock_filter_function.mock_calls) == 1
@@ -140,7 +140,7 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
         fov_deg=0.0873,
         version="latest",
         catalogue_name="catalogue",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     assert mock_write_data.mock_calls == [call(eb_id, expected_query_parameters, path, mock_gsm)]
 
@@ -364,7 +364,7 @@ def test_process_flow(mock_query, mock_write, valid_flow):
         fov_deg=0.0873,
         version="latest",
         catalogue_name="catalogue",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     expected_query_parameters = QueryParameters(
         ra_deg=2.9670,
@@ -372,7 +372,7 @@ def test_process_flow(mock_query, mock_write, valid_flow):
         fov_deg=0.0873,
         version="latest",
         catalogue_name="catalogue",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     assert mock_write.mock_calls == [call(eb_id, expected_query_parameters, output_path, ["data"])]
 
@@ -402,7 +402,7 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
         fov_deg=0.0873,
         version="latest",
         catalogue_name="catalogue",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     assert mock_write.mock_calls == []
 
@@ -517,7 +517,7 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         fov_deg=180,
         version="latest",
         catalogue_name="test",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     result = _query_gsm_for_lsm(query_params, db_session)
 
@@ -541,7 +541,7 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
         fov_deg=0.0873,
         version="latest",
         catalogue_name="test",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     with pytest.raises(ValueError, match="No GSM versions available"):
         _query_gsm_for_lsm(query_params, db_session)
@@ -600,7 +600,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         fov_deg=0.0873,
         version="latest",
         catalogue_name="test",
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     result = _query_gsm_for_lsm(query_params, db_session)
 
@@ -672,7 +672,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         version="latest",
         catalogue_name="test",
         pa_deg__lt=6,
-        sub_path="test",
+        sub_path="test/lsm.csv",
     )
     result = _query_gsm_for_lsm(query_params, db_session)
 
@@ -718,7 +718,11 @@ def test_write_data_integration(
     )
 
     query_parameters = QueryParameters(
-        ra_deg=2.9670, dec_deg=-0.1745, fov_deg=0.0873, catalogue_name="catalogue", sub_path="test"
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        catalogue_name="catalogue",
+        sub_path="test/lsm.csv",
     )
     # Create GlobalSkyModel
     gsm = GlobalSkyModel(
@@ -744,7 +748,7 @@ def test_write_data_integration(
         _write_data(eb_id, query_parameters, output_dir, gsm)
 
     # Verify CSV file was created
-    csv_file = output_dir / "local_sky_model.csv"
+    csv_file = output_dir / "test" / "lsm.csv"
     assert csv_file.exists()
 
     # Read and verify CSV content
@@ -776,14 +780,18 @@ def test_write_data_empty_components(tmp_path):
     eb_id = "eb-test-20260108-1234"
 
     query_parameters = QueryParameters(
-        ra_deg=2.9670, dec_deg=-0.1745, fov_deg=0.0873, catalogue_name="catalogue", sub_path="test"
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        catalogue_name="catalogue",
+        sub_path="test/lsm.csv",
     )
 
     # Write the data (should handle empty components gracefully)
     _write_data(eb_id, query_parameters, output_dir, gsm)
 
     # Verify CSV file was created
-    csv_file = output_dir / "local_sky_model.csv"
+    csv_file = output_dir / "test" / "lsm.csv"
     assert csv_file.exists()
 
     # Verify it has headers but no data rows
