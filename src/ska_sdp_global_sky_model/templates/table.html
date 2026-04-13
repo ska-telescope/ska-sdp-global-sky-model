@@ -5,7 +5,7 @@
         <thead>
             <tr>
                 {% if items %}
-                    {% for key in items[0].columns_to_dict().keys() %}
+                    {% for key in items[0].keys() %}
                         <th>{{ key.capitalize() }}</th>
                     {% endfor %}
                 {% endif %}
@@ -15,7 +15,7 @@
         <tbody>
             {% for item in items %}
                 <tr>
-                    {% for value in item.columns_to_dict().values() %}
+                    {% for value in item.values() %}
                         <td>{{ value }}</td>
                     {% endfor %}
                 </tr>

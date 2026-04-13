@@ -24,7 +24,17 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
-from sqlalchemy import BigInteger, Boolean, Column, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.sql import func
@@ -68,12 +78,12 @@ def _python_type_to_column(field_type: type) -> Column:
     type_mapping = {
         "int": Integer,
         "float": Float,
-        "str": String,
+        "str": Text,
         "bool": Boolean,
         "list": JSON,
     }
 
-    sa_type = type_mapping.get(type_name, String)
+    sa_type = type_mapping.get(type_name, Text)
 
     # All fields are nullable to support partial data insertion
     return Column(sa_type, nullable=True)
@@ -103,7 +113,8 @@ def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
             setattr(model_class, col, Column(String, unique=True, nullable=False))
         else:
             # All other fields are nullable to support partial data insertion
-            setattr(model_class, col, _python_type_to_column(dtype))
+            db_type = _python_type_to_column(dtype)
+            setattr(model_class, col, db_type)
 
 
 class GlobalSkyModelMetadata(Base):
@@ -117,14 +128,8 @@ class GlobalSkyModelMetadata(Base):
     # version is nullable here - it is auto-assigned at commit time, not at upload time
     version = Column(String, nullable=True, index=True)
     catalogue_name = Column(String, nullable=False, index=True)
-    description = Column(String, nullable=True)
     upload_id = Column(String, nullable=False, unique=True, index=True)
     staging = Column(Boolean, nullable=False, default=True)
-
-    # Additional metadata fields
-    author = Column(String, nullable=True)
-    reference = Column(String, nullable=True)
-    notes = Column(Text, nullable=True)
 
     # pylint: disable=not-callable
     uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
@@ -151,19 +156,16 @@ class SkyComponent(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    gsm_id = mapped_column(ForeignKey("global_sky_model_metadata.id"))
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
-
-    # Version tracking - semantic versioning
-    version = Column(String, nullable=False, index=True)
-    catalogue_name = Column(String, nullable=False, index=True)
 
     # Add component_id explicitly so we can reference it in __table_args__
     component_id = Column(String, nullable=False, index=True)
 
     __table_args__ = (
-        UniqueConstraint("component_id", "version", "catalogue_name", name="uq_component_version"),
+        UniqueConstraint("component_id", "gsm_id", name="uq_component_version"),
         {"schema": DB_SCHEMA},
     )
 
@@ -184,13 +186,10 @@ class SkyComponentStaging(Base):
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    gsm_id = mapped_column(ForeignKey("global_sky_model_metadata.id"))
 
     # Hardcoded database-specific field for spatial indexing
     healpix_index = Column(BigInteger, index=True, nullable=False)
-
-    # version is nullable - set to None during staging, assigned at commit time
-    version = Column(String, nullable=True)
-    catalogue_name = Column(String, nullable=False)
 
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)
@@ -212,7 +211,7 @@ class SkyComponentStaging(Base):
 _add_dynamic_columns_to_model(
     GlobalSkyModelMetadata,
     GSMMetadataDataclass,
-    skip_columns={"version", "catalogue_name"},
+    skip_columns={"version", "catalogue_name", "uploaded_at"},
 )
 # For main table, skip component_id since it's defined explicitly
 # for the composite constraint with version
