@@ -4,7 +4,8 @@ Uploading GSM data
 ------------------
 
 The GSM provides both an API and browser interface for uploading multiple sky survey 
-catalogue files in a single atomic batch operation into the GSM database.
+catalogue files in a single atomic batch operation into the GSM database. It is recommended 
+to use the API-based approach to uploading data.
 
 
 .. _upload_api:
