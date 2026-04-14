@@ -224,44 +224,57 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
         for txn in watcher.txn():
             flows = list(_get_flows(txn))
 
-        for flow, source in flows:
-
+        for flow, sources in flows:
             logger.info("Found flow ... %s", flow.key)
-            _watcher_process_flow(watcher, flow, source)
+            _watcher_process_flow(watcher, flow, sources)
 
 
-def _watcher_process_flow(watcher, flow, source):
+def _watcher_process_flow(watcher, flow, sources):
+    errors = []
+
     for txn in watcher.txn():
         _update_state(txn, flow, "FLOWING")
         processing_block = txn.processing_block.get(flow.key.pb_id)
         eb_id = processing_block.eb_id
-    try:
-        query_params = QueryParameters(**source.parameters)
-        if not query_params.version:
-            query_params.version = "latest"
-    except (TypeError, ValueError) as err:
-        logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
-        for txn in watcher.txn():
-            _update_state(txn, flow, "FAILED", str(err)[27:])
-        return
 
-    successful, reason = _process_flow(flow, eb_id, query_params)
+    for source in sources:
+        try:
+            query_params = QueryParameters(**source.parameters)
+            if not query_params.version:
+                query_params.version = "latest"
+        except (TypeError, ValueError) as err:
+            logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
+            errors.append(str(err))
+            continue
+
+        successful, reason = _process_flow(flow, eb_id, query_params)
+        if not successful:
+            errors.append(reason)
 
     for txn in watcher.txn():
-        _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
+        if errors:
+            _update_state(
+                txn,
+                flow,
+                "FAILED",
+                reason="; ".join([e for e in errors if e]),
+            )
+        else:
+            _update_state(txn, flow, "COMPLETED")
 
 
-def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
+def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, list[FlowSource])]:
     """Get and filter the list of flows"""
     for key, flow in txn.flow.query_values(kind="data-product"):
-        source = None
-        for raw_source in flow.sources:
-            if raw_source.function == "GlobalSkyModel.RequestLocalSkyModel":
-                source = raw_source
-                break
 
-        if source is None:
-            logger.debug("%s -> has no valid source", key)
+        sources = [
+            raw_source
+            for raw_source in flow.sources
+            if raw_source.function == "GlobalSkyModel.RequestLocalSkyModel"
+        ]
+
+        if not sources:
+            logger.debug("%s -> has no valid GSM sources", key)
             continue
 
         state = txn.flow.state(flow).get() or {}
@@ -278,7 +291,7 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
             )
             continue
 
-        yield flow, source
+        yield flow, sources
 
 
 def _process_flow(
@@ -384,7 +397,7 @@ def _update_state(
 
     new_state = {"status": state, "last_updated": time.time()}
     if reason:
-        new_state["reason"] = reason
+        new_state["error_state"] = reason
 
     if current_state:
         current_state.update(new_state)
