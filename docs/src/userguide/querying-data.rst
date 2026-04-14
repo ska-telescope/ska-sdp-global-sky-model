@@ -69,10 +69,21 @@ Flux example:
     GET /local-sky-model?ra_deg=70&dec_deg=4&fov_deg=1&catalogue_name=example&version=1.0.0&i_pol_jy__gte=0.5&i_pol_jy__lte=1.0
 
 Sorting, field selection, and limits
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The shared query parser also supports:
 
-- ``sort`` for ordering (prefix with ``-`` for descending).
-- ``fields`` for selecting columns.
-- ``limit`` for maximum rows returned.
+- ``sort``: Order results by one or more fields. Prefix a field with ``-`` for descending order.
+  Example: ``sort=-i_pol_jy,ra_deg`` sorts by ``i_pol_jy`` descending, then ``ra_deg`` ascending.
+
+- ``fields``: Select which columns to include in the response. Provide a comma-separated list of field names.
+  Example: ``fields=ra_deg,dec_deg,i_pol_jy`` returns only those columns in each result.
+
+- ``limit``: Restrict the maximum number of rows returned.
+  Example: ``limit=100`` returns at most 100 results.
+
+Full example combining these options:
+
+.. code-block:: text
+
+    GET /local-sky-model?sort=-i_pol_jy&fields=ra_deg,dec_deg,i_pol_jy&limit=50

@@ -149,16 +149,51 @@ where:
      - string
      - Yes
 
-In addition to the required cone-search parameters, extra query parameters may be
-used to filter sky component columns. These use the same
-``column__operator=value`` syntax described in :ref:`querying_data`.
 
-For example, to restrict the result to components whose ``i_pol_jy`` value is
-between 0.5 Jy and 1.0 Jy inclusive:
+Filtering examples
+------------------
+
+You can filter results by specifying extra query parameters using the ``column__operator=value`` syntax. 
+
+To specify a range filter in an HTTP request, add the relevant parameters to the query string:
 
 .. code-block:: text
 
-    GET /local-sky-model?ra_deg=70&dec_deg=4&fov_deg=1&catalogue_name=example&version=1.0.0&i_pol_jy__gte=0.5&i_pol_jy__lte=1.0
+  GET /local-sky-model?ra_deg=70&dec_deg=4&fov_deg=1&catalogue_name=example&version=1.0.0&i_pol_jy__gte=0.5&i_pol_jy__lte=1.0
 
-This applies the range filter after the spatial cone search and after selecting
-the requested catalogue version.
+This restricts the result to components whose ``i_pol_jy`` value is between 0.5 Jy and 1.0 Jy inclusive.
+
+To achieve the same range filter in a data flow  parameters, include the keys directly:
+
+.. code-block:: python
+
+  parameters = {
+    "ra_deg": 70,
+    "dec_deg": 4,
+    "fov_deg": 1,
+    "catalogue_name": "example",
+    "version": "1.0.0",
+    "i_pol_jy__gte": 0.5,
+    "i_pol_jy__lte": 1.0,
+  }
+
+The keys ``i_pol_jy__gte`` and ``i_pol_jy__lte`` are passed exactly as shown in the parameters dictionary.
+
+For an equality filter, simply use ``column=value``:
+
+.. code-block:: text
+
+  GET /local-sky-model?catalogue_name=example
+
+Or, in PB parameters:
+
+.. code-block:: python
+
+  parameters = {
+    ...,
+    "catalogue_name": "example",
+  }
+
+This will select only rows where ``catalogue_name`` matches ``example`` exactly.
+
+See :ref:`querying_data` for a full list of supported operators and more examples.
