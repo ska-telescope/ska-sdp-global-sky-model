@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Change] Location of the metadata file no longer relies on searching for ska_sdm directory
+  (`MR98 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/98>`__)
 - [Update] Add all metadata to Local Sky Model and fix bug with resource management
   (`MR99 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/99>`__`)
 - [Breaking change, Update] Update datamodels to latest

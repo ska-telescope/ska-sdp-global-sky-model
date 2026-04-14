@@ -41,6 +41,7 @@ layout should match the following:
                     "fov_deg": 0.0873,
                     "version": "latest",
                     "catalogue_name": "name",
+                    "sub_path": "sky/{field1}/sky_model.csv",
                 },
             )
         ],
@@ -55,8 +56,8 @@ Some things to be aware of:
        ignored. Note: there should not be more than one source with this
        matching function.
     2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
-    3. The output location needs to be specified in ``pvc_subpath``, but the metadata
-       file will be put in the first ``<pb_id>/ska-sdm`` parent directory.
+    3. The output location needs to be specified by the ``sub_path`` parameter, relative to 
+       the ``pvc_subpath``, and the metadata file will be in the directory specified by ``pvc_subpath``.
 
 Processing data flow requests
 .............................
