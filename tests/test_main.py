@@ -321,13 +321,14 @@ def test_local_sky_model_flux_range_filter(myclient):
 
     db = next(override_get_db())
     try:
-        db.add(
-            GlobalSkyModelMetadata(
-                version="0.1.0",
-                catalogue_name="catalogue",
-                upload_id="range-upload",
-            )
+        metadata = GlobalSkyModelMetadata(
+            version="0.1.0",
+            catalogue_name="catalogue",
+            upload_id="range-upload",
         )
+        db.add(metadata)
+        db.commit()
+        db.refresh(metadata)
         db.add_all(
             [
                 SkyComponent(
@@ -336,8 +337,7 @@ def test_local_sky_model_flux_range_filter(myclient):
                     ra_deg=70.001111,
                     dec_deg=4.001111,
                     i_pol_jy=0.098383,
-                    version="0.1.0",
-                    catalogue_name="catalogue",
+                    gsm_id=metadata.id,
                 ),
                 SkyComponent(
                     component_id="J070002+040002",
@@ -345,8 +345,7 @@ def test_local_sky_model_flux_range_filter(myclient):
                     ra_deg=70.002222,
                     dec_deg=4.002222,
                     i_pol_jy=0.798383,
-                    version="0.1.0",
-                    catalogue_name="catalogue",
+                    gsm_id=metadata.id,
                 ),
                 SkyComponent(
                     component_id="J070003+040003",
@@ -354,8 +353,7 @@ def test_local_sky_model_flux_range_filter(myclient):
                     ra_deg=70.003333,
                     dec_deg=4.003333,
                     i_pol_jy=1.298383,
-                    version="0.1.0",
-                    catalogue_name="catalogue",
+                    gsm_id=metadata.id,
                 ),
             ]
         )
