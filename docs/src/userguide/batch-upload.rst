@@ -3,65 +3,9 @@
 Uploading GSM data
 ------------------
 
-The GSM provides both a browser interface and API endpoints
-for uploading multiple sky survey catalogue files in a single atomic
-batch operation into the GSM database.
+The GSM provides both an API and browser interface for uploading multiple sky survey 
+catalogue files in a single atomic batch operation into the GSM database.
 
-Browser upload interface
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``).
-
-1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
-
-.. figure:: ../images/upload_init_screen.png
-   :alt: Upload Interface
-   :width: 600px
-   :align: center
-
-   Initial upload interface screen
-
-2. Drag and drop CSV files, containing data for a single catalogue version, onto the upload zone (or click to browse)
-
-.. figure:: ../images/upload_files_added.png
-   :alt: Files added to upload
-   :width: 400px
-   :align: center
-
-   Interface showing files selected for upload
-
-3. Click "Upload Files" to begin the upload
-4. Monitor the upload progress - status updates automatically
-5. Confirm the upload completed successfully and review the count of staged records
-
-.. figure:: ../images/upload_completed.png
-   :alt: Upload completed
-   :width: 350px
-   :align: center
-
-   Interface showing files have been uploaded and staged
-
-6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
-
-.. figure:: ../images/upload_commit.png
-   :alt: Upload committed
-   :width: 400px
-   :align: center
-
-.. figure:: ../images/upload_reject.png
-   :alt: Upload rejected
-   :width: 400px
-   :align: center
-
-   Confirm or reject uploaded data
-
-The browser interface also provides:
-
-    - Real-time status monitoring
-    - Displays the auto-assigned version of the committed data
-    - Displays errors if upload fails
-
-The expected CSV format is described at :ref:`upload_csv_format` and examples are shown at :ref:`example_upload_csv`.
 
 .. _upload_api:
 
@@ -447,6 +391,63 @@ Reject and discard staged data. All records associated with this upload_id are p
 
     print(f"Rejected and deleted {result['records_deleted']} records")
     print(f"Message: {result['message']}")
+
+
+Browser upload interface
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``).
+
+1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
+
+.. figure:: ../images/upload_init_screen.png
+   :alt: Upload Interface
+   :width: 600px
+   :align: center
+
+   Initial upload interface screen
+
+2. Drag and drop CSV files, containing data for a single catalogue version, onto the upload zone (or click to browse)
+
+.. figure:: ../images/upload_files_added.png
+   :alt: Files added to upload
+   :width: 400px
+   :align: center
+
+   Interface showing files selected for upload
+
+3. Click "Upload Files" to begin the upload
+4. Monitor the upload progress - status updates automatically
+5. Confirm the upload completed successfully and review the count of staged records
+
+.. figure:: ../images/upload_completed.png
+   :alt: Upload completed
+   :width: 350px
+   :align: center
+
+   Interface showing files have been uploaded and staged
+
+6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
+
+.. figure:: ../images/upload_commit.png
+   :alt: Upload committed
+   :width: 400px
+   :align: center
+
+.. figure:: ../images/upload_reject.png
+   :alt: Upload rejected
+   :width: 400px
+   :align: center
+
+   Confirm or reject uploaded data
+
+The browser interface also provides:
+
+    - Real-time status monitoring
+    - Displays the auto-assigned version of the committed data
+    - Displays errors if upload fails
+
+The expected CSV format is described at :ref:`upload_csv_format` and examples are shown at :ref:`example_upload_csv`.
 
 
 .. _example_upload_csv:
