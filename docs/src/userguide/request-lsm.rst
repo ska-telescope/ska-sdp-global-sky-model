@@ -154,7 +154,9 @@ where:
 Filtering examples
 ------------------
 
-You can filter results by specifying extra query parameters using the ``column__operator=value`` syntax. 
+You can filter results by specifying extra query parameters using the ``column__operator=value`` syntax.
+The keys ``i_pol_jy__gte`` and ``i_pol_jy__lte`` are passed exactly as written, whether in a query string or
+in a parameters dictionary.
 
 To specify a range filter in an HTTP request, add the relevant parameters to the query string:
 
@@ -177,8 +179,6 @@ To achieve the same range filter in a data flow  parameters, include the keys di
     "i_pol_jy__gte": 0.5,
     "i_pol_jy__lte": 1.0,
   }
-
-The keys ``i_pol_jy__gte`` and ``i_pol_jy__lte`` are passed exactly as shown in the parameters dictionary.
 
 For an equality filter, simply use ``column=value``:
 
