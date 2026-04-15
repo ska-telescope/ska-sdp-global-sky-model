@@ -46,6 +46,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     get_db,
     resource_toggle,
 )
+from ska_sdp_global_sky_model.utilities.helper_functions import make_serisalisable
 from ska_sdp_global_sky_model.utilities.local_sky_model import save_lsm_with_metadata
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 
@@ -225,6 +226,7 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
             flows = list(_get_flows(txn))
 
         for flow, sources in flows:
+
             logger.info("Found flow ... %s", flow.key)
             _watcher_process_flow(watcher, flow, sources)
 
@@ -251,6 +253,7 @@ def _watcher_process_flow(watcher, flow, sources):
         if not successful:
             errors.append(reason)
 
+    # Final state decision
     for txn in watcher.txn():
         if errors:
             _update_state(
@@ -263,7 +266,9 @@ def _watcher_process_flow(watcher, flow, sources):
             _update_state(txn, flow, "COMPLETED")
 
 
-def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, list[FlowSource])]:
+def _get_flows(
+    txn: ska_sdp_config.Config.txn,
+) -> Generator[tuple[Flow, list[FlowSource]], None, None]:
     """Get and filter the list of flows"""
     for key, flow in txn.flow.query_values(kind="data-product"):
 
@@ -409,7 +414,7 @@ def _update_state(
 
 def _write_data(
     eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel"
-):  # pylint: disable=too-many-locals
+):  # pylint: disable=too-many-locals, too-many-branches
     """
     Write the LSM to disk as a CSV file.
 
@@ -454,12 +459,18 @@ def _write_data(
         for key, value in data.metadata.items()
         if key not in ("staging", "upload_id", "id")
     }
+
+    # Dynamically inject all query parameters
     for key, value in query_parameters.__dict__.items():
+        if key == "sub_path":
+            header["QUERY_SUB_PATH"] = str(sub_path)
+            continue
+
         if isinstance(value, dict):
             for key2, val2 in value.items():
-                header[f"QUERY_{key}_{key2}".upper()] = val2
+                header[f"QUERY_{key}_{key2}".upper()] = make_serisalisable(val2)
         else:
-            header[f"QUERY_{key}".upper()] = value
+            header[f"QUERY_{key}".upper()] = make_serisalisable(value)
 
     local_model.set_header(header)
 
@@ -485,7 +496,7 @@ def _write_data(
 
     save_lsm_with_metadata(
         local_model,
-        {"execution_block_id": eb_id, "catalogue_metadata": data.metadata},
+        {"execution_block_id": eb_id},
         str(lsm_file),
         str(metadata_dir),
     )
