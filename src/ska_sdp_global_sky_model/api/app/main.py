@@ -454,8 +454,10 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         "total_records": count,
         "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
-        "message": "Review complete. Data is still in staging and not visible in the \
-              GSM until committed.",
+        "message": (
+            "Review complete. Data is still in staging and not visible in the "
+            "GSM until committed."
+        ),
         "next_action": "commit",
     }
     # Add metadata details if available
