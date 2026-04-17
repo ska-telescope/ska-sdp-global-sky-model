@@ -355,9 +355,11 @@ async def upload_sky_survey_batch(
             "upload_id": catalogue_metadata.upload_id,
             "status": "uploading",
             "catalogue_name": catalogue_metadata.catalogue_name,
-            "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. \
-            Data is being ingested into the staging table, prior to being  \
-                committed to the main table.",
+            "message": (
+                f"Uploaded {len(csv_files)} CSV file(s) with metadata. "
+                "Data is being ingested into the staging table, prior to "
+                "being  committed to the main table."
+            ),
             "next_action": "poll_status",
         }
 
