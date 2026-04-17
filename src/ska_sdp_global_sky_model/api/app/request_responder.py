@@ -149,6 +149,7 @@ class QueryParameters:
         metadata_query = db.query(GlobalSkyModelMetadata)
         query_builder = QueryBuilder(GlobalSkyModelMetadata, self.metadata_queries)
         metadata_query = query_builder.apply_filters(metadata_query)
+        metadata_query = query_builder.apply_sort(metadata_query)
 
         metadata_records = metadata_query.all()
 

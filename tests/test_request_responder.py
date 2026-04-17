@@ -3,6 +3,7 @@
 
 import copy
 import pathlib
+from datetime import datetime
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -800,3 +801,113 @@ def test_write_data_empty_components(tmp_path):
     # Should have header comment lines but no data
     assert any("format" in line.lower() for line in lines)
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
+
+
+def test_metadata_sort_order(db_session):  # noqa: F811
+    """Test that the latest uploaded catalogue is used"""
+    metadata = GlobalSkyModelMetadata(
+        version="1.1.0",
+        catalogue_name="test_2",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 21, 12, 34, 56),
+    )
+    db_session.add(metadata)
+    db_session.commit()
+    metadata2 = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test2",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 22, 12, 34, 56),
+    )
+    db_session.add(metadata2)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+    )
+
+    # pylint: disable-next=protected-access
+    output_metadata = query_params._get_metadata_record(db_session)
+
+    assert output_metadata.catalogue_name == metadata2.catalogue_name
+    assert output_metadata.version == metadata2.version
+
+
+def test_metadata_sort_order_and_latest_version(db_session):  # noqa: F811
+    """Test that the latest version is used instead of latest catalogue"""
+    metadata = GlobalSkyModelMetadata(
+        version="1.1.0",
+        catalogue_name="test_2",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 21, 12, 34, 56),
+    )
+    db_session.add(metadata)
+    db_session.commit()
+    metadata2 = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test2",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 22, 12, 34, 56),
+    )
+    db_session.add(metadata2)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=111.11, dec_deg=-22.22, fov_deg=180, sub_path="test/lsm.csv", version="latest"
+    )
+
+    # pylint: disable-next=protected-access
+    output_metadata = query_params._get_metadata_record(db_session)
+
+    assert output_metadata.catalogue_name == metadata.catalogue_name
+    assert output_metadata.version == metadata.version
+
+
+def test_no_parameters(db_session):  # noqa: F811
+    """Test that when no catalogue parameters is given we still get something"""
+    metadata = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+    )
+    db_session.add(metadata)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+    )
+
+    # pylint: disable-next=protected-access
+    output_metadata = query_params._get_metadata_record(db_session)
+
+    assert output_metadata.catalogue_name == metadata.catalogue_name
+    assert output_metadata.version == metadata.version
