@@ -9,7 +9,6 @@ from unittest.mock import patch
 import pytest
 from starlette.testclient import TestClient
 
-from ska_sdp_global_sky_model.api.app.ingest import compute_hpx_healpy
 from ska_sdp_global_sky_model.api.app.main import app
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.configuration.config import Base
@@ -68,7 +67,6 @@ def _generate_catalogue(db, name: str, version: str, mid: tuple[float, float], c
         db.add(
             SkyComponent(
                 component_id=f"{code}{version.replace('.',''):0>6}+{i:0>6}",
-                healpix_index=compute_hpx_healpy(r, d),
                 ra_deg=r,
                 dec_deg=d,
                 gsm_id=metadata.id,

@@ -25,7 +25,6 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
     Float,

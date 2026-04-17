@@ -1,7 +1,7 @@
-# pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
-# pylint: disable=too-many-arguments, too-many-locals, too-many-return-statements
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+
 """
-Gleam Catalogue ingest
+Catalogue ingest
 """
 
 import csv
@@ -11,8 +11,6 @@ import logging
 from itertools import zip_longest
 from typing import get_args, get_origin
 
-import healpy as hp
-import numpy as np
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
@@ -119,6 +117,7 @@ def _get_dataclass_fields() -> dict[str, type]:
     return dict(SkyComponentDataclass.__annotations__.items())
 
 
+# pylint: disable-next=too-many-return-statements
 def _process_special_field(field_name: str, value, component_mapping: dict) -> bool:
     """
     Process special fields that need custom handling.
@@ -427,6 +426,7 @@ def _process_single_component(
     return component_mapping, None
 
 
+# pylint: disable-next=too-many-locals
 def process_component_data_batch(
     db: Session,
     catalogue_data,

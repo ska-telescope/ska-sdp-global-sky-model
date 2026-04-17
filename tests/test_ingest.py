@@ -17,7 +17,6 @@ from ska_sdp_global_sky_model.api.app.ingest import (
     ComponentFile,
     build_component_mapping,
     commit_batch,
-    compute_hpx_healpy,
     ingest_catalogue,
     parse_catalogue_components,
     process_component_data_batch,
@@ -100,27 +99,6 @@ class TestToFloat:
         assert to_float("") is None
 
 
-class TestComputeHpxHealpy:
-    """Tests for compute_hpx_healpy function"""
-
-    def test_valid_coordinates(self):
-        """Test healpix computation with valid coordinates"""
-        hpx = compute_hpx_healpy(45.0, 30.0)
-        assert isinstance(hpx, int)
-        assert hpx >= 0
-
-    def test_zero_coordinates(self):
-        """Test healpix computation at origin"""
-        hpx = compute_hpx_healpy(0.0, 0.0)
-        assert isinstance(hpx, int)
-
-    def test_negative_dec(self):
-        """Test healpix computation with negative declination"""
-        hpx = compute_hpx_healpy(180.0, -45.0)
-        assert isinstance(hpx, int)
-        assert hpx >= 0
-
-
 class TestComponentFile:
     """Tests for ComponentFile class"""
 
@@ -177,7 +155,6 @@ class TestBuildComponentMapping:
         assert mapping["ra_deg"] == 10.5
         assert mapping["dec_deg"] == 45.2
         assert mapping["i_pol_jy"] == 1.5
-        assert "healpix_index" in mapping
 
     def test_mapping_with_shape_params(self):
         """Test mapping with component shape parameters"""
@@ -353,7 +330,6 @@ class TestCommitBatch:
         component_objs = [
             {
                 "component_id": "J001122-334455",
-                "healpix_index": 12345,
                 "ra_deg": 10.5,
                 "dec_deg": 45.2,
                 "i_pol_deg": 1.5,
@@ -362,7 +338,6 @@ class TestCommitBatch:
             },
             {
                 "component_id": "J223344-556677",
-                "healpix_index": 67890,
                 "ra_deg": 30.1,
                 "dec_deg": -20.5,
                 "i_pol_jy": 0.8,
