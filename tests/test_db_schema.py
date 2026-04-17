@@ -102,7 +102,6 @@ class TestSkyComponentModel:
         assert "ra_deg" in columns
         assert "dec_deg" in columns
         assert "i_pol_jy" in columns
-        assert "healpix_index" in columns
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
@@ -217,7 +216,6 @@ class TestSkyComponentModel:
         assert component_dict["ra_deg"] == 111.11
         assert component_dict["dec_deg"] == -22.22
         assert component_dict["i_pol_jy"] == 3.33
-        assert component_dict["healpix_index"] == 33333
         assert component_dict["a_arcsec"] == 0.002
         assert "id" in component_dict
 
@@ -558,7 +556,7 @@ class TestSkyComponentModelDataclassSync:
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         # Check that all dataclass fields are in the model
-        # (excluding 'id' and 'healpix_index' which are database-specific)
+        # (excluding 'id' which is database-specific)
         missing_fields = dataclass_fields - model_columns
         assert (
             not missing_fields
@@ -568,7 +566,7 @@ class TestSkyComponentModelDataclassSync:
         """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
         expected_columns = set(SkyComponent.__annotations__.keys())
-        expected_columns.update(["id", "healpix_index", "gsm_id"])
+        expected_columns.update(["id", "gsm_id"])
 
         # Get actual model columns
         inspector = inspect(engine)
@@ -589,9 +587,8 @@ class TestSkyComponentModelDataclassSync:
 
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
-        # Expected: all dataclass fields + 3 database-specific
-        #   (id, healpix_index, version, catalogue_name)
-        expected_count = len(SkyComponent.__annotations__) + 3
+        # Expected: all dataclass fields + 2 database-specific
+        expected_count = len(SkyComponent.__annotations__) + 2
 
         # Get actual count
         inspector = inspect(engine)

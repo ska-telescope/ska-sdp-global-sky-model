@@ -23,7 +23,6 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
 logger = logging.getLogger(__name__)
@@ -98,34 +97,6 @@ def to_float(val):
     try:
         return float(val)
     except (TypeError, ValueError):
-        return None
-
-
-def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
-    """Compute HEALPix index for given sky coordinates.
-
-    Args:
-        ra_deg: Right ascension in degrees.
-        dec_deg: Declination in degrees.
-        nside: HEALPix NSIDE parameter (default from config).
-        nest: HEALPix ordering scheme (default from config).
-
-    Returns:
-        HEALPix pixel index as integer, or None if coordinates are invalid.
-    """
-    ra_deg = to_float(ra_deg)
-    dec_deg = to_float(dec_deg)
-
-    # Return None if coordinates are invalid (will be caught by validation)
-    if ra_deg is None or dec_deg is None:
-        return None
-
-    try:
-        theta = np.radians(90.0 - dec_deg)
-        phi = np.radians(ra_deg)
-        return int(hp.ang2pix(nside, theta, phi, nest=nest))
-    except (ValueError, RuntimeError):
-        # Invalid coordinates - will be caught by validation
         return None
 
 
@@ -210,7 +181,6 @@ def build_component_mapping(component_dict: dict) -> dict:
     Automatically maps all fields from the SkyComponent dataclass, handling:
     - Required vs optional fields based on type annotations
     - Special conversions (arrays, booleans)
-    - Database-specific fields (healpix_index)
 
     Args:
         component_dict: Dictionary from CSV row with column names as keys
@@ -220,11 +190,6 @@ def build_component_mapping(component_dict: dict) -> dict:
     """
     component_mapping = {}
     dataclass_fields = _get_dataclass_fields()
-
-    # Database-specific field (not in dataclass)
-    component_mapping["healpix_index"] = compute_hpx_healpy(
-        component_dict.get("ra_deg"), component_dict.get("dec_deg")
-    )
 
     # Dynamically map all dataclass fields
     for field_name, field_type in dataclass_fields.items():

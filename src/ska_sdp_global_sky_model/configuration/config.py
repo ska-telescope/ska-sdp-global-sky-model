@@ -36,10 +36,6 @@ DB: str = config("POSTGRES_HOST", default="localhost")
 DB_SCHEMA: str = config("POSTGRES_SCHEMA_NAME", default="public")
 DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
 
-# HEALPix
-NSIDE: int = config("NSIDE", default=4096)
-NEST: bool = config("NEST", default="True").upper() == "TRUE"
-
 REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
 SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
 
