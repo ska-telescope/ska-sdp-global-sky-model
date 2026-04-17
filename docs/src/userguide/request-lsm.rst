@@ -158,23 +158,7 @@ You can filter results by specifying extra query parameters using the ``column__
 The keys ``i_pol_jy__gte`` and ``i_pol_jy__lte`` are passed exactly as written, whether in a query string or
 in a parameters dictionary.
 
-To specify a range filter in an HTTP request, add the relevant parameters to the query string:
-
-.. code-block:: text
-
-  GET /local-sky-model?ra_deg=70&dec_deg=4&fov_deg=1&catalogue_name=example&version=1.0.0&i_pol_jy__gte=0.5&i_pol_jy__lte=1.0
-
-This restricts the result to components whose ``i_pol_jy`` value is between 0.5 Jy and 1.0 Jy inclusive.
-
-For an equality filter, simply use ``column=value``:
-
-.. code-block:: text
-
-  GET /local-sky-model?catalogue_name=example
-
-This will select only rows where ``catalogue_name`` matches ``example`` exactly.
-
-To achieve the same range filter in data flow parameters, include the keys directly:
+To specify a range filter in data flow parameters, include the keys directly:
 
 .. code-block:: python
 
@@ -188,6 +172,8 @@ To achieve the same range filter in data flow parameters, include the keys direc
     "i_pol_jy__lte": 1.0,
   }
 
+This restricts the result to components whose ``i_pol_jy`` value is between 0.5 Jy and 1.0 Jy inclusive.
+
 For an equality filter:
 
 .. code-block:: python
@@ -196,5 +182,19 @@ For an equality filter:
     ...,
     "catalogue_name": "example",
   }
+
+This will select only rows where ``catalogue_name`` matches ``example`` exactly.
+
+To achieve the same range filter in an HTTP request, add the relevant parameters to the query string:
+
+.. code-block:: text
+
+  GET /local-sky-model?ra_deg=70&dec_deg=4&fov_deg=1&catalogue_name=example&version=1.0.0&i_pol_jy__gte=0.5&i_pol_jy__lte=1.0
+
+For an equality filter, simply use ``column=value``:
+
+.. code-block:: text
+
+  GET /local-sky-model?catalogue_name=example
 
 See :ref:`querying_data` for a full list of supported operators and more examples.
