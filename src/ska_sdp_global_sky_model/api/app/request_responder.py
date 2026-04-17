@@ -189,7 +189,7 @@ class QueryParameters:
         )
 
 
-def start_thread():  # pragma: no cover
+def start_lsm_response_thread():  # pragma: no cover
     """Start the background thread that will search for flow entries"""
     thread = threading.Thread(target=_db_watcher, kwargs={}, daemon=True, name="Thread-Watcher")
     thread.start()
@@ -360,7 +360,6 @@ def _query_gsm_for_lsm(
             # Remove database-specific fields that are not in SkyComponent dataclass
             del sky_component_dict["id"]
             del sky_component_dict["gsm_id"]
-            del sky_component_dict["healpix_index"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
         return GlobalSkyModel(
