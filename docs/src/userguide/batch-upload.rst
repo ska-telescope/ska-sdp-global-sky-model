@@ -3,65 +3,25 @@
 Uploading GSM data
 ------------------
 
-The GSM provides both a browser interface and API endpoints
-for uploading multiple sky survey catalogue files in a single atomic
-batch operation into the GSM database.
+The GSM provides both an API and browser interface for uploading multiple sky survey 
+catalogue files in a single atomic batch operation into the GSM database. The API is 
+the recommended and primary method for uploading data. The browser-based interface is 
+**deprecated** and will be removed in a future release.
 
-Browser upload interface
-^^^^^^^^^^^^^^^^^^^^^^^^
 
-A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``).
+Base API URL
+^^^^^^^^^^^^
 
-1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
+Access to the GSM API requires the user to know the base URL for where the GSM is installed.
+With the SDP installed on the DP cluster, the following applies:
 
-.. figure:: ../images/upload_init_screen.png
-   :alt: Upload Interface
-   :width: 600px
-   :align: center
 
-   Initial upload interface screen
+Use the internal service DNS name:
 
-2. Drag and drop CSV files, containing data for a single catalogue version, onto the upload zone (or click to browse)
+    http://ska-sdp-gsm.<KUBE_NAMESPACE>
 
-.. figure:: ../images/upload_files_added.png
-   :alt: Files added to upload
-   :width: 400px
-   :align: center
+Where ``<KUBE_NAMESPACE>`` is the SDP control namespace.
 
-   Interface showing files selected for upload
-
-3. Click "Upload Files" to begin the upload
-4. Monitor the upload progress - status updates automatically
-5. Confirm the upload completed successfully and review the count of staged records
-
-.. figure:: ../images/upload_completed.png
-   :alt: Upload completed
-   :width: 350px
-   :align: center
-
-   Interface showing files have been uploaded and staged
-
-6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
-
-.. figure:: ../images/upload_commit.png
-   :alt: Upload committed
-   :width: 400px
-   :align: center
-
-.. figure:: ../images/upload_reject.png
-   :alt: Upload rejected
-   :width: 400px
-   :align: center
-
-   Confirm or reject uploaded data
-
-The browser interface also provides:
-
-    - Real-time status monitoring
-    - Displays the auto-assigned version of the committed data
-    - Displays errors if upload fails
-
-The expected CSV format is described at :ref:`upload_csv_format` and examples are shown at :ref:`example_upload_csv`.
 
 .. _upload_api:
 
@@ -106,9 +66,23 @@ Upload and ingest CSV files
 
 **Endpoint**: ``POST /upload-sky-survey-batch``
 
-Upload and ingest one or more sky survey CSV files to the staging table.
+Upload and ingest one or more sky survey CSV files to the **staging table**.
+
+.. important::
+    Data uploaded via this endpoint is **NOT automatically added to the main database**.
+
+    After a successful upload, you MUST:
+
+    1. Review the staged data using ``GET /review-upload/{upload_id}``
+    2. Commit the data using ``POST /commit-upload/{upload_id}``
+
+    If you do not commit the upload, the data will remain in staging and will not be visible in the GSM.
+
 All files in the batch are combined into a single sky model.
 If any file fails validation or ingestion, the entire batch is rolled back.
+
+.. note::
+    This has been tested inside the cluster, with file sizes up to 200MB, with no known issue.
 
 The catalogue version is **not** supplied by the user — it is automatically assigned when the
 upload is committed (see :ref:`commit_upload_ep`).
@@ -447,6 +421,176 @@ Reject and discard staged data. All records associated with this upload_id are p
 
     print(f"Rejected and deleted {result['records_deleted']} records")
     print(f"Message: {result['message']}")
+
+
+End-to-End Upload Workflow
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A complete example of the intended workflow is provided here. See above for more 
+information on individual steps.
+
+1. Upload files to staging:
+
+    POST /upload-sky-survey-batch
+
+2. Poll for completion:
+
+    GET /upload-sky-survey-status/{upload_id}
+
+3. Review staged data:
+
+    GET /review-upload/{upload_id}
+
+4. Commit to main database:
+
+    POST /commit-upload/{upload_id}
+
+
+.. code-block:: python
+
+    import requests
+    import time
+
+    # ------------------------------------------------------------------
+    # Configuration
+    # ------------------------------------------------------------------
+    base_url = "<GSM_API_URL>"  # e.g. http://ska-sdp-gsm.<KUBE_NAMESPACE>
+
+    metadata_path = "metadata.json"
+    csv_paths = ["test_catalogue_1.csv", "test_catalogue_2.csv"]
+
+    # ------------------------------------------------------------------
+    # 1. Upload files to staging
+    # ------------------------------------------------------------------
+    upload_url = f"{base_url}/upload-sky-survey-batch"
+
+    files = [
+        ("metadata_file", ("metadata.json", open(metadata_path, "rb"), "application/json")),
+    ]
+
+    for path in csv_paths:
+        files.append(("csv_files", (path, open(path, "rb"), "text/csv")))
+
+    response = requests.post(upload_url, files=files)
+    result = response.json()
+
+    upload_id = result["upload_id"]
+
+    print(f"Upload ID: {upload_id}")
+    print(f"Catalogue: {result['catalogue_name']}")
+    print(f"Initial status: {result['status']}")
+    print("Data uploaded to staging. Waiting for ingestion to complete...")
+
+    # ------------------------------------------------------------------
+    # 2. Poll for upload completion
+    # ------------------------------------------------------------------
+    status_url = f"{base_url}/upload-sky-survey-status/{upload_id}"
+
+    while True:
+        status_response = requests.get(status_url)
+        status = status_response.json()
+
+        print(
+            f"State: {status['state']} | "
+            f"Progress: {status['uploaded_files']}/{status['total_files']}"
+        )
+
+        if status["state"] in ["completed", "failed"]:
+            break
+
+        time.sleep(2)
+
+    if status["state"] == "failed":
+        print("Upload failed!")
+        print(f"Errors: {status['errors']}")
+        exit(1)
+
+    print("Upload completed successfully.")
+
+    # ------------------------------------------------------------------
+    # 3. Review staged data
+    # ------------------------------------------------------------------
+    review_url = f"{base_url}/review-upload/{upload_id}"
+    review = requests.get(review_url).json()
+
+    print(f"\nRecords staged: {review['total_records']}")
+    print(f"Sample records: {review['sample'][:3]}")
+
+    # ------------------------------------------------------------------
+    # 4. Commit upload to main database
+    # ------------------------------------------------------------------
+    commit_url = f"{base_url}/commit-upload/{upload_id}"
+    commit_response = requests.post(commit_url).json()
+
+    print("\nCommit successful.")
+    print(f"Committed {commit_response['records_committed']} records")
+    print(f"Catalogue: {commit_response['catalogue_name']}")
+    print(f"Version: {commit_response['version']}")
+
+
+
+Browser upload interface
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+    The browser upload interface is **deprecated** and will be removed in a future release.
+    Users should migrate to the API-based workflow described above.
+
+A browser interface is available at the ``/upload`` endpoint (e.g., ``<GSM_API_URL>/upload``).
+
+1. Navigate to ``<GSM_API_URL>/upload`` in your web browser (replace ``<GSM_API_URL>`` with your deployment URL)
+
+.. figure:: ../images/upload_init_screen.png
+   :alt: Upload Interface
+   :width: 600px
+   :align: center
+
+   Initial upload interface screen
+
+2. Drag and drop CSV files, containing data for a single catalogue version, onto the upload zone (or click to browse)
+
+.. warning::
+    A size limit of 10MB (total) for the selected files exists.
+
+.. figure:: ../images/upload_files_added.png
+   :alt: Files added to upload
+   :width: 400px
+   :align: center
+
+   Interface showing files selected for upload
+
+3. Click "Upload Files" to begin the upload
+4. Monitor the upload progress - status updates automatically
+5. Confirm the upload completed successfully and review the count of staged records
+
+.. figure:: ../images/upload_completed.png
+   :alt: Upload completed
+   :width: 350px
+   :align: center
+
+   Interface showing files have been uploaded and staged
+
+6. Click "Commit to Database" to approve or "Reject and Discard" to cancel
+
+.. figure:: ../images/upload_commit.png
+   :alt: Upload committed
+   :width: 400px
+   :align: center
+
+.. figure:: ../images/upload_reject.png
+   :alt: Upload rejected
+   :width: 400px
+   :align: center
+
+   Confirm or reject uploaded data
+
+The browser interface also provides:
+
+    - Real-time status monitoring
+    - Displays the auto-assigned version of the committed data
+    - Displays errors if upload fails
+
+The expected CSV format is described at :ref:`upload_csv_format` and examples are shown at :ref:`example_upload_csv`.
 
 
 .. _example_upload_csv:
