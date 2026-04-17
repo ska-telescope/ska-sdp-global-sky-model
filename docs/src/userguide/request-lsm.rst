@@ -166,7 +166,15 @@ To specify a range filter in an HTTP request, add the relevant parameters to the
 
 This restricts the result to components whose ``i_pol_jy`` value is between 0.5 Jy and 1.0 Jy inclusive.
 
-To achieve the same range filter in a data flow  parameters, include the keys directly:
+For an equality filter, simply use ``column=value``:
+
+.. code-block:: text
+
+  GET /local-sky-model?catalogue_name=example
+
+This will select only rows where ``catalogue_name`` matches ``example`` exactly.
+
+To achieve the same range filter in data flow parameters, include the keys directly:
 
 .. code-block:: python
 
@@ -180,13 +188,7 @@ To achieve the same range filter in a data flow  parameters, include the keys di
     "i_pol_jy__lte": 1.0,
   }
 
-For an equality filter, simply use ``column=value``:
-
-.. code-block:: text
-
-  GET /local-sky-model?catalogue_name=example
-
-Or, in PB parameters:
+For an equality filter:
 
 .. code-block:: python
 
@@ -194,7 +196,5 @@ Or, in PB parameters:
     ...,
     "catalogue_name": "example",
   }
-
-This will select only rows where ``catalogue_name`` matches ``example`` exactly.
 
 See :ref:`querying_data` for a full list of supported operators and more examples.
