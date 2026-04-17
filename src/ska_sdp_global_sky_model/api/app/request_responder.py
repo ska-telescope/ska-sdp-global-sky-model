@@ -271,7 +271,6 @@ def _get_flows(
 ) -> Generator[tuple[Flow, list[FlowSource]], None, None]:
     """Get and filter the list of flows"""
     for key, flow in txn.flow.query_values(kind="data-product"):
-
         sources = [
             raw_source
             for raw_source in flow.sources

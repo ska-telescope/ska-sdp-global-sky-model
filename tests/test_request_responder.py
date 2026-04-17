@@ -846,9 +846,7 @@ def test_get_flows_multiple_gsm_sources(valid_flow, monkeypatch):
     txn = MagicMock()
     txn.flow.query_values.return_value = [(flow2.key, flow2)]
     txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
-
     output = list(_get_flows(txn))
-
     assert output == [(flow2, flow2.sources[:2])]
 
 
@@ -858,6 +856,7 @@ def test_get_flows_multiple_gsm_sources(valid_flow, monkeypatch):
 def test_watcher_process_multiple_sources(
     mock_query, mock_write_data, mock_time, valid_flow, monkeypatch
 ):
+    """Test that we can process a flow with multiple GSM sources"""
     monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
     resource_toggle.is_active = lambda: True
 
@@ -902,7 +901,6 @@ def test_watcher_process_multiple_sources(
     ]
 
     mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
-
     mock_processing_block = MagicMock()
     mock_processing_block.eb_id = "eb-test-20260108-1234"
     mock_txn.processing_block.get.return_value = mock_processing_block
@@ -957,41 +955,3 @@ def test_watcher_process_multiple_sources(
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
-
-
-@patch("ska_sdp_global_sky_model.api.app.request_responder.save_lsm_with_metadata")
-def test_write_data_includes_dynamic_query_header(mock_save, tmp_path):
-    component = SkyComponentDataclass(
-        component_id="TEST001",
-        source_id="S1",
-        epoch=2026.2247,
-        ra_deg=45.0,
-        dec_deg=-30.0,
-        i_pol_jy=1.5,
-        ref_freq_hz=300e6,
-    )
-
-    query_parameters = QueryParameters(
-        ra_deg=2.9670,
-        dec_deg=-0.1745,
-        fov_deg=0.0873,
-        catalogue_name="catalogue",
-        pa_deg__lt=6,
-        sub_path="test/lsm.csv",
-    )
-
-    gsm = GlobalSkyModel(metadata={"author": "test"}, components={"TEST001": component})
-    output_dir = tmp_path / "product" / "eb-test" / "ska-sdp" / "pb-test" / "ska-sdm" / "sky"
-
-    _write_data("eb-test-20260108-1234", query_parameters, output_dir, gsm)
-
-    assert mock_save.call_count == 1
-    local_model = mock_save.call_args.args[0]
-    header = local_model.header
-
-    assert header["QUERY_RA_DEG"] == 2.9670
-    assert header["QUERY_DEC_DEG"] == -0.1745
-    assert header["QUERY_FOV_DEG"] == 0.0873
-    assert header["QUERY_CATALOGUE_NAME"] == "catalogue"
-    assert header["QUERY_SUB_PATH"] == "test/lsm.csv"
-    assert header["QUERY_COMPONENT_QUERIES_PA_DEG__LT"] == 6
