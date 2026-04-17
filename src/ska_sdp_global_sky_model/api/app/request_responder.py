@@ -84,7 +84,9 @@ class QueryParameters:
         self.sub_path = query_parameters.pop("sub_path", None)
 
         self.component_queries = {}
-        self.metadata_queries = {}
+
+        # make default sorting be descending on upload time
+        self.metadata_queries = {"sort": "-uploaded_at"}
 
         # all component fields, except for internal columns
         component_columns = [
