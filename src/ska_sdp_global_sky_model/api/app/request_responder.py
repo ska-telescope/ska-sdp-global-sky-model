@@ -149,15 +149,16 @@ class QueryParameters:
         metadata_query = query_builder.apply_filters(metadata_query)
 
         metadata_records = metadata_query.all()
-        if self._use_latest_version:
-            latest = max(metadata_records, key=lambda r: Version(r.version))
-            metadata_records = [latest]
 
         if len(metadata_records) == 0:
             return None
 
+        if self._use_latest_version:
+            latest = max(metadata_records, key=lambda r: Version(r.version))
+            metadata_records = [latest]
+
         if len(metadata_records) > 1:
-            logger.info("Found multiple catalogues, taking first one")
+            logger.warning("Found multiple catalogues, taking first one")
 
         return metadata_records[0]
 
@@ -315,8 +316,6 @@ def _query_gsm_for_lsm(
             - ra_deg: Right Ascension in degrees
             - dec_deg: Declination in degrees
             - fov_deg: Field of view radius in degrees
-            - version: GSM catalogue version to query (e.g., "1.0.0", "latest")
-            - catalogue_name: GSM catalogue name to query
         db: Database session
 
     Returns:
@@ -327,18 +326,15 @@ def _query_gsm_for_lsm(
         - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
     logger.info(
-        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (version=%s, catalogue=%s)",
+        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (metadata=%s, component=%s)",
         query_parameters.ra_deg,
         query_parameters.dec_deg,
         query_parameters.fov_deg,
-        query_parameters.version,
-        query_parameters.catalogue_name,
+        query_parameters.metadata_queries,
+        query_parameters.component_queries,
     )
 
     try:
-        resolved_version = query_parameters.get_version(db)
-        logger.info("Using resolved version: %s", resolved_version)
-
         # Query metadata for this version
 
         sky_components_dict = {}

@@ -543,7 +543,7 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
         catalogue_name="test",
         sub_path="test/lsm.csv",
     )
-    with pytest.raises(ValueError, match="No GSM versions available"):
+    with pytest.raises(ValueError, match="No catalogue could be found for query parameters"):
         _query_gsm_for_lsm(query_params, db_session)
 
 
