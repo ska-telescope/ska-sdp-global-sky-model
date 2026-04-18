@@ -401,7 +401,7 @@ def test_upload_batch_ingest_failure(myclient):
 @pytest.mark.parametrize(
     "content, response_string",
     [
-        (b"", "empty", "empty.csv"),
+        (b"", "empty"),
         (b"name,ra,dec\n", "no data rows"),
         (b",,\ndata1,data2,data3\n", "empty header"),
         (b"\x80\x81\x82\x83", "not valid UTF-8"),
