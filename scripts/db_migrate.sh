@@ -16,5 +16,5 @@ cd "$BASE_DIRECTORY"
 alembic upgrade head
 
 if [[ "$1" == "--import-sample-data" ]]; then
-  python /db_init_data.py --ignore-import-failure --metadata-file /sample_data/metadata_test_1.json /sample_data/*.csv
+  python /db_init_data.py --ignore-import-failure --metadata-file /sample_data/metadata_test.json /sample_data/*.csv
 fi

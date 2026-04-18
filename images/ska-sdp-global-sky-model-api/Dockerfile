@@ -23,7 +23,7 @@ COPY scripts/db_migrate.sh /db_migrate.sh
 COPY scripts/db_downgrade.sh /db_downgrade.sh
 COPY scripts/db_init_data.py /db_init_data.py
 COPY tests/data/*.csv /sample_data/
-COPY tests/data/metadata_test_1.json /sample_data/metadata_test_1.json
+COPY tests/data/metadata_test.json /sample_data/metadata_test.json
 
 RUN chmod +x /db_migrate.sh /db_downgrade.sh /db_init_data.py
 

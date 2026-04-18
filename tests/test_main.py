@@ -299,7 +299,7 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
     _assert_upload_response(myclient, response, 2)
 
 
-@pytest.mark.parameterize(
+@pytest.mark.parametrize(
     "metadata_file",
     [
         Path("tests/data/metadata_gleam.json"),
