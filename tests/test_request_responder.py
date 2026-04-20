@@ -686,6 +686,180 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
     assert isinstance(result.components[2], SkyComponentDataclass)
 
 
+def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
+    """Test querying GSM for LSM by author metadata field"""
+    metadata_gleam = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="GLEAM",
+        description="GLEAM catalogue",
+        upload_id="upload1",
+        author="Hurley-Walker et al., 2016",
+        reference="DOI:10.1093/mnras/stw2337",
+        notes="2017MNRAS.464.1146H",
+        freq_min_hz=76e6,
+        freq_max_hz=227e6,
+    )
+    metadata_ska = GlobalSkyModelMetadata(
+        version="0.2.0",
+        catalogue_name="Test",
+        description="SKA AA1 catalogue",
+        upload_id="upload2",
+        author="SKA SDP Team",
+        reference="none",
+        notes="a different catalogue",
+        freq_min_hz=50e6,
+        freq_max_hz=350e6,
+    )
+    db_session.add(metadata_gleam)
+    db_session.add(metadata_ska)
+    db_session.commit()
+    component_1 = SkyComponent(
+        component_id="1",
+        source_id="gleam_source",
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        healpix_index=1,
+        gsm_id=metadata_gleam.id,
+        ref_freq_hz=76e6,
+    )
+    component_2 = SkyComponent(
+        component_id="2",
+        source_id="ska_source_1",
+        ra_deg=111.22,
+        dec_deg=-22.33,
+        healpix_index=0,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=100e6,
+    )
+    component_3 = SkyComponent(
+        component_id="3",
+        source_id="ska_source_2",
+        ra_deg=111.45,
+        dec_deg=-22.56,
+        healpix_index=1,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=200e6,
+    )
+    db_session.add(component_1)
+    db_session.add(component_2)
+    db_session.add(component_3)
+    db_session.commit()
+
+    # Query by author
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        author__contains="SDP",
+        sub_path="test/lsm.csv",
+    )
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert result.metadata["catalogue_name"] == "Test"
+    assert result.metadata["author"] == "SKA SDP Team"
+    assert result.metadata["freq_min_hz"] == 50e6
+    assert result.metadata["freq_max_hz"] == 350e6
+    assert len(result.components) == 2
+    source_1 = result.components[2]
+    source_2 = result.components[3]
+    assert source_1.component_id == "2"
+    assert source_1.source_id == "ska_source_1"
+    assert source_1.ra_deg == 111.22
+    assert source_1.dec_deg == -22.33
+    assert source_1.ref_freq_hz == 100e6
+    assert source_2.component_id == "3"
+    assert source_2.source_id == "ska_source_2"
+    assert source_2.ra_deg == 111.45
+    assert source_2.dec_deg == -22.56
+    assert source_2.ref_freq_hz == 200e6
+
+
+def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
+    """Test querying GSM for LSM by freq_min metadata field"""
+    metadata_gleam = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="GLEAM",
+        description="GLEAM catalogue",
+        upload_id="upload1",
+        author="Hurley-Walker et al., 2016",
+        reference="DOI:10.1093/mnras/stw2337",
+        notes="2017MNRAS.464.1146H",
+        freq_min_hz=76e6,
+        freq_max_hz=227e6,
+    )
+    metadata_ska = GlobalSkyModelMetadata(
+        version="0.2.0",
+        catalogue_name="Test",
+        description="SKA AA1 catalogue",
+        upload_id="upload2",
+        author="SKA SDP Team",
+        reference="none",
+        notes="a different catalogue",
+        freq_min_hz=50e6,
+        freq_max_hz=350e6,
+    )
+    db_session.add(metadata_gleam)
+    db_session.add(metadata_ska)
+    db_session.commit()
+    component_1 = SkyComponent(
+        component_id="1",
+        source_id="gleam_source",
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        healpix_index=1,
+        gsm_id=metadata_gleam.id,
+        ref_freq_hz=76e6,
+    )
+    component_2 = SkyComponent(
+        component_id="2",
+        source_id="ska_source_1",
+        ra_deg=111.22,
+        dec_deg=-22.33,
+        healpix_index=0,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=100e6,
+    )
+    component_3 = SkyComponent(
+        component_id="3",
+        source_id="ska_source_2",
+        ra_deg=111.45,
+        dec_deg=-22.56,
+        healpix_index=1,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=200e6,
+    )
+    db_session.add(component_1)
+    db_session.add(component_2)
+    db_session.add(component_3)
+    db_session.commit()
+
+    # Query by freq_min_hz
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        freq_min_hz=76e6,
+        sub_path="test/lsm.csv",
+    )
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert result.metadata["catalogue_name"] == "GLEAM"
+    assert result.metadata["author"] == "Hurley-Walker et al., 2016"
+    assert result.metadata["freq_min_hz"] == 76e6
+    assert result.metadata["freq_max_hz"] == 227e6
+    assert len(result.components) == 1
+    source_1 = result.components[1]
+    assert source_1.component_id == "1"
+    assert source_1.source_id == "gleam_source"
+    assert source_1.ra_deg == 111.11
+    assert source_1.dec_deg == -22.22
+    assert source_1.ref_freq_hz == 76e6
+
+
 def test_write_data_integration(
     db_session, tmp_path  # noqa: F811  # pylint: disable=unused-argument,redefined-outer-name
 ):
