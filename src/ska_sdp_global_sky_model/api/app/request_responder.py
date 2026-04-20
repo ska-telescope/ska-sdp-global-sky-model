@@ -242,8 +242,6 @@ def _watcher_process_flow(watcher, flow, sources):
     for source in sources:
         try:
             query_params = QueryParameters(**source.parameters)
-            if not query_params.version:
-                query_params.version = "latest"
         except (TypeError, ValueError) as err:
             logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
             errors.append(str(err))
@@ -461,10 +459,6 @@ def _write_data(
 
     # Dynamically inject all query parameters
     for key, value in query_parameters.__dict__.items():
-        if key == "sub_path":
-            header["QUERY_SUB_PATH"] = str(sub_path)
-            continue
-
         if isinstance(value, dict):
             for key2, val2 in value.items():
                 header[f"QUERY_{key}_{key2}".upper()] = make_serisalisable(val2)
