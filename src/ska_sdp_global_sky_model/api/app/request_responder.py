@@ -108,7 +108,7 @@ class QueryParameters:
                 field = key
             if field in component_columns:
                 self.component_queries[key] = value
-            elif key in metadata_columns:
+            elif field in metadata_columns:
                 self.metadata_queries[key] = value
             else:
                 logger.warning("The QueryParameter %s=%s was not valid", key, value)
