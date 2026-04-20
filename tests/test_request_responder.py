@@ -1,4 +1,4 @@
-# pylint: disable=redefined-outer-name,unused-import
+# pylint: disable=redefined-outer-name,unused-import,too-many-lines
 """Tests for the request_responder"""
 
 import copy
