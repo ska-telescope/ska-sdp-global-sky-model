@@ -262,6 +262,52 @@ def test_local_sky_model_with_version(myclient, set_up_db):  # pylint: disable=u
         assert f"W000010+0000{i:0>2d}" in local_sky_model.text
 
 
+def test_local_sky_model_query_author(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local-sky-model path
+
+    Query by author to test metadata query.
+    """
+
+    local_sky_model = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": "0",
+            "dec_deg": "0",
+            "fov_deg": 180,
+            "author__contains": "Other",  # Should match the whole of "catalogue2".
+        },
+    )
+
+    assert local_sky_model.status_code == 200
+    assert local_sky_model.text.count("A000100") == 200
+    for i in range(200):
+        assert f"A000100+000{i:0>3d}" in local_sky_model.text
+
+
+def test_local_sky_model_query_freq_max(myclient, set_up_db):  # pylint: disable=unused-argument
+    """
+    Unit test for the /local-sky-model path
+
+    Query by freq_min_hz to test metadata query.
+    """
+
+    local_sky_model = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": "0",
+            "dec_deg": "0",
+            "fov_deg": 180,
+            "freq_max_hz__gt": 300e6,  # Should match the whole of "catalogue3".
+        },
+    )
+
+    assert local_sky_model.status_code == 200
+    assert local_sky_model.text.count("N000100") == 20
+    for i in range(20):
+        assert f"N000100+0000{i:0>2d}" in local_sky_model.text
+
+
 def test_local_sky_model_small_fov(myclient, set_up_db):  # pylint: disable=unused-argument
     """
     Unit test for the /local-sky-model path
