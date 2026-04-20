@@ -9,7 +9,8 @@ catalogue name, version, description and upload information.
 
 The metadata can be queried using the ``/catalogue-metadata`` endpoint.
 This endpoint supports filtering, sorting and selecting specific
-columns through query parameters.
+columns through query parameters. The shared syntax is documented in
+:ref:`querying_data`.
 
 Retrieving catalogue metadata
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -53,31 +54,7 @@ Example response:
 Filtering results
 ^^^^^^^^^^^^^^^^^
 
-Results can be filtered using query parameters corresponding to
-database column names. Several operators are supported by appending
-a suffix to the parameter name.
-
-Supported operators include:
-
-.. list-table:: Supported filter operators
-   :widths: 20 50 30
-   :header-rows: 1
-
-   * - Operator
-     - Description
-     - Example
-   * - ``eq``
-     - Equality comparison (default)
-     - ``version=1.0.0``
-   * - ``gt``
-     - Greater than
-     - ``version__gt=1.0``
-   * - ``lt``
-     - Less than
-     - ``version__lt=2.0``
-   * - ``in``
-     - Match any value in a comma-separated list
-     - ``catalogue_name__in=GLEAM,LOFAR``
+Use the generic query syntax described in :ref:`querying_data`.
 
 Example:
 
@@ -86,6 +63,15 @@ Example:
     GET /catalogue-metadata?version__gt=1.0
 
 This returns catalogues with versions greater than ``1.0``.
+
+To request a bounded range, combine minimum and maximum filters:
+
+.. code-block:: text
+
+    GET /catalogue-metadata?version__gte=2.0&version__lte=3.0
+
+This returns catalogue metadata records whose version falls between ``2.0`` and
+``3.0`` inclusive.
 
 Sorting results
 ^^^^^^^^^^^^^^^
