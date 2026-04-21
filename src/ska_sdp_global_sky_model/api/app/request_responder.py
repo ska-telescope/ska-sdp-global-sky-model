@@ -157,8 +157,7 @@ class QueryParameters:
             return None
 
         if self._use_latest_version:
-            latest = max(metadata_records, key=lambda r: Version(r.version))
-            metadata_records = [latest]
+            return max(metadata_records, key=lambda r: Version(r.version))
 
         if len(metadata_records) > 1:
             logger.warning("Found multiple catalogues, taking first one")
