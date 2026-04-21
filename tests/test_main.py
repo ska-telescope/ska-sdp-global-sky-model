@@ -315,6 +315,71 @@ def test_local_sky_model_extra_param(myclient, set_up_db):  # pylint: disable=un
         assert f"A000100+000{i:0>3d}" not in local_sky_model.text
 
 
+def test_local_sky_model_flux_range_filter(myclient):
+    """Test range filtering on flux values for /local-sky-model."""
+    clean_all_tables()
+
+    db = next(override_get_db())
+    try:
+        metadata = GlobalSkyModelMetadata(
+            version="0.1.0",
+            catalogue_name="catalogue",
+            upload_id="range-upload",
+        )
+        db.add(metadata)
+        db.commit()
+        db.refresh(metadata)
+        db.add_all(
+            [
+                SkyComponent(
+                    component_id="J070001+040001",
+                    healpix_index=12345,
+                    ra_deg=70.001111,
+                    dec_deg=4.001111,
+                    i_pol_jy=0.098383,
+                    gsm_id=metadata.id,
+                ),
+                SkyComponent(
+                    component_id="J070002+040002",
+                    healpix_index=12345,
+                    ra_deg=70.002222,
+                    dec_deg=4.002222,
+                    i_pol_jy=0.798383,
+                    gsm_id=metadata.id,
+                ),
+                SkyComponent(
+                    component_id="J070003+040003",
+                    healpix_index=12345,
+                    ra_deg=70.003333,
+                    dec_deg=4.003333,
+                    i_pol_jy=1.298383,
+                    gsm_id=metadata.id,
+                ),
+            ]
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    local_sky_model = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": 70,
+            "dec_deg": 4,
+            "fov_deg": 1,
+            "catalogue_name": "catalogue",
+            "version": "0.1.0",
+            "i_pol_jy__gte": 0.5,
+            "i_pol_jy__lte": 1.0,
+        },
+    )
+
+    assert local_sky_model.status_code == 200
+    assert "J070001+040001" not in local_sky_model.text
+    assert "J070002+040002" in local_sky_model.text
+    assert "J070003+040003" not in local_sky_model.text
+
+
 def test_local_sky_model_missing_version(myclient, set_up_db):  # pylint: disable=unused-argument
     """
     Unit test for the /local-sky-model path
@@ -1173,6 +1238,26 @@ def test_query_metadata_gt_lt(myclient):
     versions = [r["version"] for r in data]
     assert all(float(v) < 3.0 for v in versions)
     assert len(versions) == 2
+
+
+def test_query_metadata_gte_lte_range(myclient):
+    """Test range filtering on metadata fields."""
+    clean_all_tables()
+    _insert_test_metadata()
+
+    response = myclient.get(
+        "/catalogue-metadata",
+        params={
+            "version__gte": "2.0",
+            "version__lte": "3.0",
+            "sort": "version",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    versions = [row["version"] for row in data]
+    assert versions == ["2.0", "3.0"]
 
 
 def test_query_metadata_in_operator(myclient):
