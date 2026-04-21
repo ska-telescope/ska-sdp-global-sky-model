@@ -51,9 +51,6 @@ Example response:
         }
     ]
 
-
-.. _filter_operators:
-
 Filtering results
 ^^^^^^^^^^^^^^^^^
 
