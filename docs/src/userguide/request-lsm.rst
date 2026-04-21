@@ -56,7 +56,7 @@ Some things to be aware of:
        ignored. Note: there should not be more than one source with this
        matching function.
     2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
-    3. The output location needs to be specified by the ``sub_path`` parameter, relative to 
+    3. The output location needs to be specified by the ``sub_path`` parameter, relative to
        the ``pvc_subpath``, and the metadata file will be in the directory specified by ``pvc_subpath``.
 
 Processing data flow requests
@@ -149,3 +149,40 @@ where:
      - The catalogue name string of the GSM to select from
      - string
      - Yes
+
+
+.. _request_lsm_filter:
+
+Filtering data in the query
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As well as the cone search parameters (``ra_deg``, ``dec_deg``
+and ``fov_deg``), it is possible to filter data based on values in any
+database column (from either the components table or the metadata table)
+when making the query.
+
+Comparison operators can be supplied by appending the operator name to the
+column name after a double-underscore (see a list of supported operators with
+examples at :ref:`filter_operators`).
+
+Some other example filter parameters:
+
+* ``freq_min_hz__gt=150e6``
+
+  * Return sky components from a GSM catalogue with a minimum frequency
+    greater than 150 MHz.
+
+* ``author__in="Alice,Bob"``
+
+  * Return sky components from a GSM catalogue with an author matching
+    either Alice or Bob.
+
+* ``author__startswith="SDP"``
+
+  * Return sky components from a GSM catalogue where the author name
+    starts with "SDP".
+
+* ``catalogue_name__contains="GLEAM"``
+
+  * Return sky components from a GSM catalogue where the catalogue name
+    contains "GLEAM".

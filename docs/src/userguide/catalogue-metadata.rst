@@ -50,12 +50,15 @@ Example response:
         }
     ]
 
+
+.. _filter_operators:
+
 Filtering results
 ^^^^^^^^^^^^^^^^^
 
 Results can be filtered using query parameters corresponding to
 database column names. Several operators are supported by appending
-a suffix to the parameter name.
+a suffix to the parameter name, after a double-underscore.
 
 Supported operators include:
 
@@ -75,6 +78,21 @@ Supported operators include:
    * - ``lt``
      - Less than
      - ``version__lt=2.0``
+   * - ``gte``
+     - Greater than or equal to
+     - ``freq_min_hz__gte=100e6``
+   * - ``lte``
+     - Less than or equal to
+     - ``freq_max_hz__lte=150e6``
+   * - ``contains``
+     - Match any value containing a sub-string
+     - ``catalogue_name__contains=GLEAM``
+   * - ``startswith``
+     - Match any value starting with a sub-string
+     - ``catalogue_name__startswith=GLEAM``
+   * - ``endswith``
+     - Match any value ending with a sub-string
+     - ``catalogue_name__endswith=GLEAM``
    * - ``in``
      - Match any value in a comma-separated list
      - ``catalogue_name__in=GLEAM,LOFAR``
