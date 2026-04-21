@@ -349,7 +349,12 @@ async def upload_sky_survey_batch(
             "upload_id": catalogue_metadata.upload_id,
             "status": "uploading",
             "catalogue_name": catalogue_metadata.catalogue_name,
-            "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. Ingestion running.",
+            "message": (
+                f"Uploaded {len(csv_files)} CSV file(s) with metadata. "
+                "Data is being ingested into the staging table, prior to "
+                "being  committed to the main table."
+            ),
+            "next_action": "poll_status",
         }
 
     except HTTPException as exc:
@@ -443,6 +448,11 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         "total_records": count,
         "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
+        "message": (
+            "Review complete. Data is still in staging and not visible in the "
+            "GSM until committed."
+        ),
+        "next_action": "commit",
     }
     # Add metadata details if available
     if status.metadata:

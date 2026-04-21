@@ -80,7 +80,7 @@ def _generate_catalogue(
         r, d = mr + i / 5, md + i / 5
         db.add(
             SkyComponent(
-                component_id=f"{code}{version.replace('.',''):0>6}+{i:0>6}",
+                component_id=f"{code}{version.replace('.', ''):0>6}+{i:0>6}",
                 healpix_index=compute_hpx_healpy(r, d),
                 ra_deg=r,
                 dec_deg=d,

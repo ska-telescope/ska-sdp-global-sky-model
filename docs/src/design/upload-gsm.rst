@@ -5,7 +5,9 @@ Uploading a new version of GSM data
 
 The GSM provides both a browser interface
 and API endpoints for uploading multiple sky survey catalogue files
-in a single atomic batch operation into the GSM database.
+in a single atomic batch operation into the GSM database. The API is 
+the recommended and primary method for uploading data. The browser-based interface is 
+**deprecated** and will be removed in a future release.
 
 The process allows the following:
 

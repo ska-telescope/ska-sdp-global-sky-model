@@ -46,6 +46,7 @@ from ska_sdp_global_sky_model.configuration.config import (
     get_db,
     resource_toggle,
 )
+from ska_sdp_global_sky_model.utilities.helper_functions import make_serisalisable
 from ska_sdp_global_sky_model.utilities.local_sky_model import save_lsm_with_metadata
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 
@@ -217,42 +218,58 @@ def _watcher_process(config: ska_sdp_config.Config.txn):
         for txn in watcher.txn():
             flows = list(_get_flows(txn))
 
-        for flow, source in flows:
+        for flow, sources in flows:
 
             logger.info("Found flow ... %s", flow.key)
-            _watcher_process_flow(watcher, flow, source)
+            _watcher_process_flow(watcher, flow, sources)
 
 
-def _watcher_process_flow(watcher, flow, source):
+def _watcher_process_flow(watcher, flow, sources):
+    errors = []
+
     for txn in watcher.txn():
         _update_state(txn, flow, "FLOWING")
         processing_block = txn.processing_block.get(flow.key.pb_id)
         eb_id = processing_block.eb_id
-    try:
-        query_params = QueryParameters(**source.parameters)
-    except (TypeError, ValueError) as err:
-        logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
-        for txn in watcher.txn():
-            _update_state(txn, flow, "FAILED", str(err)[27:])
-        return
 
-    successful, reason = _process_flow(flow, eb_id, query_params)
+    for source in sources:
+        try:
+            query_params = QueryParameters(**source.parameters)
+        except (TypeError, ValueError) as err:
+            logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
+            errors.append(str(err))
+            continue
 
+        successful, reason = _process_flow(flow, eb_id, query_params)
+        if not successful:
+            errors.append(reason)
+
+    # Final state decision
     for txn in watcher.txn():
-        _update_state(txn, flow, "COMPLETED" if successful else "FAILED", reason)
+        if errors:
+            _update_state(
+                txn,
+                flow,
+                "FAILED",
+                reason="; ".join([e for e in errors if e]),
+            )
+        else:
+            _update_state(txn, flow, "COMPLETED")
 
 
-def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
+def _get_flows(
+    txn: ska_sdp_config.Config.txn,
+) -> Generator[tuple[Flow, list[FlowSource]], None, None]:
     """Get and filter the list of flows"""
     for key, flow in txn.flow.query_values(kind="data-product"):
-        source = None
-        for raw_source in flow.sources:
-            if raw_source.function == "GlobalSkyModel.RequestLocalSkyModel":
-                source = raw_source
-                break
+        sources = [
+            raw_source
+            for raw_source in flow.sources
+            if raw_source.function == "GlobalSkyModel.RequestLocalSkyModel"
+        ]
 
-        if source is None:
-            logger.debug("%s -> has no valid source", key)
+        if not sources:
+            logger.debug("%s -> has no valid GSM sources", key)
             continue
 
         state = txn.flow.state(flow).get() or {}
@@ -269,7 +286,7 @@ def _get_flows(txn: ska_sdp_config.Config.txn) -> Generator[(Flow, FlowSource)]:
             )
             continue
 
-        yield flow, source
+        yield flow, sources
 
 
 def _process_flow(
@@ -373,7 +390,7 @@ def _update_state(
 
     new_state = {"status": state, "last_updated": time.time()}
     if reason:
-        new_state["reason"] = reason
+        new_state["error_state"] = reason
 
     if current_state:
         current_state.update(new_state)
@@ -385,7 +402,7 @@ def _update_state(
 
 def _write_data(
     eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel"
-):  # pylint: disable=too-many-locals
+):  # pylint: disable=too-many-locals, too-many-branches
     """
     Write the LSM to disk as a CSV file.
 
@@ -430,12 +447,14 @@ def _write_data(
         for key, value in data.metadata.items()
         if key not in ("staging", "upload_id", "id")
     }
+
+    # Dynamically inject all query parameters
     for key, value in query_parameters.__dict__.items():
         if isinstance(value, dict):
             for key2, val2 in value.items():
-                header[f"QUERY_{key}_{key2}".upper()] = val2
+                header[f"QUERY_{key}_{key2}".upper()] = make_serisalisable(val2)
         else:
-            header[f"QUERY_{key}".upper()] = value
+            header[f"QUERY_{key}".upper()] = make_serisalisable(value)
 
     local_model.set_header(header)
 
@@ -461,7 +480,7 @@ def _write_data(
 
     save_lsm_with_metadata(
         local_model,
-        {"execution_block_id": eb_id, "catalogue_metadata": data.metadata},
+        {"execution_block_id": eb_id},
         str(lsm_file),
         str(metadata_dir),
     )
