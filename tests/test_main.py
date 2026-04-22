@@ -1,3 +1,5 @@
+# pylint: disable=too-many-lines
+
 """
 Basic testing of the API
 """
@@ -434,9 +436,11 @@ def test_upload_sky_survey_status_not_found(myclient):
 
 
 def test_upload_batch_ingest_failure(myclient):
-    """Test batch upload when catalogue ingest fails.
+    """
+    Test batch upload when catalogue ingest fails.
 
-    TODO: why does the upload fail??
+    Failure is caused by the ingest_catalogue function
+    being patched to return False (i.e. ingest failed)
     """
     file_path = Path("tests/data/test_catalogue_1.csv")
     metadata_file = Path("tests/data/metadata_test.json")
