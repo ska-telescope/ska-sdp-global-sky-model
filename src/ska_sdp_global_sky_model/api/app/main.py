@@ -125,8 +125,6 @@ async def get_local_sky_model_endpoint(
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
-    catalogue_name: str,
-    version: str = "latest",
     db: Session = Depends(get_db),
 ):
     """
@@ -146,22 +144,18 @@ async def get_local_sky_model_endpoint(
     """
     query_parameters = dict(request.query_params)
     # Remove mandatory fields
-    _ = [
-        query_parameters.pop(param, None)
-        for param in ["ra_deg", "dec_deg", "fov_deg", "version", "catalogue_name"]
-    ]
+    _ = [query_parameters.pop(param, None) for param in ["ra_deg", "dec_deg", "fov_deg"]]
     logger.info(
-        "Requesting local sky model with the following parameters: ra:%s, \
-dec:%s, fov:%s, version:%s, catalogue: %s",
+        (
+            "Requesting local sky model with the following parameters: "
+            "ra:%s, dec:%s, fov:%s, (other: %s)"
+        ),
         ra_deg,
         dec_deg,
         fov_deg,
-        version,
-        catalogue_name,
+        query_parameters,
     )
-    query_params = QueryParameters(
-        ra_deg, dec_deg, fov_deg, catalogue_name, version, **query_parameters
-    )
+    query_params = QueryParameters(ra_deg, dec_deg, fov_deg, **query_parameters)
     _, local_model = query_params.sky_components(db)
     output_rows = [r.columns_to_dict() for r in local_model]
     for row in output_rows:

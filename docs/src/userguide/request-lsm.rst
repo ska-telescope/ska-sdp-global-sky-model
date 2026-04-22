@@ -56,7 +56,7 @@ Some things to be aware of:
        ignored. Note: there should not be more than one source with this
        matching function.
     2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
-    3. The output location needs to be specified by the ``sub_path`` parameter, relative to 
+    3. The output location needs to be specified by the ``sub_path`` parameter, relative to
        the ``pvc_subpath``, and the metadata file will be in the directory specified by ``pvc_subpath``.
 
 Processing data flow requests
@@ -152,7 +152,7 @@ where:
 
 
 Filtering examples
-------------------
+^^^^^^^^^^^^^^^^^^
 
 You can filter results by specifying extra query parameters using the ``column__operator=value`` syntax.
 The keys ``i_pol_jy__gte`` and ``i_pol_jy__lte`` are passed exactly as written, whether in a query string or
@@ -185,6 +185,28 @@ For an equality filter:
 
 This will select only rows where ``catalogue_name`` matches ``example`` exactly.
 
+Some other example filter parameters based on catalogue metadata:
+
+* ``freq_min_hz__gt=150e6``
+
+  * Return sky components from a GSM catalogue with a minimum frequency
+    greater than 150 MHz.
+
+* ``author__in="Alice,Bob"``
+
+  * Return sky components from a GSM catalogue with an author matching
+    either Alice or Bob.
+
+* ``author__startswith="SDP"``
+
+  * Return sky components from a GSM catalogue where the author name
+    starts with "SDP".
+
+* ``catalogue_name__contains="GLEAM"``
+
+  * Return sky components from a GSM catalogue where the catalogue name
+    contains "GLEAM".
+
 To achieve the same range filter in an HTTP request, add the relevant parameters to the query string:
 
 .. code-block:: text
@@ -197,4 +219,9 @@ For an equality filter, simply use ``column=value``:
 
   GET /local-sky-model?catalogue_name=example
 
-See :ref:`querying_data` for a full list of supported operators and more examples.
+For a full list of supported operators and more examples, see:
+
+.. toctree::
+  :maxdepth: 1
+
+  querying-data

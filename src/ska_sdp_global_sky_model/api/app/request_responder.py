@@ -63,8 +63,6 @@ class QueryParameters:
         ra_deg: float,
         dec_deg: float,
         fov_deg: float,
-        catalogue_name: str,
-        version: str = "latest",
         **query_parameters,
     ):
         """Init method setting the query parameters
@@ -73,34 +71,50 @@ class QueryParameters:
             - ra_deg: The ra component of the fov
             - dec_deg: The dec component of the fov
             - fov_deg: The field of view
-            - catalogue_name: The catalogue the components should be selected from
-            - version: The version components should be selected from
             - query_parameters: All additional query parameters possibly including __ operators
 
         """
         self.ra_deg = ra_deg
         self.dec_deg = dec_deg
         self.fov_deg = fov_deg
-        self.version = version
-        self.catalogue_name = catalogue_name
+        self._use_latest_version = False
+        if query_parameters.get("version", None) == "latest":
+            self._use_latest_version = True
+            query_parameters.pop("version", None)
 
         self.sub_path = query_parameters.pop("sub_path", None)
 
         self.component_queries = {}
-        self.metadata_queries = {}
+
+        # make default sorting be descending on upload time
+        self.metadata_queries = {"sort": "-uploaded_at"}
+
+        # all component fields, except for internal columns
+        component_columns = [
+            k
+            for k in SkyComponent.__table__.columns.keys()  # pylint: disable=no-member
+            if k not in ["id", "gsm_id", "healpix_index"]
+        ]
+
+        # all metadata fields, except for internal columns
+        metadata_columns = [
+            k
+            for k in GlobalSkyModelMetadata.__table__.columns.keys()  # pylint: disable=no-member
+            if k not in ["id", "staging"]
+        ]
         for key, value in query_parameters.items():
             if "__" in key:
                 field = key.split("__")[0]
             else:
                 field = key
-            if field in SkyComponentDataclass.__annotations__.keys():
+            if field in component_columns:
                 self.component_queries[key] = value
-            elif key in GlobalSkyModelMetadata.__annotations__.keys():
+            elif field in metadata_columns:
                 self.metadata_queries[key] = value
             else:
                 logger.warning("The QueryParameter %s=%s was not valid", key, value)
 
-    def sky_components(self, db) -> list[SkyComponent]:
+    def sky_components(self, db) -> tuple[GlobalSkyModelMetadata, list[SkyComponent]]:
         """Get the sky components based on the query parameters
         Args:
             - db: The database handle
@@ -110,8 +124,11 @@ class QueryParameters:
         """
         # Query components within the field of view using spatial index
         # pylint: disable=no-member,duplicate-code
-        metadata_records = self._get_metadata_records(db)
-        ids = [record.id for record in metadata_records]
+        metadata_record = self._get_metadata_record(db)
+        if metadata_record is None:
+            logger.info("LSM Query resulted in no catalogues")
+            return None, []
+
         sky_components_query = (
             db.query(SkyComponent)
             .where(
@@ -123,52 +140,30 @@ class QueryParameters:
                     self.fov_deg,
                 )
             )
-            .where(SkyComponent.gsm_id.in_(ids))
+            .where(SkyComponent.gsm_id == metadata_record.id)
         )
         query_builder = QueryBuilder(SkyComponent, self.component_queries)
         sky_components_query = query_builder.apply_filters(sky_components_query)
-        return metadata_records, sky_components_query.all()
+        return metadata_record, sky_components_query.all()
 
-    def _get_metadata_records(self, db) -> list[GlobalSkyModelMetadata]:
-        metadata_query = (
-            db.query(GlobalSkyModelMetadata)
-            .where(GlobalSkyModelMetadata.version == self.get_version(db))
-            .where(GlobalSkyModelMetadata.catalogue_name == self.catalogue_name)
-        )
+    def _get_metadata_record(self, db) -> GlobalSkyModelMetadata | None:
+        metadata_query = db.query(GlobalSkyModelMetadata)
         query_builder = QueryBuilder(GlobalSkyModelMetadata, self.metadata_queries)
         metadata_query = query_builder.apply_filters(metadata_query)
-        return metadata_query.all()
+        metadata_query = query_builder.apply_sort(metadata_query)
 
-    def get_version(self, db: Session) -> str:
-        """Get version. If was 'latest' set convert to latest semantic version in database.
-        Args:
-            - db: The database handle
-        Returns:
-            - The version string
-        """
-        if self.version is None or self.version != "latest":
-            return self.version
+        metadata_records = metadata_query.all()
 
-        try:
-            versions = (
-                db.query(GlobalSkyModelMetadata.version)
-                .where(GlobalSkyModelMetadata.catalogue_name == self.catalogue_name)
-                .all()
-            )
-            if not versions:
-                logger.error("No GSM versions available in database.")
-                raise ValueError("No GSM versions available in database.")
+        if len(metadata_records) == 0:
+            return None
 
-            version_strings = [v[0] for v in versions]
+        if self._use_latest_version:
+            return max(metadata_records, key=lambda r: Version(r.version))
 
-            # Parse and sort semantically
-            latest_version = max(version_strings, key=Version)
+        if len(metadata_records) > 1:
+            logger.warning("Found multiple catalogues, taking first one")
 
-            return latest_version
-
-        except Exception as e:
-            logger.exception("Failed to resolve version: %s", e)
-            raise
+        return metadata_records[0]
 
     def __eq__(self, other):
         """Check equality between query parameter classes."""
@@ -182,8 +177,6 @@ class QueryParameters:
                 "ra_deg",
                 "dec_deg",
                 "fov_deg",
-                "version",
-                "catalogue_name",
                 "component_queries",
                 "metadata_queries",
             ]
@@ -342,8 +335,6 @@ def _query_gsm_for_lsm(
             - ra_deg: Right Ascension in degrees
             - dec_deg: Declination in degrees
             - fov_deg: Field of view radius in degrees
-            - version: GSM catalogue version to query (e.g., "1.0.0", "latest")
-            - catalogue_name: GSM catalogue name to query
         db: Database session
 
     Returns:
@@ -354,22 +345,22 @@ def _query_gsm_for_lsm(
         - Empty GlobalSkyModel is returned if no components are found within the FOV
     """
     logger.info(
-        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (version=%s, catalogue=%s)",
+        "Querying GSM: RA=%.4f°, Dec=%.4f°, FOV=%.4f° (metadata=%s, component=%s)",
         query_parameters.ra_deg,
         query_parameters.dec_deg,
         query_parameters.fov_deg,
-        query_parameters.version,
-        query_parameters.catalogue_name,
+        query_parameters.metadata_queries,
+        query_parameters.component_queries,
     )
 
     try:
-        resolved_version = query_parameters.get_version(db)
-        logger.info("Using resolved version: %s", resolved_version)
-
         # Query metadata for this version
 
         sky_components_dict = {}
-        metadata_records, sky_components = query_parameters.sky_components(db)
+        metadata_record, sky_components = query_parameters.sky_components(db)
+        if metadata_record is None:
+            raise ValueError("No catalogue could be found for query parameters")
+
         for sky_component in sky_components:
             sky_component_dict = sky_component.columns_to_dict()
             # Remove database-specific fields that are not in SkyComponent dataclass
@@ -379,7 +370,7 @@ def _query_gsm_for_lsm(
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
         return GlobalSkyModel(
-            metadata=metadata_records[0].columns_to_dict(), components=sky_components_dict
+            metadata=metadata_record.columns_to_dict(), components=sky_components_dict
         )
 
     except Exception as e:
