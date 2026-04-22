@@ -293,7 +293,8 @@ def test_watcher_process_missing_parameter(
             {
                 "status": "FAILED",
                 "last_updated": 1234.5678,
-                "reason": "missing 1 required positional argument: 'fov_deg'",
+                "error_state": "QueryParameters.__init__() missing 1 required "
+                "positional argument: 'fov_deg'",
             }
         ),
     ]
@@ -329,7 +330,11 @@ def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, flow_
     output = list(_get_flows(txn))
 
     if found:
-        assert output == [(valid_flow, valid_flow.sources[0])]
+        # For each flow, collect all GSM sources
+        expected_sources = [
+            s for s in valid_flow.sources if s.function == "GlobalSkyModel.RequestLocalSkyModel"
+        ]
+        assert output == [(valid_flow, expected_sources)]
     else:
         assert len(output) == 0
     assert txn.mock_calls == [
@@ -444,7 +449,7 @@ def test_update_state_with_reason(mock_time):
         call.flow.state().get(),
         call.flow.state(flow),
         call.flow.state().update(
-            {"status": "NEW_STATE", "last_updated": 12345.123, "reason": "reason"}
+            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": "reason"}
         ),
     ]
 
@@ -466,7 +471,7 @@ def test_update_state_create_state(mock_time):
         call.flow.state().get(),
         call.flow.state(flow),
         call.flow.state().create(
-            {"status": "NEW_STATE", "last_updated": 12345.123, "reason": "reason"}
+            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": "reason"}
         ),
     ]
 
@@ -800,3 +805,153 @@ def test_write_data_empty_components(tmp_path):
     # Should have header comment lines but no data
     assert any("format" in line.lower() for line in lines)
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
+
+
+def test_get_flows_multiple_gsm_sources(valid_flow, monkeypatch):
+    """Test that unrelated sources are ignored and both GSM sources are returned"""
+    monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
+    resource_toggle.is_active = lambda: True
+
+    flow2 = copy.deepcopy(valid_flow)
+    flow2.sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 1.0,
+                "dec_deg": 2.0,
+                "fov_deg": 3.0,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/a.csv",
+            },
+        ),
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 4.0,
+                "dec_deg": 5.0,
+                "fov_deg": 6.0,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/b.csv",
+            },
+        ),
+        FlowSource(
+            uri="something://else",
+            function="NotTheGsmFunction",
+            parameters={"x": 1},
+        ),
+    ]
+
+    txn = MagicMock()
+    txn.flow.query_values.return_value = [(flow2.key, flow2)]
+    txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
+    output = list(_get_flows(txn))
+    assert output == [(flow2, flow2.sources[:2])]
+
+
+@patch("time.time")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
+def test_watcher_process_multiple_sources(
+    mock_query, mock_write_data, mock_time, valid_flow, monkeypatch
+):
+    """Test that we can process a flow with multiple GSM sources"""
+    monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
+    resource_toggle.is_active = lambda: True
+
+    mock_time.return_value = 1234.5678
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_config = MagicMock()
+    mock_config.watcher.return_value = [mock_watcher]
+    mock_watcher.txn.return_value = [mock_txn]
+
+    # multiple sources
+    valid_flow.sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9670,
+                "dec_deg": -0.1745,
+                "fov_deg": 0.0873,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/lsm1.csv",
+            },
+        ),
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9680,
+                "dec_deg": -0.1755,
+                "fov_deg": 0.0873,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/lsm2.csv",
+            },
+        ),
+    ]
+
+    # state transitions
+    mock_txn.flow.state.return_value.get.side_effect = [
+        {"status": "INITIALISED"},
+        {"status": "INITIALISED"},
+        {"status": "FLOWING"},
+    ]
+
+    mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
+
+    mock_gsm = GlobalSkyModel(components={}, metadata={})
+    mock_query.return_value = mock_gsm
+
+    _watcher_process(mock_config)
+
+    # verify write call twice
+    assert mock_write_data.mock_calls == [
+        call(
+            "eb-test-20260108-1234",
+            QueryParameters(
+                ra_deg=2.9670,
+                dec_deg=-0.1745,
+                fov_deg=0.0873,
+                version="latest",
+                catalogue_name="catalogue",
+                sub_path="test/lsm1.csv",
+            ),
+            SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath,
+            mock_gsm,
+        ),
+        call(
+            "eb-test-20260108-1234",
+            QueryParameters(
+                ra_deg=2.9680,
+                dec_deg=-0.1755,
+                fov_deg=0.0873,
+                version="latest",
+                catalogue_name="catalogue",
+                sub_path="test/lsm2.csv",
+            ),
+            SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath,
+            mock_gsm,
+        ),
+    ]
+
+    # Verify state transitions
+    assert mock_txn.mock_calls == [
+        call.flow.query_values(kind="data-product"),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().update({"status": "FLOWING", "last_updated": 1234.5678}),
+        call.processing_block.get(valid_flow.key.pb_id),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
+    ]
