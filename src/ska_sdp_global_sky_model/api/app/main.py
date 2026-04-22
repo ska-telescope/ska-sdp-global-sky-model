@@ -1,10 +1,10 @@
 # pylint: disable=no-member, too-many-positional-arguments
+# pylint: disable=too-many-arguments, broad-exception-caught, not-callable
 """
 A simple fastAPI to ingest data into the global sky model database and to obtain a local sky
 model from it.
 """
 
-# pylint: disable=too-many-arguments, broad-exception-caught, not-callable
 import json
 import logging
 import time
