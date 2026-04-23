@@ -45,7 +45,17 @@ def test_db():
     Base.metadata.drop_all(bind=engine)
 
 
-def _generate_catalogue(db, name: str, version: str, mid: tuple[float, float], count: int):
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+def _generate_catalogue(
+    db,
+    name: str,
+    version: str,
+    author: str,
+    freq_min_hz: float,
+    freq_max_hz: float,
+    mid: tuple[float, float],
+    count: int,
+):
     upload_id = hashlib.sha1(f"{name}-{version}".encode("utf-8")).hexdigest()
     code = chr(65 + sum(ord(x) for x in upload_id) % 26)
     logger.info(
@@ -55,6 +65,9 @@ def _generate_catalogue(db, name: str, version: str, mid: tuple[float, float], c
     metadata = GlobalSkyModelMetadata(
         version=version,
         catalogue_name=name,
+        author=author,
+        freq_min_hz=freq_min_hz,
+        freq_max_hz=freq_max_hz,
         upload_id=upload_id,
     )
     db.add(metadata)
@@ -66,7 +79,7 @@ def _generate_catalogue(db, name: str, version: str, mid: tuple[float, float], c
         r, d = mr + i / 5, md + i / 5
         db.add(
             SkyComponent(
-                component_id=f"{code}{version.replace('.',''):0>6}+{i:0>6}",
+                component_id=f"{code}{version.replace('.', ''):0>6}+{i:0>6}",
                 ra_deg=r,
                 dec_deg=d,
                 gsm_id=metadata.id,
@@ -87,10 +100,10 @@ def set_up_db_data_fxt():
     db = next(override_get_db())
     try:
         # Add a component in the query region (RA ~45, Dec ~4)
-        _generate_catalogue(db, "catalogue1", "0.1.0", (90, 2), 20)
-        _generate_catalogue(db, "catalogue1", "0.2.0", (90, 4), 10)
-        _generate_catalogue(db, "catalogue2", "1.0.0", (70, 4), 200)
-        _generate_catalogue(db, "catalogue3", "1.0.0", (80, 4), 20)
+        _generate_catalogue(db, "catalogue1", "0.1.0", "Alice", 76e6, 100e6, (90, 2), 20)
+        _generate_catalogue(db, "catalogue1", "0.2.0", "Bob", 50e6, 110e6, (90, 4), 10)
+        _generate_catalogue(db, "catalogue2", "1.0.0", "A.N. Other", 150e6, 227e6, (70, 4), 200)
+        _generate_catalogue(db, "catalogue3", "1.0.0", "SKA SDP Team", 50e6, 350e6, (80, 4), 20)
     finally:
         db.close()
 

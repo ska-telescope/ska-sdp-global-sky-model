@@ -1,5 +1,7 @@
 """This module contains helper functions for the ska_sdp_global_sky_model"""
 
+import json
+
 
 def calculate_percentage(dividend: int | float, divisor: int | float) -> float:
     """
@@ -22,3 +24,22 @@ def calculate_percentage(dividend: int | float, divisor: int | float) -> float:
         return 0.0
     percentage = (dividend / divisor) * 100
     return round(percentage, 2)  # Round to two decimal places
+
+
+def make_serisalisable(obj):
+    """
+    Ensures that an object is JSON serializable.
+
+    Args:
+        obj (Any): The object to be checked for JSON serialization.
+
+    Returns:
+        Any: The original object if it is JSON serializable, otherwise its
+        string representation.
+    """
+
+    try:
+        json.dumps(obj)
+        return obj
+    except TypeError:
+        return str(obj)

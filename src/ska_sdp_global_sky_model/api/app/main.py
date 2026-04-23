@@ -136,8 +136,6 @@ async def get_local_sky_model_endpoint(
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
-    catalogue_name: str,
-    version: str = "latest",
     db: Session = Depends(get_db),
 ):
     """
@@ -157,22 +155,18 @@ async def get_local_sky_model_endpoint(
     """
     query_parameters = dict(request.query_params)
     # Remove mandatory fields
-    _ = [
-        query_parameters.pop(param, None)
-        for param in ["ra_deg", "dec_deg", "fov_deg", "version", "catalogue_name"]
-    ]
+    _ = [query_parameters.pop(param, None) for param in ["ra_deg", "dec_deg", "fov_deg"]]
     logger.info(
-        "Requesting local sky model with the following parameters: "
-        "ra:%s, dec:%s, fov:%s, version:%s, catalogue: %s",
+        (
+            "Requesting local sky model with the following parameters: "
+            "ra:%s, dec:%s, fov:%s, (other: %s)"
+        ),
         ra_deg,
         dec_deg,
         fov_deg,
-        version,
-        catalogue_name,
+        query_parameters,
     )
-    query_params = QueryParameters(
-        ra_deg, dec_deg, fov_deg, catalogue_name, version, **query_parameters
-    )
+    query_params = QueryParameters(ra_deg, dec_deg, fov_deg, **query_parameters)
     _, local_model = query_params.sky_components(db)
     output_rows = [r.columns_to_dict() for r in local_model]
     for row in output_rows:
@@ -365,7 +359,12 @@ async def upload_sky_survey_batch(
             "upload_id": catalogue_metadata.upload_id,
             "status": "uploading",
             "catalogue_name": catalogue_metadata.catalogue_name,
-            "message": f"Uploaded {len(csv_files)} CSV file(s) with metadata. Ingestion running.",
+            "message": (
+                f"Uploaded {len(csv_files)} CSV file(s) with metadata. "
+                "Data is being ingested into the staging table, prior to "
+                "being  committed to the main table."
+            ),
+            "next_action": "poll_status",
         }
 
     except HTTPException as exc:
@@ -460,6 +459,11 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         "total_records": count,
         "sample_range": f"{sample_start}-{sample_end}",
         "sample": [row.columns_to_dict() for row in sample],
+        "message": (
+            "Review complete. Data is still in staging and not visible in the "
+            "GSM until committed."
+        ),
+        "next_action": "commit",
     }
     # Add metadata details if available
     if status.metadata:

@@ -1,8 +1,9 @@
-# pylint: disable=redefined-outer-name,unused-import
+# pylint: disable=redefined-outer-name,unused-import,too-many-lines
 """Tests for the request_responder"""
 
 import copy
 import pathlib
+from datetime import datetime
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -293,7 +294,8 @@ def test_watcher_process_missing_parameter(
             {
                 "status": "FAILED",
                 "last_updated": 1234.5678,
-                "reason": "missing 1 required positional argument: 'fov_deg'",
+                "error_state": "QueryParameters.__init__() missing 1 required "
+                "positional argument: 'fov_deg'",
             }
         ),
     ]
@@ -329,7 +331,11 @@ def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, flow_
     output = list(_get_flows(txn))
 
     if found:
-        assert output == [(valid_flow, valid_flow.sources[0])]
+        # For each flow, collect all GSM sources
+        expected_sources = [
+            s for s in valid_flow.sources if s.function == "GlobalSkyModel.RequestLocalSkyModel"
+        ]
+        assert output == [(valid_flow, expected_sources)]
     else:
         assert len(output) == 0
     assert txn.mock_calls == [
@@ -444,7 +450,7 @@ def test_update_state_with_reason(mock_time):
         call.flow.state().get(),
         call.flow.state(flow),
         call.flow.state().update(
-            {"status": "NEW_STATE", "last_updated": 12345.123, "reason": "reason"}
+            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": "reason"}
         ),
     ]
 
@@ -466,7 +472,7 @@ def test_update_state_create_state(mock_time):
         call.flow.state().get(),
         call.flow.state(flow),
         call.flow.state().create(
-            {"status": "NEW_STATE", "last_updated": 12345.123, "reason": "reason"}
+            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": "reason"}
         ),
     ]
 
@@ -543,7 +549,7 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
         catalogue_name="test",
         sub_path="test/lsm.csv",
     )
-    with pytest.raises(ValueError, match="No GSM versions available"):
+    with pytest.raises(ValueError, match="No catalogue could be found for query parameters"):
         _query_gsm_for_lsm(query_params, db_session)
 
 
@@ -685,6 +691,180 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
     assert isinstance(result.components[2], SkyComponentDataclass)
 
 
+def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
+    """Test querying GSM for LSM by author metadata field"""
+    metadata_gleam = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="GLEAM",
+        description="GLEAM catalogue",
+        upload_id="upload1",
+        author="Hurley-Walker et al., 2016",
+        reference="DOI:10.1093/mnras/stw2337",
+        notes="2017MNRAS.464.1146H",
+        freq_min_hz=76e6,
+        freq_max_hz=227e6,
+    )
+    metadata_ska = GlobalSkyModelMetadata(
+        version="0.2.0",
+        catalogue_name="Test",
+        description="SKA AA1 catalogue",
+        upload_id="upload2",
+        author="SKA SDP Team",
+        reference="none",
+        notes="a different catalogue",
+        freq_min_hz=50e6,
+        freq_max_hz=350e6,
+    )
+    db_session.add(metadata_gleam)
+    db_session.add(metadata_ska)
+    db_session.commit()
+    component_1 = SkyComponent(
+        component_id="1",
+        source_id="gleam_source",
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        healpix_index=1,
+        gsm_id=metadata_gleam.id,
+        ref_freq_hz=76e6,
+    )
+    component_2 = SkyComponent(
+        component_id="2",
+        source_id="ska_source_1",
+        ra_deg=111.22,
+        dec_deg=-22.33,
+        healpix_index=0,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=100e6,
+    )
+    component_3 = SkyComponent(
+        component_id="3",
+        source_id="ska_source_2",
+        ra_deg=111.45,
+        dec_deg=-22.56,
+        healpix_index=1,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=200e6,
+    )
+    db_session.add(component_1)
+    db_session.add(component_2)
+    db_session.add(component_3)
+    db_session.commit()
+
+    # Query by author
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        author__contains="SDP",
+        sub_path="test/lsm.csv",
+    )
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert result.metadata["catalogue_name"] == "Test"
+    assert result.metadata["author"] == "SKA SDP Team"
+    assert result.metadata["freq_min_hz"] == 50e6
+    assert result.metadata["freq_max_hz"] == 350e6
+    assert len(result.components) == 2
+    source_1 = result.components[2]
+    source_2 = result.components[3]
+    assert source_1.component_id == "2"
+    assert source_1.source_id == "ska_source_1"
+    assert source_1.ra_deg == 111.22
+    assert source_1.dec_deg == -22.33
+    assert source_1.ref_freq_hz == 100e6
+    assert source_2.component_id == "3"
+    assert source_2.source_id == "ska_source_2"
+    assert source_2.ra_deg == 111.45
+    assert source_2.dec_deg == -22.56
+    assert source_2.ref_freq_hz == 200e6
+
+
+def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
+    """Test querying GSM for LSM by freq_min metadata field"""
+    metadata_gleam = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="GLEAM",
+        description="GLEAM catalogue",
+        upload_id="upload1",
+        author="Hurley-Walker et al., 2016",
+        reference="DOI:10.1093/mnras/stw2337",
+        notes="2017MNRAS.464.1146H",
+        freq_min_hz=76e6,
+        freq_max_hz=227e6,
+    )
+    metadata_ska = GlobalSkyModelMetadata(
+        version="0.2.0",
+        catalogue_name="Test",
+        description="SKA AA1 catalogue",
+        upload_id="upload2",
+        author="SKA SDP Team",
+        reference="none",
+        notes="a different catalogue",
+        freq_min_hz=50e6,
+        freq_max_hz=350e6,
+    )
+    db_session.add(metadata_gleam)
+    db_session.add(metadata_ska)
+    db_session.commit()
+    component_1 = SkyComponent(
+        component_id="1",
+        source_id="gleam_source",
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        healpix_index=1,
+        gsm_id=metadata_gleam.id,
+        ref_freq_hz=76e6,
+    )
+    component_2 = SkyComponent(
+        component_id="2",
+        source_id="ska_source_1",
+        ra_deg=111.22,
+        dec_deg=-22.33,
+        healpix_index=0,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=100e6,
+    )
+    component_3 = SkyComponent(
+        component_id="3",
+        source_id="ska_source_2",
+        ra_deg=111.45,
+        dec_deg=-22.56,
+        healpix_index=1,
+        gsm_id=metadata_ska.id,
+        ref_freq_hz=200e6,
+    )
+    db_session.add(component_1)
+    db_session.add(component_2)
+    db_session.add(component_3)
+    db_session.commit()
+
+    # Query by freq_min_hz
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        freq_min_hz=76e6,
+        sub_path="test/lsm.csv",
+    )
+    result = _query_gsm_for_lsm(query_params, db_session)
+
+    # Verify results
+    assert isinstance(result, GlobalSkyModel)
+    assert result.metadata["catalogue_name"] == "GLEAM"
+    assert result.metadata["author"] == "Hurley-Walker et al., 2016"
+    assert result.metadata["freq_min_hz"] == 76e6
+    assert result.metadata["freq_max_hz"] == 227e6
+    assert len(result.components) == 1
+    source_1 = result.components[1]
+    assert source_1.component_id == "1"
+    assert source_1.source_id == "gleam_source"
+    assert source_1.ra_deg == 111.11
+    assert source_1.dec_deg == -22.22
+    assert source_1.ref_freq_hz == 76e6
+
+
 def test_write_data_integration(
     db_session, tmp_path  # noqa: F811  # pylint: disable=unused-argument,redefined-outer-name
 ):
@@ -800,3 +980,263 @@ def test_write_data_empty_components(tmp_path):
     # Should have header comment lines but no data
     assert any("format" in line.lower() for line in lines)
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
+
+
+def test_metadata_sort_order(db_session):  # noqa: F811
+    """Test that the latest uploaded catalogue is used"""
+    metadata = GlobalSkyModelMetadata(
+        version="1.1.0",
+        catalogue_name="test_2",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 21, 12, 34, 56),
+    )
+    db_session.add(metadata)
+    db_session.commit()
+    metadata2 = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test2",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 22, 12, 34, 56),
+    )
+    db_session.add(metadata2)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+    )
+
+    # pylint: disable-next=protected-access
+    output_metadata = query_params._get_metadata_record(db_session)
+
+    assert output_metadata.catalogue_name == metadata2.catalogue_name
+    assert output_metadata.version == metadata2.version
+
+
+def test_metadata_sort_order_and_latest_version(db_session):  # noqa: F811
+    """Test that the latest version is used instead of latest catalogue"""
+    metadata = GlobalSkyModelMetadata(
+        version="1.1.0",
+        catalogue_name="test_2",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 21, 12, 34, 56),
+    )
+    db_session.add(metadata)
+    db_session.commit()
+    metadata2 = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test2",
+        author="test",
+        reference="test",
+        notes="test",
+        uploaded_at=datetime(2026, 3, 22, 12, 34, 56),
+    )
+    db_session.add(metadata2)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=111.11, dec_deg=-22.22, fov_deg=180, sub_path="test/lsm.csv", version="latest"
+    )
+
+    # pylint: disable-next=protected-access
+    output_metadata = query_params._get_metadata_record(db_session)
+
+    assert output_metadata.catalogue_name == metadata.catalogue_name
+    assert output_metadata.version == metadata.version
+
+
+def test_no_parameters(db_session):  # noqa: F811
+    """Test that when no catalogue parameters is given we still get something"""
+    metadata = GlobalSkyModelMetadata(
+        version="0.1.0",
+        catalogue_name="test",
+        description="test",
+        upload_id="test",
+        author="test",
+        reference="test",
+        notes="test",
+    )
+    db_session.add(metadata)
+    db_session.commit()
+
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+    )
+
+    # pylint: disable-next=protected-access
+    output_metadata = query_params._get_metadata_record(db_session)
+
+    assert output_metadata.catalogue_name == metadata.catalogue_name
+    assert output_metadata.version == metadata.version
+
+
+def test_get_flows_multiple_gsm_sources(valid_flow, monkeypatch):
+    """Test that unrelated sources are ignored and both GSM sources are returned"""
+    monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
+    resource_toggle.is_active = lambda: True
+
+    flow2 = copy.deepcopy(valid_flow)
+    flow2.sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 1.0,
+                "dec_deg": 2.0,
+                "fov_deg": 3.0,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/a.csv",
+            },
+        ),
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 4.0,
+                "dec_deg": 5.0,
+                "fov_deg": 6.0,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/b.csv",
+            },
+        ),
+        FlowSource(
+            uri="something://else",
+            function="NotTheGsmFunction",
+            parameters={"x": 1},
+        ),
+    ]
+
+    txn = MagicMock()
+    txn.flow.query_values.return_value = [(flow2.key, flow2)]
+    txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
+    output = list(_get_flows(txn))
+    assert output == [(flow2, flow2.sources[:2])]
+
+
+@patch("time.time")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
+def test_watcher_process_multiple_sources(
+    mock_query, mock_write_data, mock_time, valid_flow, monkeypatch
+):
+    """Test that we can process a flow with multiple GSM sources"""
+    monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
+    resource_toggle.is_active = lambda: True
+
+    mock_time.return_value = 1234.5678
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_config = MagicMock()
+    mock_config.watcher.return_value = [mock_watcher]
+    mock_watcher.txn.return_value = [mock_txn]
+
+    # multiple sources
+    valid_flow.sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9670,
+                "dec_deg": -0.1745,
+                "fov_deg": 0.0873,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/lsm1.csv",
+            },
+        ),
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9680,
+                "dec_deg": -0.1755,
+                "fov_deg": 0.0873,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/lsm2.csv",
+            },
+        ),
+    ]
+
+    # state transitions
+    mock_txn.flow.state.return_value.get.side_effect = [
+        {"status": "INITIALISED"},
+        {"status": "INITIALISED"},
+        {"status": "FLOWING"},
+    ]
+
+    mock_txn.flow.query_values.return_value = [(valid_flow.key, valid_flow)]
+    mock_processing_block = MagicMock()
+    mock_processing_block.eb_id = "eb-test-20260108-1234"
+    mock_txn.processing_block.get.return_value = mock_processing_block
+
+    mock_gsm = GlobalSkyModel(components={}, metadata={})
+    mock_query.return_value = mock_gsm
+
+    _watcher_process(mock_config)
+
+    # verify write call twice
+    assert mock_write_data.mock_calls == [
+        call(
+            "eb-test-20260108-1234",
+            QueryParameters(
+                ra_deg=2.9670,
+                dec_deg=-0.1745,
+                fov_deg=0.0873,
+                version="latest",
+                catalogue_name="catalogue",
+                sub_path="test/lsm1.csv",
+            ),
+            SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath,
+            mock_gsm,
+        ),
+        call(
+            "eb-test-20260108-1234",
+            QueryParameters(
+                ra_deg=2.9680,
+                dec_deg=-0.1755,
+                fov_deg=0.0873,
+                version="latest",
+                catalogue_name="catalogue",
+                sub_path="test/lsm2.csv",
+            ),
+            SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath,
+            mock_gsm,
+        ),
+    ]
+
+    # Verify state transitions
+    assert mock_txn.mock_calls == [
+        call.flow.query_values(kind="data-product"),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().update({"status": "FLOWING", "last_updated": 1234.5678}),
+        call.processing_block.get(valid_flow.key.pb_id),
+        call.flow.state(valid_flow),
+        call.flow.state().get(),
+        call.flow.state(valid_flow),
+        call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
+    ]
