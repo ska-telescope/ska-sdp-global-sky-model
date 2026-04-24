@@ -239,6 +239,7 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
         # Mark as completed
         upload_manager.mark_completed(upload_id)
         catalogue = db.get(GlobalSkyModelMetadata, catalogue_metadata.id)
+        catalogue.staging = False
         db.commit()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
@@ -736,6 +737,8 @@ def get_catalogue_metadata_by_id(
 @app.get("/current-uploads")
 def get_incomplete_uploads(db: Session = Depends(get_db)):
     """Get any in-complete uploads"""
+
+    # pylint: disable=duplicate-code
 
     data = {
         "known_uploads": upload_manager.get_all_statuses(),
