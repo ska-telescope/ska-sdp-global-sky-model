@@ -267,7 +267,7 @@ async def upload_sky_survey_batch(
     ----------
     background_tasks : BackgroundTasks
         FastAPI background task manager
-    metadata_files : list[UploadFile]
+    metadata_file : list[UploadFile]
         A JSON file with catalogue metadata (catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
