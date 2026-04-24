@@ -288,7 +288,7 @@ async def upload_sky_survey_batch(
     if len(metadata_files) != 1:
         raise HTTPException(
             status_code=400,
-            detail=f"There must be one metadata JSON file",
+            detail="There must be one metadata JSON file",
         )
 
     metadata_file = metadata_files[0]
