@@ -254,7 +254,7 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
 )
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
-    metadata_files: list[UploadFile] = File(..., description="One catalogue metadata JSON file"),
+    metadata_file: list[UploadFile] = File(..., description="One catalogue metadata JSON file"),
     csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
 ):
     """
@@ -285,18 +285,17 @@ async def upload_sky_survey_batch(
     # Check we have a single metadata JSON file, and at least one CSV file.
     if not csv_files:
         raise HTTPException(status_code=400, detail="No CSV files provided")
-    if len(metadata_files) != 1:
+    if len(metadata_file) != 1:
         raise HTTPException(
             status_code=400,
             detail="There must be one metadata JSON file",
         )
 
-    metadata_file = metadata_files[0]
     try:
-        metadata_file_contents = await metadata_file.read()
+        metadata_file_contents = await metadata_file[0].read()
     except Exception as exc:
         raise HTTPException(
-            status_code=400, detail=f"Failed to read metadata file {metadata_file.filename}: {exc}"
+            status_code=400, detail=f"Failed to read metadata file {metadata_file[0].filename}: {exc}"
         ) from exc
 
     # Validate CSV structure
@@ -305,14 +304,14 @@ async def upload_sky_survey_batch(
     except UnicodeDecodeError as exc:
         raise HTTPException(
             status_code=400,
-            detail=f"File {metadata_file.filename} is not valid UTF-8 text. "
+            detail=f"File {metadata_file[0].filename} is not valid UTF-8 text. "
             f"CSV files must be text-based.",
         ) from exc
     except json.JSONDecodeError as exc:
-        logger.error("Metadata file %s is not valid JSON: %s", metadata_file.filename, exc)
+        logger.error("Metadata file %s is not valid JSON: %s", metadata_file[0].filename, exc)
         raise HTTPException(
             status_code=400,
-            detail=f"Metadata file {metadata_file.filename} is not valid JSON: {exc}",
+            detail=f"Metadata file {metadata_file[0].filename} is not valid JSON: {exc}",
         ) from exc
 
     # Version is not accepted from metadata - it is auto-assigned per catalogue at commit time.
