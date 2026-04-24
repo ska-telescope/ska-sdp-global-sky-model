@@ -5,10 +5,14 @@ A simple fastAPI to ingest data into the global sky model database and to obtain
 model from it.
 """
 
+import asyncio
+
+# pylint: disable=too-many-arguments, broad-exception-caught, not-callable
 import json
 import logging
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
@@ -26,7 +30,13 @@ from ska_sdp_global_sky_model.api.app.models import (
 )
 from ska_sdp_global_sky_model.api.app.request_responder import QueryParameters, start_thread
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import API_URL, engine, get_db, templates
+from ska_sdp_global_sky_model.configuration.config import (
+    API_URL,
+    CATALOGUE_CLEANUP_AGE,
+    engine,
+    get_db,
+    templates,
+)
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 from ska_sdp_global_sky_model.utilities.version_utils import (
     get_latest_version,
@@ -34,6 +44,9 @@ from ska_sdp_global_sky_model.utilities.version_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Initialize upload manager
+upload_manager = UploadManager()
 
 
 def wait_for_db():
@@ -49,6 +62,22 @@ def wait_for_db():
             time.sleep(5)  # Wait before retrying
 
 
+async def hourly_task():
+    """Tasks that are planned to be run every hour"""
+    if CATALOGUE_CLEANUP_AGE < 1:
+        logger.warning("Catalogue Cleanup disabled")
+        return
+
+    while True:
+        logger.info("Starting hourly job...")
+        try:
+            db = next(get_db())
+            upload_manager.run_db_cleanup(db)
+        except Exception as err:
+            logger.exception(err)
+        await asyncio.sleep(5)
+
+
 @asynccontextmanager
 async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     """
@@ -58,12 +87,14 @@ async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     logger.info("Starting application...")
     wait_for_db()
     start_thread()
+    task = asyncio.create_task(hourly_task())
     logger.info("Application startup complete")
 
     yield
 
     # Shutdown
     logger.info("Shutting down application...")
+    task.cancel()
 
 
 app = FastAPI(lifespan=lifespan, root_path=API_URL)
@@ -78,9 +109,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize upload manager
-upload_manager = UploadManager()
 
 
 @app.get("/ping", summary="Ping the API")
@@ -211,7 +239,6 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
         # Mark as completed
         upload_manager.mark_completed(upload_id)
         catalogue = db.get(GlobalSkyModelMetadata, catalogue_metadata.id)
-        catalogue.staging = False
         db.commit()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
@@ -537,7 +564,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             .all()[0]
         )
         fetch_existing.version = catalogue_version
-        db.commit()
+        fetch_existing.staging = False
 
         # Copy from staging to main table with catalogue version
         for staged in staged_records:
@@ -704,3 +731,92 @@ def get_catalogue_metadata_by_id(
         raise HTTPException(status_code=404, detail=f"catalogue with ID {catalogue_id} not found")
 
     return catalogue.to_dict()
+
+
+@app.get("/current-uploads")
+def get_incomplete_uploads(db: Session = Depends(get_db)):
+    """Get any in-complete uploads"""
+
+    data = {
+        "known_uploads": upload_manager.get_all_statuses(),
+        "old_catalogues": [],
+        "cataloges_that_are_staged": [],
+        "catalogues_in_staging": [],
+        "staged_components_without_catalogues": [],
+        "components_in_both_tables_staged": [],
+        "components_in_both_tables_not_staged": [],
+    }
+    catalogues = (
+        db.query(GlobalSkyModelMetadata)
+        .filter(
+            GlobalSkyModelMetadata.uploaded_at
+            < datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE)
+        )
+        .filter(GlobalSkyModelMetadata.staging.is_(True))
+        .all()
+    )
+    # -> remove catalogue and components
+    for catalogue in catalogues:
+        data["old_catalogues"].append(
+            {
+                "id": catalogue.id,
+                "upload_id": catalogue.upload_id,
+                "name": catalogue.catalogue_name,
+                "uploaded_at": catalogue.uploaded_at,
+            }
+        )
+    catalogues = (
+        db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.staging.is_(True)).all()
+    )
+    # -> remove catalogue and components
+    _catalogue_info = {}
+    for catalogue in catalogues:
+        _catalogue_info[catalogue.upload_id] = {
+            "id": catalogue.id,
+            "upload_id": catalogue.upload_id,
+            "name": catalogue.catalogue_name,
+            "uploaded_at": catalogue.uploaded_at,
+        }
+        data["cataloges_that_are_staged"].append(_catalogue_info[catalogue.upload_id])
+
+    def _default_catalogue(upload_id):
+        return {
+            "id": -1,
+            "upload_id": upload_id,
+            "name": "unknown",
+            "uploaded_at": "unknown",
+        }
+
+    # Get all unique catalogues from staging
+    upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
+    # -> if it doesn't exist in catalogue, delete it
+    for upload_id_row in upload_ids:
+        upload_id = upload_id_row[0]
+        logger.debug("Found upload ID: '%s'", upload_id)
+        data["catalogues_in_staging"].append(
+            _catalogue_info.get(upload_id, _default_catalogue(upload_id))
+        )
+        catalogues = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+            .all()
+        )
+        if len(catalogues) == 0:
+            data["staged_components_without_catalogues"].append(
+                _catalogue_info.get(upload_id, _default_catalogue(upload_id))
+            )
+        else:
+            for catalogue in catalogues:
+                component_count = (
+                    db.query(SkyComponent).filter(SkyComponent.gsm_id == catalogue.id).count()
+                )
+                if component_count > 0:
+                    if catalogue.staging:
+                        data["components_in_both_tables_staged"].append(
+                            _catalogue_info.get(upload_id, _default_catalogue(upload_id))
+                        )
+                    elif not catalogue.staging:
+                        data["components_in_both_tables_not_staged"].append(
+                            _catalogue_info.get(upload_id, _default_catalogue(upload_id))
+                        )
+    return data

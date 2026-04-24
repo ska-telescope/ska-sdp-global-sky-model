@@ -9,12 +9,19 @@ import csv
 import io
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
 from uuid import uuid4
 
+import sqlalchemy
 from fastapi import HTTPException, UploadFile
 
-from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
+from ska_sdp_global_sky_model.api.app.models import (
+    GlobalSkyModelMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
+from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +121,10 @@ class UploadManager:
             raise HTTPException(status_code=404, detail="Upload ID not found")
 
         return self._uploads[upload_id]
+
+    def get_all_statuses(self):
+        """Get all upload statuses"""
+        return [upload.to_dict() for upload_id, upload in self._uploads.items()]
 
     async def save_csv_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
         """
@@ -245,3 +256,65 @@ class UploadManager:
         """
         status = self.get_status(upload_id)
         return status.csv_files
+
+    def run_db_cleanup(self, db: sqlalchemy.orm.Session):
+        """Do a cleanup of old data in the DB, and cleanup manager"""
+
+        self._cleanup_old_uploads(db)
+        self._cleanup_partial_migrations(db)
+
+    def _cleanup_old_uploads(self, db: sqlalchemy.orm.Session):
+        # Get all catalogues where the upload time is old and staging is true
+        catalogues = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(
+                GlobalSkyModelMetadata.uploaded_at
+                < datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE)
+            )
+            .filter(GlobalSkyModelMetadata.staging.is_(True))
+            .all()
+        )
+        # -> remove catalogue and components
+        for catalogue in catalogues:
+            logger.info(
+                "Found old catalogue: '%s/%s' (uploaded @ '%s')",
+                catalogue.upload_id,
+                catalogue.catalogue_name,
+                catalogue.uploaded_at,
+            )
+            self.cleanup(catalogue.upload_id)
+            db.query(SkyComponentStaging).filter(
+                SkyComponentStaging.gsm_id == catalogue.id
+            ).delete()
+            catalogue.delete()
+
+    def _cleanup_partial_migrations(self, db: sqlalchemy.orm.Session):
+        # Get all unique catalogues from staging
+        upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
+        for upload_id_row in upload_ids:
+            upload_id = upload_id_row[0]
+            logger.debug("Found upload ID: '%s'", upload_id)
+            catalogues = (
+                db.query(GlobalSkyModelMetadata)
+                .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+                .all()
+            )
+            if len(catalogues) == 0:
+                # -> if it doesn't exist in catalogue, delete it
+                logger.info("Upload ID has no catalogue: '%s'", upload_id)
+                self.cleanup(upload_id)
+                db.query(SkyComponentStaging).filter(
+                    SkyComponentStaging.upload_id == upload_id
+                ).delete()
+            else:
+                for catalogue in catalogues:
+                    component_count = (
+                        db.query(SkyComponent).filter(SkyComponent.gsm_id == catalogue.id).count()
+                    )
+                    if component_count > 0:
+                        if catalogue.staging:
+                            logger.warning(
+                                "Partial migration of incomplete upload: '%s'", upload_id
+                            )
+                        elif not catalogue.staging:
+                            logger.warning("Partial migration has left over data: '%s'", upload_id)
