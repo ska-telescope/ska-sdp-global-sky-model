@@ -1,13 +1,12 @@
-# pylint: disable=no-member, too-many-positional-arguments
-# pylint: disable=too-many-arguments, broad-exception-caught, not-callable
 """
 A simple fastAPI to ingest data into the global sky model database and to obtain a local sky
 model from it.
 """
 
-import asyncio
-
+# pylint: disable=no-member, too-many-positional-arguments
 # pylint: disable=too-many-arguments, broad-exception-caught, not-callable
+
+import asyncio
 import json
 import logging
 import time
@@ -69,13 +68,15 @@ async def hourly_task():
         return
 
     while True:
-        logger.info("Starting hourly job...")
+        logger.info("[hourly cron] Starting...")
+        start = time.time()
         try:
             db = next(get_db())
             upload_manager.run_db_cleanup(db)
         except Exception as err:
             logger.exception(err)
-        await asyncio.sleep(5)
+        logger.info("[hourly cron] Finished (took %.3f s), sleeping...", time.time() - start)
+        await asyncio.sleep(3600)
 
 
 @asynccontextmanager

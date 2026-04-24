@@ -5,6 +5,8 @@ This module tests the UploadManager class including CSV validation,
 file handling, and upload state tracking.
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi import HTTPException
 
@@ -14,6 +16,9 @@ from ska_sdp_global_sky_model.api.app.upload_manager import (
     UploadState,
     UploadStatus,
 )
+from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
+
+from .test_ingest import test_db
 
 
 class TestUploadStatus:  # pylint: disable=too-few-public-methods
@@ -124,3 +129,51 @@ class TestUploadManager:
         assert len(files) == 2
         assert files[0] == ("file1.csv", "data1")
         assert files[1] == ("file2.csv", "data2")
+
+    def test_cleanup_old_catalogues(self, manager, test_db):
+        """Test removal of catalogues that were created a long time ago"""
+
+        catalogue_old = GlobalSkyModelMetadata(
+            catalogue_name="Old Catalogue",
+            upload_id="1234-abcd-a",
+            staging=True,
+            uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE + 1)),
+        )
+        catalogue_fine = GlobalSkyModelMetadata(
+            catalogue_name="Old Catalogue",
+            upload_id="1234-abcd-b",
+            staging=True,
+            uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE - 1)),
+        )
+        catalogue_complete = GlobalSkyModelMetadata(
+            catalogue_name="Old Catalogue",
+            upload_id="1234-abcd-c",
+            staging=False,
+            uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE + 1)),
+        )
+
+        test_db.add(catalogue_old)
+        test_db.add(catalogue_fine)
+        test_db.add(catalogue_complete)
+        test_db.commit()
+
+        manager.run_db_cleanup(test_db)
+
+        catalogues = db.query(GlobalSkyModelMetadata).all()
+
+        assert len(catalogues) == 2
+
+        assert set(catalogue_fine.upload_id, catalogue_complete.upload_id) == {
+            cat.upload_id for cat in catalogues
+        }
+
+    def test_cleanup_component_without_catalogues(self, manager, test_db):
+        """Test removal of staging components that have no link to a catalogue"""
+
+    def test_cleanup_non_staging_partial_migration(self, manager, test_db):
+        """Test log of catalogues that are marked as complete, but with staging
+        and non staging components"""
+
+    def test_cleanup_staging_partial_migration(self, manager, test_db):
+        """Test log of catalogues that are not marked as complete, but with both
+        staging and non staging components"""
