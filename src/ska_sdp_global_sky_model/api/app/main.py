@@ -295,7 +295,8 @@ async def upload_sky_survey_batch(
         metadata_file_contents = await metadata_file[0].read()
     except Exception as exc:
         raise HTTPException(
-            status_code=400, detail=f"Failed to read metadata file {metadata_file[0].filename}: {exc}"
+            status_code=400,
+            detail=f"Failed to read metadata file {metadata_file[0].filename}: {exc}",
         ) from exc
 
     # Validate CSV structure
