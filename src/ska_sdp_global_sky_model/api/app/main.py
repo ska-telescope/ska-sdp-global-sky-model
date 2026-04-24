@@ -254,7 +254,7 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
 )
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
-    metadata_file: UploadFile = File(..., description="catalogue metadata JSON file"),
+    metadata_files: list[UploadFile] = File(..., description="One catalogue metadata JSON file"),
     csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
 ):
     """
@@ -267,8 +267,8 @@ async def upload_sky_survey_batch(
     ----------
     background_tasks : BackgroundTasks
         FastAPI background task manager
-    metadata_file : UploadFile
-        JSON file with catalogue metadata (catalogue_name, description, etc.)
+    metadata_files : list[UploadFile]
+        A JSON file with catalogue metadata (catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
 
@@ -282,9 +282,15 @@ async def upload_sky_survey_batch(
     dict
         Upload identifier and status
     """
+    # Check we have a single metadata JSON file, and at least one CSV file.
     if not csv_files:
         raise HTTPException(status_code=400, detail="No CSV files provided")
+    if (len(metadata_files) != 1):
+        raise HTTPException(
+            status_code=400, detail=f"There must be one metadata JSON file",
+        )
 
+    metadata_file = metadata_files[0]
     try:
         metadata_file_contents = await metadata_file.read()
     except Exception as exc:
