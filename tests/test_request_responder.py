@@ -386,7 +386,7 @@ def test_process_flow(mock_query, mock_write, valid_flow):
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow_exception(mock_query, mock_write, valid_flow):
-    """Test that we cann start the processing for a flow"""
+    """Test that we can start the processing for a flow"""
 
     mock_query.return_value = ["data"]
 
@@ -410,6 +410,28 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
         catalogue_name="catalogue",
         sub_path="test/lsm.csv",
     )
+    assert mock_write.mock_calls == []
+
+
+@patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
+def test_process_flow_error_state(mock_query, mock_write, valid_flow):
+    """Test that we can report error state correctly when processing a flow"""
+
+    mock_query.side_effect = RuntimeError("test error")
+    eb_id = "eb-test-20260108-1234"
+
+    success, error_state = _process_flow(
+        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
+    )
+    assert not success
+    assert isinstance(error_state, dict)
+    assert set(error_state.keys()) == {"flow_key", "parameters", "timestamp", "error"}
+    assert error_state["error"] == "test error"
+    assert error_state["flow_key"] == str(valid_flow.key)
+    assert error_state["parameters"] == str(QueryParameters(**valid_flow.sources[0].parameters))
+    assert isinstance(error_state["timestamp"], float)
+
     assert mock_write.mock_calls == []
 
 
