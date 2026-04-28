@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Fix] Allow only a single metadata file to be uploaded
+  (`MR107 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/107>`__)
 - [Update] Allow for LSM queries based on any metadata field
   (`MR103 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/103>`__)
 - [Change] Location of the metadata file no longer relies on searching for ska_sdm directory
