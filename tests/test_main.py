@@ -573,6 +573,31 @@ def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
         assert "upload_id" in response.json()
 
 
+def test_upload_sky_survey_batch_too_many_metadata_files(myclient):
+    """Test trying to upload too many metadata files - should fail."""
+    first_file = Path("tests/data/test_catalogue_1.csv")
+    second_file = Path("tests/data/test_catalogue_2.csv")
+    metadata_file1 = Path("tests/data/metadata_test.json")
+    metadata_file2 = Path("tests/data/metadata_gleam.json")
+
+    with (
+        metadata_file1.open("rb") as metadata_f1,
+        metadata_file2.open("rb") as metadata_f2,
+        first_file.open("rb") as f1,
+        second_file.open("rb") as f2,
+    ):
+        files = [
+            ("metadata_file", (metadata_file1.name, metadata_f1, "application/json")),
+            ("metadata_file", (metadata_file2.name, metadata_f2, "application/json")),
+            ("csv_files", (first_file.name, f1, "text/csv")),
+            ("csv_files", (second_file.name, f2, "text/csv")),
+        ]
+        response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 400
+    assert "must be one metadata JSON file" in response.json()["detail"]
+
+
 def test_review_upload_success(myclient, fake_gsm_metadata):
     """Test successful review of staged upload."""
     clean_all_tables()
