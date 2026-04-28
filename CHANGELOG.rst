@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Update] Improve error reporting during CSV file validation
+  (`MR108 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/108>`__)
 - [Fix] Allow only a single metadata file to be uploaded
   (`MR107 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/107>`__)
 - [Update] Allow for LSM queries based on any metadata field
