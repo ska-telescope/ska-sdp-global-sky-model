@@ -317,7 +317,7 @@ def _process_flow(
 
         error_state = {
             "flow_key": str(flow.key),
-            "parameters": str(query_parameters),
+            "parameters": query_parameters.__dict__,
             "timestamp": time.time(),
             "error": str(err),
         }

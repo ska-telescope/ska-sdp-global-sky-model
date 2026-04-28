@@ -393,12 +393,12 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     mock_query.side_effect = ValueError("An error occured")
     eb_id = "eb-test-20260108-1234"
 
-    success, reason = _process_flow(
+    success, error_state = _process_flow(
         valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
 
     assert success is False
-    assert "Error processing flow" in reason
+    assert error_state["error"] == "An error occured"
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
@@ -429,7 +429,10 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow):
     assert set(error_state.keys()) == {"flow_key", "parameters", "timestamp", "error"}
     assert error_state["error"] == "test error"
     assert error_state["flow_key"] == str(valid_flow.key)
-    assert error_state["parameters"] == str(QueryParameters(**valid_flow.sources[0].parameters))
+    assert (
+        error_state["parameters"]
+        == QueryParameters(**valid_flow.sources[0].parameters).__dict__
+    )
     assert isinstance(error_state["timestamp"], float)
 
     assert mock_write.mock_calls == []
