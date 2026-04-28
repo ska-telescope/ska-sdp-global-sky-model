@@ -430,8 +430,7 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow):
     assert error_state["error"] == "test error"
     assert error_state["flow_key"] == str(valid_flow.key)
     assert (
-        error_state["parameters"]
-        == QueryParameters(**valid_flow.sources[0].parameters).__dict__
+        error_state["parameters"] == QueryParameters(**valid_flow.sources[0].parameters).__dict__
     )
     assert isinstance(error_state["timestamp"], float)
 
