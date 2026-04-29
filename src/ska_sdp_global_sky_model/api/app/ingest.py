@@ -1,4 +1,4 @@
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 
 """
 Catalogue ingest
@@ -48,6 +48,7 @@ class ComponentFile:
         """Iterate through the components from in-memory content."""
         logger.debug("Iterating over in-memory CSV content")
         csv_file = csv.reader(io.StringIO(self.content), delimiter=",")
+        # pylint: disable-next=stop-iteration-return
         heading = next(csv_file)
         for row in csv_file:
             yield dict(zip_longest(heading, row, fillvalue=None))

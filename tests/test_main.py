@@ -30,7 +30,7 @@ def _mock_ingest_catalogue(
     return True
 
 
-def _fake_ingest_catalogue(metadata):
+def _ingest_catalogue(metadata):
     """Fake ingest that fails when `ra` or `dec` are missing."""
     content = metadata["ingest"]["file_location"][0]["content"]
     if isinstance(content, bytes):
@@ -93,21 +93,21 @@ def test_read_main(myclient):
     assert response.json() == {"ping": "live"}
 
 
-def test_components(myclient, fake_gsm_metadata):
+def test_components(myclient, gsm_metadata):
     """Unit test for the /components endpoint"""
 
     # Add a test component directly to the test database using override_get_db
     # Use the overridden database session
     db = next(override_get_db())
     try:
-        db.add(fake_gsm_metadata)
+        db.add(gsm_metadata)
         db.commit()
         component = SkyComponent(
             component_id="J030853+053903",
             ra_deg=47.222569,
             dec_deg=5.650958,
             i_pol_jy=0.098383,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db.add(component)
         db.commit()
@@ -282,7 +282,6 @@ def test_local_sky_model_flux_range_filter(myclient):
             [
                 SkyComponent(
                     component_id="J070001+040001",
-
                     ra_deg=70.001111,
                     dec_deg=4.001111,
                     i_pol_jy=0.098383,
@@ -290,7 +289,6 @@ def test_local_sky_model_flux_range_filter(myclient):
                 ),
                 SkyComponent(
                     component_id="J070002+040002",
-
                     ra_deg=70.002222,
                     dec_deg=4.002222,
                     i_pol_jy=0.798383,
@@ -298,7 +296,6 @@ def test_local_sky_model_flux_range_filter(myclient):
                 ),
                 SkyComponent(
                     component_id="J070003+040003",
-
                     ra_deg=70.003333,
                     dec_deg=4.003333,
                     i_pol_jy=1.298383,
@@ -450,12 +447,12 @@ def test_upload_sky_survey_batch_invalid_file_type(myclient):
     metadata_file = Path("tests/data/metadata_test.json")
 
     # Create a fake non-CSV file
-    fake_file_content = b"This is not a CSV"
+    file_content = b"This is not a CSV"
 
     with metadata_file.open("rb") as metadata_f:
         files = [
             ("metadata_file", (metadata_file.name, metadata_f, "application/json")),
-            ("csv_files", ("test.txt", fake_file_content, "text/plain")),
+            ("csv_files", ("test.txt", file_content, "text/plain")),
         ]
 
         response = myclient.post("/upload-sky-survey-batch", files=files)
@@ -567,7 +564,7 @@ def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
         assert "upload_id" in response.json()
 
 
-def test_review_upload_success(myclient, fake_gsm_metadata):
+def test_review_upload_success(myclient, gsm_metadata):
     """Test successful review of staged upload."""
     clean_all_tables()
 
@@ -576,7 +573,7 @@ def test_review_upload_success(myclient, fake_gsm_metadata):
 
     # Directly insert test data into staging table
     db = next(override_get_db())
-    db.add(fake_gsm_metadata)
+    db.add(gsm_metadata)
     db.commit()
     try:
         for i in range(15):
@@ -586,7 +583,7 @@ def test_review_upload_success(myclient, fake_gsm_metadata):
                 ra_deg=10.0 + i,
                 dec_deg=20.0 + i,
                 i_pol_jy=0.5 + i * 0.1,
-                gsm_id=fake_gsm_metadata.id,
+                gsm_id=gsm_metadata.id,
             )
             db.add(component)
         db.commit()
@@ -627,15 +624,15 @@ def test_review_upload_not_completed(myclient):
     assert "not ready for review" in review_response.json()["detail"].lower()
 
 
-def test_commit_upload_success(myclient, fake_gsm_metadata):
+def test_commit_upload_success(myclient, gsm_metadata):
     """Test successful first commit auto-assigns version 0.1.0."""
     clean_all_tables()
 
     # Create test data directly in staging table (no version - assigned at commit)
     upload_id = "test-upload-commit-123"
-    fake_gsm_metadata.upload_id = upload_id
+    gsm_metadata.upload_id = upload_id
     db = next(override_get_db())
-    db.add(fake_gsm_metadata)
+    db.add(gsm_metadata)
     db.commit()
     for i in range(5):
         component = SkyComponentStaging(
@@ -644,7 +641,7 @@ def test_commit_upload_success(myclient, fake_gsm_metadata):
             ra_deg=10.0 + i,
             dec_deg=20.0 + i,
             i_pol_jy=0.5,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db.add(component)
     db.commit()
@@ -652,8 +649,8 @@ def test_commit_upload_success(myclient, fake_gsm_metadata):
     # Create and attach metadata with no version (auto-assigned at commit time)
     metadata = GlobalSkyModelMetadata(
         version=None,
-        catalogue_name=fake_gsm_metadata.catalogue_name,
-        description=fake_gsm_metadata.description,
+        catalogue_name=gsm_metadata.catalogue_name,
+        description=gsm_metadata.description,
         upload_id=upload_id,
         staging=True,
     )
@@ -681,7 +678,7 @@ def test_commit_upload_success(myclient, fake_gsm_metadata):
         # All records should share the same auto-assigned version
         versions = {r.gsm_id for r in main_records}
         assert len(versions) == 1
-        assert list(versions)[0] == fake_gsm_metadata.id
+        assert list(versions)[0] == gsm_metadata.id
 
         # Verify staging table is cleared
         staging_records = (
@@ -692,15 +689,15 @@ def test_commit_upload_success(myclient, fake_gsm_metadata):
         db.close()
 
 
-def test_commit_upload_increments_version(myclient, fake_gsm_metadata):
+def test_commit_upload_increments_version(myclient, gsm_metadata):
     """Test that second commit for the same catalogue auto-increments to 0.2.0."""
     clean_all_tables()
 
     # Create new staging data for the same catalogue (no version - assigned at commit)
     upload_id = "test-upload-increment-123"
     db = next(override_get_db())
-    fake_gsm_metadata.upload_id = upload_id
-    db.add(fake_gsm_metadata)
+    gsm_metadata.upload_id = upload_id
+    db.add(gsm_metadata)
     db.commit()
     for i in range(5):
         component = SkyComponentStaging(
@@ -709,7 +706,7 @@ def test_commit_upload_increments_version(myclient, fake_gsm_metadata):
             ra_deg=10.0 + i,
             dec_deg=20.0 + i,
             i_pol_jy=0.5,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db.add(component)
     db.commit()
@@ -717,8 +714,8 @@ def test_commit_upload_increments_version(myclient, fake_gsm_metadata):
     # Metadata with no version - commit endpoint auto-assigns the next version
     metadata = GlobalSkyModelMetadata(
         version=None,
-        catalogue_name=fake_gsm_metadata.catalogue_name,
-        description=fake_gsm_metadata.description,
+        catalogue_name=gsm_metadata.catalogue_name,
+        description=gsm_metadata.description,
         upload_id=upload_id,
         staging=True,
     )
@@ -738,7 +735,7 @@ def test_commit_upload_increments_version(myclient, fake_gsm_metadata):
         new_records = db.query(SkyComponent).filter(SkyComponent.component_id.like("NEW%")).all()
         assert len(new_records) == 5
         for record in new_records:
-            assert record.gsm_id == fake_gsm_metadata.id
+            assert record.gsm_id == gsm_metadata.id
     finally:
         db.close()
 
@@ -877,7 +874,7 @@ def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
 
     # Fake to simulate failure when ra/dec missing
     monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _fake_ingest_catalogue
+        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _ingest_catalogue
     )
 
     with good_file.open("rb") as f1:

@@ -1,4 +1,3 @@
-# pylint: disable=no-member,redefined-outer-name,duplicate-code
 """
 Tests for catalogue ingestion functionality
 """
@@ -8,10 +7,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import JSON, create_engine, event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from ska_sdp_global_sky_model.api.app.ingest import (
     ComponentFile,
@@ -28,41 +23,10 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.configuration.config import Base
-
-# Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-@event.listens_for(Base.metadata, "before_create")
-def replace_schema_sqlite(target, connection, **kw):  # pylint: disable=unused-argument
-    """Remove schema for SQLite and replace JSONB with JSON."""
-    if connection.dialect.name == "sqlite":
-        for table in target.tables.values():
-            table.schema = None
-            for column in table.columns:
-                if isinstance(column.type, JSONB):
-                    column.type = JSON()
-
-
-@pytest.fixture()
-def test_db():
-    """Create test database"""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    yield db
-    db.close()
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture()
-def sample_csv_file():
+@pytest.fixture(name="sample_csv_file")
+def sample_csv_file_fxt():
     """Create a sample CSV file for testing"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(
@@ -318,14 +282,14 @@ class TestValidateComponentMapping:
 class TestCommitBatch:
     """Tests for commit_batch function"""
 
-    def test_commit_empty_batch(self, test_db):
+    def test_commit_empty_batch(self, db_session):
         """Test committing empty batch does nothing"""
         component_objs = []
-        commit_batch(test_db, component_objs)
-        count = test_db.query(SkyComponent).count()
+        commit_batch(db_session, component_objs)
+        count = db_session.query(SkyComponent).count()
         assert count == 0
 
-    def test_commit_batch_with_components(self, test_db):
+    def test_commit_batch_with_components(self, db_session):
         """Test committing batch with components"""
         component_objs = [
             {
@@ -345,9 +309,9 @@ class TestCommitBatch:
                 "catalogue_name": "catalogue",
             },
         ]
-        commit_batch(test_db, component_objs)
+        commit_batch(db_session, component_objs)
 
-        count = test_db.query(SkyComponent).count()
+        count = db_session.query(SkyComponent).count()
         assert count == 2
         assert len(component_objs) == 0  # Should be cleared
 
@@ -377,61 +341,61 @@ class TestParseCatalogueComponents:  # pylint: disable=too-few-public-methods
 class TestProcessComponentDataBatch:
     """Tests for process_component_data_batch function"""
 
-    def test_process_valid_components(self, test_db, sample_csv_file, fake_gsm_metadata):
+    def test_process_valid_components(self, db_session, sample_csv_file, gsm_metadata):
         """Test processing valid component data from in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
-        test_db.add(fake_gsm_metadata)
-        test_db.commit()
+        db_session.add(gsm_metadata)
+        db_session.commit()
         cf = ComponentFile(content)
 
         result = process_component_data_batch(
-            test_db,
+            db_session,
             cf,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
         )
 
         assert result is True
-        count = test_db.query(SkyComponentStaging).count()
+        count = db_session.query(SkyComponentStaging).count()
         assert count == 3
 
-    def test_skip_duplicate_component_id(self, test_db, sample_csv_file, fake_gsm_metadata):
+    def test_skip_duplicate_component_id(self, db_session, sample_csv_file, gsm_metadata):
         """Test that duplicate component IDs are allowed across different uploads"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        test_db.add(fake_gsm_metadata)
-        test_db.commit()
+        db_session.add(gsm_metadata)
+        db_session.commit()
 
         cf = ComponentFile(content)
 
         # First ingestion with upload_id 1
         process_component_data_batch(
-            test_db,
+            db_session,
             cf,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
         )
-        count1 = test_db.query(SkyComponentStaging).count()
+        count1 = db_session.query(SkyComponentStaging).count()
 
         # Second ingestion with different upload_id - should allow duplicates
         cf2 = ComponentFile(content)
         process_component_data_batch(
-            test_db,
+            db_session,
             cf2,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             staging=True,
             upload_id="test-upload-2",
         )
-        count2 = test_db.query(SkyComponentStaging).count()
+        count2 = db_session.query(SkyComponentStaging).count()
 
         # Both uploads should succeed with same component_ids
         assert count2 == count1 * 2  # Double the components (different upload_ids)
 
-    def test_validation_errors_prevent_ingestion(self, test_db, fake_gsm_metadata):
+    def test_validation_errors_prevent_ingestion(self, db_session, gsm_metadata):
         """Test that validation errors prevent any data from being ingested (all-or-nothing)"""
         # Create CSV with mix of valid and invalid components
         invalid_csv = (
@@ -441,15 +405,15 @@ class TestProcessComponentDataBatch:
             "J223344-556677,30.1,-20.5,0.8\n"  # Valid
         )
 
-        test_db.add(fake_gsm_metadata)
-        test_db.commit()
+        db_session.add(gsm_metadata)
+        db_session.commit()
 
         cf = ComponentFile(invalid_csv)
 
         result = process_component_data_batch(
-            test_db,
+            db_session,
             cf,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
         )
@@ -457,10 +421,10 @@ class TestProcessComponentDataBatch:
         # Should fail due to validation errors
         assert result is False
         # NO data should be ingested (all-or-nothing)
-        count = test_db.query(SkyComponentStaging).count()
+        count = db_session.query(SkyComponentStaging).count()
         assert count == 0
 
-    def test_all_validation_errors_collected(self, test_db, caplog, fake_gsm_metadata):
+    def test_all_validation_errors_collected(self, db_session, caplog, gsm_metadata):
         """Test that all validation errors are collected and logged"""
         caplog.set_level(logging.ERROR)
 
@@ -474,12 +438,12 @@ class TestProcessComponentDataBatch:
             "J445566-778899,S1234,2025.2247,50.0,20.0,2.0,300000000\n"  # Valid
         )
 
-        test_db.add(fake_gsm_metadata)
-        test_db.commit()
+        db_session.add(gsm_metadata)
+        db_session.commit()
 
         cf = ComponentFile(invalid_csv)
 
-        result = process_component_data_batch(test_db, cf, fake_gsm_metadata.id)
+        result = process_component_data_batch(db_session, cf, gsm_metadata.id)
 
         # Should fail
         assert result is False
@@ -500,7 +464,7 @@ class TestProcessComponentDataBatch:
         error_messages = [log for log in error_logs if "Row" in log and "component_id:" in log]
         assert len(error_messages) == 2  # Only RA and DEC validation errors
 
-    def test_validation_phase_before_ingestion(self, test_db, caplog, fake_gsm_metadata):
+    def test_validation_phase_before_ingestion(self, db_session, caplog, gsm_metadata):
         """Test that all validation happens before any ingestion"""
         caplog.set_level(logging.INFO)
 
@@ -512,15 +476,15 @@ class TestProcessComponentDataBatch:
             "J223344-556677,400.0,-20.5,0.8\n"  # Invalid RA (last row)
         )
 
-        test_db.add(fake_gsm_metadata)
-        test_db.commit()
+        db_session.add(gsm_metadata)
+        db_session.commit()
 
         cf = ComponentFile(invalid_csv)
 
         result = process_component_data_batch(
-            test_db,
+            db_session,
             cf,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
         )
@@ -529,7 +493,7 @@ class TestProcessComponentDataBatch:
         assert result is False
 
         # NO data should be ingested, even though first 2 rows were valid
-        count = test_db.query(SkyComponentStaging).count()
+        count = db_session.query(SkyComponentStaging).count()
         assert count == 0
 
         # Check that validation message appeared before any ingestion message
@@ -547,7 +511,7 @@ class TestProcessComponentDataBatch:
         # Should NOT have ingestion message since validation failed
         assert ingestion_msg_found is False
 
-    def test_successful_ingestion_after_validation(self, test_db, caplog, fake_gsm_metadata):
+    def test_successful_ingestion_after_validation(self, db_session, caplog, gsm_metadata):
         """Test that ingestion proceeds only after all validation passes"""
         caplog.set_level(logging.INFO)
 
@@ -557,22 +521,22 @@ class TestProcessComponentDataBatch:
             "J112233-445566,S1234,2026.2247,20.0,30.1,2.3,300000000\n"
         )
 
-        test_db.add(fake_gsm_metadata)
-        test_db.commit()
+        db_session.add(gsm_metadata)
+        db_session.commit()
 
         cf = ComponentFile(valid_csv)
 
         result = process_component_data_batch(
-            test_db,
+            db_session,
             cf,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             staging=True,
             upload_id="test-upload-1",
         )
 
         # Should succeed
         assert result is True
-        count = test_db.query(SkyComponentStaging).count()
+        count = db_session.query(SkyComponentStaging).count()
         assert count == 2
 
         # Check log sequence
@@ -595,7 +559,7 @@ class TestProcessComponentDataBatch:
 class TestIngestCatalogue:
     """Tests for ingest_catalogue function"""
 
-    def test_successful_ingestion(self, test_db, sample_csv_file):
+    def test_successful_ingestion(self, db_session, sample_csv_file):
         """Test successful full catalogue ingestion with in-memory content"""
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
@@ -606,18 +570,20 @@ class TestIngestCatalogue:
             upload_id="test-upload-1",
         )
         catalogue_metadata.staging = True
-        test_db.add(catalogue_metadata)
-        test_db.commit()
+        db_session.add(catalogue_metadata)
+        db_session.commit()
 
         catalogue_content = {"ingest": {"file_location": [{"content": content}]}}
 
-        result = ingest_catalogue(test_db, catalogue_metadata, catalogue_content=catalogue_content)
+        result = ingest_catalogue(
+            db_session, catalogue_metadata, catalogue_content=catalogue_content
+        )
 
         assert result is True
-        count = test_db.query(SkyComponentStaging).count()
+        count = db_session.query(SkyComponentStaging).count()
         assert count == 3
 
-    def test_empty_catalogue(self, test_db):
+    def test_empty_catalogue(self, db_session):
         """Test handling of empty catalogue with in-memory content"""
         empty_content = "component_id,ra,dec,i_pol\n"
 
@@ -627,10 +593,12 @@ class TestIngestCatalogue:
             upload_id="test-upload-1",
         )
         catalogue_metadata.staging = True
-        test_db.add(catalogue_metadata)
-        test_db.commit()
+        db_session.add(catalogue_metadata)
+        db_session.commit()
 
         catalogue_content = {"ingest": {"file_location": [{"content": empty_content}]}}
 
-        result = ingest_catalogue(test_db, catalogue_metadata, catalogue_content=catalogue_content)
+        result = ingest_catalogue(
+            db_session, catalogue_metadata, catalogue_content=catalogue_content
+        )
         assert result is True

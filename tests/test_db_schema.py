@@ -7,8 +7,6 @@ GlobalSkyModelMetadata models: dynamically generated columns from dataclasses
 with hardcoded database-specific fields and methods.
 """
 
-# pylint: disable=redefined-outer-name,duplicate-code
-
 import pytest
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModelMetadata as GSMMetadataDataclass,
@@ -16,27 +14,16 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent,
 )
-from sqlalchemy import JSON, create_engine, event, inspect
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import event, inspect
 
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.models import SkyComponent as SkyComponentModel
 from ska_sdp_global_sky_model.api.app.models import SkyComponentStaging
 from ska_sdp_global_sky_model.configuration.config import Base
-
-# Use in-memory SQLite for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+from tests.utils import engine
 
 
-# pylint: disable=unused-argument)
+# pylint: disable=unused-argument
 def q3c_radial_query_mock(*args):
     """Mock q3c_radial_query function."""
     return True
@@ -46,31 +33,6 @@ def q3c_radial_query_mock(*args):
 def register_sqlite_functions(dbapi_connection, connection_record):
     """Load the mock function for q3c_radial_query"""
     dbapi_connection.create_function("q3c_radial_query", 5, q3c_radial_query_mock)
-
-
-# Make JSONB compatible with SQLite for tests
-@event.listens_for(Base.metadata, "before_create")  # pylint: disable=no-member
-def replace_jsonb_sqlite(target, connection, **kw):  # pylint: disable=unused-argument
-    """Replace JSONB with JSON and remove schema for SQLite."""
-    if connection.dialect.name == "sqlite":
-        for table in target.tables.values():
-            table.schema = None
-            for column in table.columns:
-                if isinstance(column.type, JSONB):
-                    column.type = JSON()
-
-
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture
-def db_session():
-    """Create a fresh database session for each test."""
-    Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
-    session = TestingSessionLocal()
-    yield session
-    session.close()
-    Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
 
 class TestSkyComponentModel:
@@ -105,17 +67,16 @@ class TestSkyComponentModel:
 
         Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
-    def test_sky_component_create_instance(self, db_session, fake_gsm_metadata):
+    def test_sky_component_create_instance(self, db_session, gsm_metadata):
         """Test creating a SkyComponent instance."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
             component_id="TestSource1",
             ra_deg=123.45,
             dec_deg=-67.89,
             i_pol_jy=1.23,
-            healpix_index=12345,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
 
         db_session.add(component)
@@ -130,25 +91,23 @@ class TestSkyComponentModel:
         assert retrieved.ra_deg == 123.45
         assert retrieved.dec_deg == -67.89
         assert retrieved.i_pol_jy == 1.23
-        assert retrieved.healpix_index == 12345
-        assert retrieved.gsm_id == fake_gsm_metadata.id
+        assert retrieved.gsm_id == gsm_metadata.id
 
-    def test_sky_component_with_optional_fields(self, db_session, fake_gsm_metadata):
+    def test_sky_component_with_optional_fields(self, db_session, gsm_metadata):
         """Test creating a SkyComponent with optional fields."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
             component_id="TestSource2",
             ra_deg=45.67,
             dec_deg=12.34,
             i_pol_jy=5.67,
-            healpix_index=67890,
             a_arcsec=0.001,
             b_arcsec=0.0005,
             pa_deg=1.57,
             spec_idx=[1.0, -0.5, 0.1],
             log_spec_idx=True,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
 
         db_session.add(component)
@@ -163,17 +122,16 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx == [1.0, -0.5, 0.1]
         assert retrieved.log_spec_idx is True
 
-    def test_sky_component_versioning_constraint(self, db_session, fake_gsm_metadata):
+    def test_sky_component_versioning_constraint(self, db_session, gsm_metadata):
         """Test that duplicate component_id + version raises constraint error."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         component1 = SkyComponentModel(
             component_id="VersionedSource",
             ra_deg=100.0,
             dec_deg=50.0,
             i_pol_jy=1.0,
-            healpix_index=11111,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(component1)
         db_session.commit()
@@ -184,26 +142,24 @@ class TestSkyComponentModel:
             ra_deg=200.0,
             dec_deg=60.0,
             i_pol_jy=2.0,
-            healpix_index=22222,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(component2)
 
         with pytest.raises(Exception):  # Should raise IntegrityError
             db_session.commit()
 
-    def test_sky_component_columns_to_dict_method(self, db_session, fake_gsm_metadata):
+    def test_sky_component_columns_to_dict_method(self, db_session, gsm_metadata):
         """Test the columns_to_dict method."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
             component_id="DictTestSource",
             ra_deg=111.11,
             dec_deg=-22.22,
             i_pol_jy=3.33,
-            healpix_index=33333,
             a_arcsec=0.002,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(component)
         db_session.commit()
@@ -219,17 +175,16 @@ class TestSkyComponentModel:
         assert component_dict["a_arcsec"] == 0.002
         assert "id" in component_dict
 
-    def test_sky_component_nullable_fields(self, db_session, fake_gsm_metadata):
+    def test_sky_component_nullable_fields(self, db_session, gsm_metadata):
         """Test that nullable fields can be None."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
             component_id="NullTestSource",
             ra_deg=180.0,
             dec_deg=0.0,
             i_pol_jy=1.0,
-            healpix_index=55555,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
             # All optional fields left as None
         )
         db_session.add(component)
@@ -244,19 +199,18 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
 
-    def test_sky_component_spec_idx_as_json(self, db_session, fake_gsm_metadata):
+    def test_sky_component_spec_idx_as_json(self, db_session, gsm_metadata):
         """Test that spec_idx field properly stores JSON data."""
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
             component_id="SpecIdxSource",
             ra_deg=90.0,
             dec_deg=45.0,
             i_pol_jy=2.0,
-            healpix_index=66666,
             spec_idx=spec_idx_values,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(component)
         db_session.commit()
@@ -268,9 +222,9 @@ class TestSkyComponentModel:
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
 
-    def test_sky_component_versioning(self, db_session, fake_gsm_metadata):
+    def test_sky_component_versioning(self, db_session, gsm_metadata):
         """Test versioning support, same component_id can have multiple versions."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         second_metadata = GlobalSkyModelMetadata(
             version="2.0.0",
@@ -285,15 +239,13 @@ class TestSkyComponentModel:
             ra_deg=100.0,
             dec_deg=50.0,
             i_pol_jy=1.0,
-            healpix_index=11111,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         component_v2 = SkyComponentModel(
             component_id="VersionedSource",
             ra_deg=100.1,
             dec_deg=50.1,
             i_pol_jy=1.1,
-            healpix_index=11111,
             gsm_id=second_metadata.id,
         )
         db_session.add_all([component_v1, component_v2])
@@ -304,15 +256,15 @@ class TestSkyComponentModel:
             db_session.query(SkyComponentModel).filter_by(component_id="VersionedSource").all()
         )
         assert len(all_versions) == 2
-        assert {v.gsm_id for v in all_versions} == {fake_gsm_metadata.id, second_metadata.id}
+        assert {v.gsm_id for v in all_versions} == {gsm_metadata.id, second_metadata.id}
 
 
 class TestSkyComponentStagingModel:
     """Tests for the SkyComponentStaging SQLAlchemy model."""
 
-    def test_staging_basic_functionality(self, db_session, fake_gsm_metadata):
+    def test_staging_basic_functionality(self, db_session, gsm_metadata):
         """Test basic SkyComponentStaging CRUD operations."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         staged = SkyComponentStaging(
             component_id="StagedSource1",
@@ -320,8 +272,7 @@ class TestSkyComponentStagingModel:
             ra_deg=123.45,
             dec_deg=-67.89,
             i_pol_jy=1.23,
-            healpix_index=12345,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(staged)
         db_session.commit()
@@ -335,9 +286,9 @@ class TestSkyComponentStagingModel:
         assert retrieved.component_id == "StagedSource1"
         assert retrieved.upload_id == "test-upload-123"
 
-    def test_staging_allows_same_component_different_uploads(self, db_session, fake_gsm_metadata):
+    def test_staging_allows_same_component_different_uploads(self, db_session, gsm_metadata):
         """Test that same component_id can exist in different uploads."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         staged1 = SkyComponentStaging(
             component_id="TestSource",
@@ -345,8 +296,7 @@ class TestSkyComponentStagingModel:
             ra_deg=100.0,
             dec_deg=50.0,
             i_pol_jy=1.0,
-            healpix_index=11111,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(staged1)
         db_session.commit()
@@ -358,8 +308,7 @@ class TestSkyComponentStagingModel:
             ra_deg=200.0,
             dec_deg=60.0,
             i_pol_jy=2.0,
-            healpix_index=22222,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(staged2)
         db_session.commit()
@@ -370,9 +319,9 @@ class TestSkyComponentStagingModel:
         )
         assert len(all_records) == 2
 
-    def test_staging_unique_constraint_violation(self, db_session, fake_gsm_metadata):
+    def test_staging_unique_constraint_violation(self, db_session, gsm_metadata):
         """Test that duplicate component_id + upload_id raises constraint error."""
-        db_session.add(fake_gsm_metadata)
+        db_session.add(gsm_metadata)
         db_session.commit()
         staged1 = SkyComponentStaging(
             component_id="TestSource",
@@ -380,8 +329,7 @@ class TestSkyComponentStagingModel:
             ra_deg=100.0,
             dec_deg=50.0,
             i_pol_jy=1.0,
-            healpix_index=11111,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(staged1)
         db_session.commit()
@@ -393,8 +341,7 @@ class TestSkyComponentStagingModel:
             ra_deg=200.0,
             dec_deg=60.0,
             i_pol_jy=2.0,
-            healpix_index=22222,
-            gsm_id=fake_gsm_metadata.id,
+            gsm_id=gsm_metadata.id,
         )
         db_session.add(staged2)
         with pytest.raises(Exception):
@@ -511,7 +458,6 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             ra_deg=100.0,
             dec_deg=50.0,
             i_pol_jy=1.5,
-            healpix_index=77777,
             gsm_id=metadata.id,
             ref_freq_hz=1.4e9,
         )
@@ -520,7 +466,6 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             ra_deg=200.0,
             dec_deg=-30.0,
             i_pol_jy=2.5,
-            healpix_index=88888,
             gsm_id=metadata.id,
             ref_freq_hz=1.4e9,
         )

@@ -191,7 +191,8 @@ class QueryParameters:
         """Return query parameters as a string"""
         return (
             f"ra: {self.ra_deg}, dec: {self.dec_deg}, fov: {self.fov_deg}, "
-            f"component_queries: {self.component_queries}, metadata_queries: {self.metadata_queries}"
+            f"component_queries: {self.component_queries}, "
+            f"metadata_queries: {self.metadata_queries}"
         )
 
 
@@ -326,7 +327,10 @@ def _process_flow(
             err,
         )
         logger.exception(err)
-        return False, f"Error processing flow {flow.key} with parameters {str(query_parameters)}: {err}"
+        return (
+            False,
+            f"Error processing flow {flow.key} with parameters {str(query_parameters)}: {err}",
+        )
 
     return True, None
 

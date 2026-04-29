@@ -1,14 +1,20 @@
-# pylint: disable=redefined-outer-name,unused-import,too-many-lines
+# pylint: disable=too-many-lines
 """Tests for the request_responder"""
 
+# TODO these tests need to be redon to use the actual config lib not mocks
+#   also simplify to see if some of the test db data can be generated
+#   for the session and not per test
+
 import copy
-import pathlib
+import os
+import tempfile
 from datetime import datetime
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from ska_sdp_config.entity import Flow
-from ska_sdp_config.entity.flow import DataProduct, FlowSource, PVCPath
+import yaml
+from ska_sdp_config.entity.flow import FlowSource
+from ska_sdp_datamodels.global_sky_model import LocalSkyModel
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     GlobalSkyModel,
 )
@@ -22,55 +28,26 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _get_flows,
     _process_flow,
     _query_gsm_for_lsm,
+    _save_lsm_with_metadata,
     _update_state,
     _watcher_process,
     _write_data,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
-from tests.test_db_schema import db_session  # noqa: F401
-
-# pylint: disable=too-many-arguments
-
-
-@pytest.fixture(name="valid_flow")
-def fixture_valid_flow():
-    """Fixture for a valid flow"""
-
-    pb_id = "pb-test-20260108-1234"
-    eb_id = "eb-test-20260108-1234"
-    return Flow(
-        key=Flow.Key(pb_id=pb_id, name="local-sky-model-field1"),
-        sink=DataProduct(
-            data_dir=PVCPath(
-                k8s_namespaces=[],
-                k8s_pvc_name="",
-                pvc_mount_path=str(SHARED_VOLUME_MOUNT),
-                pvc_subpath=pathlib.Path(f"product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/field1"),
-            ),
-            paths=[],
-        ),
-        sources=[
-            FlowSource(
-                uri="gsm://request/lsm",
-                function="GlobalSkyModel.RequestLocalSkyModel",
-                parameters={
-                    "ra_deg": 2.9670,
-                    "dec_deg": -0.1745,
-                    "fov_deg": 0.0873,
-                    "catalogue_name": "catalogue",
-                    "sub_path": "test/lsm.csv",
-                },
-            ),
-        ],
-        data_model="CsvNamedColumns",
-        expiry_time=-1,
-    )
 
 
 @patch("time.time")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data", autospec=True)
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm", autospec=True)
-def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow, monkeypatch):
+# pylint: disable-next=too-many-arguments, too-many-positional-arguments
+def test_happy_path(
+    mock_filter_function,
+    mock_write_data,
+    mock_time,
+    valid_flow,
+    expected_query_parameters,
+    monkeypatch,
+):
     """Test the happy path"""
 
     monkeypatch.setenv("FEATURE_RESOURCE_MANAGEMENT_TOGGLE", "1")
@@ -124,25 +101,10 @@ def test_happy_path(mock_filter_function, mock_write_data, mock_time, valid_flow
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
-    assert mock_filter_function.mock_calls[0].args[0] == QueryParameters(
-        ra_deg=2.9670,
-        dec_deg=-0.1745,
-        fov_deg=0.0873,
-        version="latest",
-        catalogue_name="catalogue",
-        sub_path="test/lsm.csv",
-    )
+    assert mock_filter_function.mock_calls[0].args[0] == expected_query_parameters
     # Second argument is the db session, just verify it was called
     assert len(mock_filter_function.mock_calls) == 1
     # The _write_data signature expects QueryParameters as the second argument
-    expected_query_parameters = QueryParameters(
-        ra_deg=2.9670,
-        dec_deg=-0.1745,
-        fov_deg=0.0873,
-        version="latest",
-        catalogue_name="catalogue",
-        sub_path="test/lsm.csv",
-    )
     assert mock_write_data.mock_calls == [call(eb_id, expected_query_parameters, path, mock_gsm)]
 
 
@@ -347,7 +309,7 @@ def test_get_flows_filtering(valid_flow, monkeypatch, resource_management, flow_
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
-def test_process_flow(mock_query, mock_write, valid_flow):
+def test_process_flow(mock_query, mock_write, valid_flow, expected_query_parameters):
     """Test that we cann start the processing for a flow"""
 
     mock_query.return_value = ["data"]
@@ -355,37 +317,20 @@ def test_process_flow(mock_query, mock_write, valid_flow):
     output_path = SHARED_VOLUME_MOUNT / valid_flow.sink.data_dir.pvc_subpath
     eb_id = "eb-test-20260108-1234"
 
-    success, reason = _process_flow(
-        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
-    )
+    success, reason = _process_flow(valid_flow, eb_id, expected_query_parameters)
 
     assert success is True
     assert reason is None
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
-    assert mock_query.mock_calls[0].args[0] == QueryParameters(
-        ra_deg=2.9670,
-        dec_deg=-0.1745,
-        fov_deg=0.0873,
-        version="latest",
-        catalogue_name="catalogue",
-        sub_path="test/lsm.csv",
-    )
-    expected_query_parameters = QueryParameters(
-        ra_deg=2.9670,
-        dec_deg=-0.1745,
-        fov_deg=0.0873,
-        version="latest",
-        catalogue_name="catalogue",
-        sub_path="test/lsm.csv",
-    )
+    assert mock_query.mock_calls[0].args[0] == expected_query_parameters
     assert mock_write.mock_calls == [call(eb_id, expected_query_parameters, output_path, ["data"])]
 
 
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
-def test_process_flow_exception(mock_query, mock_write, valid_flow):
+def test_process_flow_exception(mock_query, mock_write, valid_flow, expected_query_parameters):
     """Test that we cann start the processing for a flow"""
 
     mock_query.return_value = ["data"]
@@ -393,23 +338,14 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     mock_query.side_effect = ValueError("An error occured")
     eb_id = "eb-test-20260108-1234"
 
-    success, reason = _process_flow(
-        valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
-    )
+    success, reason = _process_flow(valid_flow, eb_id, expected_query_parameters)
 
     assert success is False
     assert "Error processing flow" in reason
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
-    assert mock_query.mock_calls[0].args[0] == QueryParameters(
-        ra_deg=2.9670,
-        dec_deg=-0.1745,
-        fov_deg=0.0873,
-        version="latest",
-        catalogue_name="catalogue",
-        sub_path="test/lsm.csv",
-    )
+    assert mock_query.mock_calls[0].args[0] == expected_query_parameters
     assert mock_write.mock_calls == []
 
 
@@ -509,7 +445,6 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
         component_id="DictTestSource",
         ra_deg=111.11,
         dec_deg=-22.22,
-        healpix_index=33333,
         gsm_id=metadata.id,
         ref_freq_hz=20000000,
     )
@@ -553,26 +488,16 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
         _query_gsm_for_lsm(query_params, db_session)
 
 
-def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
+def test_query_gsm_for_lsm_multiple_sources(db_session, gsm_metadata):  # noqa: F811
     """Test querying GSM for LSM with multiple components found"""
 
-    metadata = GlobalSkyModelMetadata(
-        version="0.1.0",
-        catalogue_name="test",
-        description="test",
-        upload_id="test",
-        author="test",
-        reference="test",
-        notes="test",
-    )
-    db_session.add(metadata)
+    db_session.add(gsm_metadata)
     db_session.commit()
     component = SkyComponent(
         component_id="1",
         ra_deg=2.9670,
         dec_deg=-0.1745,
-        healpix_index=1,
-        gsm_id=metadata.id,
+        gsm_id=gsm_metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component)
@@ -581,8 +506,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         component_id="2",
         ra_deg=2.9680,
         dec_deg=-0.1755,
-        healpix_index=2,
-        gsm_id=metadata.id,
+        gsm_id=gsm_metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component_2)
@@ -591,8 +515,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         component_id="3",
         ra_deg=2.9690,
         dec_deg=-0.1765,
-        healpix_index=3,
-        gsm_id=metadata.id,
+        gsm_id=gsm_metadata.id,
         ref_freq_hz=20000000,
     )
     db_session.add(component_3)
@@ -605,7 +528,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
         dec_deg=-0.1745,
         fov_deg=0.0873,
         version="latest",
-        catalogue_name="test",
+        catalogue_name="TEST",
         sub_path="test/lsm.csv",
     )
     result = _query_gsm_for_lsm(query_params, db_session)
@@ -621,26 +544,16 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     assert isinstance(result.components[3], SkyComponentDataclass)
 
 
-def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F811
+def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session, gsm_metadata):  # noqa: F811
     """Test querying GSM for LSM with multiple components found, and using an extra param"""
 
-    metadata = GlobalSkyModelMetadata(
-        version="0.1.0",
-        catalogue_name="test",
-        description="test",
-        upload_id="test",
-        author="test",
-        reference="test",
-        notes="test",
-    )
-    db_session.add(metadata)
+    db_session.add(gsm_metadata)
     db_session.commit()
     component = SkyComponent(
         component_id="1",
         ra_deg=2.9670,
         dec_deg=-0.1745,
-        healpix_index=1,
-        gsm_id=metadata.id,
+        gsm_id=gsm_metadata.id,
         ref_freq_hz=20000000,
         pa_deg=5,
     )
@@ -650,8 +563,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         component_id="2",
         ra_deg=2.9680,
         dec_deg=-0.1755,
-        healpix_index=2,
-        gsm_id=metadata.id,
+        gsm_id=gsm_metadata.id,
         ref_freq_hz=20000000,
         pa_deg=5,
     )
@@ -661,8 +573,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         component_id="3",
         ra_deg=2.9690,
         dec_deg=-0.1765,
-        healpix_index=3,
-        gsm_id=metadata.id,
+        gsm_id=gsm_metadata.id,
         ref_freq_hz=20000000,
         pa_deg=8,
     )
@@ -676,7 +587,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
         dec_deg=-0.1745,
         fov_deg=0.0873,
         version="latest",
-        catalogue_name="test",
+        catalogue_name="TEST",
         pa_deg__lt=6,
         sub_path="test/lsm.csv",
     )
@@ -723,7 +634,6 @@ def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
         source_id="gleam_source",
         ra_deg=111.11,
         dec_deg=-22.22,
-        healpix_index=1,
         gsm_id=metadata_gleam.id,
         ref_freq_hz=76e6,
     )
@@ -732,7 +642,6 @@ def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
         source_id="ska_source_1",
         ra_deg=111.22,
         dec_deg=-22.33,
-        healpix_index=0,
         gsm_id=metadata_ska.id,
         ref_freq_hz=100e6,
     )
@@ -741,7 +650,6 @@ def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
         source_id="ska_source_2",
         ra_deg=111.45,
         dec_deg=-22.56,
-        healpix_index=1,
         gsm_id=metadata_ska.id,
         ref_freq_hz=200e6,
     )
@@ -813,7 +721,6 @@ def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
         source_id="gleam_source",
         ra_deg=111.11,
         dec_deg=-22.22,
-        healpix_index=1,
         gsm_id=metadata_gleam.id,
         ref_freq_hz=76e6,
     )
@@ -822,7 +729,6 @@ def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
         source_id="ska_source_1",
         ra_deg=111.22,
         dec_deg=-22.33,
-        healpix_index=0,
         gsm_id=metadata_ska.id,
         ref_freq_hz=100e6,
     )
@@ -831,7 +737,6 @@ def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
         source_id="ska_source_2",
         ra_deg=111.45,
         dec_deg=-22.56,
-        healpix_index=1,
         gsm_id=metadata_ska.id,
         ref_freq_hz=200e6,
     )
@@ -923,7 +828,7 @@ def test_write_data_integration(
 
     # Mock the metadata writing to avoid validation issues
     # (metadata validation is tested separately in local_sky_model tests)
-    with patch("ska_sdp_global_sky_model.utilities.local_sky_model.MetaData"):
+    with patch("ska_sdp_global_sky_model.api.app.request_responder.MetaData"):
         # Write the data
         _write_data(eb_id, query_parameters, output_dir, gsm)
 
@@ -1240,3 +1145,52 @@ def test_watcher_process_multiple_sources(
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
+
+
+def test_save_lsm_with_metadata():
+    """
+    Test that we can save a sky model and metadata YAML file correctly.
+    """
+
+    # Create an empty local sky model.
+    column_names = ["ra_deg", "dec_deg", "i_pol_jy", "ref_freq_hz", "spec_idx"]
+    num_rows = 20
+    model = LocalSkyModel(column_names=column_names, num_rows=num_rows)
+
+    # Set a couple of header key, value pairs (as comments).
+    header = {
+        "QUERY_PARAM_1": "PARAM_1_VALUE",
+        "QUERY_PARAM_2": 42,
+    }
+    model.set_header(header)
+
+    # Write the CSV and the YAML metadata files.
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        csv_file_names = [
+            os.path.join(temp_dir_name, "_temp_test_lsm1.csv"),
+            os.path.join(temp_dir_name, "_temp_test_lsm2.csv"),
+        ]
+        yaml_dir_name = os.path.join(temp_dir_name, "_temp_test_yaml_metadata_dir")
+        yaml_path = os.path.join(yaml_dir_name, "ska-data-product.yaml")
+
+        # Save two copies of the LSM so we have two entries in the YAML.
+        execution_block_id = "eb-test-write-lsm"
+        for csv_file_name in csv_file_names:
+            _save_lsm_with_metadata(
+                model, {"execution_block_id": execution_block_id}, csv_file_name, yaml_dir_name
+            )
+
+        # Check that the metadata YAML file was written correctly.
+        with open(yaml_path, encoding="utf-8") as stream:
+            metadata = yaml.safe_load(stream)
+
+        # Check the entry for each file.
+        for i, csv_file_name in enumerate(csv_file_names):
+            lsm_dict = metadata["local_sky_model"][i]
+            assert lsm_dict["columns"] == column_names
+            assert lsm_dict["file_path"] == csv_file_name
+            assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]
+            assert lsm_dict["header"]["QUERY_PARAM_2"] == header["QUERY_PARAM_2"]
+            assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
+            assert metadata["execution_block"] == execution_block_id
+            assert metadata["files"][i]["path"] == csv_file_name
