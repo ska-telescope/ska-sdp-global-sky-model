@@ -104,7 +104,6 @@ def test_components(myclient, fake_gsm_metadata):
         db.commit()
         component = SkyComponent(
             component_id="J030853+053903",
-            healpix_index=12345,
             ra_deg=47.222569,
             dec_deg=5.650958,
             i_pol_jy=0.098383,
@@ -283,7 +282,7 @@ def test_local_sky_model_flux_range_filter(myclient):
             [
                 SkyComponent(
                     component_id="J070001+040001",
-                    healpix_index=12345,
+
                     ra_deg=70.001111,
                     dec_deg=4.001111,
                     i_pol_jy=0.098383,
@@ -291,7 +290,7 @@ def test_local_sky_model_flux_range_filter(myclient):
                 ),
                 SkyComponent(
                     component_id="J070002+040002",
-                    healpix_index=12345,
+
                     ra_deg=70.002222,
                     dec_deg=4.002222,
                     i_pol_jy=0.798383,
@@ -299,7 +298,7 @@ def test_local_sky_model_flux_range_filter(myclient):
                 ),
                 SkyComponent(
                     component_id="J070003+040003",
-                    healpix_index=12345,
+
                     ra_deg=70.003333,
                     dec_deg=4.003333,
                     i_pol_jy=1.298383,
@@ -587,7 +586,6 @@ def test_review_upload_success(myclient, fake_gsm_metadata):
                 ra_deg=10.0 + i,
                 dec_deg=20.0 + i,
                 i_pol_jy=0.5 + i * 0.1,
-                healpix_index=12345,
                 gsm_id=fake_gsm_metadata.id,
             )
             db.add(component)
@@ -646,7 +644,6 @@ def test_commit_upload_success(myclient, fake_gsm_metadata):
             ra_deg=10.0 + i,
             dec_deg=20.0 + i,
             i_pol_jy=0.5,
-            healpix_index=12345,
             gsm_id=fake_gsm_metadata.id,
         )
         db.add(component)
@@ -712,7 +709,6 @@ def test_commit_upload_increments_version(myclient, fake_gsm_metadata):
             ra_deg=10.0 + i,
             dec_deg=20.0 + i,
             i_pol_jy=0.5,
-            healpix_index=12345,
             gsm_id=fake_gsm_metadata.id,
         )
         db.add(component)
@@ -779,7 +775,6 @@ def test_commit_upload_per_catalogue_versioning(myclient):
         ra_deg=15.0,
         dec_deg=25.0,
         i_pol_jy=0.5,
-        healpix_index=99999,
         gsm_id=metadata.id,
     )
     db.add(component)
@@ -825,7 +820,6 @@ def test_reject_upload_success(myclient):
                 ra_deg=10.0 + i,
                 dec_deg=20.0 + i,
                 i_pol_jy=0.5,
-                healpix_index=12345,
                 gsm_id=None,
             )
             db.add(component)

@@ -1,4 +1,4 @@
-# pylint: disable=no-member,too-few-public-methods, no-self-argument
+# pylint: disable=no-member,too-few-public-methods,no-self-argument
 """
 Configure variables to be used.
 """
@@ -77,7 +77,9 @@ def get_db():
 
 
 def q3c_index():
-    """Create Q3C extension + index exist"""
+    """Create Q3C extension + index exist
+    TODO: can this be deleted?
+     There's also a file in the db directory, can that?"""
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS q3c;"))
         conn.execute(
