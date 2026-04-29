@@ -520,7 +520,12 @@ def test_upload_batch_ingest_failure(myclient):
         (b"name,ra,dec\n", "no data rows"),
         (b",,\ndata1,data2,data3\n", "empty header"),
         (b"\x80\x81\x82\x83", "not valid UTF-8"),
-        (b'name,ra,dec\n"unclosed quote,10.5,45.2\n', "not valid CSV"),
+        (b'name,ra,dec\n"unclosed quote,10.5,45.2\n', "not valid CSV at line 2"),
+        (b'name,ra,dec,i_pol_jy\n"s1",10.5,45.2\n', "inconsistent number of fields at line 2"),
+        (
+            b'name,ra,dec,i_pol_jy\n"s1",10.5,45.2,12.3\n"s2",10.5,45.2,23.4,34.5',
+            "inconsistent number of fields at line 3",
+        ),
     ],
 )
 def test_upload_sky_survey_batch_file_variations(content, response_string, myclient):
@@ -543,7 +548,7 @@ def test_upload_sky_survey_batch_file_variations(content, response_string, mycli
         response = myclient.post("/upload-sky-survey-batch", files=files)
 
     assert response.status_code == 400
-    assert response_string[0] in response.json()["detail"].lower()
+    assert response_string in response.json()["detail"]
 
 
 def test_upload_sky_survey_batch_valid_without_csv_extension(myclient):
