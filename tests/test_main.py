@@ -7,7 +7,7 @@ Basic testing of the API
 import csv
 import io
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, Mock
 
 import pytest
 
@@ -21,25 +21,6 @@ from ska_sdp_global_sky_model.api.app.upload_manager import UploadStatus
 from tests.utils import clean_all_tables, override_get_db
 
 app.dependency_overrides[get_db] = override_get_db
-
-
-def _mock_ingest_catalogue(
-    db, metadata, catalogue_content=None
-):  # pylint: disable=unused-argument
-    """Simple mock that returns True without doing anything."""
-    return True
-
-
-def _ingest_catalogue(metadata):
-    """Fake ingest that fails when `ra` or `dec` are missing."""
-    content = metadata["ingest"]["file_location"][0]["content"]
-    if isinstance(content, bytes):
-        content = content.decode("utf-8", errors="replace")
-    reader = csv.DictReader(io.StringIO(content))
-    for row in reader:
-        if not row.get("ra") or not row.get("dec"):
-            return False
-    return True
 
 
 def _make_bad_csv(file_path: Path, n_missing: int = 2) -> bytes:
@@ -382,15 +363,12 @@ def test_wait_for_db_retry():
     mock_sleep.assert_called_once_with(5)
 
 
-def test_upload_sky_survey_batch(myclient, monkeypatch):
+@patch("ska_sdp_global_sky_model.api.app.main.ingest_catalogue", Mock(return_value=True))
+def test_upload_sky_survey_batch(myclient):
     """Unit test for the /upload-sky-survey-batch path"""
     first_file = Path("tests/data/test_catalogue_1.csv")
     second_file = Path("tests/data/test_catalogue_2.csv")
     metadata_file = Path("tests/data/metadata_test.json")
-
-    monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
-    )
 
     with (
         metadata_file.open("rb") as metadata_f,
@@ -408,6 +386,7 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
     _assert_upload_response(myclient, response, 2)
 
 
+@patch("ska_sdp_global_sky_model.api.app.main.ingest_catalogue", Mock(return_value=True))
 @pytest.mark.parametrize(
     "metadata_file",
     [
@@ -416,17 +395,13 @@ def test_upload_sky_survey_batch(myclient, monkeypatch):
         Path("tests/data/metadata_test.json"),
     ],
 )
-def test_upload_sky_survey_batch_metadata(metadata_file, monkeypatch, myclient):
+def test_upload_sky_survey_batch_metadata(metadata_file, myclient):
     """
     Test that metadata files can be uploaded even
     when not all information is present in the file.
     """
 
     first_file = Path("tests/data/test_catalogue_1.csv")
-
-    monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _mock_ingest_catalogue
-    )
 
     with (
         metadata_file.open("rb") as metadata_f,
@@ -894,18 +869,14 @@ def test_reject_upload_not_completed(myclient):
     assert "not ready for rejection" in reject_response.json()["detail"].lower()
 
 
-def test_upload_batch_partial_fail_clears_staging(myclient, monkeypatch):
+@patch("ska_sdp_global_sky_model.api.app.main.ingest_catalogue", Mock(side_effect=[True, False]))
+def test_upload_batch_partial_fail_clears_staging(myclient):
     """Test that if one good and one bad file are uploaded, staging is cleared on failure."""
     clean_all_tables()
     good_file = Path("tests/data/test_catalogue_1.csv")
 
     # Create bad CSV bytes from the good file (removes ra/dec in first rows)
     bad_csv_bytes = _make_bad_csv(good_file, n_missing=2)
-
-    # Fake to simulate failure when ra/dec missing
-    monkeypatch.setattr(
-        "ska_sdp_global_sky_model.api.app.main.ingest_catalogue", _ingest_catalogue
-    )
 
     with good_file.open("rb") as f1:
         metadata_file = Path("tests/data/metadata_test.json")

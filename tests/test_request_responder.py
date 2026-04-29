@@ -1,8 +1,7 @@
 # pylint: disable=too-many-lines
 """Tests for the request_responder"""
 
-# TODO these tests need to be redon to use the actual config lib not mocks
-#   also simplify to see if some of the test db data can be generated
+# TODO simplify to see if some of the test db data can be generated
 #   for the session and not per test
 
 import copy
