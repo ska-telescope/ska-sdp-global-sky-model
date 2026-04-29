@@ -146,14 +146,33 @@ class UploadManager:
 
         try:
             csv_reader = csv.reader(io.StringIO(text_content), strict=True)
-            rows = list(csv_reader)
+            rows = []
+            header = []
 
+            # Parse each line and check they have the same number of fields.
+            for row_index, row in enumerate(csv_reader):
+                if row_index == 0:
+                    header = row
+                if len(row) != len(header):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File {file.filename} has an inconsistent "
+                        f"number of fields at line {csv_reader.line_num}: "
+                        f"expected {len(header)} fields, "
+                        f"found {len(row)} fields "
+                        f"(header={header}, record={row}.",
+                    )
+                rows.append(row)
+
+            # Check for empty file.
             if not rows:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"File {file.filename} is empty. Must contain header and data rows.",
+                    detail=f"File {file.filename} is empty. "
+                    f"Must contain header and data rows.",
                 )
 
+            # Check for missing data.
             if len(rows) < 2:
                 raise HTTPException(
                     status_code=400,
@@ -162,7 +181,6 @@ class UploadManager:
                 )
 
             # Validate header row is not empty
-            header = rows[0]
             if not header or all(cell.strip() == "" for cell in header):
                 raise HTTPException(
                     status_code=400,
@@ -173,7 +191,8 @@ class UploadManager:
         except csv.Error as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"File {file.filename} is not valid CSV: {str(e)}",
+                detail=f"File {file.filename} is not valid CSV "
+                f"at line {csv_reader.line_num}: {str(e)}",
             ) from e
 
         upload_status.csv_files.append((file.filename, text_content))
