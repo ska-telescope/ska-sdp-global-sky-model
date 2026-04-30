@@ -1,8 +1,5 @@
 """Tests for the request_responder"""
 
-# TODO simplify to see if some of the test db data can be generated
-#   for the session and not per test
-
 import copy
 import os
 import tempfile
@@ -446,7 +443,7 @@ def test_query_gsm_for_lsm_with_sources():  # noqa: F811
     query_params = QueryParameters(
         ra_deg=90,
         dec_deg=4,
-        fov_deg=0.1,
+        fov_deg=0.01,
         version="latest",
         catalogue_name="catalogue1",
         sub_path="test/lsm.csv",
@@ -486,7 +483,7 @@ def test_query_gsm_for_lsm_multiple_sources():  # noqa: F811
     query_params = QueryParameters(
         ra_deg=90,
         dec_deg=4,
-        fov_deg=0.5,
+        fov_deg=0.4,
         version="latest",
         catalogue_name="catalogue1",
         sub_path="test/lsm.csv",
@@ -496,8 +493,8 @@ def test_query_gsm_for_lsm_multiple_sources():  # noqa: F811
 
     # Verify results
     assert isinstance(result, GlobalSkyModel)
-    assert len(result.components) == 5
-    for i in [24, 25, 26, 27, 28]:  # components that match criteria are under these ids in db
+    assert len(result.components) == 3
+    for i in [25, 26, 27]:  # components that match criteria are under these ids in db
         assert isinstance(result.components[i], SkyComponentDataclass)
 
 

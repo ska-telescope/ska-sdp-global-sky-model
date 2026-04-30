@@ -41,9 +41,10 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 )
 from ska_sdp_datamodels.global_sky_model.local_sky_model import LocalSkyModel
 from ska_sdp_dataproduct_metadata import MetaData
+from sqlalchemy import Boolean
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.functions import GenericFunction
 
-from ska_sdp_global_sky_model.api.app.crud import q3c_radial_query
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.configuration.config import (
     REQUEST_WATCHER_TIMEOUT,
@@ -55,6 +56,15 @@ from ska_sdp_global_sky_model.utilities.helper_functions import make_serisalisab
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 
 logger = logging.getLogger(__name__)
+
+
+# pylint: disable-next=too-few-public-methods,invalid-name
+class q3c_radial_query(GenericFunction):
+    """SQLAlchemy function for q3c_radial_query(hpx, center, radius) -> BOOLEAN"""
+
+    type = Boolean()
+    inherit_cache = True
+    name = "q3c_radial_query"
 
 
 class QueryParameters:

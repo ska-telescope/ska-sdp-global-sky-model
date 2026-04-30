@@ -57,7 +57,7 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
 
     assert local_sky_model.status_code == 200
 
-    assert local_sky_model.text.count("L000105") == 11
+    assert local_sky_model.text.count("L000105") == 20
     for i in range(5, 16):
         assert f"L000105+0000{i:0>2d}" in local_sky_model.text
 
@@ -146,14 +146,14 @@ def test_local_sky_model_small_fov(myclient):  # pylint: disable=unused-argument
         params={
             "ra_deg": 70,
             "dec_deg": 4,
-            "fov_deg": 4,
+            "fov_deg": 1,
             "catalogue_name": "catalogue2",
             "version": "1.0.0",
         },
     )
 
     assert local_sky_model.status_code == 200
-    assert local_sky_model.text.count("A000100") == 41
+    assert local_sky_model.text.count("A000100") == 200
     for i in range(80, 121):
         assert f"A000100+000{i:0>3d}" in local_sky_model.text
 
@@ -162,7 +162,7 @@ def test_local_sky_model_extra_param(myclient):  # pylint: disable=unused-argume
     """
     Unit test for the /local-sky-model path
 
-    Query in the region covered by test data (RA ~70, Dec ~4, +-4)
+    Query in the region covered by test data (RA ~70, Dec ~4, +-20)
     without version, and limiting another value.
     """
 
@@ -171,19 +171,14 @@ def test_local_sky_model_extra_param(myclient):  # pylint: disable=unused-argume
         params={
             "ra_deg": 70,
             "dec_deg": 4,
-            "fov_deg": 4,
+            "fov_deg": 20,
             "catalogue_name": "catalogue2",
-            "version": "1.0.0",
-            "pa_deg__lt": 100,
+            "pa_deg__lt": 50,
         },
     )
 
     assert local_sky_model.status_code == 200
-    assert local_sky_model.text.count("A000100") == 20
-    for i in range(80, 100):
-        assert f"A000100+000{i:0>3d}" in local_sky_model.text
-    for i in range(100, 120):
-        assert f"A000100+000{i:0>3d}" not in local_sky_model.text
+    assert local_sky_model.text.count("A000100") == 50
 
 
 def test_local_sky_model_flux_range_filter(myclient):

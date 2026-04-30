@@ -23,6 +23,17 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
+from tests.utils import clean_all_tables, override_get_db
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clean_up_database():
+    """
+    Clean tables after each test run.
+    Specific to this module. Do not move.
+    """
+    yield
+    clean_all_tables()
 
 
 @pytest.fixture(name="sample_csv_file")
@@ -282,15 +293,17 @@ class TestValidateComponentMapping:
 class TestCommitBatch:
     """Tests for commit_batch function"""
 
-    def test_commit_empty_batch(self, db_session):
+    def test_commit_empty_batch(self):
         """Test committing empty batch does nothing"""
+        db_session = next(override_get_db())
         component_objs = []
         commit_batch(db_session, component_objs)
         count = db_session.query(SkyComponent).count()
         assert count == 0
 
-    def test_commit_batch_with_components(self, db_session):
+    def test_commit_batch_with_components(self):
         """Test committing batch with components"""
+        db_session = next(override_get_db())
         component_objs = [
             {
                 "component_id": "J001122-334455",
@@ -341,8 +354,11 @@ class TestParseCatalogueComponents:  # pylint: disable=too-few-public-methods
 class TestProcessComponentDataBatch:
     """Tests for process_component_data_batch function"""
 
-    def test_process_valid_components(self, db_session, sample_csv_file, gsm_metadata):
+    def test_process_valid_components(self, sample_csv_file, gsm_metadata):
         """Test processing valid component data from in-memory content"""
+
+        db_session = next(override_get_db())
+
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
         db_session.add(gsm_metadata)
@@ -361,8 +377,10 @@ class TestProcessComponentDataBatch:
         count = db_session.query(SkyComponentStaging).count()
         assert count == 3
 
-    def test_skip_duplicate_component_id(self, db_session, sample_csv_file, gsm_metadata):
+    def test_skip_duplicate_component_id(self, sample_csv_file, gsm_metadata):
         """Test that duplicate component IDs are allowed across different uploads"""
+        db_session = next(override_get_db())
+
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -395,8 +413,10 @@ class TestProcessComponentDataBatch:
         # Both uploads should succeed with same component_ids
         assert count2 == count1 * 2  # Double the components (different upload_ids)
 
-    def test_validation_errors_prevent_ingestion(self, db_session, gsm_metadata):
+    def test_validation_errors_prevent_ingestion(self, gsm_metadata):
         """Test that validation errors prevent any data from being ingested (all-or-nothing)"""
+        db_session = next(override_get_db())
+
         # Create CSV with mix of valid and invalid components
         invalid_csv = (
             "component_id,ra,dec,i_pol\n"
@@ -424,8 +444,10 @@ class TestProcessComponentDataBatch:
         count = db_session.query(SkyComponentStaging).count()
         assert count == 0
 
-    def test_all_validation_errors_collected(self, db_session, caplog, gsm_metadata):
+    def test_all_validation_errors_collected(self, caplog, gsm_metadata):
         """Test that all validation errors are collected and logged"""
+        db_session = next(override_get_db())
+
         caplog.set_level(logging.ERROR)
 
         # Create CSV with multiple invalid components
@@ -464,8 +486,10 @@ class TestProcessComponentDataBatch:
         error_messages = [log for log in error_logs if "Row" in log and "component_id:" in log]
         assert len(error_messages) == 2  # Only RA and DEC validation errors
 
-    def test_validation_phase_before_ingestion(self, db_session, caplog, gsm_metadata):
+    def test_validation_phase_before_ingestion(self, caplog, gsm_metadata):
         """Test that all validation happens before any ingestion"""
+        db_session = next(override_get_db())
+
         caplog.set_level(logging.INFO)
 
         # Create CSV with invalid data at the end
@@ -511,8 +535,10 @@ class TestProcessComponentDataBatch:
         # Should NOT have ingestion message since validation failed
         assert ingestion_msg_found is False
 
-    def test_successful_ingestion_after_validation(self, db_session, caplog, gsm_metadata):
+    def test_successful_ingestion_after_validation(self, caplog, gsm_metadata):
         """Test that ingestion proceeds only after all validation passes"""
+        db_session = next(override_get_db())
+
         caplog.set_level(logging.INFO)
 
         valid_csv = (
@@ -559,8 +585,10 @@ class TestProcessComponentDataBatch:
 class TestIngestCatalogue:
     """Tests for ingest_catalogue function"""
 
-    def test_successful_ingestion(self, db_session, sample_csv_file):
+    def test_successful_ingestion(self, sample_csv_file):
         """Test successful full catalogue ingestion with in-memory content"""
+        db_session = next(override_get_db())
+
         with open(sample_csv_file, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -583,8 +611,10 @@ class TestIngestCatalogue:
         count = db_session.query(SkyComponentStaging).count()
         assert count == 3
 
-    def test_empty_catalogue(self, db_session):
+    def test_empty_catalogue(self):
         """Test handling of empty catalogue with in-memory content"""
+        db_session = next(override_get_db())
+
         empty_content = "component_id,ra,dec,i_pol\n"
 
         catalogue_metadata = GlobalSkyModelMetadata(

@@ -88,7 +88,6 @@ def _python_type_to_column(field_type: type) -> Column:
     return Column(sa_type, nullable=True)
 
 
-# TODO: can this be redone as a decorator?
 def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
     """
     Dynamically add columns from a dataclass to a SQLAlchemy model.

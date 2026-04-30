@@ -31,21 +31,18 @@ priority = "primary"
 fastapi = "^0.110.1"
 sqlalchemy = "^2.0.49"
 uvicorn = "^0.29.0"
-sqlmodel = "^0.0.16"  # TODO where is this used?
 httpx = "^0.27.0"
-psycopg2-binary = "^2.9.9"  # TODO where is this used?
-astroquery = "^0.4.7"  # TODO where is this used?
 ska-ser-logging = "^0.4.3"
-python-multipart = "^0.0.9"  # TODO where is this used?
+python-multipart = "^0.0.27"  # needed by fastapi for parsing
 alembic = "^1.13.2"
 ska-sdp-config = "^1.6.0"
 ska-sdp-datamodels = "^1.3.0"
 ska-sdp-dataproduct-metadata = "^1.2.0"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.2"}
-PyYAML = "^6.0.0"  # TODO where is this used?
+PyYAML = "^6.0.0"
 packaging = "^26.0"
 jinja2 = "^3.1.6"
-# need to add numpy
+numpy = "^2.2"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.0"

@@ -71,12 +71,10 @@ async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
 
 app = FastAPI(lifespan=lifespan, root_path=API_URL)
 
-# TODO: is this needed?
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []
 
-# TODO: is this needed?
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
