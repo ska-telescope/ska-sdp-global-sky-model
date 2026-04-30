@@ -338,21 +338,43 @@ def test_process_flow(mock_query, mock_write, valid_flow, expected_query_paramet
 @patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
 @patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
 def test_process_flow_exception(mock_query, mock_write, valid_flow, expected_query_parameters):
-    """Test that we cann start the processing for a flow"""
+    """Test that we can start the processing for a flow"""
 
     mock_query.return_value = ["data"]
 
     mock_query.side_effect = ValueError("An error occured")
     eb_id = "eb-test-20260108-1234"
 
-    success, reason = _process_flow(valid_flow, eb_id, expected_query_parameters)
+    success, error_state = _process_flow(valid_flow, eb_id, expected_query_parameters)
 
     assert success is False
-    assert "Error processing flow" in reason
+    assert error_state["error"] == "An error occured"
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
     assert len(mock_query.mock_calls) == 1
     assert mock_query.mock_calls[0].args[0] == expected_query_parameters
+    assert mock_write.mock_calls == []
+
+
+@patch("ska_sdp_global_sky_model.api.app.request_responder._write_data")
+@patch("ska_sdp_global_sky_model.api.app.request_responder._query_gsm_for_lsm")
+def test_process_flow_error_state(mock_query, mock_write, valid_flow, expected_query_parameters):
+    """Test that we can report error state correctly when processing a flow"""
+
+    mock_query.side_effect = RuntimeError("test error")
+    eb_id = "eb-test-20260108-1234"
+
+    success, error_state = _process_flow(
+        valid_flow, eb_id, expected_query_parameters
+    )
+    assert not success
+    assert isinstance(error_state, dict)
+    assert set(error_state.keys()) == {"flow_key", "parameters", "timestamp", "error"}
+    assert error_state["error"] == "test error"
+    assert error_state["flow_key"] == str(valid_flow.key)
+    assert error_state["parameters"] == expected_query_parameters
+    assert isinstance(error_state["timestamp"], float)
+
     assert mock_write.mock_calls == []
 
 
