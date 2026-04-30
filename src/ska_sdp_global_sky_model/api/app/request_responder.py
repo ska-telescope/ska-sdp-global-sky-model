@@ -314,7 +314,14 @@ def _process_flow(
             err,
         )
         logger.exception(err)
-        return False, f"Error processing flow {flow.key} with parameters {query_parameters}: {err}"
+
+        error_state = {
+            "flow_key": str(flow.key),
+            "parameters": query_parameters.__dict__,
+            "timestamp": time.time(),
+            "error": str(err),
+        }
+        return False, error_state
 
     return True, None
 
