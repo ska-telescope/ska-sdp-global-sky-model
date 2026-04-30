@@ -126,7 +126,7 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     "/local-sky-model",
     response_class=HTMLResponse,
     summary="Retrieve a local sky model",
-    description="Retrieve a sub-set of the global sky model in the form of" "a local sky model.",
+    description="Retrieve a sub-set of the global sky model in the form of a local sky model.",
 )
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def get_local_sky_model_endpoint(

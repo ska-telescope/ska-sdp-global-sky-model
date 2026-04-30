@@ -46,13 +46,13 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     """
     Unit test for the /local-sky-model path
 
-    Query in the region covered by test data (RA ~80, Dec ~4 +- 1)
+    Query in the region covered by test data (RA ~80, Dec ~4 +- 10)
     without a specified version
     """
 
     local_sky_model = myclient.get(
         "/local-sky-model/",
-        params={"ra_deg": 80, "dec_deg": 4, "fov_deg": 1, "catalogue_name": "catalogue3"},
+        params={"ra_deg": 80, "dec_deg": 4, "fov_deg": 10, "catalogue_name": "catalogue3"},
     )
 
     assert local_sky_model.status_code == 200
@@ -146,7 +146,7 @@ def test_local_sky_model_small_fov(myclient):  # pylint: disable=unused-argument
         params={
             "ra_deg": 70,
             "dec_deg": 4,
-            "fov_deg": 1,
+            "fov_deg": 20,
             "catalogue_name": "catalogue2",
             "version": "1.0.0",
         },

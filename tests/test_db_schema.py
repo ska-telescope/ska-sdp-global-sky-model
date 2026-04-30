@@ -17,7 +17,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent,
 )
-from sqlalchemy import event, inspect
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
@@ -34,18 +34,6 @@ def clean_up_database():
     """
     yield
     clean_all_tables()
-
-
-# pylint: disable=unused-argument
-def q3c_radial_query_mock(*args):
-    """Mock q3c_radial_query function."""
-    return True
-
-
-@event.listens_for(engine, "connect")
-def register_sqlite_functions(dbapi_connection, connection_record):
-    """Load the mock function for q3c_radial_query"""
-    dbapi_connection.create_function("q3c_radial_query", 5, q3c_radial_query_mock)
 
 
 class TestSkyComponentModel:

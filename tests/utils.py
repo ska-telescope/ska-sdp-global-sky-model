@@ -159,7 +159,6 @@ def clean_all_tables():
         db.query(GlobalSkyModelMetadata).delete()
         db.query(SkyComponentStaging).delete()
         db.query(SkyComponent).delete()
-        db.query(GlobalSkyModelMetadata).delete()
         db.commit()
     finally:
         db.close()
