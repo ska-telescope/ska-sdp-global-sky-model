@@ -364,15 +364,13 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow, expected_q
     mock_query.side_effect = RuntimeError("test error")
     eb_id = "eb-test-20260108-1234"
 
-    success, error_state = _process_flow(
-        valid_flow, eb_id, expected_query_parameters
-    )
+    success, error_state = _process_flow(valid_flow, eb_id, expected_query_parameters)
     assert not success
     assert isinstance(error_state, dict)
     assert set(error_state.keys()) == {"flow_key", "parameters", "timestamp", "error"}
     assert error_state["error"] == "test error"
     assert error_state["flow_key"] == str(valid_flow.key)
-    assert error_state["parameters"] == expected_query_parameters
+    assert error_state["parameters"] == expected_query_parameters.__dict__
     assert isinstance(error_state["timestamp"], float)
 
     assert mock_write.mock_calls == []
