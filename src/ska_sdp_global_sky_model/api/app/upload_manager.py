@@ -189,10 +189,17 @@ class UploadManager:
                 )
 
         except csv.Error as e:
+            # Get the line number where CSV parsing failed, adjusted if needed.
+            line_num = csv_reader.line_num
+            error_msg = str(e)
+            if "unexpected end of data" not in error_msg.lower():
+                line_num -= 1
+
+            # Raise HTTP exception with detailed error message.
             raise HTTPException(
                 status_code=400,
                 detail=f"File {file.filename} is not valid CSV "
-                f"at line {csv_reader.line_num}: {str(e)}",
+                f"at line {line_num}: {error_msg}. Check closing quotes.",
             ) from e
 
         upload_status.csv_files.append((file.filename, text_content))
