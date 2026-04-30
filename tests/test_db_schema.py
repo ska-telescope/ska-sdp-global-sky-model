@@ -5,6 +5,9 @@ These tests validate that the SQLAlchemy models work correctly,
 including their methods and field configurations. Both SkyComponent and
 GlobalSkyModelMetadata models: dynamically generated columns from dataclasses
 with hardcoded database-specific fields and methods.
+
+The engine is used in conftest.py to generate the database with the right tables,
+results of which are tested here.
 """
 
 import pytest
@@ -15,12 +18,22 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent,
 )
 from sqlalchemy import event, inspect
+from sqlalchemy.exc import IntegrityError
 
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.models import SkyComponent as SkyComponentModel
 from ska_sdp_global_sky_model.api.app.models import SkyComponentStaging
-from ska_sdp_global_sky_model.configuration.config import Base
-from tests.utils import engine
+from tests.utils import clean_all_tables, engine, override_get_db
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clean_up_database():
+    """
+    Clean tables after each test run.
+    Specific to this module. Do not move.
+    """
+    yield
+    clean_all_tables()
 
 
 # pylint: disable=unused-argument
@@ -40,15 +53,12 @@ class TestSkyComponentModel:
 
     def test_sky_component_table_exists(self):
         """Test that SkyComponent table can be created."""
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         assert "sky_component" in tables or any("sky_component" in t.lower() for t in tables)
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
     def test_sky_component_has_required_columns(self):
         """Test that SkyComponent model has all required columns."""
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
 
         # Get column names (handle both with and without schema)
@@ -65,36 +75,9 @@ class TestSkyComponentModel:
         assert "dec_deg" in columns
         assert "i_pol_jy" in columns
 
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
-
-    def test_sky_component_create_instance(self, db_session, gsm_metadata):
-        """Test creating a SkyComponent instance."""
-        db_session.add(gsm_metadata)
-        db_session.commit()
-        component = SkyComponentModel(
-            component_id="TestSource1",
-            ra_deg=123.45,
-            dec_deg=-67.89,
-            i_pol_jy=1.23,
-            gsm_id=gsm_metadata.id,
-        )
-
-        db_session.add(component)
-        db_session.commit()
-
-        # Verify it was created
-        retrieved = (
-            db_session.query(SkyComponentModel).filter_by(component_id="TestSource1").first()
-        )
-        assert retrieved is not None
-        assert retrieved.component_id == "TestSource1"
-        assert retrieved.ra_deg == 123.45
-        assert retrieved.dec_deg == -67.89
-        assert retrieved.i_pol_jy == 1.23
-        assert retrieved.gsm_id == gsm_metadata.id
-
-    def test_sky_component_with_optional_fields(self, db_session, gsm_metadata):
+    def test_sky_component_with_optional_fields(self, gsm_metadata):
         """Test creating a SkyComponent with optional fields."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
@@ -116,14 +99,20 @@ class TestSkyComponentModel:
         retrieved = (
             db_session.query(SkyComponentModel).filter_by(component_id="TestSource2").first()
         )
+        assert retrieved.component_id == "TestSource2"
+        assert retrieved.ra_deg == 45.67
+        assert retrieved.dec_deg == 12.34
+        assert retrieved.i_pol_jy == 5.67
+        # optional fields below
         assert retrieved.a_arcsec == 0.001
         assert retrieved.b_arcsec == 0.0005
         assert retrieved.pa_deg == 1.57
         assert retrieved.spec_idx == [1.0, -0.5, 0.1]
         assert retrieved.log_spec_idx is True
 
-    def test_sky_component_versioning_constraint(self, db_session, gsm_metadata):
+    def test_sky_component_versioning_constraint(self, gsm_metadata):
         """Test that duplicate component_id + version raises constraint error."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component1 = SkyComponentModel(
@@ -149,20 +138,16 @@ class TestSkyComponentModel:
         with pytest.raises(Exception):  # Should raise IntegrityError
             db_session.commit()
 
-    def test_sky_component_columns_to_dict_method(self, db_session, gsm_metadata):
+    def test_sky_component_columns_to_dict_method(self):
         """Test the columns_to_dict method."""
-        db_session.add(gsm_metadata)
-        db_session.commit()
         component = SkyComponentModel(
             component_id="DictTestSource",
             ra_deg=111.11,
             dec_deg=-22.22,
             i_pol_jy=3.33,
             a_arcsec=0.002,
-            gsm_id=gsm_metadata.id,
+            gsm_id=1,
         )
-        db_session.add(component)
-        db_session.commit()
 
         # Test columns_to_dict
         component_dict = component.columns_to_dict()
@@ -175,8 +160,9 @@ class TestSkyComponentModel:
         assert component_dict["a_arcsec"] == 0.002
         assert "id" in component_dict
 
-    def test_sky_component_nullable_fields(self, db_session, gsm_metadata):
+    def test_sky_component_nullable_fields(self, gsm_metadata):
         """Test that nullable fields can be None."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
@@ -199,9 +185,12 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
 
-    def test_sky_component_spec_idx_as_json(self, db_session, gsm_metadata):
-        """Test that spec_idx field properly stores JSON data."""
+    def test_sky_component_spec_idx_as_json(self, gsm_metadata):
+        """Test that spec_idx field properly stores JSON data.
+        TODO: how is this JSON? Is this a leftover from some previous version of specidx?
+        """
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
@@ -222,8 +211,9 @@ class TestSkyComponentModel:
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
 
-    def test_sky_component_versioning(self, db_session, gsm_metadata):
+    def test_sky_component_versioning(self, gsm_metadata):
         """Test versioning support, same component_id can have multiple versions."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         second_metadata = GlobalSkyModelMetadata(
@@ -262,8 +252,9 @@ class TestSkyComponentModel:
 class TestSkyComponentStagingModel:
     """Tests for the SkyComponentStaging SQLAlchemy model."""
 
-    def test_staging_basic_functionality(self, db_session, gsm_metadata):
+    def test_staging_basic_functionality(self, gsm_metadata):
         """Test basic SkyComponentStaging CRUD operations."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         staged = SkyComponentStaging(
@@ -286,8 +277,9 @@ class TestSkyComponentStagingModel:
         assert retrieved.component_id == "StagedSource1"
         assert retrieved.upload_id == "test-upload-123"
 
-    def test_staging_allows_same_component_different_uploads(self, db_session, gsm_metadata):
+    def test_staging_allows_same_component_different_uploads(self, gsm_metadata):
         """Test that same component_id can exist in different uploads."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         staged1 = SkyComponentStaging(
@@ -319,8 +311,9 @@ class TestSkyComponentStagingModel:
         )
         assert len(all_records) == 2
 
-    def test_staging_unique_constraint_violation(self, db_session, gsm_metadata):
+    def test_staging_unique_constraint_violation(self, gsm_metadata):
         """Test that duplicate component_id + upload_id raises constraint error."""
+        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         staged1 = SkyComponentStaging(
@@ -344,7 +337,7 @@ class TestSkyComponentStagingModel:
             gsm_id=gsm_metadata.id,
         )
         db_session.add(staged2)
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             db_session.commit()
 
 
@@ -353,17 +346,14 @@ class TestGlobalSkyModelMetadataModel:
 
     def test_metadata_table_exists(self):
         """Test that GlobalSkyModelMetadata table can be created."""
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         assert "global_sky_model_metadata" in tables or any(
             "global_sky_model_metadata" in t.lower() for t in tables
         )
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
     def test_metadata_has_required_columns(self):
         """Test that GlobalSkyModelMetadata model has all required columns."""
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
         inspector = inspect(engine)
 
         columns = []
@@ -376,16 +366,15 @@ class TestGlobalSkyModelMetadataModel:
         assert "version" in columns
         assert "catalogue_name" in columns
 
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
-
-    def test_metadata_create_instance(self, db_session):
+    def test_metadata_create_instance(self):
         """Test creating a GlobalSkyModelMetadata instance."""
+
         metadata = GlobalSkyModelMetadata(
             version="1.0.0",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
-
+        db_session = next(override_get_db())
         db_session.add(metadata)
         db_session.commit()
 
@@ -393,15 +382,13 @@ class TestGlobalSkyModelMetadataModel:
         assert retrieved is not None
         assert retrieved.version == "1.0.0"
 
-    def test_metadata_columns_to_dict_method(self, db_session):
+    def test_metadata_columns_to_dict_method(self):
         """Test the columns_to_dict method for GlobalSkyModelMetadata."""
         metadata = GlobalSkyModelMetadata(
             version="2.1.0",
             catalogue_name="TestCatalogue",
             upload_id="test-upload-2",
         )
-        db_session.add(metadata)
-        db_session.commit()
 
         metadata_dict = metadata.columns_to_dict()
 
@@ -410,7 +397,7 @@ class TestGlobalSkyModelMetadataModel:
         assert metadata_dict["catalogue_name"] == "TestCatalogue"
         assert "id" in metadata_dict
 
-    def test_metadata_multiple_versions(self, db_session):
+    def test_metadata_multiple_versions(self):
         """Test storing multiple metadata versions."""
         metadata1 = GlobalSkyModelMetadata(
             version="1.0.0",
@@ -428,6 +415,7 @@ class TestGlobalSkyModelMetadataModel:
             upload_id="test-upload-3",
         )
 
+        db_session = next(override_get_db())
         db_session.add_all([metadata1, metadata2, metadata3])
         db_session.commit()
 
@@ -442,7 +430,7 @@ class TestGlobalSkyModelMetadataModel:
 class TestModelIntegration:  # pylint: disable=too-few-public-methods
     """Integration tests for models working together."""
 
-    def test_sky_component_and_metadata_coexist(self, db_session):
+    def test_sky_component_and_metadata_coexist(self):
         """Test that SkyComponent and Metadata can both be stored in the same database."""
         # Create metadata
         metadata = GlobalSkyModelMetadata(
@@ -450,6 +438,7 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
+        db_session = next(override_get_db())
         db_session.add(metadata)
 
         # Create components
@@ -490,15 +479,12 @@ class TestSkyComponentModelDataclassSync:
 
         # Get all column names from the SkyComponent model
         inspector = inspect(engine)
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         model_columns = set()
         for table_name in inspector.get_table_names():
             if "sky_component" in table_name.lower():
                 model_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
-
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         # Check that all dataclass fields are in the model
         # (excluding 'id' which is database-specific)
@@ -515,15 +501,12 @@ class TestSkyComponentModelDataclassSync:
 
         # Get actual model columns
         inspector = inspect(engine)
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         actual_columns = set()
         for table_name in inspector.get_table_names():
             if "sky_component" in table_name.lower():
                 actual_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
-
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         unexpected_columns = actual_columns - expected_columns
         assert (
@@ -537,15 +520,12 @@ class TestSkyComponentModelDataclassSync:
 
         # Get actual count
         inspector = inspect(engine)
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         actual_count = 0
         for table_name in inspector.get_table_names():
             if "sky_component" in table_name.lower():
                 actual_count = len(inspector.get_columns(table_name))
                 break
-
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         assert (
             actual_count == expected_count
@@ -562,15 +542,12 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
         # Get all column names from the GlobalSkyModelMetadata model
         inspector = inspect(engine)
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         model_columns = set()
         for table_name in inspector.get_table_names():
             if "global_sky_model_metadata" in table_name.lower():
                 model_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
-
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         # Check that all dataclass fields are in the model
         missing_fields = dataclass_fields - model_columns
@@ -600,15 +577,12 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
         # Get actual model columns
         inspector = inspect(engine)
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         actual_columns = set()
         for table_name in inspector.get_table_names():
             if "global_sky_model_metadata" in table_name.lower():
                 actual_columns = {col["name"] for col in inspector.get_columns(table_name)}
                 break
-
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         unexpected_columns = actual_columns - expected_columns
         assert (
@@ -622,15 +596,12 @@ class TestGlobalSkyModelMetadataDataclassSync:
 
         # Get actual count
         inspector = inspect(engine)
-        Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
 
         actual_count = 0
         for table_name in inspector.get_table_names():
             if "global_sky_model_metadata" in table_name.lower():
                 actual_count = len(inspector.get_columns(table_name))
                 break
-
-        Base.metadata.drop_all(bind=engine)  # pylint: disable=no-member
 
         assert (
             actual_count == expected_count

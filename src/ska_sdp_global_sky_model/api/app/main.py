@@ -177,7 +177,9 @@ async def get_local_sky_model_endpoint(
     )
 
 
-def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetadata):
+def _run_ingestion_task(
+    upload_id: str, catalogue_metadata: GlobalSkyModelMetadata, db: Session = None
+):
     """
     Run ingestion task in background to staging table.
 
@@ -192,10 +194,7 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
     catalogue_metadata : GlobalSkyModelMetadata
         Catalogue metadata for ingestion
     """
-    db = None
     try:
-        # Get fresh database session
-        db = next(get_db())
         catalogue_metadata.staging = True
         db.add(catalogue_metadata)
         db.commit()
@@ -266,6 +265,7 @@ async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
     metadata_file: list[UploadFile] = File(..., description="One catalogue metadata JSON file"),
     csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
+    db: Session = Depends(get_db),
 ):
     """
     Upload catalogue metadata and CSV files for staging.
@@ -281,6 +281,7 @@ async def upload_sky_survey_batch(
         A JSON file with catalogue metadata (catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
+    db: database Session (automatically generated)
 
     Raises
     ------
@@ -353,7 +354,7 @@ async def upload_sky_survey_batch(
 
         # Schedule ingestion to run in background
         background_tasks.add_task(
-            _run_ingestion_task, catalogue_metadata.upload_id, catalogue_metadata
+            _run_ingestion_task, catalogue_metadata.upload_id, catalogue_metadata, db
         )
 
         logger.info(
