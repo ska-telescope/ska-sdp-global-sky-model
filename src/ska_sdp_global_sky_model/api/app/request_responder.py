@@ -241,10 +241,11 @@ def _watcher_process_flow(watcher, flow, sources):
             errors.append(
                 json.dumps(
                     {
-                        "error_type": "InvalidQueryParameters",
-                        "error": str(err),
+                        "error": f"Invalid query parameters: {err}",
+                        "flow": str(flow.key),
                         "parameters": source.parameters,
-                    }
+                    },
+                    indent=2,
                 )
             )
             continue
@@ -324,16 +325,20 @@ def _process_flow(
         )
         logger.exception(err)
 
-        query_params = {
-            key: make_serisalisable(value) for key, value in query_parameters.__dict__.items()
-        }
+        # Build query dict from QueryParameters
+        query_dict = {}
+        for key, value in query_parameters.__dict__.items():
+            query_dict[key] = make_serisalisable(value)
+
+        if catalogue_name := query_parameters.metadata_queries.get("catalogue_name"):
+            query_dict["catalogue_name"] = catalogue_name
+
         error_state = {
-            "flow_key": str(flow.key),
-            "parameters": query_params,
-            "timestamp": time.time(),
             "error": str(err),
+            "flow": str(flow.key),
+            "query": query_dict,
         }
-        return False, json.dumps(error_state)
+        return False, json.dumps(error_state, indent=2)
 
     return True, None
 

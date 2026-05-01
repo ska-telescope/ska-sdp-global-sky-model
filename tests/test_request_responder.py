@@ -430,12 +430,12 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow):
     assert not success
     assert isinstance(error_json, str)
     error_state = json.loads(error_json)
-    assert set(error_state.keys()) == {"flow_key", "parameters", "timestamp", "error"}
+
+    assert set(error_state.keys()) == {"error", "flow", "query"}
     assert error_state["error"] == "test error"
-    assert error_state["flow_key"] == str(valid_flow.key)
-    # Parameters should be serialisable
-    assert "ra_deg" in error_state["parameters"]
-    assert isinstance(error_state["timestamp"], float)
+    assert error_state["flow"] == str(valid_flow.key)
+    assert "ra_deg" in error_state["query"]
+    assert error_state["query"]["ra_deg"] == 2.9670
 
     assert mock_write.mock_calls == []
 
