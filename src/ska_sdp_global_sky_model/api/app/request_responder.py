@@ -326,9 +326,6 @@ def _process_flow(
         for key, value in query_parameters.__dict__.items():
             query_dict[key] = make_serisalisable(value)
 
-        if catalogue_name := query_parameters.metadata_queries.get("catalogue_name"):
-            query_dict["catalogue_name"] = catalogue_name
-
         error_state = {
             "error": str(err),
             "flow": str(flow.key),
