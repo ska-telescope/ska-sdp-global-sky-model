@@ -18,6 +18,7 @@ The states are updated as follows:
 - When failed: ``FAILED``, with a ``reason`` field
 """
 
+import json
 import logging
 import threading
 import time
@@ -237,12 +238,20 @@ def _watcher_process_flow(watcher, flow, sources):
             query_params = QueryParameters(**source.parameters)
         except (TypeError, ValueError) as err:
             logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
-            errors.append(str(err))
+            errors.append(
+                json.dumps(
+                    {
+                        "error_type": "InvalidQueryParameters",
+                        "error": str(err),
+                        "parameters": source.parameters,
+                    }
+                )
+            )
             continue
 
-        successful, reason = _process_flow(flow, eb_id, query_params)
+        successful, error_str = _process_flow(flow, eb_id, query_params)
         if not successful:
-            errors.append(reason)
+            errors.append(error_str)
 
     # Final state decision
     for txn in watcher.txn():
@@ -251,7 +260,7 @@ def _watcher_process_flow(watcher, flow, sources):
                 txn,
                 flow,
                 "FAILED",
-                reason="; ".join([e for e in errors if e]),
+                error_state=errors,
             )
         else:
             _update_state(txn, flow, "COMPLETED")
@@ -315,13 +324,16 @@ def _process_flow(
         )
         logger.exception(err)
 
+        query_params = {
+            key: make_serisalisable(value) for key, value in query_parameters.__dict__.items()
+        }
         error_state = {
             "flow_key": str(flow.key),
-            "parameters": query_parameters.__dict__,
+            "parameters": query_params,
             "timestamp": time.time(),
             "error": str(err),
         }
-        return False, error_state
+        return False, json.dumps(error_state)
 
     return True, None
 
@@ -386,9 +398,12 @@ def _query_gsm_for_lsm(
 
 
 def _update_state(
-    txn: ska_sdp_config.Config.txn, flow: Flow, state: str, reason: str | None = None
+    txn: ska_sdp_config.Config.txn,
+    flow: Flow,
+    state: str,
+    error_state: list[str] | None = None,
 ):
-    """Update the Flow state"""
+    """Update the Flow state with error_state as JSON strings"""
     current_state = txn.flow.state(flow).get()
 
     if current_state is not None and current_state.get("status") == state:
@@ -396,8 +411,8 @@ def _update_state(
         return
 
     new_state = {"status": state, "last_updated": time.time()}
-    if reason:
-        new_state["error_state"] = reason
+    if error_state:
+        new_state["error_state"] = error_state
 
     if current_state:
         current_state.update(new_state)
