@@ -437,10 +437,10 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow):
     assert error_state["query"]["ra_deg"] == 2.9670
 
     # Source info with traceback details
-    if "source" in error_state:
-        assert "file_path" in error_state["source"]
-        assert "line" in error_state["source"]
-        assert "function" in error_state["source"]
+    if "error_source" in error_state:
+        assert "file_path" in error_state["error_source"]
+        assert "line" in error_state["error_source"]
+        assert "function" in error_state["error_source"]
 
     assert mock_write.mock_calls == []
 

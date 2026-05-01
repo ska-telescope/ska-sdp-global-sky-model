@@ -322,17 +322,17 @@ def _process_flow(
         logger.exception(err)
 
         # Extract traceback information
-        error_source = traceback.extract_tb(err.__traceback__)
-        if error_source:
-            error_origin = error_source[-1]
+        error_trace = traceback.extract_tb(err.__traceback__)
+        if error_trace:
+            error_origin = error_trace[-1]
             origin_path = Path(error_origin.filename)
-            source_info = {
+            error_source_info = {
                 "file_path": str(origin_path),
                 "line": error_origin.lineno,
                 "function": error_origin.name,
             }
         else:
-            source_info = None
+            error_source_info = None
 
         # Build query dict from QueryParameters
         query_dict = {}
@@ -343,8 +343,8 @@ def _process_flow(
             "error": str(err),
             "query": query_dict,
         }
-        if source_info:
-            error_state["source"] = source_info
+        if error_source_info:
+            error_state["error_source"] = error_source_info
 
         return False, error_state
 
