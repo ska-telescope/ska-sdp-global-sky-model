@@ -428,7 +428,8 @@ def _update_state(
         new_state["error_state"] = error_state
 
     if current_state:
-        txn.flow.state(flow).update(new_state)
+        current_state.update(new_state)
+        txn.flow.state(flow).update(current_state)
     else:
         logger.warning("Flow was missing state, creating ... %s", flow.key)
         txn.flow.state(flow).create(new_state)
