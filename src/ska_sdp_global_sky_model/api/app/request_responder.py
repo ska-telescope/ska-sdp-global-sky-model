@@ -21,6 +21,7 @@ The states are updated as follows:
 import logging
 import threading
 import time
+import traceback
 from collections.abc import Generator
 from pathlib import Path
 
@@ -240,15 +241,14 @@ def _watcher_process_flow(watcher, flow, sources):
             errors.append(
                 {
                     "error": f"Invalid query parameters: {err}",
-                    "flow": str(flow.key),
                     "parameters": source.parameters,
                 }
             )
             continue
 
-        successful, error_str = _process_flow(flow, eb_id, query_params)
+        successful, error_state = _process_flow(flow, eb_id, query_params)
         if not successful:
-            errors.append(error_str)
+            errors.append(error_state)
 
     # Final state decision
     for txn in watcher.txn():
@@ -321,6 +321,19 @@ def _process_flow(
         )
         logger.exception(err)
 
+        # Extract traceback information
+        error_source = traceback.extract_tb(err.__traceback__)
+        if error_source:
+            error_origin = error_source[-1]
+            origin_path = Path(error_origin.filename)
+            source_info = {
+                "file_path": str(origin_path),
+                "line": error_origin.lineno,
+                "function": error_origin.name,
+            }
+        else:
+            source_info = None
+
         # Build query dict from QueryParameters
         query_dict = {}
         for key, value in query_parameters.__dict__.items():
@@ -328,9 +341,11 @@ def _process_flow(
 
         error_state = {
             "error": str(err),
-            "flow": str(flow.key),
             "query": query_dict,
         }
+        if source_info:
+            error_state["source"] = source_info
+
         return False, error_state
 
     return True, None

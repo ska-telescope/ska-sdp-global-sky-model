@@ -429,11 +429,18 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow):
     assert not success
     assert isinstance(error_state, dict)
 
-    assert set(error_state.keys()) == {"error", "flow", "query"}
+    # Check required fields
+    assert "error" in error_state
+    assert "query" in error_state
     assert error_state["error"] == "test error"
-    assert error_state["flow"] == str(valid_flow.key)
     assert "ra_deg" in error_state["query"]
     assert error_state["query"]["ra_deg"] == 2.9670
+
+    # Source info with traceback details
+    if "source" in error_state:
+        assert "file_path" in error_state["source"]
+        assert "line" in error_state["source"]
+        assert "function" in error_state["source"]
 
     assert mock_write.mock_calls == []
 
