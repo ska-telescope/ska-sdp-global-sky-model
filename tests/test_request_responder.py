@@ -2,7 +2,6 @@
 """Tests for the request_responder"""
 
 import copy
-import json
 import pathlib
 from datetime import datetime
 from unittest import mock
@@ -395,12 +394,12 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow):
     mock_query.side_effect = ValueError("An error occured")
     eb_id = "eb-test-20260108-1234"
 
-    success, error_json = _process_flow(
+    success, error_state = _process_flow(
         valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
 
     assert success is False
-    error_state = json.loads(error_json)
+    assert isinstance(error_state, dict)
     assert error_state["error"] == "An error occured"
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
@@ -424,12 +423,11 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow):
     mock_query.side_effect = RuntimeError("test error")
     eb_id = "eb-test-20260108-1234"
 
-    success, error_json = _process_flow(
+    success, error_state = _process_flow(
         valid_flow, eb_id, QueryParameters(**valid_flow.sources[0].parameters)
     )
     assert not success
-    assert isinstance(error_json, str)
-    error_state = json.loads(error_json)
+    assert isinstance(error_state, dict)
 
     assert set(error_state.keys()) == {"error", "flow", "query"}
     assert error_state["error"] == "test error"
@@ -470,7 +468,7 @@ def test_update_state_with_error_state(mock_time):
     txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
     flow = MagicMock()
 
-    error_state = ['{"error": "test error"}']
+    error_state = [{"error": "test error"}]
     _update_state(txn, flow, "NEW_STATE", error_state=error_state)
 
     assert txn.mock_calls == [
@@ -493,7 +491,7 @@ def test_update_state_create_state(mock_time):
     txn.flow.state.return_value.get.return_value = None
     flow = MagicMock()
 
-    error_state = ['{"error": "test error"}']
+    error_state = [{"error": "test error"}]
     _update_state(txn, flow, "NEW_STATE", error_state=error_state)
 
     assert txn.mock_calls == [

@@ -18,7 +18,6 @@ The states are updated as follows:
 - When failed: ``FAILED``, with a ``reason`` field
 """
 
-import json
 import logging
 import threading
 import time
@@ -239,14 +238,11 @@ def _watcher_process_flow(watcher, flow, sources):
         except (TypeError, ValueError) as err:
             logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
             errors.append(
-                json.dumps(
-                    {
-                        "error": f"Invalid query parameters: {err}",
-                        "flow": str(flow.key),
-                        "parameters": source.parameters,
-                    },
-                    indent=2,
-                )
+                {
+                    "error": f"Invalid query parameters: {err}",
+                    "flow": str(flow.key),
+                    "parameters": source.parameters,
+                }
             )
             continue
 
@@ -301,7 +297,7 @@ def _get_flows(
 
 def _process_flow(
     flow: Flow, eb_id: str, query_parameters: QueryParameters
-) -> tuple[bool, str | None]:
+) -> tuple[bool, dict | None]:
     """Process the Flow entry"""
 
     output_location = SHARED_VOLUME_MOUNT / flow.sink.data_dir.pvc_subpath
@@ -338,7 +334,7 @@ def _process_flow(
             "flow": str(flow.key),
             "query": query_dict,
         }
-        return False, json.dumps(error_state, indent=2)
+        return False, error_state
 
     return True, None
 
@@ -406,7 +402,7 @@ def _update_state(
     txn: ska_sdp_config.Config.txn,
     flow: Flow,
     state: str,
-    error_state: list[str] | None = None,
+    error_state: list[dict] | None = None,
 ):
     """Update the Flow state"""
     current_state = txn.flow.state(flow).get()
