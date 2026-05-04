@@ -142,6 +142,7 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     for row in output_rows:
         del row["gsm_id"]
         del row["upload_id"]
+        del row['staging']
     logger.info("Retrieved all point sources for all %s components", str(len(output_rows)))
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": list(output_rows)}
@@ -747,10 +748,10 @@ def get_incomplete_uploads(db: Session = Depends(get_db)) -> dict:
     # pylint: disable=duplicate-code
 
     data = {
-        "known_uploads": [],
+        "in_progress_uploads": [],
         "old_catalogues": [],
         "cataloges_that_are_staged": [],
-        "catalogues_in_staging": [],
+        "catalogues_in_staging_components": [],
         "staged_components_without_catalogues": [],
         "components_in_both_tables_staged": [],
         "components_in_both_tables_not_staged": [],
@@ -766,7 +767,7 @@ def get_incomplete_uploads(db: Session = Depends(get_db)) -> dict:
     )
 
     known_uploads = upload_manager.get_all_statuses()
-    data["known_uploads"] = known_uploads
+    data["in_progress_uploads"] = known_uploads
     # -> remove catalogue and components
     for catalogue in catalogues:
         data["old_catalogues"].append(
@@ -808,7 +809,7 @@ def get_incomplete_uploads(db: Session = Depends(get_db)) -> dict:
     for upload_id_row in upload_ids:
         upload_id = upload_id_row[0]
         logger.debug("Found upload ID: '%s'", upload_id)
-        data["catalogues_in_staging"].append(
+        data["catalogues_in_staging_components"].append(
             _catalogue_info.get(upload_id, _default_catalogue(upload_id))
         )
         catalogues = (
