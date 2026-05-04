@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    """Main cleanup script"""
+    """Main delete script"""
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=f"Version: {version('ska_sdp_global_sky_model')}",

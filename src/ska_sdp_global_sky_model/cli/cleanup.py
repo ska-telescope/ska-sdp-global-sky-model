@@ -6,19 +6,12 @@ from importlib.metadata import version
 import ska_ser_logging
 
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
+from ska_sdp_global_sky_model.cli.common import SkaSdpFormatter
 from ska_sdp_global_sky_model.configuration.config import (
     get_db,
 )
 
 ska_ser_logging.configure_logging(level="INFO")
-
-
-class SkaSdpFormatter(
-    argparse.ArgumentDefaultsHelpFormatter,
-    argparse.RawDescriptionHelpFormatter,
-):
-    """SKA SDP Formatter such that we can use both the defaults view
-    and have raw descriptions shown."""
 
 
 def main():
