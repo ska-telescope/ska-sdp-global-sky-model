@@ -142,7 +142,7 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     for row in output_rows:
         del row["gsm_id"]
         del row["upload_id"]
-        del row['staging']
+        del row["staging"]
     logger.info("Retrieved all point sources for all %s components", str(len(output_rows)))
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": list(output_rows)}
