@@ -288,7 +288,7 @@ class UploadManager:
 
         self._cleanup_old_uploads(db)
         self._cleanup_inaccessible_catalogues(db)
-        self._cleanup_partial_migrations(db)
+        self._cleanup_partial_migrations_and_orphaned_staging_components(db)
         db.commit()
 
     def _cleanup_old_uploads(self, db: sqlalchemy.orm.Session):
@@ -333,7 +333,7 @@ class UploadManager:
                 ).delete()
                 db.delete(catalogue)
 
-    def _cleanup_partial_migrations(self, db: sqlalchemy.orm.Session):
+    def _cleanup_partial_migrations_and_orphaned_staging_components(self, db: sqlalchemy.orm.Session):
         # Get all unique catalogues from staging
         upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
         for upload_id_row in upload_ids:
