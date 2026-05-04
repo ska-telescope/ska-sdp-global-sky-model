@@ -88,5 +88,4 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project.scripts]
-gsm-ingest = "ska_sdp_global_sky_model.cli.ingest_sm:main"
-gsm-download = "ska_sdp_global_sky_model.cli.download_sm:main"
+gsm-cleanup = "ska_sdp_global_sky_model.cli.cleanup:main"

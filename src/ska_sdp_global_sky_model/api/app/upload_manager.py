@@ -283,29 +283,36 @@ class UploadManager:
         status = self.get_status(upload_id)
         return status.csv_files
 
-    def run_db_cleanup(self, db: sqlalchemy.orm.Session):
+    def run_db_cleanup(
+        self, db: sqlalchemy.orm.Session, dry_run: bool = True, override_cleanup: int | None = None
+    ):
         """Do a cleanup of old data in the DB, and cleanup manager"""
 
-        self._cleanup_old_uploads(db)
-        self._cleanup_inaccessible_catalogues(db)
+        self._cleanup_old_uploads(db, override_cleanup)
         self._cleanup_partial_migrations_and_orphaned_staging_components(db)
-        db.commit()
+        if dry_run:
+            db.rollback()
+        else:
+            db.commit()
 
-    def _cleanup_old_uploads(self, db: sqlalchemy.orm.Session):
-        # Get all catalogues where the upload time is old and staging is true
+    def _cleanup_old_uploads(
+        self, db: sqlalchemy.orm.Session, override_cleanup: int | None = None
+    ):
+        """Remove catalogues and their components if they are still in staging
+        and if the upload time is more than CATALOGUE_CLEANUP_AGE hours ago."""
         catalogues = (
             db.query(GlobalSkyModelMetadata)
             .filter(
                 GlobalSkyModelMetadata.uploaded_at
-                < datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE)
+                < datetime.now() - timedelta(hours=override_cleanup or CATALOGUE_CLEANUP_AGE)
             )
             .filter(GlobalSkyModelMetadata.staging.is_(True))
             .all()
         )
-        # -> remove catalogue and components
+        logger.info("Found %d catalogues to clean", len(catalogues))
         for catalogue in catalogues:
             logger.info(
-                "Found old catalogue: '%s/%s' (uploaded @ '%s')",
+                "Remove old catalogue: '%s/%s' (uploaded @ '%s')",
                 catalogue.upload_id,
                 catalogue.catalogue_name,
                 catalogue.uploaded_at,
@@ -316,29 +323,17 @@ class UploadManager:
             ).delete()
             db.delete(catalogue)
 
-    def _cleanup_inaccessible_catalogues(self, db: sqlalchemy.orm.Session):
-        catalogues = (
-            db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.staging.is_(True)).all()
-        )
-        for catalogue in catalogues:
-            if catalogue.upload_id not in self._uploads:
-                logger.info(
-                    "Found inaccessible catalogue: '%s/%s' (uploaded @ '%s')",
-                    catalogue.upload_id,
-                    catalogue.catalogue_name,
-                    catalogue.uploaded_at,
-                )
-                db.query(SkyComponentStaging).filter(
-                    SkyComponentStaging.gsm_id == catalogue.id
-                ).delete()
-                db.delete(catalogue)
-
-    def _cleanup_partial_migrations_and_orphaned_staging_components(self, db: sqlalchemy.orm.Session):
+    def _cleanup_partial_migrations_and_orphaned_staging_components(
+        self, db: sqlalchemy.orm.Session
+    ):
+        """Cleanup components in staging that are orphaned, and log
+        partial migrations."""
         # Get all unique catalogues from staging
         upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
+        logger.info("Found %d unique catalogues in staging", len(upload_ids))
         for upload_id_row in upload_ids:
             upload_id = upload_id_row[0]
-            logger.debug("Found upload ID: '%s'", upload_id)
+            logger.info("Checking upload ID: '%s'", upload_id)
             catalogues = (
                 db.query(GlobalSkyModelMetadata)
                 .filter(GlobalSkyModelMetadata.upload_id == upload_id)
@@ -346,20 +341,30 @@ class UploadManager:
             )
             if len(catalogues) == 0:
                 # -> if it doesn't exist in catalogue, delete it
-                logger.info("Upload ID has no catalogue: '%s'", upload_id)
+                logger.info(" -> Has no catalogue (removing)")
                 self.cleanup(upload_id)
                 db.query(SkyComponentStaging).filter(
                     SkyComponentStaging.upload_id == upload_id
                 ).delete()
             else:
+                logger.info(" -> Has an existing catalogue")
                 for catalogue in catalogues:
+                    logger.info(
+                        " -> Catalogue: '%s' (uploaded @ '%s') (Staging:%s)",
+                        catalogue.catalogue_name,
+                        catalogue.uploaded_at,
+                        "yes" if catalogue.staging else "no",
+                    )
                     component_count = (
                         db.query(SkyComponent).filter(SkyComponent.gsm_id == catalogue.id).count()
                     )
                     if component_count > 0:
                         if catalogue.staging:
-                            logger.warning(
-                                "Partial migration of incomplete upload: '%s'", upload_id
-                            )
+                            logger.warning(" -> Partial migration of incomplete upload")
                         elif not catalogue.staging:
-                            logger.warning("Partial migration has left over data: '%s'", upload_id)
+                            logger.warning(" -> Partial migration has left over data")
+                    else:
+                        logger.info(
+                            " -> there are no partially transferred components "
+                            "(can be ignored for now)"
+                        )
