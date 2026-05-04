@@ -239,9 +239,6 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
 
         # Mark as completed
         upload_manager.mark_completed(upload_id)
-        catalogue = db.get(GlobalSkyModelMetadata, catalogue_metadata.id)
-        catalogue.staging = False
-        db.commit()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
     except Exception as e:
@@ -353,6 +350,7 @@ async def upload_sky_survey_batch(
         author=metadata.get("author"),
         reference=metadata.get("reference"),
         notes=metadata.get("notes"),
+        staging=True,
     )
 
     # Create upload tracking
@@ -743,13 +741,13 @@ def get_catalogue_metadata_by_id(
 
 
 @app.get("/current-uploads")
-def get_incomplete_uploads(db: Session = Depends(get_db)):
+def get_incomplete_uploads(db: Session = Depends(get_db)) -> dict:
     """Get any in-complete uploads"""
 
     # pylint: disable=duplicate-code
 
     data = {
-        "known_uploads": upload_manager.get_all_statuses(),
+        "known_uploads": [],
         "old_catalogues": [],
         "cataloges_that_are_staged": [],
         "catalogues_in_staging": [],
@@ -766,6 +764,9 @@ def get_incomplete_uploads(db: Session = Depends(get_db)):
         .filter(GlobalSkyModelMetadata.staging.is_(True))
         .all()
     )
+
+    known_uploads = upload_manager.get_all_statuses()
+    data["known_uploads"] = known_uploads
     # -> remove catalogue and components
     for catalogue in catalogues:
         data["old_catalogues"].append(
@@ -776,6 +777,7 @@ def get_incomplete_uploads(db: Session = Depends(get_db)):
                 "uploaded_at": catalogue.uploaded_at,
             }
         )
+
     catalogues = (
         db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.staging.is_(True)).all()
     )
@@ -789,6 +791,8 @@ def get_incomplete_uploads(db: Session = Depends(get_db)):
             "uploaded_at": catalogue.uploaded_at,
         }
         data["cataloges_that_are_staged"].append(_catalogue_info[catalogue.upload_id])
+        if not any(catalogue.upload_id == upload["upload_id"] for upload in known_uploads):
+            data["catalogues_unavailable"].append(_catalogue_info[catalogue.upload_id])
 
     def _default_catalogue(upload_id):
         return {

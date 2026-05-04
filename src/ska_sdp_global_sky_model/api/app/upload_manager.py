@@ -57,7 +57,7 @@ class UploadStatus:
             "remaining_csv_files": self.total_csv_files - self.uploaded_csv_files,
             "errors": self.errors,
             "has_metadata": self.metadata is not None,
-            "metadata": self.metadata,
+            "metadata": self.metadata.columns_to_dict() if self.metadata is not None else {},
         }
 
 
@@ -287,6 +287,7 @@ class UploadManager:
         """Do a cleanup of old data in the DB, and cleanup manager"""
 
         self._cleanup_old_uploads(db)
+        self._cleanup_inaccessible_catalogues(db)
         self._cleanup_partial_migrations(db)
         db.commit()
 
@@ -314,6 +315,23 @@ class UploadManager:
                 SkyComponentStaging.gsm_id == catalogue.id
             ).delete()
             db.delete(catalogue)
+
+    def _cleanup_inaccessible_catalogues(self, db: sqlalchemy.orm.Session):
+        catalogues = (
+            db.query(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.staging.is_(True)).all()
+        )
+        for catalogue in catalogues:
+            if catalogue.upload_id not in self._uploads:
+                logger.info(
+                    "Found inaccessible catalogue: '%s/%s' (uploaded @ '%s')",
+                    catalogue.upload_id,
+                    catalogue.catalogue_name,
+                    catalogue.uploaded_at,
+                )
+                db.query(SkyComponentStaging).filter(
+                    SkyComponentStaging.gsm_id == catalogue.id
+                ).delete()
+                db.delete(catalogue)
 
     def _cleanup_partial_migrations(self, db: sqlalchemy.orm.Session):
         # Get all unique catalogues from staging

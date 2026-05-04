@@ -155,6 +155,14 @@ class TestUploadManager:
         test_db.add(catalogue_complete)
         test_db.commit()
 
+        # pylint: disable-next=protected-access
+        manager._uploads[catalogue_fine.upload_id] = UploadStatus(
+            upload_id=catalogue_fine.upload_id,
+            total_csv_files=1,
+            state=UploadState.UPLOADING,
+            metadata=catalogue_fine,
+        )
+
         manager.run_db_cleanup(test_db)
 
         catalogues = test_db.query(GlobalSkyModelMetadata).all()
