@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -81,6 +81,11 @@ app.add_middleware(
 
 # Initialize upload manager
 upload_manager = UploadManager()
+
+
+@app.get("/")
+def home_docs():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/ping", summary="Ping the API")
