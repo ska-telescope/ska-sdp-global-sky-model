@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 import pytest
 from fastapi import HTTPException
 
-from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
+from ska_sdp_global_sky_model.api.app.ingest import compute_hpx_healpy
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.upload_manager import (
     UploadManager,
     UploadState,
@@ -171,13 +172,24 @@ class TestUploadManager:
 
         assert {cat.upload_id for cat in catalogues} == expected
 
-    def test_cleanup_component_without_catalogues(self, manager, test_db):
+    @pytest.mark.parametrize(
+        "dry_run",
+        [True, False],
+    )
+    def test_cleanup_component_without_catalogues(self, manager, test_db, dry_run):
         """Test removal of staging components that have no link to a catalogue"""
 
-    def test_cleanup_non_staging_partial_migration(self, manager, test_db):
-        """Test log of catalogues that are marked as complete, but with staging
-        and non staging components"""
+        component = SkyComponentStaging(
+            component_id="C1",
+            healpix_index=compute_hpx_healpy(1, 1),
+            ra_deg=1,
+            dec_deg=1,
+            upload_id="1234-abcd",
+        )
+        test_db.add(component)
+        test_db.commit()
 
-    def test_cleanup_staging_partial_migration(self, manager, test_db):
-        """Test log of catalogues that are not marked as complete, but with both
-        staging and non staging components"""
+        assert test_db.query(SkyComponentStaging).count() == 1
+        manager.run_db_cleanup(test_db, dry_run=dry_run)
+
+        assert test_db.query(SkyComponentStaging).count() == (1 if dry_run else 0)
