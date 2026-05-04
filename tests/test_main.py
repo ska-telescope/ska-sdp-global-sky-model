@@ -93,6 +93,13 @@ def test_read_main(myclient):
     assert response.json() == {"ping": "live"}
 
 
+def test_redirect_from_home(myclient):
+    """Unit test for the root path "/" """
+    response = myclient.get("/")
+    assert str(response.url).endswith("/docs")
+    assert response.status_code == 200
+
+
 def test_components(myclient, fake_gsm_metadata):
     """Unit test for the /components endpoint"""
 
