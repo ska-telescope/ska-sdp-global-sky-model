@@ -13,7 +13,7 @@ from ska_sdp_global_sky_model.api.app.ingest import compute_hpx_healpy
 from ska_sdp_global_sky_model.api.app.main import app
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.configuration.config import Base
-from tests.utils import clean_all_tables, engine, override_get_db
+from tests.utils import TESTING_SESSION_LOCAL, clean_all_tables, engine, override_get_db
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +38,11 @@ def fixture_client():
 
 @pytest.fixture()
 def test_db():
-    """
-    Database for test purposes.
-    """
+    """Create test database"""
     Base.metadata.create_all(bind=engine)
-    yield
+    db = TESTING_SESSION_LOCAL()
+    yield db
+    db.close()
     Base.metadata.drop_all(bind=engine)
 
 

@@ -288,6 +288,7 @@ class UploadManager:
 
         self._cleanup_old_uploads(db)
         self._cleanup_partial_migrations(db)
+        db.commit()
 
     def _cleanup_old_uploads(self, db: sqlalchemy.orm.Session):
         # Get all catalogues where the upload time is old and staging is true
@@ -312,7 +313,7 @@ class UploadManager:
             db.query(SkyComponentStaging).filter(
                 SkyComponentStaging.gsm_id == catalogue.id
             ).delete()
-            catalogue.delete()
+            db.delete(catalogue)
 
     def _cleanup_partial_migrations(self, db: sqlalchemy.orm.Session):
         # Get all unique catalogues from staging

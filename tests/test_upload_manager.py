@@ -18,8 +18,6 @@ from ska_sdp_global_sky_model.api.app.upload_manager import (
 )
 from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
 
-from .test_ingest import test_db
-
 
 class TestUploadStatus:  # pylint: disable=too-few-public-methods
     """Tests for UploadStatus dataclass."""
@@ -159,11 +157,11 @@ class TestUploadManager:
 
         manager.run_db_cleanup(test_db)
 
-        catalogues = db.query(GlobalSkyModelMetadata).all()
+        catalogues = test_db.query(GlobalSkyModelMetadata).all()
 
         assert len(catalogues) == 2
 
-        assert set(catalogue_fine.upload_id, catalogue_complete.upload_id) == {
+        assert {catalogue_fine.upload_id, catalogue_complete.upload_id} == {
             cat.upload_id for cat in catalogues
         }
 

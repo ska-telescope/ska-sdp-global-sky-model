@@ -8,10 +8,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import JSON, create_engine, event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from ska_sdp_global_sky_model.api.app.ingest import (
     ComponentFile,
@@ -29,37 +25,6 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.configuration.config import Base
-
-# Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@event.listens_for(Base.metadata, "before_create")
-def replace_schema_sqlite(target, connection, **kw):  # pylint: disable=unused-argument
-    """Remove schema for SQLite and replace JSONB with JSON."""
-    if connection.dialect.name == "sqlite":
-        for table in target.tables.values():
-            table.schema = None
-            for column in table.columns:
-                if isinstance(column.type, JSONB):
-                    column.type = JSON()
-
-
-@pytest.fixture()
-def test_db():
-    """Create test database"""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    yield db
-    db.close()
-    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture()
