@@ -6,7 +6,6 @@ from importlib.metadata import version
 import ska_ser_logging
 
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.cli.common import SkaSdpFormatter
 from ska_sdp_global_sky_model.configuration.config import (
     get_db,
 )
@@ -19,7 +18,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=f"Version: {version('ska_sdp_global_sky_model')}",
-        formatter_class=SkaSdpFormatter,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "--max-age", help="Ovverride the default maximum age of an upload", default=None, type=int

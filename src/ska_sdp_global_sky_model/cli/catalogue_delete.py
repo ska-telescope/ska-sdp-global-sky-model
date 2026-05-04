@@ -12,7 +12,6 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.cli.common import SkaSdpFormatter
 from ska_sdp_global_sky_model.configuration.config import (
     get_db,
 )
@@ -29,7 +28,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=f"Version: {version('ska_sdp_global_sky_model')}",
-        formatter_class=SkaSdpFormatter,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--delete", help="Do the actual delete", action="store_true")
     parser.add_argument("catalogue_id", help="The numerical ID of a catalogue", type=int)
