@@ -330,7 +330,7 @@ class UploadManager:
         partial migrations."""
         # Get all unique catalogues from staging
         upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
-        logger.info("Found %d unique catalogues in staging", len(upload_ids))
+        logger.info("Found %d unique catalogue(s) in staging", len(upload_ids))
         for upload_id_row in upload_ids:
             upload_id = upload_id_row[0]
             logger.info("Checking upload ID: '%s'", upload_id)

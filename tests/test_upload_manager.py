@@ -128,7 +128,11 @@ class TestUploadManager:
         assert files[0] == ("file1.csv", "data1")
         assert files[1] == ("file2.csv", "data2")
 
-    def test_cleanup_old_catalogues(self, manager, test_db):
+    @pytest.mark.parametrize(
+        "dry_run",
+        [True, False],
+    )
+    def test_cleanup_old_catalogues(self, manager, test_db, dry_run):
         """Test removal of catalogues that were created a long time ago"""
 
         catalogue_old = GlobalSkyModelMetadata(
@@ -155,23 +159,17 @@ class TestUploadManager:
         test_db.add(catalogue_complete)
         test_db.commit()
 
-        # pylint: disable-next=protected-access
-        manager._uploads[catalogue_fine.upload_id] = UploadStatus(
-            upload_id=catalogue_fine.upload_id,
-            total_csv_files=1,
-            state=UploadState.UPLOADING,
-            metadata=catalogue_fine,
-        )
-
-        manager.run_db_cleanup(test_db)
+        manager.run_db_cleanup(test_db, dry_run=dry_run)
 
         catalogues = test_db.query(GlobalSkyModelMetadata).all()
 
-        assert len(catalogues) == 2
+        expected = {catalogue_fine.upload_id, catalogue_complete.upload_id}
+        if dry_run:
+            expected.add(catalogue_old.upload_id)
 
-        assert {catalogue_fine.upload_id, catalogue_complete.upload_id} == {
-            cat.upload_id for cat in catalogues
-        }
+        assert len(catalogues) == len(expected)
+
+        assert {cat.upload_id for cat in catalogues} == expected
 
     def test_cleanup_component_without_catalogues(self, manager, test_db):
         """Test removal of staging components that have no link to a catalogue"""
