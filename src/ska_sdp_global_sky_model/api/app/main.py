@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -87,14 +87,29 @@ app.add_middleware(
 upload_manager = UploadManager()
 
 
-@app.get("/ping", summary="Ping the API")
+@app.get("/")
+def home_docs():
+    """Redirect from / to /docs."""
+    return RedirectResponse(url="/docs")
+
+
+@app.get(
+    "/ping",
+    summary="Ping the API",
+    responses={200: {"content": {"application/json": {"example": {"ping": "live"}}}}},
+)
 def ping():
     """Returns {"ping": "live"} when called"""
     logger.debug("Ping: alive")
     return {"ping": "live"}
 
 
-@app.get("/upload", summary="Browser upload interface")
+@app.get(
+    "/upload",
+    response_class=HTMLResponse,
+    summary="Browser upload interface",
+    responses={200: {"content": {"text/html": {"example": "Upload Form."}}}},
+)
 def upload_interface():
     """Serve the HTML upload interface"""
     upload_page = Path(__file__).parent / "static" / "upload.html"
@@ -103,7 +118,12 @@ def upload_interface():
     return {"message": "Upload interface not available. Use API endpoints directly."}
 
 
-@app.get("/components", summary="See all components")
+@app.get(
+    "/components",
+    response_class=HTMLResponse,
+    summary="See all components",
+    responses={200: {"content": {"text/html": {"example": "Id | Version |Catalogue_name |..."}}}},
+)
 def get_point_components(request: Request, db: Session = Depends(get_db)):
     """Retrieve all components from database."""
     logger.info("Retrieving all components...")
@@ -127,8 +147,14 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     response_class=HTMLResponse,
     summary="Retrieve a local sky model",
     description="Retrieve a sub-set of the global sky model in the form of a local sky model.",
+    responses={
+        200: {
+            "content": {
+                "text/html": {"example": "Id | Version | Catalogue_name |..."},
+            }
+        }
+    },
 )
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def get_local_sky_model_endpoint(
     request: Request,
     ra_deg: float,
@@ -258,6 +284,25 @@ def _run_ingestion_task(
     summary="Upload sky survey CSV files with catalogue metadata",
     description="Upload catalogue metadata file and CSV files for staging. "
     "Ingestion runs asynchronously - use the status endpoint to monitor progress.",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "upload_id": "catalogue_metadata.upload_id",
+                        "status": "uploading",
+                        "catalogue_name": "catalogue_metadata.catalogue_name",
+                        "message": (
+                            "Uploaded {count} CSV file(s) with metadata. "
+                            "Data is being ingested into the staging table, prior to "
+                            "being  committed to the main table."
+                        ),
+                        "next_action": "poll_status",
+                    }
+                }
+            }
+        }
+    },
 )
 async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
@@ -388,7 +433,27 @@ async def upload_sky_survey_batch(
         ) from e
 
 
-@app.get("/upload-sky-survey-status/{upload_id}")
+@app.get(
+    "/upload-sky-survey-status/{upload_id}",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "upload_id": "upload_id",
+                        "state": "state.value",
+                        "total_csv_files": "total_csv_files",
+                        "uploaded_csv_files": "uploaded_csv_files",
+                        "remaining_csv_files": "total_csv_files - uploaded_csv_files",
+                        "errors": "errors",
+                        "has_metadata": True,
+                        "metadata": "metadata",
+                    }
+                }
+            }
+        }
+    },
+)
 def upload_sky_survey_status(upload_id: str):
     """
     Retrieve the current status of a sky survey upload.
@@ -412,7 +477,28 @@ def upload_sky_survey_status(upload_id: str):
     return status.to_dict()
 
 
-@app.get("/review-upload/{upload_id}")
+@app.get(
+    "/review-upload/{upload_id}",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "upload_id": "catalogue_metadata.upload_id",
+                        "total_records": "count",
+                        "sample_range": "sample_start-sample_end",
+                        "sample": "sample",
+                        "message": (
+                            "Review complete. Data is still in staging and not visible in the "
+                            "GSM until committed."
+                        ),
+                        "next_action": "commit",
+                    }
+                }
+            }
+        }
+    },
+)
 def review_upload(upload_id: str, db: Session = Depends(get_db)):
     """
     Review staged data before committing to main database.
@@ -477,7 +563,26 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
     return response
 
 
-@app.post("/commit-upload/{upload_id}")
+@app.post(
+    "/commit-upload/{upload_id}",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "message": (
+                            "Committed {record count} components from catalogue {catalogue_name}"
+                        ),
+                        "records_committed": "count",
+                        "version": "catalogue_version",
+                        "catalogue_name": "catalogue_name",
+                    }
+                }
+            }
+        }
+    },
+)
 def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     """
     Commit staged data to main database with catalogue-level versioning.
@@ -599,7 +704,22 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}") from e
 
 
-@app.delete("/reject-upload/{upload_id}")
+@app.delete(
+    "/reject-upload/{upload_id}",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "success",
+                        "message": "Rejected and deleted {count} staged records",
+                        "records_deleted": "count",
+                    }
+                }
+            }
+        }
+    },
+)
 def reject_upload(upload_id: str, db: Session = Depends(get_db)):
     """
     Reject and discard staged data.
@@ -657,7 +777,21 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Reject failed: {str(e)}") from e
 
 
-@app.get("/catalogue-metadata", summary="Query catalogue metadata")
+@app.get(
+    "/catalogue-metadata",
+    summary="Query catalogue metadata",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": [
+                        {"id": 1, "version": "0.1.0", "catalogue_name": "TEST_CATALOGUE_1"}
+                    ]
+                }
+            }
+        }
+    },
+)
 def query_gsm_metadata(
     request: Request,
     db: Session = Depends(get_db),
@@ -689,7 +823,19 @@ def query_gsm_metadata(
     return QueryBuilder(GlobalSkyModelMetadata, request.query_params).query(db)
 
 
-@app.get("/catalogue-metadata/{catalogue_id}", summary="Get specific catalogue metadata")
+@app.get(
+    "/catalogue-metadata/{catalogue_id}",
+    summary="Get specific catalogue metadata",
+    responses={
+        200: {
+            "content": {
+                "application/json": {
+                    "example": {"id": 1, "version": "0.1.0", "catalogue_name": "TEST_CATALOGUE_1"}
+                }
+            }
+        }
+    },
+)
 def get_catalogue_metadata_by_id(
     catalogue_id: int,
     db: Session = Depends(get_db),
