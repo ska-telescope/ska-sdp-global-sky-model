@@ -1,7 +1,7 @@
-# pylint: disable=stop-iteration-return, no-member, too-many-positional-arguments
-# pylint: disable=too-many-arguments, too-many-locals, too-many-return-statements
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+
 """
-Gleam Catalogue ingest
+Catalogue ingest
 """
 
 import csv
@@ -11,8 +11,6 @@ import logging
 from itertools import zip_longest
 from typing import get_args, get_origin
 
-import healpy as hp
-import numpy as np
 from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
@@ -23,7 +21,6 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.configuration.config import NEST, NSIDE
 from ska_sdp_global_sky_model.utilities.helper_functions import calculate_percentage
 
 logger = logging.getLogger(__name__)
@@ -51,6 +48,7 @@ class ComponentFile:
         """Iterate through the components from in-memory content."""
         logger.debug("Iterating over in-memory CSV content")
         csv_file = csv.reader(io.StringIO(self.content), delimiter=",")
+        # pylint: disable-next=stop-iteration-return
         heading = next(csv_file)
         for row in csv_file:
             yield dict(zip_longest(heading, row, fillvalue=None))
@@ -101,34 +99,6 @@ def to_float(val):
         return None
 
 
-def compute_hpx_healpy(ra_deg, dec_deg, nside=NSIDE, nest=NEST):
-    """Compute HEALPix index for given sky coordinates.
-
-    Args:
-        ra_deg: Right ascension in degrees.
-        dec_deg: Declination in degrees.
-        nside: HEALPix NSIDE parameter (default from config).
-        nest: HEALPix ordering scheme (default from config).
-
-    Returns:
-        HEALPix pixel index as integer, or None if coordinates are invalid.
-    """
-    ra_deg = to_float(ra_deg)
-    dec_deg = to_float(dec_deg)
-
-    # Return None if coordinates are invalid (will be caught by validation)
-    if ra_deg is None or dec_deg is None:
-        return None
-
-    try:
-        theta = np.radians(90.0 - dec_deg)
-        phi = np.radians(ra_deg)
-        return int(hp.ang2pix(nside, theta, phi, nest=nest))
-    except (ValueError, RuntimeError):
-        # Invalid coordinates - will be caught by validation
-        return None
-
-
 def _is_optional_field(field_type: type) -> bool:
     """Check if a field type is Optional (Union[T, None])."""
     origin = get_origin(field_type)
@@ -148,6 +118,7 @@ def _get_dataclass_fields() -> dict[str, type]:
     return dict(SkyComponentDataclass.__annotations__.items())
 
 
+# pylint: disable-next=too-many-return-statements
 def _process_special_field(field_name: str, value, component_mapping: dict) -> bool:
     """
     Process special fields that need custom handling.
@@ -210,7 +181,6 @@ def build_component_mapping(component_dict: dict) -> dict:
     Automatically maps all fields from the SkyComponent dataclass, handling:
     - Required vs optional fields based on type annotations
     - Special conversions (arrays, booleans)
-    - Database-specific fields (healpix_index)
 
     Args:
         component_dict: Dictionary from CSV row with column names as keys
@@ -220,11 +190,6 @@ def build_component_mapping(component_dict: dict) -> dict:
     """
     component_mapping = {}
     dataclass_fields = _get_dataclass_fields()
-
-    # Database-specific field (not in dataclass)
-    component_mapping["healpix_index"] = compute_hpx_healpy(
-        component_dict.get("ra_deg"), component_dict.get("dec_deg")
-    )
 
     # Dynamically map all dataclass fields
     for field_name, field_type in dataclass_fields.items():
@@ -462,6 +427,7 @@ def _process_single_component(
     return component_mapping, None
 
 
+# pylint: disable-next=too-many-locals
 def process_component_data_batch(
     db: Session,
     catalogue_data,

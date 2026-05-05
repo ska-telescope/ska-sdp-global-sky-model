@@ -1,6 +1,8 @@
-"""Config DB listener.
+"""
+Config DB listener and LSM generator.
 
-This module watches for flow entries that request for a Local Sky Model.
+This module watches for flow entries that request for a Local Sky Model (LSM)
+and writes the LSM data files to disk.
 
 Requirements:
 
@@ -19,12 +21,14 @@ The states are updated as follows:
 """
 
 import logging
+import os
 import threading
 import time
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
-import numpy as np
+import numpy
 import ska_sdp_config
 from fastapi import Depends
 from packaging.version import Version
@@ -36,9 +40,11 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
 from ska_sdp_datamodels.global_sky_model.local_sky_model import LocalSkyModel
+from ska_sdp_dataproduct_metadata import MetaData
+from sqlalchemy import Boolean
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.functions import GenericFunction
 
-from ska_sdp_global_sky_model.api.app.crud import q3c_radial_query
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponent
 from ska_sdp_global_sky_model.configuration.config import (
     REQUEST_WATCHER_TIMEOUT,
@@ -47,13 +53,20 @@ from ska_sdp_global_sky_model.configuration.config import (
     resource_toggle,
 )
 from ska_sdp_global_sky_model.utilities.helper_functions import make_serisalisable
-from ska_sdp_global_sky_model.utilities.local_sky_model import save_lsm_with_metadata
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 
 logger = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments, too-many-instance-attributes
+# pylint: disable-next=too-few-public-methods,invalid-name
+class q3c_radial_query(GenericFunction):
+    """SQLAlchemy function for q3c_radial_query(hpx, center, radius) -> BOOLEAN"""
+
+    type = Boolean()
+    inherit_cache = True
+    name = "q3c_radial_query"
+
+
 class QueryParameters:
     """This class manages the query parameters and
     helper methods which are used to query the database."""
@@ -85,15 +98,17 @@ class QueryParameters:
         self.sub_path = query_parameters.pop("sub_path", None)
 
         self.component_queries = {}
-
         # make default sorting be descending on upload time
         self.metadata_queries = {"sort": "-uploaded_at"}
 
+        self._update_component_and_metadata_queries(query_parameters)
+
+    def _update_component_and_metadata_queries(self, query_params):
         # all component fields, except for internal columns
         component_columns = [
             k
             for k in SkyComponent.__table__.columns.keys()  # pylint: disable=no-member
-            if k not in ["id", "gsm_id", "healpix_index"]
+            if k not in ["id", "gsm_id"]
         ]
 
         # all metadata fields, except for internal columns
@@ -102,7 +117,7 @@ class QueryParameters:
             for k in GlobalSkyModelMetadata.__table__.columns.keys()  # pylint: disable=no-member
             if k not in ["id", "staging"]
         ]
-        for key, value in query_parameters.items():
+        for key, value in query_params.items():
             if "__" in key:
                 field = key.split("__")[0]
             else:
@@ -182,8 +197,16 @@ class QueryParameters:
             ]
         )
 
+    def __str__(self):
+        """Return query parameters as a string"""
+        return (
+            f"ra: {self.ra_deg}, dec: {self.dec_deg}, fov: {self.fov_deg}, "
+            f"component_queries: {self.component_queries}, "
+            f"metadata_queries: {self.metadata_queries}"
+        )
 
-def start_thread():  # pragma: no cover
+
+def start_lsm_response_thread():  # pragma: no cover
     """Start the background thread that will search for flow entries"""
     thread = threading.Thread(target=_db_watcher, kwargs={}, daemon=True, name="Thread-Watcher")
     thread.start()
@@ -310,7 +333,7 @@ def _process_flow(
         logger.error(
             "Failed to process flow %s with parameters %s: %s",
             flow.key,
-            query_parameters,
+            str(query_parameters),
             err,
         )
         logger.exception(err)
@@ -373,7 +396,6 @@ def _query_gsm_for_lsm(
             # Remove database-specific fields that are not in SkyComponent dataclass
             del sky_component_dict["id"]
             del sky_component_dict["gsm_id"]
-            del sky_component_dict["healpix_index"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
         return GlobalSkyModel(
@@ -420,7 +442,7 @@ def _write_data(
         data: GlobalSkyModel object containing the components to write
     """
     logger.info("Writing LSM data to: %s", output)
-    logger.info("Query parameters: %s", query_parameters)
+    logger.info("Query parameters: %s", str(query_parameters))
     logger.info("Number of components: %d", len(data.components))
 
     # Create output directory if it doesn't exist
@@ -473,7 +495,7 @@ def _write_data(
             # Handle None values in arrays (e.g., spec_idx with nulls)
             if isinstance(value, (list, tuple)):
                 # Replace None with numpy.nan in arrays
-                value = [np.nan if v is None else v for v in value]
+                value = [numpy.nan if v is None else v for v in value]
             row_data[field] = value
         local_model.set_row(row_idx, row_data)
 
@@ -485,7 +507,7 @@ def _write_data(
         "Saving LSM with metadata to %s and %s/ska-data-product.yaml", lsm_file, metadata_dir
     )
 
-    save_lsm_with_metadata(
+    _save_lsm_with_metadata(
         local_model,
         {"execution_block_id": eb_id},
         str(lsm_file),
@@ -506,3 +528,89 @@ def _write_data(
             "Metadata file was not created at %s (this may be expected in tests)",
             metadata_yaml,
         )
+
+
+def _save_lsm_with_metadata(
+    lsm: LocalSkyModel, metadata_dict: dict[str, Any], lsm_path: str, metadata_dir: str
+) -> None:
+    """
+    Save a sky model to a CSV text file, and update SKA data product metadata.
+
+    Extra metadata is supplied in the metadata_dict parameter, which is
+    a dictionary containing specific keys. The keys currently required are:
+
+    - execution_block_id
+
+    If the metadata file already exists, it will be updated with details
+    of the new sky model file; otherwise, it will be created.
+
+    An error will be raised during validation if both the YAML file and
+    the LSM file already exist.
+    To avoid the error, either delete the existing YAML file first,
+    or ensure the LSM path given is unique.
+
+    :param lsm: Local sky model to write.
+    :type lsm: LocalSkyModel
+    :param metadata_dict: Dictionary of metadata.
+    :type metadata_dict: dict[str, Any]
+    :param path: Path of CSV text file to write.
+    :type path: str
+    :param metadata_dir: Directory in which to write YAML metadata file.
+    :type metadata_dir: str
+    """
+    # Save the CSV file.
+    lsm.save(lsm_path)
+
+    # Write or update the YAML metadata file.
+    yaml_path = os.path.join(metadata_dir, "ska-data-product.yaml")
+    if os.path.exists(yaml_path):
+        # Open the existing file for update.
+        metadata = MetaData(path=yaml_path)
+        metadata.output_path = yaml_path
+    else:
+        # Create a new metadata file.
+        metadata = MetaData()
+        metadata.output_path = yaml_path
+
+        # Write any special values that have been set
+        # (e.g. the execution block ID).
+        if "execution_block_id" in metadata_dict:
+            metadata.set_execution_block_id(metadata_dict["execution_block_id"])
+
+    # Get a handle to the top-level metadata dictionary.
+    data = metadata.get_data()
+
+    # Create the header dictionary.
+    header = {
+        "NUMBER_OF_COMPONENTS": lsm.num_components,
+    }
+    header.update(lsm.header)
+
+    # Update the metadata contents.
+    root = "local_sky_model"
+    if root not in data:
+        data[root] = []  # Ensure we have a list under the root item.
+
+    # Create entry for new file in the list.
+    data[root].append(
+        {
+            "header": header,
+            "file_path": lsm_path,
+            "columns": lsm.column_names,
+        }
+    )
+
+    # Save the LSM file name in the metadata.
+    # An error will be raised during validation if the LSM file already
+    # exists. Ensure the LSM path given is unique.
+    metadata.new_file(
+        dp_path=lsm_path,
+        description="Local sky model CSV text file",
+    )
+
+    # Write to disk (automatically validates the metadata).
+    try:
+        metadata.write()
+    except MetaData.ValidationError as err:
+        logger.error("Validation failed with error(s): %s", err.errors)
+        raise err

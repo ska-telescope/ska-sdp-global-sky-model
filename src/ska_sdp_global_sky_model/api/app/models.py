@@ -3,7 +3,7 @@ SQLAlchemy ORM Models
 
 This module defines database models:
 - SkyComponent model: Dynamically generates columns from ska_sdp_datamodels.SkyComponent
-  dataclass with hardcoded database-specific fields (healpix_index) and methods
+  dataclass with hardcoded database-specific fields (id, gsm_id) and methods
 - GlobalSkyModelMetadata: Dynamically generates columns from
   ska_sdp_datamodels.GlobalSkyModelMetadata dataclass with hardcoded methods
 
@@ -25,7 +25,6 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
     SkyComponent as SkyComponentDataclass,
 )
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
     Float,
@@ -158,9 +157,6 @@ class SkyComponent(Base):
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     gsm_id = mapped_column(ForeignKey("global_sky_model_metadata.id"))
 
-    # Hardcoded database-specific field for spatial indexing
-    healpix_index = Column(BigInteger, index=True, nullable=False)
-
     # Add component_id explicitly so we can reference it in __table_args__
     component_id = Column(String, nullable=False, index=True)
 
@@ -187,9 +183,6 @@ class SkyComponentStaging(Base):
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     gsm_id = mapped_column(ForeignKey("global_sky_model_metadata.id"))
-
-    # Hardcoded database-specific field for spatial indexing
-    healpix_index = Column(BigInteger, index=True, nullable=False)
 
     # Track which upload batch this belongs to
     upload_id = Column(String, index=True, nullable=False)
