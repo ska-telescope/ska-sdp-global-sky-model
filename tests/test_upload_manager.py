@@ -17,6 +17,17 @@ from ska_sdp_global_sky_model.api.app.upload_manager import (
     UploadStatus,
 )
 from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
+from tests.utils import clean_all_tables
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clean_up_database():
+    """
+    Clean tables after each test run.
+    Specific to this module. Do not move.
+    """
+    yield
+    clean_all_tables()
 
 
 class TestUploadStatus:  # pylint: disable=too-few-public-methods

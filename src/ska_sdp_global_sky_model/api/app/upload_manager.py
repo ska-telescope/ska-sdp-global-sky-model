@@ -57,7 +57,7 @@ class UploadStatus:
             "remaining_csv_files": self.total_csv_files - self.uploaded_csv_files,
             "errors": self.errors,
             "has_metadata": self.metadata is not None,
-            "metadata": self.metadata.columns_to_dict() if self.metadata is not None else {},
+            "metadata": self.metadata,
         }
 
 
@@ -121,10 +121,6 @@ class UploadManager:
             raise HTTPException(status_code=404, detail="Upload ID not found")
 
         return self._uploads[upload_id]
-
-    def get_all_statuses(self):
-        """Get all upload statuses"""
-        return [upload.to_dict() for upload_id, upload in self._uploads.items()]
 
     async def save_csv_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
         """
