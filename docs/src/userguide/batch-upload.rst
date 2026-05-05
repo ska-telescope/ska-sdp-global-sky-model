@@ -82,7 +82,8 @@ All files in the batch are combined into a single sky model.
 If any file fails validation or ingestion, the entire batch is rolled back.
 
 .. note::
-    This has been tested inside the cluster, with file sizes up to 200MB, with no known issue.
+    This has been tested inside the cluster, with file sizes up to 200MB (~1,000,000 rows), with no known issue. 
+    Using port forwarding and curl, a catalogue of 2GB or 10,000,000 rows was successfully uploaded.
 
 The catalogue version is **not** supplied by the user — it is automatically assigned when the
 upload is committed (see :ref:`commit_upload_ep`).
