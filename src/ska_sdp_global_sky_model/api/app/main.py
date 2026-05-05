@@ -262,6 +262,9 @@ def _run_ingestion_task(
                 db.query(SkyComponentStaging).filter(
                     SkyComponentStaging.upload_id == upload_id
                 ).delete()
+                db.query(GlobalSkyModelMetadata).filter(
+                    GlobalSkyModelMetadata.upload_id == upload_id
+                ).delete()
                 db.commit()
                 logger.info("Cleared staged records for failed upload %s", upload_id)
             except Exception as cleanup_error:
