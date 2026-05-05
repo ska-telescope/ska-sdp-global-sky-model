@@ -15,7 +15,7 @@ from ska_sdp_global_sky_model.api.app.main import app
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.request_responder import QueryParameters
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, Base, get_db
-from tests.utils import TESTING_SESSION_LOCAL, engine, override_get_db
+from tests.utils import engine, override_get_db
 
 logger = logging.getLogger(__name__)
 
