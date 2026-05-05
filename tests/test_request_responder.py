@@ -3,7 +3,7 @@
 import copy
 import os
 import tempfile
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 import yaml
@@ -264,7 +264,7 @@ def test_watcher_process_missing_parameter(
                 "status": "FAILED",
                 "last_updated": 1234.5678,
                 # Just verify error_state exists as a list
-                "error_state": [mock.ANY],
+                "error_state": [ANY],
             }
         ),
     ]
