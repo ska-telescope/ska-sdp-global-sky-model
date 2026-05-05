@@ -21,7 +21,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--max-age", help="Ovverride the default maximum age of an upload", default=None, type=int
+        "--max-age", help="Override the default maximum age of an upload", default=None, type=int
     )
     parser.add_argument("--dry-run", help="Perform dry run only", action="store_true")
     args = parser.parse_args()

@@ -3,7 +3,6 @@
 Configure variables to be used.
 """
 
-import logging
 from pathlib import Path
 
 import ska_ser_logging
@@ -25,8 +24,6 @@ template_path = Path(Path(__file__).parent.parent, "templates")
 templates = Jinja2Templates(directory=template_path)
 
 ska_ser_logging.configure_logging(level=config("SDP_LOG_LEVEL", default="WARNING").upper())
-logger = logging.getLogger(__name__)
-logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
 DB_NAME: str = config("POSTGRES_DB_NAME", default="postgres")

@@ -350,7 +350,8 @@ class UploadManager:
                 logger.info(" -> Has an existing catalogue")
                 for catalogue in catalogues:
                     logger.info(
-                        " -> Catalogue: '%s' (uploaded @ '%s') (Staging:%s)",
+                        " -> Catalogue: %d:'%s' (uploaded @ '%s') (Staging:%s)",
+                        catalogue.id,
                         catalogue.catalogue_name,
                         catalogue.uploaded_at,
                         "yes" if catalogue.staging else "no",
