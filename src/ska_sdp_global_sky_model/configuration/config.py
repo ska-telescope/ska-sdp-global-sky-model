@@ -3,14 +3,13 @@
 Configure variables to be used.
 """
 
-import logging
 from pathlib import Path
 
 import ska_ser_logging
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import as_declarative, sessionmaker
+from sqlalchemy.orm import Session, as_declarative, sessionmaker
 from starlette.config import Config
 
 from ska_sdp_global_sky_model.utilities.feature_toggle import FeatureToggle
@@ -25,8 +24,6 @@ template_path = Path(Path(__file__).parent.parent, "templates")
 templates = Jinja2Templates(directory=template_path)
 
 ska_ser_logging.configure_logging(level=config("SDP_LOG_LEVEL", default="WARNING").upper())
-logger = logging.getLogger(__name__)
-logger.info("Logging started for ska-sdp-global-sky-model-api")
 
 # DB (Postgres)
 DB_NAME: str = config("POSTGRES_DB_NAME", default="postgres")
@@ -38,7 +35,7 @@ DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{D
 
 REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
 SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
-
+CATALOGUE_CLEANUP_AGE: int = int(config("CATALOGUE_CLEANUP_AGE_HOURS", default="168"))  # 7 days
 
 resource_toggle = FeatureToggle("RESOURCE_MANAGEMENT_TOGGLE", default=False)
 
@@ -59,7 +56,7 @@ class Base:
         return cls.__name__.lower()
 
 
-def get_db():
+def get_db() -> Session:
     """
     Provides a database session.
 

@@ -5,15 +5,29 @@ This module tests the UploadManager class including CSV validation,
 file handling, and upload state tracking.
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi import HTTPException
 
-from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
+from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.upload_manager import (
     UploadManager,
     UploadState,
     UploadStatus,
 )
+from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
+from tests.utils import clean_all_tables
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clean_up_database():
+    """
+    Clean tables after each test run.
+    Specific to this module. Do not move.
+    """
+    yield
+    clean_all_tables()
 
 
 class TestUploadStatus:  # pylint: disable=too-few-public-methods
@@ -124,3 +138,67 @@ class TestUploadManager:
         assert len(files) == 2
         assert files[0] == ("file1.csv", "data1")
         assert files[1] == ("file2.csv", "data2")
+
+    @pytest.mark.parametrize(
+        "delete",
+        [True, False],
+    )
+    def test_cleanup_old_catalogues(self, manager, db_session, delete: bool):
+        """Test removal of catalogues that were created a long time ago"""
+
+        catalogue_old = GlobalSkyModelMetadata(
+            catalogue_name="Old Catalogue",
+            upload_id="1234-abcd-a",
+            staging=True,
+            uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE + 1)),
+        )
+        catalogue_fine = GlobalSkyModelMetadata(
+            catalogue_name="Old Catalogue",
+            upload_id="1234-abcd-b",
+            staging=True,
+            uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE - 1)),
+        )
+        catalogue_complete = GlobalSkyModelMetadata(
+            catalogue_name="Old Catalogue",
+            upload_id="1234-abcd-c",
+            staging=False,
+            uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE + 1)),
+        )
+
+        db_session.add(catalogue_old)
+        db_session.add(catalogue_fine)
+        db_session.add(catalogue_complete)
+        db_session.commit()
+
+        manager.run_db_cleanup(db_session, delete=delete)
+
+        catalogues = db_session.query(GlobalSkyModelMetadata).all()
+
+        expected = {catalogue_fine.upload_id, catalogue_complete.upload_id}
+        if not delete:
+            expected.add(catalogue_old.upload_id)
+
+        assert len(catalogues) == len(expected)
+
+        assert {cat.upload_id for cat in catalogues} == expected
+
+    @pytest.mark.parametrize(
+        "delete",
+        [True, False],
+    )
+    def test_cleanup_component_without_catalogues(self, manager, db_session, delete: bool):
+        """Test removal of staging components that have no link to a catalogue"""
+
+        component = SkyComponentStaging(
+            component_id="C1",
+            ra_deg=1,
+            dec_deg=1,
+            upload_id="1234-abcd",
+        )
+        db_session.add(component)
+        db_session.commit()
+
+        assert db_session.query(SkyComponentStaging).count() == 1
+        manager.run_db_cleanup(db_session, delete=delete)
+
+        assert db_session.query(SkyComponentStaging).count() == (0 if delete else 1)

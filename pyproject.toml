@@ -59,6 +59,7 @@ sphinx = "^8.1.3"
 sphinx-copybutton = "^0.5.2"
 ska-ser-sphinx-theme = "^0.2.1"
 sphinx-new-tab-link = "^0.6.1"
+sphinxcontrib-programoutput = "^0.18"
 
 [tool.isort]
 # auto generated files.
@@ -85,5 +86,5 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project.scripts]
-gsm-ingest = "ska_sdp_global_sky_model.cli.ingest_sm:main"
-gsm-download = "ska_sdp_global_sky_model.cli.download_sm:main"
+gsm-cleanup = "ska_sdp_global_sky_model.cli.cleanup:main"
+gsm-delete = "ska_sdp_global_sky_model.cli.catalogue_delete:main"

@@ -9,12 +9,19 @@ import csv
 import io
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
 from uuid import uuid4
 
+import sqlalchemy
 from fastapi import HTTPException, UploadFile
 
-from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
+from ska_sdp_global_sky_model.api.app.models import (
+    GlobalSkyModelMetadata,
+    SkyComponent,
+    SkyComponentStaging,
+)
+from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
 
 logger = logging.getLogger(__name__)
 
@@ -271,3 +278,97 @@ class UploadManager:
         """
         status = self.get_status(upload_id)
         return status.csv_files
+
+    def run_db_cleanup(
+        self, db: sqlalchemy.orm.Session, delete: bool = False, override_cleanup: int | None = None
+    ):
+        """Do a cleanup of old data in the DB, and attempt to cleanup this manager.
+
+        This will remove only catalogues that are staging=True, or
+        components in the SkyComponentStaging table without a catalogue.
+
+        There are also logs for partially migrated catalogues."""
+
+        self._cleanup_old_uploads(db, override_cleanup)
+        self._cleanup_partial_migrations_and_orphaned_staging_components(db)
+        if delete:
+            logger.info("Committing any changes")
+            db.commit()
+        else:
+            logger.info("Rolling back any changes")
+            db.rollback()
+
+    def _cleanup_old_uploads(
+        self, db: sqlalchemy.orm.Session, override_cleanup: int | None = None
+    ):
+        """Remove catalogues and their components if they are still in staging
+        and if the upload time is more than CATALOGUE_CLEANUP_AGE hours ago."""
+        hours = override_cleanup
+        if hours is None:
+            hours = CATALOGUE_CLEANUP_AGE
+        catalogues = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.uploaded_at < datetime.now() - timedelta(hours=hours))
+            .filter(GlobalSkyModelMetadata.staging.is_(True))
+            .all()
+        )
+        logger.info("Found %d catalogues to clean", len(catalogues))
+        for catalogue in catalogues:
+            logger.info(
+                "Remove old catalogue: '%s/%s' (uploaded @ '%s')",
+                catalogue.upload_id,
+                catalogue.catalogue_name,
+                catalogue.uploaded_at,
+            )
+            self.cleanup(catalogue.upload_id)
+            db.query(SkyComponentStaging).filter(
+                SkyComponentStaging.gsm_id == catalogue.id
+            ).delete()
+            db.delete(catalogue)
+
+    def _cleanup_partial_migrations_and_orphaned_staging_components(
+        self, db: sqlalchemy.orm.Session
+    ):
+        """Cleanup components in staging that are orphaned, and log
+        partial migrations."""
+        # Get all unique catalogues from staging
+        upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
+        logger.info("Found %d unique catalogue(s) in staging", len(upload_ids))
+        for upload_id_row in upload_ids:
+            upload_id = upload_id_row[0]
+            logger.info("Checking upload ID: '%s'", upload_id)
+            catalogues = (
+                db.query(GlobalSkyModelMetadata)
+                .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+                .all()
+            )
+            if len(catalogues) == 0:
+                # -> if it doesn't exist in catalogue, delete it
+                logger.info(" -> Has no catalogue (removing)")
+                self.cleanup(upload_id)
+                db.query(SkyComponentStaging).filter(
+                    SkyComponentStaging.upload_id == upload_id
+                ).delete()
+            else:
+                logger.info(" -> Has an existing catalogue")
+                for catalogue in catalogues:
+                    logger.info(
+                        " -> Catalogue: %d:'%s' (uploaded @ '%s') (Staging:%s)",
+                        catalogue.id,
+                        catalogue.catalogue_name,
+                        catalogue.uploaded_at,
+                        "yes" if catalogue.staging else "no",
+                    )
+                    component_count = (
+                        db.query(SkyComponent).filter(SkyComponent.gsm_id == catalogue.id).count()
+                    )
+                    if component_count > 0:
+                        if catalogue.staging:
+                            logger.warning(" -> Partial migration of incomplete upload")
+                        elif not catalogue.staging:
+                            logger.warning(" -> Partial migration has left over data")
+                    else:
+                        logger.info(
+                            " -> there are no partially transferred components "
+                            "(can be ignored for now)"
+                        )

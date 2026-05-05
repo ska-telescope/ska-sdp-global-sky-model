@@ -36,6 +36,7 @@ repository contains the code for the GSM service.
   userguide/batch-upload
   userguide/request-lsm
   userguide/catalogue-metadata
+  userguide/gsm-cleanup
 
 .. toctree::
   :maxdepth: 1
