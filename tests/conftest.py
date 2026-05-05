@@ -22,15 +22,6 @@ logger = logging.getLogger(__name__)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-@pytest.fixture()
-def test_db():
-    """Create test database"""
-    Base.metadata.create_all(bind=engine)  # pylint: disable=no-member
-    db = TESTING_SESSION_LOCAL()
-    yield db
-    db.close()
-
-
 @pytest.fixture(scope="session", autouse=True)
 def create_db():
     """Create a new database at the start of the testing session."""

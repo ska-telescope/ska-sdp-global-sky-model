@@ -132,7 +132,7 @@ class TestUploadManager:
         "dry_run",
         [True, False],
     )
-    def test_cleanup_old_catalogues(self, manager, test_db, dry_run):
+    def test_cleanup_old_catalogues(self, manager, db_session, dry_run):
         """Test removal of catalogues that were created a long time ago"""
 
         catalogue_old = GlobalSkyModelMetadata(
@@ -154,14 +154,14 @@ class TestUploadManager:
             uploaded_at=(datetime.now() - timedelta(hours=CATALOGUE_CLEANUP_AGE + 1)),
         )
 
-        test_db.add(catalogue_old)
-        test_db.add(catalogue_fine)
-        test_db.add(catalogue_complete)
-        test_db.commit()
+        db_session.add(catalogue_old)
+        db_session.add(catalogue_fine)
+        db_session.add(catalogue_complete)
+        db_session.commit()
 
-        manager.run_db_cleanup(test_db, dry_run=dry_run)
+        manager.run_db_cleanup(db_session, dry_run=dry_run)
 
-        catalogues = test_db.query(GlobalSkyModelMetadata).all()
+        catalogues = db_session.query(GlobalSkyModelMetadata).all()
 
         expected = {catalogue_fine.upload_id, catalogue_complete.upload_id}
         if dry_run:
@@ -175,7 +175,7 @@ class TestUploadManager:
         "dry_run",
         [True, False],
     )
-    def test_cleanup_component_without_catalogues(self, manager, test_db, dry_run):
+    def test_cleanup_component_without_catalogues(self, manager, db_session, dry_run):
         """Test removal of staging components that have no link to a catalogue"""
 
         component = SkyComponentStaging(
@@ -184,10 +184,10 @@ class TestUploadManager:
             dec_deg=1,
             upload_id="1234-abcd",
         )
-        test_db.add(component)
-        test_db.commit()
+        db_session.add(component)
+        db_session.commit()
 
-        assert test_db.query(SkyComponentStaging).count() == 1
-        manager.run_db_cleanup(test_db, dry_run=dry_run)
+        assert db_session.query(SkyComponentStaging).count() == 1
+        manager.run_db_cleanup(db_session, dry_run=dry_run)
 
-        assert test_db.query(SkyComponentStaging).count() == (1 if dry_run else 0)
+        assert db_session.query(SkyComponentStaging).count() == (1 if dry_run else 0)
