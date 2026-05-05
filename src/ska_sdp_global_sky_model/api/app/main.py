@@ -90,7 +90,7 @@ upload_manager = UploadManager()
 @app.get("/")
 def home_docs():
     """Redirect from / to /docs."""
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url="{API_URL}/docs")
 
 
 @app.get(
