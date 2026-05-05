@@ -170,9 +170,9 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
 
-    def test_sky_component_spec_idx_as_json(self, db_session, gsm_metadata):
-        """Test that spec_idx field properly stores JSON data.
-        TODO: how is this JSON? Is this a leftover from some previous version of specidx?
+    def test_sky_component_spec_idx(self, db_session, gsm_metadata):
+        """
+        Test that spec_idx field is properly stored.
         """
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
         db_session.add(gsm_metadata)

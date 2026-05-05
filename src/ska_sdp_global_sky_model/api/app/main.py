@@ -116,7 +116,7 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     for row in output_rows:
         del row["gsm_id"]
         del row["upload_id"]
-    logger.info("Retrieved all data for all %s components", str(len(output_rows)))
+    logger.info("Retrieved all data for all %d components", len(output_rows))
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": list(output_rows)}
     )
@@ -584,8 +584,9 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
         return {
             "status": "success",
-            "message": f"Committed {len(staged_records)} "
-            f"components from catalogue '{catalogue_name}'",
+            "message": (
+                f"Committed {len(staged_records)} components from catalogue '{catalogue_name}'"
+            ),
             "records_committed": len(staged_records),
             "version": catalogue_version,
             "catalogue_name": catalogue_name,

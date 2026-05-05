@@ -8,7 +8,7 @@ from pathlib import Path
 
 import ska_ser_logging
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import as_declarative, sessionmaker
 from starlette.config import Config
@@ -74,17 +74,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def q3c_index():
-    """Create Q3C extension + index exist
-    TODO: can this be deleted?
-     There's also a file in the db directory, can that?"""
-    with engine.begin() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS q3c;"))
-        conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
-                'ON sky_component (version, q3c_ang2ipix("ra","dec"));'
-            )
-        )
