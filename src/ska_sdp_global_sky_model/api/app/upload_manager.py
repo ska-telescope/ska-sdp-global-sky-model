@@ -308,10 +308,7 @@ class UploadManager:
             hours = CATALOGUE_CLEANUP_AGE
         catalogues = (
             db.query(GlobalSkyModelMetadata)
-            .filter(
-                GlobalSkyModelMetadata.uploaded_at
-                < datetime.now() - timedelta(hours=hours)
-            )
+            .filter(GlobalSkyModelMetadata.uploaded_at < datetime.now() - timedelta(hours=hours))
             .filter(GlobalSkyModelMetadata.staging.is_(True))
             .all()
         )
