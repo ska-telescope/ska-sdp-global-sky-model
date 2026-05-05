@@ -19,6 +19,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "sphinx_new_tab_link",
+    "sphinxcontrib.programoutput",
 ]
 
 exclude_patterns = []

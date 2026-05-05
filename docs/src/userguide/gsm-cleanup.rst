@@ -13,23 +13,8 @@ Delete a Catalogue
 This command allows you to remove a catalogue from either the published catalogues
 or staging catalogues.
 
-.. code-block:: bash
+.. command-output:: gsm-delete --help
     :caption: Help for deleting a catalogue
-
-    $ gsm-delete --help
-
-    usage: gsm-delete [-h] [--delete] catalogue_id
-
-    Delete a catalogue, this can delete a staging or released catalogue.
-
-    positional arguments:
-      catalogue_id  The numerical ID of a catalogue
-
-    options:
-      -h, --help    show this help message and exit
-      --delete      Do the actual delete (default: False)
-
-    Version: 0.3.0
 
 .. code-block:: bash
    :caption: Dry-run for a deletion
@@ -59,21 +44,8 @@ This command allows you to cleanup old catalogue data from the staging table.
 .. danger::
     Note that the default is to perform the deletion.
 
-.. code-block:: bash
+.. command-output:: gsm-cleanup --help
     :caption: Help for the catalogue and components cleanup
-
-    $ gsm-cleanup --help
-
-    usage: usage: gsm-cleanup [-h] [--max-age MAX_AGE] [--delete]
-
-    Run cleanups of the catalogues
-
-    options:
-      -h, --help         show this help message and exit
-      --max-age MAX_AGE  Override the default maximum age of an upload (default: 168)
-      --delete           Commit the deletion (default: False)
-
-    Version: 0.3.0
 
 .. code-block:: bash
     :caption: If there is nothing to delete (and ``--delete`` wasn't specified)

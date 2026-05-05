@@ -59,6 +59,7 @@ sphinx = "^8.1.3"
 sphinx-copybutton = "^0.5.2"
 ska-ser-sphinx-theme = "^0.2.1"
 sphinx-new-tab-link = "^0.6.1"
+sphinxcontrib-programoutput = "^0.18"
 
 [tool.isort]
 # auto generated files.
