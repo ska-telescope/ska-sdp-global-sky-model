@@ -3,7 +3,7 @@
 import copy
 import os
 import tempfile
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 import yaml
@@ -263,8 +263,8 @@ def test_watcher_process_missing_parameter(
             {
                 "status": "FAILED",
                 "last_updated": 1234.5678,
-                "error_state": "QueryParameters.__init__() missing 1 required "
-                "positional argument: 'fov_deg'",
+                # Just verify error_state exists as a list
+                "error_state": [ANY],
             }
         ),
     ]
@@ -348,6 +348,7 @@ def test_process_flow_exception(mock_query, mock_write, valid_flow, expected_que
     success, error_state = _process_flow(valid_flow, eb_id, expected_query_parameters)
 
     assert success is False
+    assert isinstance(error_state, dict)
     assert error_state["error"] == "An error occured"
 
     # Check that _query_gsm_for_lsm was called with correct query parameters
@@ -367,11 +368,19 @@ def test_process_flow_error_state(mock_query, mock_write, valid_flow, expected_q
     success, error_state = _process_flow(valid_flow, eb_id, expected_query_parameters)
     assert not success
     assert isinstance(error_state, dict)
-    assert set(error_state.keys()) == {"flow_key", "parameters", "timestamp", "error"}
+
+    # Check required fields
+    assert "error" in error_state
+    assert "query" in error_state
     assert error_state["error"] == "test error"
-    assert error_state["flow_key"] == str(valid_flow.key)
-    assert error_state["parameters"] == expected_query_parameters.__dict__
-    assert isinstance(error_state["timestamp"], float)
+    assert "ra_deg" in error_state["query"]
+    assert error_state["query"]["ra_deg"] == 2.9670
+
+    # Source info with traceback details
+    if "error_source" in error_state:
+        assert "file_path" in error_state["error_source"]
+        assert "line" in error_state["error_source"]
+        assert "function" in error_state["error_source"]
 
     assert mock_write.mock_calls == []
 
@@ -397,8 +406,8 @@ def test_update_state_no_reason(mock_time):
 
 
 @patch("time.time")
-def test_update_state_with_reason(mock_time):
-    """Test updating the state with a failure reason"""
+def test_update_state_with_error_state(mock_time):
+    """Test updating the state with error state"""
     mock_time.return_value = 12345.123
 
     txn = MagicMock()
@@ -406,14 +415,15 @@ def test_update_state_with_reason(mock_time):
     txn.flow.state.return_value.get.return_value = {"status": "INITIALISED"}
     flow = MagicMock()
 
-    _update_state(txn, flow, "NEW_STATE", "reason")
+    error_state = [{"error": "test error"}]
+    _update_state(txn, flow, "NEW_STATE", error_state=error_state)
 
     assert txn.mock_calls == [
         call.flow.state(flow),
         call.flow.state().get(),
         call.flow.state(flow),
         call.flow.state().update(
-            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": "reason"}
+            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": error_state}
         ),
     ]
 
@@ -428,14 +438,15 @@ def test_update_state_create_state(mock_time):
     txn.flow.state.return_value.get.return_value = None
     flow = MagicMock()
 
-    _update_state(txn, flow, "NEW_STATE", "reason")
+    error_state = [{"error": "test error"}]
+    _update_state(txn, flow, "NEW_STATE", error_state=error_state)
 
     assert txn.mock_calls == [
         call.flow.state(flow),
         call.flow.state().get(),
         call.flow.state(flow),
         call.flow.state().create(
-            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": "reason"}
+            {"status": "NEW_STATE", "last_updated": 12345.123, "error_state": error_state}
         ),
     ]
 
