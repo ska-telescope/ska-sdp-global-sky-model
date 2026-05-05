@@ -46,7 +46,8 @@ def main(arg_list: list[str] | None = None):
         logger.error("No catalogues found for ID '%s'", args.catalogue_id)
         sys.exit(1)
 
-    if len(catalogues) > 1:
+    if len(catalogues) > 1:  # pragma: no cover
+        # This should not be able to happen, so logging if it does
         logger.warning("More than 1 catalogue found")
 
     for catalogue in catalogues:
