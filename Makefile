@@ -119,17 +119,17 @@ sample:  ## Setup database using a sample dataset
 	case "${RUN_LOCATION}" in \
 		local|poetry|python) \
 			poetry run python scripts/db_init_data.py \
-				--metadata-file 'tests/data/metadata_generic_1.5.0.json' \
+				--metadata-file 'tests/data/metadata_test.json' \
 				'tests/data/test_catalogue_1.csv' \
 				'tests/data/test_catalogue_2.csv' ;; \
 		docker|compose) \
 			${DOCKER} exec fastapi python /db_init_data.py \
-				--metadata-file '/sample_data/metadata_generic_1.5.0.json' \
+				--metadata-file '/sample_data/metadata_test.json' \
 				'/sample_data/test_catalogue_1.csv' \
 				'/sample_data/test_catalogue_2.csv' ;; \
 		k8s|kubernetes|helm) \
 			kubectl --namespace "${SDP_NAMESPACE}" exec "${GSM_POD}" -- python /db_init_data.py \
-				--metadata-file '/sample_data/metadata_generic_1.5.0.json' \
+				--metadata-file '/sample_data/metadata_test.json' \
 				'/sample_data/test_catalogue_1.csv' \
 				'/sample_data/test_catalogue_2.csv' ;; \
 		*) echo "unsupported environment" ;; \

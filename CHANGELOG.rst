@@ -4,9 +4,10 @@ CHANGELOG
 Development
 -----------
 
+- [New] new commands to cleanup catalogues
+  (`MR106 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/106>`__)
 - [Update] Redirect from '/' to '/docs' Improve swagger example code.
   (`MR112 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/112>`__)
-
 - [BREAKING, Remove] Healpix related columns from schema and code
   (`MR105 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/105>`__)
 - [Remove] Unused dependencies from pyproject.toml

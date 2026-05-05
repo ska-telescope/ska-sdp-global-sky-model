@@ -1,9 +1,9 @@
-# pylint: disable=broad-exception-caught
-
 """
 A simple fastAPI to ingest data into the global sky model database and to obtain a local sky
 model from it.
 """
+
+# pylint: disable=broad-exception-caught
 
 import json
 import logging
@@ -29,7 +29,12 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     start_lsm_response_thread,
 )
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import API_URL, engine, get_db, templates
+from ska_sdp_global_sky_model.configuration.config import (
+    API_URL,
+    engine,
+    get_db,
+    templates,
+)
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
 from ska_sdp_global_sky_model.utilities.version_utils import (
     get_latest_version,
@@ -37,6 +42,9 @@ from ska_sdp_global_sky_model.utilities.version_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Initialize upload manager
+upload_manager = UploadManager()
 
 
 def wait_for_db():
@@ -82,9 +90,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize upload manager
-upload_manager = UploadManager()
 
 
 @app.get("/")
@@ -136,6 +141,7 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     for row in output_rows:
         del row["gsm_id"]
         del row["upload_id"]
+        del row["staging"]
     logger.info("Retrieved all data for all %d components", len(output_rows))
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": list(output_rows)}
@@ -243,9 +249,6 @@ def _run_ingestion_task(
 
         # Mark as completed
         upload_manager.mark_completed(upload_id)
-        catalogue = db.get(GlobalSkyModelMetadata, catalogue_metadata.id)
-        catalogue.staging = False
-        db.commit()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
     except Exception as e:
@@ -378,6 +381,7 @@ async def upload_sky_survey_batch(
         author=metadata.get("author"),
         reference=metadata.get("reference"),
         notes=metadata.get("notes"),
+        staging=True,
     )
 
     # Create upload tracking
@@ -659,7 +663,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             .all()[0]
         )
         fetch_existing.version = catalogue_version
-        db.commit()
+        fetch_existing.staging = False
 
         # Copy from staging to main table with catalogue version
         for staged in staged_records:
