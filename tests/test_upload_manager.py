@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 import pytest
 from fastapi import HTTPException
 
-from ska_sdp_global_sky_model.api.app.ingest import compute_hpx_healpy
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata, SkyComponentStaging
 from ska_sdp_global_sky_model.api.app.upload_manager import (
     UploadManager,
@@ -181,7 +180,6 @@ class TestUploadManager:
 
         component = SkyComponentStaging(
             component_id="C1",
-            healpix_index=compute_hpx_healpy(1, 1),
             ra_deg=1,
             dec_deg=1,
             upload_id="1234-abcd",

@@ -1,4 +1,4 @@
-# pylint: disable=no-member,too-few-public-methods, no-self-argument
+# pylint: disable=no-member,too-few-public-methods,no-self-argument
 """
 Configure variables to be used.
 """
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import ska_ser_logging
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, as_declarative, sessionmaker
 from starlette.config import Config
@@ -35,10 +35,6 @@ POSTGRES_PASSWORD: str = config("POSTGRES_PASSWORD", default="pass")
 DB: str = config("POSTGRES_HOST", default="localhost")
 DB_SCHEMA: str = config("POSTGRES_SCHEMA_NAME", default="public")
 DB_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB}:5432/{DB_NAME}"
-
-# HEALPix
-NSIDE: int = config("NSIDE", default=4096)
-NEST: bool = config("NEST", default="True").upper() == "TRUE"
 
 REQUEST_WATCHER_TIMEOUT: int = int(config("REQUEST_WATCHER_TIMEOUT", default="30"))
 SHARED_VOLUME_MOUNT: Path = Path(config("SHARED_VOLUME_MOUNT", default="/mnt/data"))
@@ -78,15 +74,3 @@ def get_db() -> Session:
         yield db
     finally:
         db.close()
-
-
-def q3c_index():
-    """Create Q3C extension + index exist"""
-    with engine.begin() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS q3c;"))
-        conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_source_q3c_ipix "
-                'ON sky_component (version, q3c_ang2ipix("ra","dec"));'
-            )
-        )

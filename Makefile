@@ -67,8 +67,8 @@ migrate:  ## Run the database migration
 ## Create any needed migrations for the running GSM instance.
 ##
 ## Commonly one of the following is done:
-## - `make migrate MIGRATION_NOTE="upgrade schema"` - will create migrations on local setup
-## - `make migrate RUN_LOCATION=docker MIGRATION_NOTE="upgrade schema"` - will create migrations on the running instance in docker
+## - `make migrate-create MIGRATION_NOTE="upgrade schema"` - will create migrations on local setup
+## - `make migrate-create RUN_LOCATION=docker MIGRATION_NOTE="upgrade schema"` - will create migrations on the running instance in docker
 
 migrate-create: ## Create new migrations
 	case "${RUN_LOCATION}" in \
