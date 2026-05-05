@@ -26,6 +26,8 @@ def main(arg_list: list[str] | None = None):
     )
     parser.add_argument("--delete", help="Commit the deletion", action="store_true")
     args = parser.parse_args(arg_list)
+    if args.max_age < 0:
+        parser.error("MAX_AGE must be positive")
 
     db = next(get_db())
     upload_manager = UploadManager()

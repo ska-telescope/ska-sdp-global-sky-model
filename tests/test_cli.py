@@ -74,6 +74,15 @@ def test_cleanup_calls_function(mock_upload_manager):
     assert mock_upload_manager.mock_calls == [call(), call().run_db_cleanup(ANY, False, 168)]
 
 
+def test_cleanup_negative_age(capsys):
+    """Check that the max age is positive"""
+    with pytest.raises(SystemExit) as error:
+        cleanup_main(["--max-age", "-1"])
+
+    assert error.value.code == 2
+    assert "error: MAX_AGE must be positive" in capsys.readouterr().err
+
+
 @patch("ska_sdp_global_sky_model.cli.cleanup.UploadManager")
 def test_cleanup_calls_function_with_delete(mock_upload_manager):
     """Check that the delete option is sent to the cleanup function"""
