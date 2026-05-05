@@ -11,7 +11,7 @@ from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE,
 ska_ser_logging.configure_logging(level="INFO")
 
 
-def main():
+def main(arg_list: list[str] | None = None):
     """Main cleanup script"""
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -25,7 +25,7 @@ def main():
         type=int,
     )
     parser.add_argument("--delete", help="Commit the deletion", action="store_true")
-    args = parser.parse_args()
+    args = parser.parse_args(arg_list)
 
     db = next(get_db())
     upload_manager = UploadManager()

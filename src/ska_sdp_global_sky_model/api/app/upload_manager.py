@@ -292,7 +292,7 @@ class UploadManager:
         self._cleanup_old_uploads(db, override_cleanup)
         self._cleanup_partial_migrations_and_orphaned_staging_components(db)
         if delete:
-            logger.info("Commiting any changes")
+            logger.info("Committing any changes")
             db.commit()
         else:
             logger.info("Rolling back any changes")

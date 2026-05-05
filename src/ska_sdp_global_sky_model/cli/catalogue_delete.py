@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # pylint: disable=duplicate-code
 
 
-def main():
+def main(arg_list: list[str] | None = None):
     """Main delete script"""
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -32,7 +32,7 @@ def main():
     )
     parser.add_argument("--delete", help="Do the actual delete", action="store_true")
     parser.add_argument("catalogue_id", help="The numerical ID of a catalogue", type=int)
-    args = parser.parse_args()
+    args = parser.parse_args(arg_list)
 
     db = next(get_db())
 
