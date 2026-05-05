@@ -16,7 +16,7 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponentStaging,
 )
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadStatus
-from tests.utils import clean_all_tables, override_get_db
+from tests.utils import clean_all_tables
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -286,27 +286,23 @@ def test_upload_sky_survey_batch_too_many_metadata_files(myclient):
     assert "must be one metadata JSON file" in response.json()["detail"]
 
 
-def test_review_upload_success(myclient, gsm_metadata):
+def test_review_upload_success(myclient, gsm_metadata, db_session):
     """Test successful review of staged upload."""
     # Create a fake upload ID
     upload_id = "test-upload-review-123"
 
     # Directly insert test data into staging table
-    db = next(override_get_db())
-    try:
-        for i in range(15):
-            component = SkyComponentStaging(
-                component_id=f"TEST{i:05d}",
-                upload_id=upload_id,
-                ra_deg=10.0 + i,
-                dec_deg=20.0 + i,
-                i_pol_jy=0.5 + i * 0.1,
-                gsm_id=gsm_metadata.id,
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
+    for i in range(15):
+        component = SkyComponentStaging(
+            component_id=f"TEST{i:05d}",
+            upload_id=upload_id,
+            ra_deg=10.0 + i,
+            dec_deg=20.0 + i,
+            i_pol_jy=0.5 + i * 0.1,
+            gsm_id=gsm_metadata.id,
+        )
+        db_session.add(component)
+    db_session.commit()
 
     # Create upload status
     upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
@@ -340,14 +336,14 @@ def test_review_upload_not_completed(myclient):
     assert "not ready for review" in review_response.json()["detail"].lower()
 
 
-def test_commit_upload_success(myclient, gsm_metadata):
+def test_commit_upload_success(myclient, gsm_metadata, db_session):
     """Test successful first commit auto-assigns version 0.1.0."""
     # Create test data directly in staging table (no version - assigned at commit)
     upload_id = "test-upload-commit-123"
     gsm_metadata.upload_id = upload_id
-    db = next(override_get_db())
-    db.add(gsm_metadata)
-    db.commit()
+
+    db_session.add(gsm_metadata)
+    db_session.commit()
     for i in range(5):
         component = SkyComponentStaging(
             component_id=f"COMMIT_TEST{i:05d}",
@@ -357,8 +353,8 @@ def test_commit_upload_success(myclient, gsm_metadata):
             i_pol_jy=0.5,
             gsm_id=gsm_metadata.id,
         )
-        db.add(component)
-    db.commit()
+        db_session.add(component)
+    db_session.commit()
 
     # Create and attach metadata with no version (auto-assigned at commit time)
     metadata = GlobalSkyModelMetadata(
@@ -382,35 +378,32 @@ def test_commit_upload_success(myclient, gsm_metadata):
     assert commit_data["version"] == "1.1.0"
 
     # Verify data moved to main table with auto-assigned version
-    db = next(override_get_db())
-    try:
-        main_records = (
-            db.query(SkyComponent).filter(SkyComponent.component_id.like("COMMIT_TEST%")).all()
-        )
-        assert len(main_records) == 5
+    main_records = (
+        db_session.query(SkyComponent).filter(SkyComponent.component_id.like("COMMIT_TEST%")).all()
+    )
+    assert len(main_records) == 5
 
-        # All records should share the same auto-assigned version
-        versions = {r.gsm_id for r in main_records}
-        assert len(versions) == 1
-        assert list(versions)[0] == gsm_metadata.id
+    # All records should share the same auto-assigned version
+    versions = {r.gsm_id for r in main_records}
+    assert len(versions) == 1
+    assert list(versions)[0] == gsm_metadata.id
 
-        # Verify staging table is cleared
-        staging_records = (
-            db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).all()
-        )
-        assert len(staging_records) == 0
-    finally:
-        db.close()
+    # Verify staging table is cleared
+    staging_records = (
+        db_session.query(SkyComponentStaging)
+        .filter(SkyComponentStaging.upload_id == upload_id)
+        .all()
+    )
+    assert len(staging_records) == 0
 
 
-def test_commit_upload_increments_version(myclient, gsm_metadata):
+def test_commit_upload_increments_version(myclient, gsm_metadata, db_session):
     """Test that second commit for the same catalogue auto-increments to 0.2.0."""
     # Create new staging data for the same catalogue (no version - assigned at commit)
     upload_id = "test-upload-increment-123"
-    db = next(override_get_db())
     gsm_metadata.upload_id = upload_id
-    db.add(gsm_metadata)
-    db.commit()
+    db_session.add(gsm_metadata)
+    db_session.commit()
     for i in range(5):
         component = SkyComponentStaging(
             component_id=f"NEW{i:05d}",
@@ -420,8 +413,8 @@ def test_commit_upload_increments_version(myclient, gsm_metadata):
             i_pol_jy=0.5,
             gsm_id=gsm_metadata.id,
         )
-        db.add(component)
-    db.commit()
+        db_session.add(component)
+    db_session.commit()
 
     # Metadata with no version - commit endpoint auto-assigns the next version
     metadata = GlobalSkyModelMetadata(
@@ -442,22 +435,19 @@ def test_commit_upload_increments_version(myclient, gsm_metadata):
     assert commit_data["version"] == "1.1.0"
 
     # Verify new records have version 0.2.0
-    db = next(override_get_db())
-    try:
-        new_records = db.query(SkyComponent).filter(SkyComponent.component_id.like("NEW%")).all()
-        assert len(new_records) == 5
-        for record in new_records:
-            assert record.gsm_id == gsm_metadata.id
-    finally:
-        db.close()
+    new_records = (
+        db_session.query(SkyComponent).filter(SkyComponent.component_id.like("NEW%")).all()
+    )
+    assert len(new_records) == 5
+    for record in new_records:
+        assert record.gsm_id == gsm_metadata.id
 
 
-def test_commit_upload_per_catalogue_versioning(myclient):
+def test_commit_upload_per_catalogue_versioning(myclient, db_session):
     """Test that versioning is independent per catalogue name."""
     upload_id = "test-cat-b-upload-123"
 
     # Simulate catalogue A already at version 0.3.0
-    db = next(override_get_db())
     gsm_metadata = GlobalSkyModelMetadata(
         version="0.3.0",
         catalogue_name="CAT_A",
@@ -465,7 +455,7 @@ def test_commit_upload_per_catalogue_versioning(myclient):
         upload_id="cat-a-upload-id",
         staging=False,
     )
-    db.add(gsm_metadata)
+    db_session.add(gsm_metadata)
     metadata = GlobalSkyModelMetadata(
         version=None,
         catalogue_name="CAT_B",
@@ -473,8 +463,7 @@ def test_commit_upload_per_catalogue_versioning(myclient):
         upload_id=upload_id,
         staging=True,
     )
-    db.add(metadata)
-    db.commit()
+    db_session.add(metadata)
 
     # Upload for catalogue B (independent - should start at 0.1.0)
     component = SkyComponentStaging(
@@ -485,8 +474,8 @@ def test_commit_upload_per_catalogue_versioning(myclient):
         i_pol_jy=0.5,
         gsm_id=metadata.id,
     )
-    db.add(component)
-    db.commit()
+    db_session.add(component)
+    db_session.commit()
 
     upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=metadata)
     upload_status.state = "completed"
@@ -511,25 +500,21 @@ def test_commit_upload_not_completed(myclient):
     assert "not ready for commit" in commit_response.json()["detail"].lower()
 
 
-def test_reject_upload_success(myclient):
+def test_reject_upload_success(myclient, db_session):
     """Test successful rejection of staged upload."""
     # Directly insert staging records
     upload_id = "test-upload-reject-123"
-    db = next(override_get_db())
-    try:
-        for i in range(5):
-            component = SkyComponentStaging(
-                component_id=f"REJECT_TEST{i:03d}",
-                upload_id=upload_id,
-                ra_deg=10.0 + i,
-                dec_deg=20.0 + i,
-                i_pol_jy=0.5,
-                gsm_id=None,
-            )
-            db.add(component)
-        db.commit()
-    finally:
-        db.close()
+    for i in range(5):
+        component = SkyComponentStaging(
+            component_id=f"REJECT_TEST{i:03d}",
+            upload_id=upload_id,
+            ra_deg=10.0 + i,
+            dec_deg=20.0 + i,
+            i_pol_jy=0.5,
+            gsm_id=None,
+        )
+        db_session.add(component)
+    db_session.commit()
 
     # Create completed upload status
     upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
@@ -544,14 +529,12 @@ def test_reject_upload_success(myclient):
     assert reject_data["records_deleted"] == 5
 
     # Verify staging table is cleared
-    db = next(override_get_db())
-    try:
-        staging_records = (
-            db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).all()
-        )
-        assert len(staging_records) == 0
-    finally:
-        db.close()
+    staging_records = (
+        db_session.query(SkyComponentStaging)
+        .filter(SkyComponentStaging.upload_id == upload_id)
+        .all()
+    )
+    assert len(staging_records) == 0
 
 
 def test_reject_upload_not_completed(myclient):
@@ -570,7 +553,7 @@ def test_reject_upload_not_completed(myclient):
 
 
 @patch("ska_sdp_global_sky_model.api.app.main.ingest_catalogue", Mock(side_effect=[True, False]))
-def test_upload_batch_partial_fail_clears_staging(myclient):
+def test_upload_batch_partial_fail_clears_staging(myclient, db_session):
     """Test that if one good and one bad file are uploaded, staging is cleared on failure."""
     good_file = Path("tests/data/test_catalogue_1.csv")
 
@@ -597,14 +580,9 @@ def test_upload_batch_partial_fail_clears_staging(myclient):
     assert status_data["state"] == "failed"
 
     # Staging table should be empty for this upload_id
-    db = next(override_get_db())
-    # pylint: disable-next=duplicate-code
-    try:
-        count = (
-            db.query(SkyComponentStaging)
-            .filter(SkyComponentStaging.upload_id == upload_id)
-            .count()
-        )
-        assert count == 0
-    finally:
-        db.close()
+    count = (
+        db_session.query(SkyComponentStaging)
+        .filter(SkyComponentStaging.upload_id == upload_id)
+        .count()
+    )
+    assert count == 0

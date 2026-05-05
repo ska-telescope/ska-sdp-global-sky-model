@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from ska_sdp_global_sky_model.api.app.models import GlobalSkyModelMetadata
 from ska_sdp_global_sky_model.api.app.models import SkyComponent as SkyComponentModel
 from ska_sdp_global_sky_model.api.app.models import SkyComponentStaging
-from tests.utils import clean_all_tables, engine, override_get_db
+from tests.utils import clean_all_tables, engine
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -63,9 +63,8 @@ class TestSkyComponentModel:
         assert "dec_deg" in columns
         assert "i_pol_jy" in columns
 
-    def test_sky_component_with_optional_fields(self, gsm_metadata):
+    def test_sky_component_with_optional_fields(self, db_session, gsm_metadata):
         """Test creating a SkyComponent with optional fields."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
@@ -98,9 +97,8 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx == [1.0, -0.5, 0.1]
         assert retrieved.log_spec_idx is True
 
-    def test_sky_component_versioning_constraint(self, gsm_metadata):
+    def test_sky_component_versioning_constraint(self, db_session, gsm_metadata):
         """Test that duplicate component_id + version raises constraint error."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component1 = SkyComponentModel(
@@ -148,9 +146,8 @@ class TestSkyComponentModel:
         assert component_dict["a_arcsec"] == 0.002
         assert "id" in component_dict
 
-    def test_sky_component_nullable_fields(self, gsm_metadata):
+    def test_sky_component_nullable_fields(self, db_session, gsm_metadata):
         """Test that nullable fields can be None."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
@@ -173,12 +170,11 @@ class TestSkyComponentModel:
         assert retrieved.spec_idx is None
         assert retrieved.log_spec_idx is None
 
-    def test_sky_component_spec_idx_as_json(self, gsm_metadata):
+    def test_sky_component_spec_idx_as_json(self, db_session, gsm_metadata):
         """Test that spec_idx field properly stores JSON data.
         TODO: how is this JSON? Is this a leftover from some previous version of specidx?
         """
         spec_idx_values = [1.5, -0.7, 0.2, -0.05, 0.01]
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         component = SkyComponentModel(
@@ -199,9 +195,8 @@ class TestSkyComponentModel:
         assert isinstance(retrieved.spec_idx, list)
         assert len(retrieved.spec_idx) == 5
 
-    def test_sky_component_versioning(self, gsm_metadata):
+    def test_sky_component_versioning(self, db_session, gsm_metadata):
         """Test versioning support, same component_id can have multiple versions."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         second_metadata = GlobalSkyModelMetadata(
@@ -240,9 +235,8 @@ class TestSkyComponentModel:
 class TestSkyComponentStagingModel:
     """Tests for the SkyComponentStaging SQLAlchemy model."""
 
-    def test_staging_basic_functionality(self, gsm_metadata):
+    def test_staging_basic_functionality(self, db_session, gsm_metadata):
         """Test basic SkyComponentStaging CRUD operations."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         staged = SkyComponentStaging(
@@ -265,9 +259,8 @@ class TestSkyComponentStagingModel:
         assert retrieved.component_id == "StagedSource1"
         assert retrieved.upload_id == "test-upload-123"
 
-    def test_staging_allows_same_component_different_uploads(self, gsm_metadata):
+    def test_staging_allows_same_component_different_uploads(self, db_session, gsm_metadata):
         """Test that same component_id can exist in different uploads."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         staged1 = SkyComponentStaging(
@@ -299,9 +292,8 @@ class TestSkyComponentStagingModel:
         )
         assert len(all_records) == 2
 
-    def test_staging_unique_constraint_violation(self, gsm_metadata):
+    def test_staging_unique_constraint_violation(self, db_session, gsm_metadata):
         """Test that duplicate component_id + upload_id raises constraint error."""
-        db_session = next(override_get_db())
         db_session.add(gsm_metadata)
         db_session.commit()
         staged1 = SkyComponentStaging(
@@ -354,7 +346,7 @@ class TestGlobalSkyModelMetadataModel:
         assert "version" in columns
         assert "catalogue_name" in columns
 
-    def test_metadata_create_instance(self):
+    def test_metadata_create_instance(self, db_session):
         """Test creating a GlobalSkyModelMetadata instance."""
 
         metadata = GlobalSkyModelMetadata(
@@ -362,7 +354,6 @@ class TestGlobalSkyModelMetadataModel:
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
-        db_session = next(override_get_db())
         db_session.add(metadata)
         db_session.commit()
 
@@ -385,7 +376,7 @@ class TestGlobalSkyModelMetadataModel:
         assert metadata_dict["catalogue_name"] == "TestCatalogue"
         assert "id" in metadata_dict
 
-    def test_metadata_multiple_versions(self):
+    def test_metadata_multiple_versions(self, db_session):
         """Test storing multiple metadata versions."""
         metadata1 = GlobalSkyModelMetadata(
             version="1.0.0",
@@ -403,7 +394,6 @@ class TestGlobalSkyModelMetadataModel:
             upload_id="test-upload-3",
         )
 
-        db_session = next(override_get_db())
         db_session.add_all([metadata1, metadata2, metadata3])
         db_session.commit()
 
@@ -418,7 +408,7 @@ class TestGlobalSkyModelMetadataModel:
 class TestModelIntegration:  # pylint: disable=too-few-public-methods
     """Integration tests for models working together."""
 
-    def test_sky_component_and_metadata_coexist(self):
+    def test_sky_component_and_metadata_coexist(self, db_session):
         """Test that SkyComponent and Metadata can both be stored in the same database."""
         # Create metadata
         metadata = GlobalSkyModelMetadata(
@@ -426,7 +416,6 @@ class TestModelIntegration:  # pylint: disable=too-few-public-methods
             catalogue_name="TestCatalogue",
             upload_id="test-upload-1",
         )
-        db_session = next(override_get_db())
         db_session.add(metadata)
 
         # Create components

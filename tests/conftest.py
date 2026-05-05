@@ -46,6 +46,12 @@ def fixture_client():
             yield client
 
 
+@pytest.fixture(scope="function", name="db_session")
+def db_fixt():
+    """Provide a single db session for each test"""
+    return next(override_get_db())
+
+
 @pytest.fixture(name="gsm_metadata")
 def fake_gsm_metadata():
     """Create an example metadata record"""

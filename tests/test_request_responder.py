@@ -27,7 +27,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _write_data,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
-from tests.utils import clean_all_tables, override_get_db, set_up_db
+from tests.utils import clean_all_tables, set_up_db
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -455,10 +455,8 @@ def test_update_state_no_change():
     ]
 
 
-def test_query_gsm_for_lsm_with_sources():  # noqa: F811
+def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with components found"""
-    db_session = next(override_get_db())
-
     # Execute the function
     query_params = QueryParameters(
         ra_deg=90,
@@ -479,9 +477,8 @@ def test_query_gsm_for_lsm_with_sources():  # noqa: F811
     assert sky_source.dec_deg == 4.0
 
 
-def test_query_gsm_for_lsm_no_version():  # noqa: F811
+def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
     """Test querying GSM for LSM with no version found"""
-    db_session = next(override_get_db())
     # Execute the function
     query_params = QueryParameters(
         ra_deg=2.9670,
@@ -495,10 +492,8 @@ def test_query_gsm_for_lsm_no_version():  # noqa: F811
         _query_gsm_for_lsm(query_params, db_session)
 
 
-def test_query_gsm_for_lsm_multiple_sources():  # noqa: F811
+def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     """Test querying GSM for LSM with multiple components found"""
-    db_session = next(override_get_db())
-
     # Execute the function
     query_params = QueryParameters(
         ra_deg=90,
@@ -518,9 +513,8 @@ def test_query_gsm_for_lsm_multiple_sources():  # noqa: F811
         assert isinstance(result.components[i], SkyComponentDataclass)
 
 
-def test_query_gsm_for_lsm_multiple_sources_extra_limit():  # noqa: F811
+def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F811
     """Test querying GSM for LSM with multiple components found, and using an extra param"""
-    db_session = next(override_get_db())
     # Execute the function
     query_params = QueryParameters(
         ra_deg=90,
@@ -542,10 +536,8 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit():  # noqa: F811
     assert isinstance(result.components[22], SkyComponentDataclass)
 
 
-def test_query_gsm_for_lsm_by_author():  # noqa: F811
+def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
     """Test querying GSM for LSM by author metadata field"""
-    db_session = next(override_get_db())
-
     # Query by author
     query_params = QueryParameters(
         ra_deg=0,
@@ -568,10 +560,8 @@ def test_query_gsm_for_lsm_by_author():  # noqa: F811
         assert comp.component_id.startswith("L000105")
 
 
-def test_query_gsm_for_lsm_by_freq_min():  # noqa: F811
+def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
     """Test querying GSM for LSM by freq_min metadata field"""
-    db_session = next(override_get_db())
-
     # Query by freq_min_hz
     query_params = QueryParameters(
         ra_deg=0,
@@ -711,12 +701,11 @@ def test_write_data_empty_components(tmp_path):
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
 
 
-def test_metadata_sort_order():
+def test_metadata_sort_order(db_session):
     """
     Test that QueryParameters._get_metadata_record uses the latest
     uploaded catalogue when no catalogue metadata query is provided.
     """
-    db_session = next(override_get_db())
 
     # these params don't actually matter, if metadata-related
     # values were added, those would be used;
@@ -735,13 +724,12 @@ def test_metadata_sort_order():
     assert output_metadata.version == "1.0.0"
 
 
-def test_metadata_sort_order_and_latest_version():
+def test_metadata_sort_order_and_latest_version(db_session):
     """
     Test that QueryParameters._get_metadata_record uses
     the latest version instead of latest catalogue, when no other
     metadata query parameters are give.
     """
-    db_session = next(override_get_db())
 
     # these params don't actually matter, if metadata-related
     # values were added, those would be used;
