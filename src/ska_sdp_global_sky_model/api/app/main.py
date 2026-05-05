@@ -95,7 +95,7 @@ app.add_middleware(
 @app.get("/")
 def home_docs():
     """Redirect from / to /docs."""
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url=f"{API_URL}/docs")
 
 
 @app.get(
