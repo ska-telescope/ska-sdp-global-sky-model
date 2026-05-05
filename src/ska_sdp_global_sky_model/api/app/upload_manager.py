@@ -280,27 +280,37 @@ class UploadManager:
         return status.csv_files
 
     def run_db_cleanup(
-        self, db: sqlalchemy.orm.Session, dry_run: bool = True, override_cleanup: int | None = None
+        self, db: sqlalchemy.orm.Session, delete: bool = False, override_cleanup: int | None = None
     ):
-        """Do a cleanup of old data in the DB, and cleanup manager"""
+        """Do a cleanup of old data in the DB, and attempt to cleanup this manager.
+
+        This will remove only catalogues that are staging=True, or
+        components in the SkyComponentStaging table without a catalogue.
+
+        There are also logs for partially migrated catalogues."""
 
         self._cleanup_old_uploads(db, override_cleanup)
         self._cleanup_partial_migrations_and_orphaned_staging_components(db)
-        if dry_run:
-            db.rollback()
-        else:
+        if delete:
+            logger.info("Commiting any changes")
             db.commit()
+        else:
+            logger.info("Rolling back any changes")
+            db.rollback()
 
     def _cleanup_old_uploads(
         self, db: sqlalchemy.orm.Session, override_cleanup: int | None = None
     ):
         """Remove catalogues and their components if they are still in staging
         and if the upload time is more than CATALOGUE_CLEANUP_AGE hours ago."""
+        hours = override_cleanup
+        if hours is None:
+            hours = CATALOGUE_CLEANUP_AGE
         catalogues = (
             db.query(GlobalSkyModelMetadata)
             .filter(
                 GlobalSkyModelMetadata.uploaded_at
-                < datetime.now() - timedelta(hours=override_cleanup or CATALOGUE_CLEANUP_AGE)
+                < datetime.now() - timedelta(hours=hours)
             )
             .filter(GlobalSkyModelMetadata.staging.is_(True))
             .all()

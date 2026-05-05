@@ -140,10 +140,10 @@ class TestUploadManager:
         assert files[1] == ("file2.csv", "data2")
 
     @pytest.mark.parametrize(
-        "dry_run",
+        "delete",
         [True, False],
     )
-    def test_cleanup_old_catalogues(self, manager, db_session, dry_run):
+    def test_cleanup_old_catalogues(self, manager, db_session, delete: bool):
         """Test removal of catalogues that were created a long time ago"""
 
         catalogue_old = GlobalSkyModelMetadata(
@@ -170,12 +170,12 @@ class TestUploadManager:
         db_session.add(catalogue_complete)
         db_session.commit()
 
-        manager.run_db_cleanup(db_session, dry_run=dry_run)
+        manager.run_db_cleanup(db_session, delete=delete)
 
         catalogues = db_session.query(GlobalSkyModelMetadata).all()
 
         expected = {catalogue_fine.upload_id, catalogue_complete.upload_id}
-        if dry_run:
+        if not delete:
             expected.add(catalogue_old.upload_id)
 
         assert len(catalogues) == len(expected)
@@ -183,10 +183,10 @@ class TestUploadManager:
         assert {cat.upload_id for cat in catalogues} == expected
 
     @pytest.mark.parametrize(
-        "dry_run",
+        "delete",
         [True, False],
     )
-    def test_cleanup_component_without_catalogues(self, manager, db_session, dry_run):
+    def test_cleanup_component_without_catalogues(self, manager, db_session, delete: bool):
         """Test removal of staging components that have no link to a catalogue"""
 
         component = SkyComponentStaging(
@@ -199,6 +199,6 @@ class TestUploadManager:
         db_session.commit()
 
         assert db_session.query(SkyComponentStaging).count() == 1
-        manager.run_db_cleanup(db_session, dry_run=dry_run)
+        manager.run_db_cleanup(db_session, delete=delete)
 
-        assert db_session.query(SkyComponentStaging).count() == (1 if dry_run else 0)
+        assert db_session.query(SkyComponentStaging).count() == (0 if delete else 1)

@@ -6,9 +6,7 @@ from importlib.metadata import version
 import ska_ser_logging
 
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
-from ska_sdp_global_sky_model.configuration.config import (
-    get_db,
-)
+from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE, get_db
 
 ska_ser_logging.configure_logging(level="INFO")
 
@@ -21,14 +19,17 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--max-age", help="Override the default maximum age of an upload", default=None, type=int
+        "--max-age",
+        help="The maximum age of staged catalogues in hours",
+        default=CATALOGUE_CLEANUP_AGE,
+        type=int,
     )
-    parser.add_argument("--dry-run", help="Perform dry run only", action="store_true")
+    parser.add_argument("--delete", help="Commit the deletion", action="store_true")
     args = parser.parse_args()
 
     db = next(get_db())
     upload_manager = UploadManager()
-    upload_manager.run_db_cleanup(db, args.dry_run, args.max_age)
+    upload_manager.run_db_cleanup(db, args.delete, args.max_age)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Delete a catalogue"""
+"""Delete a catalogue, this can delete a staging or released catalogue."""
 
 import argparse
 import logging
