@@ -1,5 +1,5 @@
-# pylint: disable=no-member, too-many-positional-arguments
-# pylint: disable=too-many-arguments, broad-exception-caught, not-callable
+# pylint: disable=broad-exception-caught
+
 """
 A simple fastAPI to ingest data into the global sky model database and to obtain a local sky
 model from it.
@@ -24,7 +24,10 @@ from ska_sdp_global_sky_model.api.app.models import (
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.api.app.request_responder import QueryParameters, start_thread
+from ska_sdp_global_sky_model.api.app.request_responder import (
+    QueryParameters,
+    start_lsm_response_thread,
+)
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
 from ska_sdp_global_sky_model.configuration.config import API_URL, engine, get_db, templates
 from ska_sdp_global_sky_model.utilities.query_helpers import QueryBuilder
@@ -57,7 +60,7 @@ async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
     # Startup
     logger.info("Starting application...")
     wait_for_db()
-    start_thread()
+    start_lsm_response_thread()
     logger.info("Application startup complete")
 
     yield
@@ -67,6 +70,7 @@ async def lifespan(fast_api_app: FastAPI):  # pylint: disable=unused-argument
 
 
 app = FastAPI(lifespan=lifespan, root_path=API_URL)
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 origins = []
@@ -99,11 +103,10 @@ def upload_interface():
     return {"message": "Upload interface not available. Use API endpoints directly."}
 
 
-@app.get("/components", summary="See all the point components")
+@app.get("/components", summary="See all components")
 def get_point_components(request: Request, db: Session = Depends(get_db)):
-    """Retrieve all point components"""
-    logger.info("Retrieving all point components...")
-    # components = db.query(SkyComponent).all()
+    """Retrieve all components from database."""
+    logger.info("Retrieving all components...")
     components = (
         db.query(SkyComponent, GlobalSkyModelMetadata)
         .filter(SkyComponent.gsm_id == GlobalSkyModelMetadata.id)
@@ -113,13 +116,19 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     for row in output_rows:
         del row["gsm_id"]
         del row["upload_id"]
-    logger.info("Retrieved all point sources for all %s components", str(len(output_rows)))
+    logger.info("Retrieved all data for all %d components", len(output_rows))
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": list(output_rows)}
     )
 
 
-@app.get("/local-sky-model", response_class=HTMLResponse)
+@app.get(
+    "/local-sky-model",
+    response_class=HTMLResponse,
+    summary="Retrieve a local sky model",
+    description="Retrieve a sub-set of the global sky model in the form of a local sky model.",
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def get_local_sky_model_endpoint(
     request: Request,
     ra_deg: float,
@@ -161,13 +170,14 @@ async def get_local_sky_model_endpoint(
     for row in output_rows:
         del row["gsm_id"]
         del row["id"]
-        del row["healpix_index"]
     return templates.TemplateResponse(
         request=request, name="table.html", context={"items": output_rows}
     )
 
 
-def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetadata):
+def _run_ingestion_task(
+    upload_id: str, catalogue_metadata: GlobalSkyModelMetadata, db: Session = None
+):
     """
     Run ingestion task in background to staging table.
 
@@ -182,10 +192,7 @@ def _run_ingestion_task(upload_id: str, catalogue_metadata: GlobalSkyModelMetada
     catalogue_metadata : GlobalSkyModelMetadata
         Catalogue metadata for ingestion
     """
-    db = None
     try:
-        # Get fresh database session
-        db = next(get_db())
         catalogue_metadata.staging = True
         db.add(catalogue_metadata)
         db.commit()
@@ -256,6 +263,7 @@ async def upload_sky_survey_batch(
     background_tasks: BackgroundTasks,
     metadata_file: list[UploadFile] = File(..., description="One catalogue metadata JSON file"),
     csv_files: list[UploadFile] = File(..., description="One or more CSV files"),
+    db: Session = Depends(get_db),
 ):
     """
     Upload catalogue metadata and CSV files for staging.
@@ -271,6 +279,7 @@ async def upload_sky_survey_batch(
         A JSON file with catalogue metadata (catalogue_name, description, etc.)
     csv_files : list[UploadFile]
         One or more CSV files containing component data
+    db: database Session (automatically generated)
 
     Raises
     ------
@@ -343,7 +352,7 @@ async def upload_sky_survey_batch(
 
         # Schedule ingestion to run in background
         background_tasks.add_task(
-            _run_ingestion_task, catalogue_metadata.upload_id, catalogue_metadata
+            _run_ingestion_task, catalogue_metadata.upload_id, catalogue_metadata, db
         )
 
         logger.info(
@@ -429,6 +438,7 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
 
     # Get count and sample of staged data
     count = (
+        # pylint: disable-next=not-callable
         db.query(func.count(SkyComponentStaging.id))
         .filter(SkyComponentStaging.upload_id == upload_id)
         .scalar()
@@ -574,8 +584,9 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
         return {
             "status": "success",
-            "message": f"Committed {len(staged_records)} \
-components from catalogue '{catalogue_name}'",
+            "message": (
+                f"Committed {len(staged_records)} components from catalogue '{catalogue_name}'"
+            ),
             "records_committed": len(staged_records),
             "version": catalogue_version,
             "catalogue_name": catalogue_name,

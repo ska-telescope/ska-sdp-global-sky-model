@@ -30,8 +30,8 @@ The ``models.py`` file defines two models:
     - Dynamically generated columns: Field names and types are read from the
       ``SkyComponent`` dataclass at module import time, ensuring automatic synchronization
       with upstream data model changes
-    - Hardcoded database fields: The ``healpix_index`` field is explicitly defined for
-      spatial indexing and is not part of the scientific data model
+    - Hardcoded database fields: The ``gsm_id`` field is explicitly defined for
+      cross-table indexing and is not part of the scientific data model
 
 **GlobalSkyModelMetadata Model**
     - Dynamically generated columns: Field names and types are read from the
