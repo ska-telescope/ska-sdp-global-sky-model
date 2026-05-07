@@ -144,7 +144,9 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
         del row["staging"]
     logger.info("Retrieved all data for all %d components", len(output_rows))
     return templates.TemplateResponse(
-        request=request, name="table.html", context={"items": list(output_rows)}
+        request=request,
+        name="table.html",
+        context={"items": list(output_rows), "title": "Component list"},
     )
 
 
@@ -197,13 +199,23 @@ async def get_local_sky_model_endpoint(
         query_parameters,
     )
     query_params = QueryParameters(ra_deg, dec_deg, fov_deg, **query_parameters)
-    _, local_model = query_params.sky_components(db)
-    output_rows = [r.columns_to_dict() for r in local_model]
+    catalogues = query_params.sky_components(db)
+    output_rows = []
+    for catalogue, components in catalogues:
+        catalogue_dict = catalogue.columns_to_dict()
+        output_rows.extend(
+            [catalogue_dict | component.columns_to_dict() for component in components]
+        )
+
     for row in output_rows:
         del row["gsm_id"]
         del row["id"]
+        del row["staging"]
+
     return templates.TemplateResponse(
-        request=request, name="table.html", context={"items": output_rows}
+        request=request,
+        name="table.html",
+        context={"items": output_rows, "title": "Local Sky Model Search"},
     )
 
 

@@ -24,14 +24,14 @@ def set_up_database():
 
 
 def test_read_main(myclient):
-    """Unit test for the root path "/" """
+    """Test that ping endpoint returns"/" """
     response = myclient.get("/ping")
     assert response.status_code == 200
     assert response.json() == {"ping": "live"}
 
 
 def test_redirect_from_home(myclient):
-    """Unit test for the root path "/" """
+    """Test that the root path is redirected"""
     response = myclient.get("/")
     assert str(response.url).endswith("/docs")
     assert response.status_code == 200
@@ -49,7 +49,7 @@ def test_components(myclient):
     assert response.text.count("L000105") == 20  # catalogue3
 
 
-def test_local_sky_model(myclient):  # pylint: disable=unused-argument
+def test_local_sky_model(myclient):
     """
     Unit test for the /local-sky-model path
 
@@ -67,6 +67,26 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     assert local_sky_model.text.count("L000105") == 20
     for i in range(5, 16):
         assert f"L000105+0000{i:0>2d}" in local_sky_model.text
+
+
+def test_local_sky_model_return_multiple_catalogues(myclient):
+    """Test that if we use an open ended query, that we can get componets from
+    multiple catalogues"""
+    response = myclient.get(
+        "/local-sky-model/",
+        params={"ra_deg": 90, "dec_deg": 5, "fov_deg": 90},
+    )
+
+    assert response.status_code == 200
+    # Data from all three added catalogues and all versions appear
+    assert response.text.count("catalogue1") == 30  # catalogue1-Alice + catalogue1-Bob
+    assert response.text.count("catalogue3") == 20
+    assert response.text.count("catalogue2") == 200
+
+    assert response.text.count("W000010") == 20  # catalogue1-Alice
+    assert response.text.count("X000020") == 10  # catalogue1-Bob
+    assert response.text.count("A000100") == 200  # catalogue2
+    assert response.text.count("L000105") == 20  # catalogue3
 
 
 def test_local_sky_model_with_version(myclient):  # pylint: disable=unused-argument

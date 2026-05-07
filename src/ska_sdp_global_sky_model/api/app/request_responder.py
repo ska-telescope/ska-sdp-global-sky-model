@@ -100,7 +100,7 @@ class QueryParameters:
 
         self.component_queries = {}
         # make default sorting be descending on upload time
-        self.metadata_queries = {"sort": "-uploaded_at"}
+        self.metadata_queries = {}
 
         self._update_component_and_metadata_queries(query_parameters)
 
@@ -130,7 +130,7 @@ class QueryParameters:
             else:
                 logger.warning("The QueryParameter %s=%s was not valid", key, value)
 
-    def sky_components(self, db) -> tuple[GlobalSkyModelMetadata, list[SkyComponent]]:
+    def sky_components(self, db) -> list[tuple[GlobalSkyModelMetadata, list[SkyComponent]]]:
         """Get the sky components based on the query parameters
         Args:
             - db: The database handle
@@ -140,29 +140,31 @@ class QueryParameters:
         """
         # Query components within the field of view using spatial index
         # pylint: disable=no-member,duplicate-code
-        metadata_record = self._get_metadata_record(db)
-        if metadata_record is None:
-            logger.info("LSM Query resulted in no catalogues")
-            return None, []
+        metadata_records = self._get_metadata_record(db)
 
-        sky_components_query = (
-            db.query(SkyComponent)
-            .where(
-                q3c_radial_query(
-                    SkyComponent.ra_deg,
-                    SkyComponent.dec_deg,
-                    self.ra_deg,
-                    self.dec_deg,
-                    self.fov_deg,
+        output = []
+
+        for metadata_record in metadata_records:
+
+            sky_components_query = (
+                db.query(SkyComponent)
+                .where(
+                    q3c_radial_query(
+                        SkyComponent.ra_deg,
+                        SkyComponent.dec_deg,
+                        self.ra_deg,
+                        self.dec_deg,
+                        self.fov_deg,
+                    )
                 )
+                .where(SkyComponent.gsm_id == metadata_record.id)
             )
-            .where(SkyComponent.gsm_id == metadata_record.id)
-        )
-        query_builder = QueryBuilder(SkyComponent, self.component_queries)
-        sky_components_query = query_builder.apply_filters(sky_components_query)
-        return metadata_record, sky_components_query.all()
+            query_builder = QueryBuilder(SkyComponent, self.component_queries)
+            sky_components_query = query_builder.apply_filters(sky_components_query)
+            output.append((metadata_record, sky_components_query.all()))
+        return output
 
-    def _get_metadata_record(self, db) -> GlobalSkyModelMetadata | None:
+    def _get_metadata_record(self, db) -> list[GlobalSkyModelMetadata]:
         metadata_query = db.query(GlobalSkyModelMetadata)
         query_builder = QueryBuilder(GlobalSkyModelMetadata, self.metadata_queries)
         metadata_query = query_builder.apply_filters(metadata_query)
@@ -171,15 +173,12 @@ class QueryParameters:
         metadata_records = metadata_query.all()
 
         if len(metadata_records) == 0:
-            return None
+            return []
 
         if self._use_latest_version:
-            return max(metadata_records, key=lambda r: Version(r.version))
+            return [max(metadata_records, key=lambda r: Version(r.version))]
 
-        if len(metadata_records) > 1:
-            logger.warning("Found multiple catalogues, taking first one")
-
-        return metadata_records[0]
+        return metadata_records
 
     def __eq__(self, other):
         """Check equality between query parameter classes."""
@@ -258,7 +257,14 @@ def _watcher_process_flow(watcher, flow, sources):
 
     for source in sources:
         try:
-            query_params = QueryParameters(**source.parameters)
+            params = source.parameters
+            if "version" not in params:
+                params["version"] = "latest"
+
+            if "catalogue_name" not in params:
+                raise ValueError("'catalogue_name' is a required search parameter")
+
+            query_params = QueryParameters(**params)
         except (TypeError, ValueError) as err:
             logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
             errors.append(
@@ -412,9 +418,13 @@ def _query_gsm_for_lsm(
         # Query metadata for this version
 
         sky_components_dict = {}
-        metadata_record, sky_components = query_parameters.sky_components(db)
-        if metadata_record is None:
+        catalogues = query_parameters.sky_components(db)
+        if len(catalogues) == 0:
             raise ValueError("No catalogue could be found for query parameters")
+        if len(catalogues) > 1:
+            raise ValueError("Multiple catalogues have been matched, refine your criteria")
+
+        metadata_record, sky_components = catalogues[0]
 
         for sky_component in sky_components:
             sky_component_dict = sky_component.columns_to_dict()
