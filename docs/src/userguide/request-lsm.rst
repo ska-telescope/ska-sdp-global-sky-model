@@ -134,7 +134,7 @@ where:
    * - ``catalogue_name``
      - The catalogue name string of the GSM to select from
      - string
-     - Yes
+     - No
 
 To be able to view all components one can use:
 
