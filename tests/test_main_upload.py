@@ -599,3 +599,42 @@ def test_upload_batch_partial_fail_clears_staging(myclient, db_session):
     )
     assert count_component == 0
     assert count_metadata == 0
+
+
+def test_upload_same_file_twice_clears_staging(myclient, db_session):
+    """Test that if the same file is uploaded twice, staging is cleared."""
+    csv_file = Path("tests/data/test_catalogue_1.csv")
+
+    with csv_file.open("rb") as f1:
+        metadata_file = Path("tests/data/metadata_test.json")
+        with metadata_file.open("rb") as meta_f:
+            files = [
+                ("metadata_file", (metadata_file.name, meta_f, "application/json")),
+                ("csv_files", (csv_file.name, f1, "text/csv")),
+                ("csv_files", (csv_file.name, f1, "text/csv")),
+            ]
+            response = myclient.post("/upload-sky-survey-batch", files=files)
+
+    assert response.status_code == 200
+    upload_id = response.json()["upload_id"]
+
+    # Status should be failed
+    status_response = myclient.get(f"/upload-sky-survey-status/{upload_id}")
+    assert status_response.status_code == 200
+    status_data = status_response.json()
+    assert status_data["state"] == "failed"
+
+    # Staging table should be empty for this upload_id,
+    # and corresponding metadata should be removed.
+    count_component = (
+        db_session.query(SkyComponentStaging)
+        .filter(SkyComponentStaging.upload_id == upload_id)
+        .count()
+    )
+    count_metadata = (
+        db_session.query(GlobalSkyModelMetadata)
+        .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+        .count()
+    )
+    assert count_component == 0
+    assert count_metadata == 0
