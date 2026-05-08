@@ -761,6 +761,9 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
 
         # Delete staged data
         db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()
+        db.query(GlobalSkyModelMetadata).filter(
+            GlobalSkyModelMetadata.upload_id == upload_id
+        ).delete()
 
         db.commit()
 

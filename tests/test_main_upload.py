@@ -528,13 +528,19 @@ def test_reject_upload_success(myclient, db_session):
     assert reject_data["status"] == "success"
     assert reject_data["records_deleted"] == 5
 
-    # Verify staging table is cleared
+    # Verify staging table is cleared, and corresponding metadata is removed.
     staging_records = (
         db_session.query(SkyComponentStaging)
         .filter(SkyComponentStaging.upload_id == upload_id)
         .all()
     )
+    metadata_records = (
+        db_session.query(GlobalSkyModelMetadata)
+        .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+        .all()
+    )
     assert len(staging_records) == 0
+    assert len(metadata_records) == 0
 
 
 def test_reject_upload_not_completed(myclient):
@@ -579,10 +585,17 @@ def test_upload_batch_partial_fail_clears_staging(myclient, db_session):
     status_data = status_response.json()
     assert status_data["state"] == "failed"
 
-    # Staging table should be empty for this upload_id
-    count = (
+    # Staging table should be empty for this upload_id,
+    # and corresponding metadata should be removed.
+    count_component = (
         db_session.query(SkyComponentStaging)
         .filter(SkyComponentStaging.upload_id == upload_id)
         .count()
     )
-    assert count == 0
+    count_metadata = (
+        db_session.query(GlobalSkyModelMetadata)
+        .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+        .count()
+    )
+    assert count_component == 0
+    assert count_metadata == 0
