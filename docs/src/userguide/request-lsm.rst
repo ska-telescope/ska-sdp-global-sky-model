@@ -95,7 +95,7 @@ The output CSV file is described at :ref:`lsm_file`.
 Viewing LSM data in a browser
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For users who would like to inspect the data visually, a views have been provided.
+For users who would like to inspect the data visually, a view has been provided.
 The table view is available through a browser interface.
 It is at the ``/local-sky-model`` endpoint.
 
