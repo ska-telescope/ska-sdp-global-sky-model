@@ -15,6 +15,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Requ
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
@@ -612,6 +613,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         If upload not ready, no metadata, or commit fails
     """
     status = upload_manager.get_status(upload_id)
+    fetch_existing = None
 
     if status.state != "completed":
         raise HTTPException(
@@ -635,19 +637,41 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
         metadata = status.metadata
         catalogue_name = metadata.catalogue_name
+        fetch_existing = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+            .all()[0]
+        )
 
+        # Commit any possible changes, so that we can start a new transaction
+
+        db.commit()
         # Auto-compute the next version for this catalogue by incrementing the minor version
         # of the current latest committed version, independently per catalogue name.
-        existing_versions = [
-            versions[0]
-            for versions in db.query(GlobalSkyModelMetadata.version)
-            .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
-            .filter(GlobalSkyModelMetadata.version.isnot(None))
-            .all()
-        ]
-        latest_version = get_latest_version(existing_versions)
-        catalogue_version = increment_minor_version(latest_version)
-        metadata.version = catalogue_version
+        # We only commit new version here
+        while True:
+            try:
+                # Transaction starting in loop, in case of version conflicts
+                with db.begin():
+                    existing_versions = [
+                        versions[0]
+                        for versions in db.query(GlobalSkyModelMetadata.version)
+                        .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
+                        .filter(GlobalSkyModelMetadata.version.isnot(None))
+                        .all()
+                    ]
+                    latest_version = get_latest_version(existing_versions)
+                    catalogue_version = increment_minor_version(latest_version)
+                    metadata.version = catalogue_version
+                    fetch_existing.version = catalogue_version
+
+                    logger.info("Attempting to set the version to %s", catalogue_version)
+
+                    db.commit()
+
+                break
+            except IntegrityError:
+                logger.error("Version update failed to be set, trying again...")
 
         logger.info(
             "Auto-assigned version %s to upload %s for catalogue '%s' (previous latest: %s)",
@@ -657,12 +681,6 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             latest_version or "none",
         )
 
-        fetch_existing = (
-            db.query(GlobalSkyModelMetadata)
-            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
-            .all()[0]
-        )
-        fetch_existing.version = catalogue_version
         fetch_existing.staging = False
 
         # Copy from staging to main table with catalogue version
@@ -703,6 +721,13 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
+        # we need to rollback the version manually:
+        if fetch_existing is not None:
+            try:
+                fetch_existing.version = None
+                db.commit()
+            except Exception:
+                pass
         logger.error("Failed to commit upload %s: %s", upload_id, e)
         logger.exception(e)
         raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}") from e
