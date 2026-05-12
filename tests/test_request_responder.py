@@ -1,5 +1,7 @@
 """Tests for the request_responder"""
 
+# pylint: disable=too-many-lines
+
 import copy
 import os
 import tempfile
@@ -24,6 +26,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _save_lsm_with_metadata,
     _update_state,
     _watcher_process,
+    _watcher_process_flow,
     _write_data,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
@@ -495,11 +498,25 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
         ra_deg=2.9670,
         dec_deg=-0.1745,
         fov_deg=0.0873,
-        version="latest",
         catalogue_name="test",
         sub_path="test/lsm.csv",
     )
     with pytest.raises(ValueError, match="No catalogue could be found for query parameters"):
+        _query_gsm_for_lsm(query_params, db_session)
+
+
+def test_query_gsm_with_an_error_that_shouldnt_be_possible(db_session):  # noqa: F811
+    """This test is for an error that should not be possible"""
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        sub_path="test/lsm.csv",
+    )
+    with pytest.raises(
+        ValueError, match="Multiple catalogues have been matched, refine your criteria"
+    ):
         _query_gsm_for_lsm(query_params, db_session)
 
 
@@ -712,29 +729,6 @@ def test_write_data_empty_components(tmp_path):
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
 
 
-def test_metadata_sort_order(db_session):
-    """
-    Test that QueryParameters._get_metadata_record uses the latest
-    uploaded catalogue when no catalogue metadata query is provided.
-    """
-
-    # these params don't actually matter, if metadata-related
-    # values were added, those would be used;
-    # these are required fields to call QueryParameters
-    query_params = QueryParameters(
-        ra_deg=111.11,
-        dec_deg=-22.22,
-        fov_deg=180,
-        sub_path="test/lsm.csv",
-    )
-
-    # pylint: disable-next=protected-access
-    output_metadata = query_params._get_metadata_record(db_session)
-
-    assert output_metadata.catalogue_name == "catalogue2"
-    assert output_metadata.version == "1.0.0"
-
-
 def test_metadata_sort_order_and_latest_version(db_session):
     """
     Test that QueryParameters._get_metadata_record uses
@@ -746,14 +740,20 @@ def test_metadata_sort_order_and_latest_version(db_session):
     # values were added, those would be used;
     # these are required fields to call QueryParameters
     query_params = QueryParameters(
-        ra_deg=111.11, dec_deg=-22.22, fov_deg=180, sub_path="test/lsm.csv", version="latest"
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+        version="latest",
+        catalogue_name="catalogue3",
     )
 
     # pylint: disable-next=protected-access
     output_metadata = query_params._get_metadata_record(db_session)
 
-    assert output_metadata.catalogue_name == "catalogue3"
-    assert output_metadata.version == "1.0.5"
+    assert len(output_metadata) == 1
+    assert output_metadata[0].catalogue_name == "catalogue3"
+    assert output_metadata[0].version == "1.0.5"
 
 
 def test_get_flows_multiple_gsm_sources(valid_flow, monkeypatch):
@@ -908,6 +908,116 @@ def test_watcher_process_multiple_sources(
         call.flow.state(valid_flow),
         call.flow.state().update({"status": "COMPLETED", "last_updated": 1234.5678}),
     ]
+
+
+@patch("ska_sdp_global_sky_model.api.app.request_responder._update_state", autospec=True)
+@patch("ska_sdp_global_sky_model.api.app.request_responder._process_flow", autospec=True)
+def test_process_flow_no_version(mock_process, mock_update):
+    """Check that version=latest is added when missing"""
+    mock_process.return_value = (True, None)
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_watcher.txn.return_value = [mock_txn]
+    mock_pb_get = MagicMock()
+    mock_pb_get.eb_id = "eb-id"
+
+    mock_txn.processing_block.get.return_value = mock_pb_get
+
+    flow = MagicMock()
+    flow.key.pb_id = "pb-id"
+    sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9680,
+                "dec_deg": -0.1755,
+                "fov_deg": 0.0873,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/lsm2.csv",
+            },
+        ),
+    ]
+
+    _watcher_process_flow(mock_watcher, flow, sources)
+
+    assert mock_process.mock_calls == [
+        call(
+            flow,
+            "eb-id",
+            QueryParameters(
+                ra_deg=2.9680,
+                dec_deg=-0.1755,
+                fov_deg=0.0873,
+                catalogue_name="catalogue",
+                version="latest",
+            ),
+        )
+    ]
+    assert mock_update.mock_calls == [
+        call(mock_txn, flow, "FLOWING"),
+        call(mock_txn, flow, "COMPLETED"),
+    ]
+    assert mock_txn.mock_calls == [call.processing_block.get("pb-id")]
+    assert mock_watcher.mock_calls == [call.txn(), call.txn()]
+
+
+@patch("ska_sdp_global_sky_model.api.app.request_responder._update_state", autospec=True)
+@patch("ska_sdp_global_sky_model.api.app.request_responder._process_flow", autospec=True)
+def test_process_flow_no_catalogue(mock_process, mock_update):
+    """Check that a missing catalogue_name throws the correct error"""
+    mock_process.return_value = (True, None)
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_watcher.txn.return_value = [mock_txn]
+    mock_pb_get = MagicMock()
+    mock_pb_get.eb_id = "eb-id"
+
+    mock_txn.processing_block.get.return_value = mock_pb_get
+
+    flow = MagicMock()
+    flow.key.pb_id = "pb-id"
+    sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9680,
+                "dec_deg": -0.1755,
+                "fov_deg": 0.0873,
+                "sub_path": "test/lsm2.csv",
+            },
+        ),
+    ]
+
+    _watcher_process_flow(mock_watcher, flow, sources)
+
+    assert mock_process.mock_calls == []
+    assert mock_update.mock_calls == [
+        call(mock_txn, flow, "FLOWING"),
+        call(
+            mock_txn,
+            flow,
+            "FAILED",
+            error_state=[
+                {
+                    "error": (
+                        "Invalid query parameters: 'catalogue_name' is "
+                        "a required search parameter"
+                    ),
+                    "parameters": {
+                        "ra_deg": 2.968,
+                        "dec_deg": -0.1755,
+                        "fov_deg": 0.0873,
+                        "sub_path": "test/lsm2.csv",
+                        "version": "latest",
+                    },
+                }
+            ],
+        ),
+    ]
+    assert mock_txn.mock_calls == [call.processing_block.get("pb-id")]
+    assert mock_watcher.mock_calls == [call.txn(), call.txn()]
 
 
 def test_save_lsm_with_metadata():

@@ -1,25 +1,53 @@
-<head></head>
+<head>
+  <title>{{ title }}</title>
+  <style>
+    {% if items | length > 0 and items[0] | length > 1 %}
+    body {margin:0px; padding:0px}
+    {% else %}
+    body {max-width: 500px;align-content: center; margin: auto; background: #CCCCCC}
+    {% endif %}
+    table {max-width: 100%; border-collapse: collapse}
+    th {text-transform: capitalize}
+    thead {background: #EEEEEE}
+    td, th {padding: 2px 0.5em}
+    .notice {
+      padding: 1em;
+      border-radius: 4px;
+      font-family: sans-serif;
+      background-color: #fff3cd;
+      border: 1px solid #ffeeba;
+    }
+    .notice .title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
 <body>
-    <table border="1">
-        <!-- Table Header (optional) -->
-        <thead>
-            <tr>
-                {% if items %}
-                    {% for key in items[0].keys() %}
-                        <th>{{ key.capitalize() }}</th>
-                    {% endfor %}
-                {% endif %}
-            </tr>
-        </thead>
-        <!-- Table Body -->
-        <tbody>
-            {% for item in items %}
-                <tr>
-                    {% for value in item.values() %}
-                        <td>{{ value }}</td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+  {% if items | length > 0 %}
+  <table border="1">
+    <thead>
+      <tr>
+        {% if items %}
+          {% for key in items[0].keys() %}
+            <th>{{ key }}</th>
+          {% endfor %}
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          {% for value in item.values() %}
+            <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="notice">
+    <p><span class="title">Warning:</span> Query produced no output</p>
+  </div>
+  {% endif %}
 </body>
