@@ -28,9 +28,9 @@ url = "https://artefact.skao.int/repository/pypi-internal/simple"
 priority = "primary"
 
 [tool.poetry.dependencies]
-fastapi = "^0.110.1"
+fastapi = "^0.136.1"
 sqlalchemy = "^2.0.49"
-uvicorn = "^0.29.0"
+uvicorn = "^0.46.0"
 httpx = "^0.27.0"
 ska-ser-logging = "^0.4.3"
 python-multipart = "^0.0.27"  # needed by fastapi for parsing

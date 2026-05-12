@@ -4,6 +4,14 @@ CHANGELOG
 Development
 -----------
 
+- [Change] Update LocalSkyModelQuery to do:
+  (`MR116 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/116>`__)
+
+  - Allow HTTP endpoint to return multiple catalogues
+  - Do not allow Flow based search to use multiple catalogues
+  - Make Flow based LSM be forced to query by ``catalogue_name``
+  - Update HTML page to be clear when no components match the query
+  - Upgrade fastapi+uvicorn
 - [New] new commands to cleanup catalogues
   (`MR106 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/106>`__)
 - [Update] Redirect from '/' to '/docs' Improve swagger example code.
@@ -12,10 +20,8 @@ Development
   (`MR105 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/105>`__)
 - [Remove] Unused dependencies from pyproject.toml
   (`MR105 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/105>`__)
-
 - [Deprecate] HTML upload page is deprecated
   (`MR105 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/105>`__)
-
 - [Update] Improve error reporting during CSV file validation
   (`MR108 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/108>`__)
 - [Fix] Allow only a single metadata file to be uploaded

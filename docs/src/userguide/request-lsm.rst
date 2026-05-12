@@ -27,7 +27,7 @@ layout should match the following:
                 k8s_namespaces=[],
                 k8s_pvc_name="",
                 pvc_mount_path="/mnt/data",
-                pvc_subpath=pathlib.Path(f"product/{eb_id}/ska-sdp/{pb_id}/ska-sdm/sky/{field_id}"),
+                pvc_subpath=pathlib.Path(f"product/{eb_id}/ska-sdp/{pb_id}/ska-sdm"),
             ),
             paths=[],
         ),
@@ -51,13 +51,13 @@ layout should match the following:
 
 Some things to be aware of:
 
-    1. The first item in ``flow.sources`` with ``function="GlobalSkyModel.RequestLocalSkyModel"``
-       will be used, any other ones which may have the same function are
-       ignored. Note: there should not be more than one source with this
-       matching function.
-    2. Only 1 query can be done per Flow, so each field must have its own Flow entry.
-    3. The output location needs to be specified by the ``sub_path`` parameter, relative to
+    1. Each source with ``function="GlobalSkyModel.RequestLocalSkyModel"``
+       will be used. Each source will generate its own local sky model, and
+       therefore the ``sub_path`` should be unique, else it will be overwritten.
+    2. The output location needs to be specified by the ``sub_path`` parameter, relative to
        the ``pvc_subpath``, and the metadata file will be in the directory specified by ``pvc_subpath``.
+    3. ``version`` is not required to be set, but will default to ``version=latest``
+       when it is not set.
 
 Processing data flow requests
 .............................
@@ -95,29 +95,15 @@ The output CSV file is described at :ref:`lsm_file`.
 Viewing LSM data in a browser
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For users who would like to inspect the data visually, two views have been provided.
-The two table views are available through a browser interface.
-These are at the `/components` and the `/local_sky_model` endpoints.
-
-Components
-..........
-
-The components endpoint gives a table of the components that have been added to the GSM.
-To access these on a local instance of the GSM, navigate to ``GET /components``
-
-The following table will be displayed:
-
-+----+---------+----------------+----------------+-----------+-----------+----------+----------+----------+---------+----------+--------------+-------------+
-| Id | Version | Catalogue_name | Component_id   | Ra_deg    | Dec_deg   | I_pol_jy | A_arcsec | B_arcsec | Pa_deg  | Spec_idx | Log_spec_idx | Ref_freq_hz |
-+====+=========+================+================+===========+===========+==========+==========+==========+=========+==========+==============+=============+
-| 1  | 0.0.0   | generic        | J023255-053134 | 38.230309 | -5.526247 | None     | None     | None     | None    | None     | None         | 17000000    |
-+----+---------+----------------+----------------+-----------+-----------+----------+----------+----------+---------+----------+--------------+-------------+
+For users who would like to inspect the data visually, a view has been provided.
+The table view is available through a browser interface.
+It is at the ``/local-sky-model`` endpoint.
 
 Local Sky Model
 ...............
 
 To access the LSM (filtered list of components) navigate to
-``GET /local_sky_model?ra_deg={ra_deg}&dec_deg={dec_deg}&fov_deg={fov_deg}&version={version}&catalogue_name={catalogue_name}``
+``GET /local-sky-model?ra_deg={ra_deg}&dec_deg={dec_deg}&fov_deg={fov_deg}&version={version}&catalogue_name={catalogue_name}``
 
 where:
 
@@ -148,8 +134,11 @@ where:
    * - ``catalogue_name``
      - The catalogue name string of the GSM to select from
      - string
-     - Yes
+     - No
 
+To be able to view all components one can use:
+
+``GET /local-sky-model?ra_deg=0&dec_deg=0&fov_deg=180``
 
 Filtering examples
 ^^^^^^^^^^^^^^^^^^
