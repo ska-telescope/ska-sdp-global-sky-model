@@ -11,9 +11,18 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -27,6 +36,7 @@ from ska_sdp_global_sky_model.api.app.models import (
 )
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
+    sky_components_to_csv_lines,
     start_lsm_response_thread,
 )
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
@@ -151,15 +161,16 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
     )
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 @app.get(
     "/local-sky-model",
-    response_class=HTMLResponse,
     summary="Retrieve a local sky model",
     description="Retrieve a sub-set of the global sky model in the form of a local sky model.",
     responses={
         200: {
             "content": {
                 "text/html": {"example": "Id | Version | Catalogue_name |..."},
+                "text/csv": {"example": "component_id,ra_deg,dec_deg,..."},
             }
         }
     },
@@ -169,6 +180,11 @@ async def get_local_sky_model_endpoint(
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
+    page: int = Query(default=1, ge=1, description="Page number"),
+    page_size: int = Query(default=50, ge=1, le=10000, description="Results per page"),
+    output_format: str = Query(
+        default="html", alias="format", description="Output format: 'html' or 'csv'"
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -179,44 +195,62 @@ async def get_local_sky_model_endpoint(
         ra_deg (float): Right ascension of the observation point in degrees.
         dec_deg (float): Declination of the observation point in degrees.
         fov_deg (float): Field of view of the telescope in degrees.
-        catalogue_name (str): Catalogue name of the global sky model.
-        version (str): Version of the global sky model. Optional.
+        page (int): Page number for pagination (1-indexed).
+        page_size (int): Number of results per page.
+        output_format (str): Response format, 'html' (default) or 'csv'.
         db (Session): Database session object.
 
     Returns:
-        html: An HTML template response of the LSM in table format.
+        HTML table or CSV file of the local sky model.
     """
     query_parameters = dict(request.query_params)
-    # Remove mandatory fields
-    _ = [query_parameters.pop(param, None) for param in ["ra_deg", "dec_deg", "fov_deg"]]
+    for param in ["ra_deg", "dec_deg", "fov_deg", "page", "page_size", "format"]:
+        query_parameters.pop(param, None)
     logger.info(
-        (
-            "Requesting local sky model with the following parameters: "
-            "ra:%s, dec:%s, fov:%s, (other: %s)"
-        ),
+        "Requesting local sky model: ra:%s, dec:%s, fov:%s, page:%s, page_size:%s, "
+        "format:%s, other:%s",
         ra_deg,
         dec_deg,
         fov_deg,
+        page,
+        page_size,
+        output_format,
         query_parameters,
     )
     query_params = QueryParameters(ra_deg, dec_deg, fov_deg, **query_parameters)
     catalogues = query_params.sky_components(db)
-    output_rows = []
+
+    if output_format == "csv":
+        return StreamingResponse(
+            sky_components_to_csv_lines(catalogues, query_params),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="local_sky_model.csv"'},
+        )
+    all_rows = []
     for catalogue, components in catalogues:
         catalogue_dict = catalogue.columns_to_dict()
-        output_rows.extend(
-            [catalogue_dict | component.columns_to_dict() for component in components]
-        )
-
-    for row in output_rows:
+        all_rows.extend([catalogue_dict | component.columns_to_dict() for component in components])
+    for row in all_rows:
         del row["gsm_id"]
         del row["id"]
         del row["staging"]
 
+    total_count = len(all_rows)
+    total_pages = max(1, (total_count + page_size - 1) // page_size)
+    offset = (page - 1) * page_size
+    output_rows = all_rows[offset : offset + page_size]  # noqa: E203
+
     return templates.TemplateResponse(
         request=request,
         name="table.html",
-        context={"items": output_rows, "title": "Local Sky Model Search"},
+        context={
+            "items": output_rows,
+            "title": "Local Sky Model Search",
+            "page": page,
+            "page_size": page_size,
+            "total_count": total_count,
+            "total_pages": total_pages,
+        },
     )
 
 
