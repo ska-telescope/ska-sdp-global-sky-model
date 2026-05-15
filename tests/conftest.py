@@ -8,7 +8,6 @@ import pytest
 from ska_sdp_config.entity import Flow
 from ska_sdp_config.entity.common import PVCPath
 from ska_sdp_config.entity.flow import DataProduct, FlowSource
-from sqlalchemy.orm import sessionmaker
 from starlette.testclient import TestClient
 
 from ska_sdp_global_sky_model.api.app.main import app
@@ -18,8 +17,6 @@ from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, B
 from tests.utils import engine, override_get_db
 
 logger = logging.getLogger(__name__)
-
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 @pytest.fixture(scope="session", autouse=True)

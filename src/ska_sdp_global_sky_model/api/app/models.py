@@ -64,6 +64,7 @@ def _python_type_to_column(field_type: type) -> Column:
     if origin is list:
         return Column(JSON, nullable=True)
 
+    # pylint: disable=unidiomatic-typecheck # isinstance works differently for this case
     # Handle Union types (includes Optional which is Union[T, None])
     if origin is typing.Union or origin is type(None | int):
         non_none_types = [arg for arg in args if arg is not type(None)]

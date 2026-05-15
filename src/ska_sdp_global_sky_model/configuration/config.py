@@ -14,11 +14,15 @@ from starlette.config import Config
 
 from ska_sdp_global_sky_model.utilities.feature_toggle import FeatureToggle
 
-ENV_FILE = Path(".env")
-if not ENV_FILE.exists():
-    ENV_FILE = None
 
-config = Config(ENV_FILE)
+def _get_config():
+    env_file = Path(".env")
+    if not env_file.exists():
+        env_file = None
+    return Config(env_file)
+
+
+config = _get_config()
 
 template_path = Path(Path(__file__).parent.parent, "templates")
 templates = Jinja2Templates(directory=template_path)
