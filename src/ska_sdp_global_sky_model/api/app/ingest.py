@@ -101,6 +101,7 @@ def to_float(val):
 
 def _is_optional_field(field_type: type) -> bool:
     """Check if a field type is Optional (Union[T, None])."""
+    # pylint: disable=unidiomatic-typecheck # isinstance works differently for this case
     origin = get_origin(field_type)
     if origin is type(None | int):
         return True
