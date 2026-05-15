@@ -442,6 +442,89 @@ def _query_gsm_for_lsm(
         raise
 
 
+# pylint: disable=protected-access
+def lsm_to_csv_lines(lsm: LocalSkyModel) -> Generator[str, None, None]:
+    """Yield CSV lines from a LocalSkyModel in the standard SKA format.
+
+    Args:
+        lsm: Local Sky Model
+    """
+    yield f"# ({','.join(lsm._column_names)}) = format\n"
+    yield f"# NUMBER_OF_COMPONENTS={lsm._num_rows}\n"
+    for key, value in lsm.header.items():
+        yield f"# {key}={str(value)}\n"
+    for row_index in range(lsm._num_rows):
+        row = [lsm.get_value_str(name, row_index) for name in lsm._column_names]
+        yield ",".join(row) + "\n"
+
+
+def _build_local_sky_model(
+    metadata_dict: Any,
+    components: Any,
+    query_parameters: "QueryParameters | None" = None,
+) -> LocalSkyModel:
+    """Build a LocalSkyModel from a metadata dict and sky components.
+
+    Args:
+        metadata_dict: Dictionary of metadata.
+        components: The components of the sky model.
+        query_parametrs: The query parameters provided.
+    """
+    column_names = (
+        list(next(iter(components.values())).__annotations__.keys())
+        if components
+        else list(SkyComponentDataclass.__annotations__.keys())
+    )
+    local_model = LocalSkyModel(
+        column_names=column_names,
+        num_rows=len(components),
+        max_vector_len=5,
+    )
+    header = {
+        f"CATALOGUE_METADATA_{key}".upper(): value
+        for key, value in metadata_dict.items()
+        if key not in ("staging", "upload_id", "id")
+    }
+    if query_parameters is not None:
+        for key, value in query_parameters.__dict__.items():
+            if isinstance(value, dict):
+                for key2, val2 in value.items():
+                    header[f"QUERY_{key}_{key2}".upper()] = make_serisalisable(val2)
+            else:
+                header[f"QUERY_{key}".upper()] = make_serisalisable(value)
+    local_model.set_header(header)
+    for row_idx, component in enumerate(components.values()):
+        row_data = {}
+        for field in column_names:
+            value = getattr(component, field, None)
+            if isinstance(value, (list, tuple)):
+                value = [numpy.nan if v is None else v for v in value]
+            row_data[field] = value
+        local_model.set_row(row_idx, row_data)
+    return local_model
+
+
+def sky_components_to_csv_lines(
+    catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
+    query_parameters: "QueryParameters",
+) -> Generator[str, None, None]:
+    """Yield LSM CSV lines for all matching catalogues.
+
+    Args:
+        catalogues: The catalogs and skycomponents to be written out.
+        query_parameters: The query parameters provided.
+    """
+    for catalogue, components in catalogues:
+        gsm_components = {}
+        for c in components:
+            c_dict = c.columns_to_dict()
+            del c_dict["id"]
+            del c_dict["gsm_id"]
+            gsm_components[c.id] = SkyComponentDataclass(**c_dict)
+        lsm = _build_local_sky_model(catalogue.columns_to_dict(), gsm_components, query_parameters)
+        yield from lsm_to_csv_lines(lsm)
+
+
 def _update_state(
     txn: ska_sdp_config.Config.txn,
     flow: Flow,
@@ -495,47 +578,7 @@ def _write_data(
     lsm_file = output / sub_path
     lsm_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Get column names from SkyComponent dataclass
-    column_names = (
-        list(next(iter(data.components.values())).__annotations__.keys())
-        if data.components
-        else list(SkyComponentDataclass.__annotations__.keys())
-    )
-
-    # Create LocalSkyModel with the right size
-    local_model = LocalSkyModel(
-        column_names=column_names,
-        num_rows=len(data.components),
-        max_vector_len=5,  # For spectral index vectors
-    )
-
-    header = {
-        f"CATALOGUE_METADATA_{key}".upper(): value
-        for key, value in data.metadata.items()
-        if key not in ("staging", "upload_id", "id")
-    }
-
-    # Dynamically inject all query parameters
-    for key, value in query_parameters.__dict__.items():
-        if isinstance(value, dict):
-            for key2, val2 in value.items():
-                header[f"QUERY_{key}_{key2}".upper()] = make_serisalisable(val2)
-        else:
-            header[f"QUERY_{key}".upper()] = make_serisalisable(value)
-
-    local_model.set_header(header)
-
-    # Populate the LocalSkyModel with data from GlobalSkyModel
-    for row_idx, component in enumerate(data.components.values()):
-        row_data = {}
-        for field in column_names:
-            value = getattr(component, field, None)
-            # Handle None values in arrays (e.g., spec_idx with nulls)
-            if isinstance(value, (list, tuple)):
-                # Replace None with numpy.nan in arrays
-                value = [numpy.nan if v is None else v for v in value]
-            row_data[field] = value
-        local_model.set_row(row_idx, row_data)
+    local_model = _build_local_sky_model(data.metadata, data.components, query_parameters)
 
     # Use the base path for the metadata location
     metadata_dir = output
@@ -597,7 +640,11 @@ def _save_lsm_with_metadata(
     :type metadata_dir: str
     """
     # Save the CSV file.
-    lsm.save(lsm_path)
+    lsm_file_path = Path(lsm_path)
+    lsm_file_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lsm_path, "w", encoding="utf-8") as out:
+        for line in lsm_to_csv_lines(lsm):
+            out.write(line)
 
     # Write or update the YAML metadata file.
     yaml_path = os.path.join(metadata_dir, "ska-data-product.yaml")

@@ -116,25 +116,35 @@ where:
      - Data Type
      - Required
    * - ``ra_deg``
-     - The right ascension of the centre of the cone search (in degrees)
+     - The right ascension of the centre of the cone search (in degrees).
      - float
      - Yes
    * - ``dec_deg``
-     - The declination of the centre of the cone search (in degrees)
+     - The declination of the centre of the cone search (in degrees).
      - float
      - Yes
    * - ``fov_deg``
-     - The field of view of the cone search (in degrees)
+     - The field of view of the cone search (in degrees).
      - float
      - Yes
    * - ``version``
-     - The version string of the GSM to select from (only supports semantic versioning)
+     - The version string of the GSM to select from (only supports semantic versioning).
      - string
      - No
    * - ``catalogue_name``
-     - The catalogue name string of the GSM to select from
+     - The catalogue name string of the GSM to select from.
      - string
      - No
+   * - ``page``
+     - The page number currently being viewed.
+     - int
+     - No
+   * - ``page_size``
+     - The number of components per page.
+     - int
+     - No
+
+This can be downloaded as a CSV by adding the parameter ``format=csv``.
 
 To be able to view all components one can use:
 

@@ -20,6 +20,7 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
+    _build_local_sky_model,
     _get_flows,
     _process_flow,
     _query_gsm_for_lsm,
@@ -28,6 +29,8 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _watcher_process,
     _watcher_process_flow,
     _write_data,
+    lsm_to_csv_lines,
+    sky_components_to_csv_lines,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
 from tests.utils import clean_all_tables, set_up_db
@@ -1067,3 +1070,126 @@ def test_save_lsm_with_metadata():
             assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
             assert metadata["execution_block"] == execution_block_id
             assert metadata["files"][i]["path"] == csv_file_name
+
+
+def test_lsm_to_csv_lines():
+    """Test that lsm_to_csv_lines yields lines in the standard SKA format."""
+    column_names = ["ra_deg", "dec_deg", "i_pol_jy"]
+    lsm = LocalSkyModel(column_names=column_names, num_rows=0)
+    lsm.set_header({"MY_KEY": "my_value", "COUNT": 42})
+
+    lines = list(lsm_to_csv_lines(lsm))
+
+    assert lines[0] == "# (ra_deg,dec_deg,i_pol_jy) = format\n"
+    assert lines[1] == "# NUMBER_OF_COMPONENTS=0\n"
+    assert "# MY_KEY=my_value\n" in lines
+    assert "# COUNT=42\n" in lines
+    data_lines = [line for line in lines if not line.startswith("#")]
+    assert data_lines == []
+
+
+def test_lsm_to_csv_lines_with_data():
+    """Test that lsm_to_csv_lines includes data rows when the model has components."""
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2026.0,
+        ra_deg=45.0,
+        dec_deg=-30.0,
+        i_pol_jy=1.5,
+        ref_freq_hz=300e6,
+        spec_idx=[0.8],
+    )
+    lsm = _build_local_sky_model({}, {"TEST001": component})
+
+    lines = list(lsm_to_csv_lines(lsm))
+    content = "".join(lines)
+
+    assert "# NUMBER_OF_COMPONENTS=1\n" in lines
+    data_lines = [line for line in lines if not line.startswith("#")]
+    assert len(data_lines) == 1
+    assert "45.0" in content or "45" in content
+    assert "-30.0" in content or "-30" in content
+
+
+def test_build_local_sky_model():
+    """Test that _build_local_sky_model builds a LocalSkyModel with correct metadata and rows."""
+    metadata = {
+        "catalogue_name": "test_cat",
+        "version": "1.0",
+        "author": "Tester",
+        "staging": False,
+        "upload_id": "abc123",
+        "id": 99,
+    }
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2026.0,
+        ra_deg=45.0,
+        dec_deg=-30.0,
+        i_pol_jy=1.0,
+        ref_freq_hz=100e6,
+        spec_idx=[0.5],
+    )
+    lsm = _build_local_sky_model(metadata, {"TEST001": component})
+
+    assert lsm.num_components == 1
+
+    # Catalogue metadata keys (uppercased) present in header
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME" in lsm.header
+    assert lsm.header["CATALOGUE_METADATA_CATALOGUE_NAME"] == "test_cat"
+    assert "CATALOGUE_METADATA_VERSION" in lsm.header
+    assert "CATALOGUE_METADATA_AUTHOR" in lsm.header
+
+    # Internal db columns are excluded
+    assert "CATALOGUE_METADATA_STAGING" not in lsm.header
+    assert "CATALOGUE_METADATA_UPLOAD_ID" not in lsm.header
+    assert "CATALOGUE_METADATA_ID" not in lsm.header
+
+
+def test_build_local_sky_model_with_query_parameters():
+    """Test that query parameters are embedded in the LocalSkyModel header."""
+    query_params = QueryParameters(
+        ra_deg=90.0,
+        dec_deg=2.0,
+        fov_deg=5.0,
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    lsm = _build_local_sky_model({}, {}, query_parameters=query_params)
+
+    assert "QUERY_RA_DEG" in lsm.header
+    assert lsm.header["QUERY_RA_DEG"] == 90.0
+    assert "QUERY_DEC_DEG" in lsm.header
+    assert "QUERY_FOV_DEG" in lsm.header
+
+
+def test_sky_components_to_csv_lines(db_session):  # noqa: F811
+    """Test that sky_components_to_csv_lines yields SKA-format CSV for matched catalogues."""
+    query_params = QueryParameters(
+        ra_deg=90,
+        dec_deg=2,
+        fov_deg=5,
+        version="0.1.0",
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    lines = list(sky_components_to_csv_lines(catalogues, query_params))
+    content = "".join(lines)
+
+    # SKA format header lines
+    assert "# (" in content
+    assert ") = format" in content
+    assert "# NUMBER_OF_COMPONENTS=" in content
+
+    # Catalogue metadata embedded in header
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME=catalogue1" in content
+
+    # Query parameters embedded in header
+    assert "QUERY_RA_DEG=90" in content
+
+    # Component data present
+    assert "W000010" in content

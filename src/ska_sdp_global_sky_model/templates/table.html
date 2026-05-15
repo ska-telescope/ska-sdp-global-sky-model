@@ -21,9 +21,37 @@
       font-weight: bold;
       margin-bottom: 5px;
     }
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      padding: 0.5em 0;
+      font-family: sans-serif;
+      font-size: 0.9em;
+      flex-wrap: wrap;
+    }
+    .pagination-info { margin-right: 0.5em; color: #555; }
+    .page-btn {
+      padding: 0.2em 0.6em;
+      border: 1px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .page-btn:hover:not(:disabled) { background: #eee; }
+    .page-btn:disabled { cursor: default; color: #999; }
+    .page-current { background: #333; color: #fff; border-color: #333; }
+    .page-ellipsis { padding: 0 0.2em; color: #999; }
   </style>
 </head>
 <body>
+  {% if total_pages is defined and total_pages > 1 %}
+  <div class="pagination"
+      data-page="{{ page }}"
+      data-total-pages="{{ total_pages }}"
+      data-total-count="{{ total_count }}">
+  </div>
+  {% endif %}
   {% if items | length > 0 %}
   <table border="1">
     <thead>
@@ -49,5 +77,51 @@
   <div class="notice">
     <p><span class="title">Warning:</span> Query produced no output</p>
   </div>
+  {% endif %}
+  {% if total_pages is defined and total_pages > 1 %}
+  <div class="pagination"
+      data-page="{{ page }}"
+      data-total-pages="{{ total_pages }}"
+      data-total-count="{{ total_count }}">
+  </div>
+  <script>
+    function goToPage(p) {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', p);
+      window.location.search = params.toString();
+    }
+    function buildPagination(el) {
+      var page = +el.dataset.page;
+      var total = +el.dataset.totalPages;
+      var count = +el.dataset.totalCount;
+      function btn(label, p, off) {
+        return off
+          ? '<button class="page-btn" disabled>' + label + '</button>'
+          : '<button class="page-btn" onclick="goToPage(' + p + ')">' + label + '</button>';
+      }
+      var h = '<span class="pagination-info">'
+            + count + ' result' + (count !== 1 ? 's' : '')
+            + ' — page ' + page + ' of ' + total
+            + '</span>';
+      h += btn('&#171;', 1, page === 1);
+      h += btn('&#8249;', page - 1, page === 1);
+      var last = 0;
+      for (var p = 1; p <= total; p++) {
+        if (p === 1 || p === total || (p >= page - 2 && p <= page + 2)) {
+          if (last && p - last > 1) {
+            h += '<span class="page-ellipsis">&hellip;</span>';
+          }
+          h += p === page
+            ? '<button class="page-btn page-current" disabled>' + p + '</button>'
+            : '<button class="page-btn" onclick="goToPage(' + p + ')">' + p + '</button>';
+          last = p;
+        }
+      }
+      h += btn('&#8250;', page + 1, page === total);
+      h += btn('&#187;', total, page === total);
+      el.innerHTML = h;
+    }
+    document.querySelectorAll('.pagination').forEach(buildPagination);
+  </script>
   {% endif %}
 </body>
