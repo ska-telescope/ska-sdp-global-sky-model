@@ -3,9 +3,9 @@
 Uploading GSM data
 ------------------
 
-The GSM provides both an API and browser interface for uploading multiple sky survey 
-catalogue files in a single atomic batch operation into the GSM database. The API is 
-the recommended and primary method for uploading data. The browser-based interface is 
+The GSM provides both an API and browser interface for uploading multiple sky survey
+catalogue files in a single atomic batch operation into the GSM database. The API is
+the recommended and primary method for uploading data. The browser-based interface is
 **deprecated** and will be removed in a future release.
 
 
@@ -82,7 +82,7 @@ All files in the batch are combined into a single sky model.
 If any file fails validation or ingestion, the entire batch is rolled back.
 
 .. note::
-    This has been tested inside the cluster, with file sizes up to 200MB (~1,000,000 rows), with no known issue. 
+    This has been tested inside the cluster, with file sizes up to 200MB (~1,000,000 rows), with no known issue.
     Using port forwarding and curl, a catalogue of 2GB or 10,000,000 rows was successfully uploaded.
 
 The catalogue version is **not** supplied by the user — it is automatically assigned when the
@@ -378,6 +378,7 @@ Reject Staged Upload
 **Endpoint**: ``DELETE /reject-upload/{upload_id}``
 
 Reject and discard staged data. All records associated with this upload_id are permanently deleted from the staging table.
+The catalogue metadata associated with the upload_id is also removed from the metadata table.
 
 .. list-table::
     :widths: 20, 50, 20, 10
@@ -427,7 +428,7 @@ Reject and discard staged data. All records associated with this upload_id are p
 End-to-End Upload Workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A complete example of the intended workflow is provided here. See above for more 
+A complete example of the intended workflow is provided here. See above for more
 information on individual steps.
 
 1. Upload files to staging:
