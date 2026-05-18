@@ -1,12 +1,12 @@
-FROM postgres:16
+FROM postgres:18
 
 # Install build dependencies
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        postgresql-16-q3c \
+        postgresql-18-q3c \
         ca-certificates \
-        postgresql-server-dev-16; \
+        postgresql-server-dev-18; \
     rm -rf /var/lib/apt/lists/*
 
 

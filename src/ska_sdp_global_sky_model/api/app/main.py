@@ -11,10 +11,20 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
@@ -26,6 +36,7 @@ from ska_sdp_global_sky_model.api.app.models import (
 )
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
+    sky_components_to_csv_lines,
     start_lsm_response_thread,
 )
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
@@ -144,19 +155,22 @@ def get_point_components(request: Request, db: Session = Depends(get_db)):
         del row["staging"]
     logger.info("Retrieved all data for all %d components", len(output_rows))
     return templates.TemplateResponse(
-        request=request, name="table.html", context={"items": list(output_rows)}
+        request=request,
+        name="table.html",
+        context={"items": list(output_rows), "title": "Component list"},
     )
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 @app.get(
     "/local-sky-model",
-    response_class=HTMLResponse,
     summary="Retrieve a local sky model",
     description="Retrieve a sub-set of the global sky model in the form of a local sky model.",
     responses={
         200: {
             "content": {
                 "text/html": {"example": "Id | Version | Catalogue_name |..."},
+                "text/csv": {"example": "component_id,ra_deg,dec_deg,..."},
             }
         }
     },
@@ -166,6 +180,11 @@ async def get_local_sky_model_endpoint(
     ra_deg: float,
     dec_deg: float,
     fov_deg: float,
+    page: int = Query(default=1, ge=1, description="Page number"),
+    page_size: int = Query(default=50, ge=1, le=10000, description="Results per page"),
+    output_format: str = Query(
+        default="html", alias="format", description="Output format: 'html' or 'csv'"
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -176,34 +195,62 @@ async def get_local_sky_model_endpoint(
         ra_deg (float): Right ascension of the observation point in degrees.
         dec_deg (float): Declination of the observation point in degrees.
         fov_deg (float): Field of view of the telescope in degrees.
-        catalogue_name (str): Catalogue name of the global sky model.
-        version (str): Version of the global sky model. Optional.
+        page (int): Page number for pagination (1-indexed).
+        page_size (int): Number of results per page.
+        output_format (str): Response format, 'html' (default) or 'csv'.
         db (Session): Database session object.
 
     Returns:
-        html: An HTML template response of the LSM in table format.
+        HTML table or CSV file of the local sky model.
     """
     query_parameters = dict(request.query_params)
-    # Remove mandatory fields
-    _ = [query_parameters.pop(param, None) for param in ["ra_deg", "dec_deg", "fov_deg"]]
+    for param in ["ra_deg", "dec_deg", "fov_deg", "page", "page_size", "format"]:
+        query_parameters.pop(param, None)
     logger.info(
-        (
-            "Requesting local sky model with the following parameters: "
-            "ra:%s, dec:%s, fov:%s, (other: %s)"
-        ),
+        "Requesting local sky model: ra:%s, dec:%s, fov:%s, page:%s, page_size:%s, "
+        "format:%s, other:%s",
         ra_deg,
         dec_deg,
         fov_deg,
+        page,
+        page_size,
+        output_format,
         query_parameters,
     )
     query_params = QueryParameters(ra_deg, dec_deg, fov_deg, **query_parameters)
-    _, local_model = query_params.sky_components(db)
-    output_rows = [r.columns_to_dict() for r in local_model]
-    for row in output_rows:
+    catalogues = query_params.sky_components(db)
+
+    if output_format == "csv":
+        return StreamingResponse(
+            sky_components_to_csv_lines(catalogues, query_params),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="local_sky_model.csv"'},
+        )
+    all_rows = []
+    for catalogue, components in catalogues:
+        catalogue_dict = catalogue.columns_to_dict()
+        all_rows.extend([catalogue_dict | component.columns_to_dict() for component in components])
+    for row in all_rows:
         del row["gsm_id"]
         del row["id"]
+        del row["staging"]
+
+    total_count = len(all_rows)
+    total_pages = max(1, (total_count + page_size - 1) // page_size)
+    offset = (page - 1) * page_size
+    output_rows = all_rows[offset : offset + page_size]  # noqa: E203
+
     return templates.TemplateResponse(
-        request=request, name="table.html", context={"items": output_rows}
+        request=request,
+        name="table.html",
+        context={
+            "items": output_rows,
+            "title": "Local Sky Model Search",
+            "page": page,
+            "page_size": page_size,
+            "total_count": total_count,
+            "total_pages": total_pages,
+        },
     )
 
 
@@ -615,6 +662,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         If upload not ready, no metadata, or commit fails
     """
     status = upload_manager.get_status(upload_id)
+    fetch_existing = None
 
     if status.state != "completed":
         raise HTTPException(
@@ -638,19 +686,41 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
         metadata = status.metadata
         catalogue_name = metadata.catalogue_name
+        fetch_existing = (
+            db.query(GlobalSkyModelMetadata)
+            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
+            .all()[0]
+        )
 
+        # Commit any possible changes, so that we can start a new transaction
+
+        db.commit()
         # Auto-compute the next version for this catalogue by incrementing the minor version
         # of the current latest committed version, independently per catalogue name.
-        existing_versions = [
-            versions[0]
-            for versions in db.query(GlobalSkyModelMetadata.version)
-            .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
-            .filter(GlobalSkyModelMetadata.version.isnot(None))
-            .all()
-        ]
-        latest_version = get_latest_version(existing_versions)
-        catalogue_version = increment_minor_version(latest_version)
-        metadata.version = catalogue_version
+        # We only commit new version here
+        while True:
+            try:
+                # Transaction starting in loop, in case of version conflicts
+                with db.begin():
+                    existing_versions = [
+                        versions[0]
+                        for versions in db.query(GlobalSkyModelMetadata.version)
+                        .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
+                        .filter(GlobalSkyModelMetadata.version.isnot(None))
+                        .all()
+                    ]
+                    latest_version = get_latest_version(existing_versions)
+                    catalogue_version = increment_minor_version(latest_version)
+                    metadata.version = catalogue_version
+                    fetch_existing.version = catalogue_version
+
+                    logger.info("Attempting to set the version to %s", catalogue_version)
+
+                    db.commit()
+
+                break
+            except IntegrityError:
+                logger.error("Version update failed to be set, trying again...")
 
         logger.info(
             "Auto-assigned version %s to upload %s for catalogue '%s' (previous latest: %s)",
@@ -660,12 +730,6 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             latest_version or "none",
         )
 
-        fetch_existing = (
-            db.query(GlobalSkyModelMetadata)
-            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
-            .all()[0]
-        )
-        fetch_existing.version = catalogue_version
         fetch_existing.staging = False
 
         # Copy from staging to main table with catalogue version
@@ -706,6 +770,13 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
+        # we need to rollback the version manually:
+        if fetch_existing is not None:
+            try:
+                fetch_existing.version = None
+                db.commit()
+            except Exception:
+                pass
         logger.error("Failed to commit upload %s: %s", upload_id, e)
         logger.exception(e)
         raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}") from e

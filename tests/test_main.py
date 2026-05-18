@@ -24,14 +24,14 @@ def set_up_database():
 
 
 def test_read_main(myclient):
-    """Unit test for the root path "/" """
+    """Test that ping endpoint returns"/" """
     response = myclient.get("/ping")
     assert response.status_code == 200
     assert response.json() == {"ping": "live"}
 
 
 def test_redirect_from_home(myclient):
-    """Unit test for the root path "/" """
+    """Test that the root path is redirected"""
     response = myclient.get("/")
     assert str(response.url).endswith("/docs")
     assert response.status_code == 200
@@ -49,7 +49,7 @@ def test_components(myclient):
     assert response.text.count("L000105") == 20  # catalogue3
 
 
-def test_local_sky_model(myclient):  # pylint: disable=unused-argument
+def test_local_sky_model(myclient):
     """
     Unit test for the /local-sky-model path
 
@@ -67,6 +67,26 @@ def test_local_sky_model(myclient):  # pylint: disable=unused-argument
     assert local_sky_model.text.count("L000105") == 20
     for i in range(5, 16):
         assert f"L000105+0000{i:0>2d}" in local_sky_model.text
+
+
+def test_local_sky_model_return_multiple_catalogues(myclient):
+    """Test that if we use an open ended query, that we can get componets from
+    multiple catalogues"""
+    response = myclient.get(
+        "/local-sky-model/",
+        params={"ra_deg": 90, "dec_deg": 5, "fov_deg": 90, "page_size": 250},
+    )
+
+    assert response.status_code == 200
+    # Data from all three added catalogues and all versions appear
+    assert response.text.count("catalogue1") == 30  # catalogue1-Alice + catalogue1-Bob
+    assert response.text.count("catalogue3") == 20
+    assert response.text.count("catalogue2") == 200
+
+    assert response.text.count("W000010") == 20  # catalogue1-Alice
+    assert response.text.count("X000020") == 10  # catalogue1-Bob
+    assert response.text.count("A000100") == 200  # catalogue2
+    assert response.text.count("L000105") == 20  # catalogue3
 
 
 def test_local_sky_model_with_version(myclient):  # pylint: disable=unused-argument
@@ -108,6 +128,7 @@ def test_local_sky_model_query_author(myclient):  # pylint: disable=unused-argum
             "dec_deg": "0",
             "fov_deg": 180,
             "author__contains": "Other",  # Should match the whole of "catalogue2".
+            "page_size": 200,
         },
     )
 
@@ -156,6 +177,7 @@ def test_local_sky_model_small_fov(myclient):  # pylint: disable=unused-argument
             "fov_deg": 20,
             "catalogue_name": "catalogue2",
             "version": "1.0.0",
+            "page_size": 200,
         },
     )
 
@@ -395,3 +417,74 @@ def test_query_metadata_combined_operators(myclient):
     assert row.keys() == {"version", "catalogue_name"}
     assert row["version"] == "1.0.5"
     assert row["catalogue_name"] == "catalogue3"
+
+
+def test_local_sky_model_pagination_page_size(myclient):
+    """Test that page_size limits the number of rows returned per page."""
+    response = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": 70,
+            "dec_deg": 4,
+            "fov_deg": 90,
+            "catalogue_name": "catalogue2",
+            "version": "1.0.0",
+            "page_size": 5,
+        },
+    )
+    assert response.status_code == 200
+    # Only 5 rows of 200 should appear on this page
+    assert response.text.count("A000100") == 5
+
+
+def test_local_sky_model_pagination_pages_differ(myclient):
+    """Test that different page numbers return different rows."""
+    params = {
+        "ra_deg": 70,
+        "dec_deg": 4,
+        "fov_deg": 90,
+        "catalogue_name": "catalogue2",
+        "version": "1.0.0",
+        "page_size": 10,
+    }
+
+    page1 = myclient.get("/local-sky-model/", params={**params, "page": 1})
+    page2 = myclient.get("/local-sky-model/", params={**params, "page": 2})
+
+    assert page1.status_code == 200
+    assert page2.status_code == 200
+
+    # Both pages show 10 results
+    assert page1.text.count("A000100") == 10
+    assert page2.text.count("A000100") == 10
+
+    # Pages must differ
+    assert page1.text != page2.text
+
+
+def test_local_sky_model_csv_format(myclient):
+    """Test that format=csv returns text/csv with SKA-format header lines and component data."""
+    response = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": 90,
+            "dec_deg": 2,
+            "fov_deg": 5,
+            "version": "0.1.0",
+            "catalogue_name": "catalogue1",
+            "format": "csv",
+        },
+    )
+    assert response.status_code == 200
+    assert "text/csv" in response.headers["content-type"]
+
+    text = response.text
+    # SKA format: column spec comment
+    assert "# (" in text
+    assert ") = format" in text
+    # SKA format: component count comment
+    assert "# NUMBER_OF_COMPONENTS=" in text
+    # Catalogue metadata embedded in header
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME=catalogue1" in text
+    # Actual component data
+    assert "W000010" in text

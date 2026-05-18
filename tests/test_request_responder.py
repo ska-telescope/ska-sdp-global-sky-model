@@ -1,5 +1,7 @@
 """Tests for the request_responder"""
 
+# pylint: disable=too-many-lines
+
 import copy
 import os
 import tempfile
@@ -18,13 +20,17 @@ from ska_sdp_datamodels.global_sky_model.global_sky_model import (
 
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
+    _build_local_sky_model,
     _get_flows,
     _process_flow,
     _query_gsm_for_lsm,
     _save_lsm_with_metadata,
     _update_state,
     _watcher_process,
+    _watcher_process_flow,
     _write_data,
+    lsm_to_csv_lines,
+    sky_components_to_csv_lines,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
 from tests.utils import clean_all_tables, set_up_db
@@ -495,11 +501,25 @@ def test_query_gsm_for_lsm_no_version(db_session):  # noqa: F811
         ra_deg=2.9670,
         dec_deg=-0.1745,
         fov_deg=0.0873,
-        version="latest",
         catalogue_name="test",
         sub_path="test/lsm.csv",
     )
     with pytest.raises(ValueError, match="No catalogue could be found for query parameters"):
+        _query_gsm_for_lsm(query_params, db_session)
+
+
+def test_query_gsm_with_an_error_that_shouldnt_be_possible(db_session):  # noqa: F811
+    """This test is for an error that should not be possible"""
+    # Execute the function
+    query_params = QueryParameters(
+        ra_deg=2.9670,
+        dec_deg=-0.1745,
+        fov_deg=0.0873,
+        sub_path="test/lsm.csv",
+    )
+    with pytest.raises(
+        ValueError, match="Multiple catalogues have been matched, refine your criteria"
+    ):
         _query_gsm_for_lsm(query_params, db_session)
 
 
@@ -712,29 +732,6 @@ def test_write_data_empty_components(tmp_path):
     assert any("NUMBER_OF_COMPONENTS=0" in line for line in lines)
 
 
-def test_metadata_sort_order(db_session):
-    """
-    Test that QueryParameters._get_metadata_record uses the latest
-    uploaded catalogue when no catalogue metadata query is provided.
-    """
-
-    # these params don't actually matter, if metadata-related
-    # values were added, those would be used;
-    # these are required fields to call QueryParameters
-    query_params = QueryParameters(
-        ra_deg=111.11,
-        dec_deg=-22.22,
-        fov_deg=180,
-        sub_path="test/lsm.csv",
-    )
-
-    # pylint: disable-next=protected-access
-    output_metadata = query_params._get_metadata_record(db_session)
-
-    assert output_metadata.catalogue_name == "catalogue2"
-    assert output_metadata.version == "1.0.0"
-
-
 def test_metadata_sort_order_and_latest_version(db_session):
     """
     Test that QueryParameters._get_metadata_record uses
@@ -746,14 +743,20 @@ def test_metadata_sort_order_and_latest_version(db_session):
     # values were added, those would be used;
     # these are required fields to call QueryParameters
     query_params = QueryParameters(
-        ra_deg=111.11, dec_deg=-22.22, fov_deg=180, sub_path="test/lsm.csv", version="latest"
+        ra_deg=111.11,
+        dec_deg=-22.22,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+        version="latest",
+        catalogue_name="catalogue3",
     )
 
     # pylint: disable-next=protected-access
     output_metadata = query_params._get_metadata_record(db_session)
 
-    assert output_metadata.catalogue_name == "catalogue3"
-    assert output_metadata.version == "1.0.5"
+    assert len(output_metadata) == 1
+    assert output_metadata[0].catalogue_name == "catalogue3"
+    assert output_metadata[0].version == "1.0.5"
 
 
 def test_get_flows_multiple_gsm_sources(valid_flow, monkeypatch):
@@ -910,6 +913,116 @@ def test_watcher_process_multiple_sources(
     ]
 
 
+@patch("ska_sdp_global_sky_model.api.app.request_responder._update_state", autospec=True)
+@patch("ska_sdp_global_sky_model.api.app.request_responder._process_flow", autospec=True)
+def test_process_flow_no_version(mock_process, mock_update):
+    """Check that version=latest is added when missing"""
+    mock_process.return_value = (True, None)
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_watcher.txn.return_value = [mock_txn]
+    mock_pb_get = MagicMock()
+    mock_pb_get.eb_id = "eb-id"
+
+    mock_txn.processing_block.get.return_value = mock_pb_get
+
+    flow = MagicMock()
+    flow.key.pb_id = "pb-id"
+    sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9680,
+                "dec_deg": -0.1755,
+                "fov_deg": 0.0873,
+                "catalogue_name": "catalogue",
+                "sub_path": "test/lsm2.csv",
+            },
+        ),
+    ]
+
+    _watcher_process_flow(mock_watcher, flow, sources)
+
+    assert mock_process.mock_calls == [
+        call(
+            flow,
+            "eb-id",
+            QueryParameters(
+                ra_deg=2.9680,
+                dec_deg=-0.1755,
+                fov_deg=0.0873,
+                catalogue_name="catalogue",
+                version="latest",
+            ),
+        )
+    ]
+    assert mock_update.mock_calls == [
+        call(mock_txn, flow, "FLOWING"),
+        call(mock_txn, flow, "COMPLETED"),
+    ]
+    assert mock_txn.mock_calls == [call.processing_block.get("pb-id")]
+    assert mock_watcher.mock_calls == [call.txn(), call.txn()]
+
+
+@patch("ska_sdp_global_sky_model.api.app.request_responder._update_state", autospec=True)
+@patch("ska_sdp_global_sky_model.api.app.request_responder._process_flow", autospec=True)
+def test_process_flow_no_catalogue(mock_process, mock_update):
+    """Check that a missing catalogue_name throws the correct error"""
+    mock_process.return_value = (True, None)
+    mock_txn = MagicMock()
+    mock_watcher = MagicMock()
+    mock_watcher.txn.return_value = [mock_txn]
+    mock_pb_get = MagicMock()
+    mock_pb_get.eb_id = "eb-id"
+
+    mock_txn.processing_block.get.return_value = mock_pb_get
+
+    flow = MagicMock()
+    flow.key.pb_id = "pb-id"
+    sources = [
+        FlowSource(
+            uri="gsm://request/lsm",
+            function="GlobalSkyModel.RequestLocalSkyModel",
+            parameters={
+                "ra_deg": 2.9680,
+                "dec_deg": -0.1755,
+                "fov_deg": 0.0873,
+                "sub_path": "test/lsm2.csv",
+            },
+        ),
+    ]
+
+    _watcher_process_flow(mock_watcher, flow, sources)
+
+    assert mock_process.mock_calls == []
+    assert mock_update.mock_calls == [
+        call(mock_txn, flow, "FLOWING"),
+        call(
+            mock_txn,
+            flow,
+            "FAILED",
+            error_state=[
+                {
+                    "error": (
+                        "Invalid query parameters: 'catalogue_name' is "
+                        "a required search parameter"
+                    ),
+                    "parameters": {
+                        "ra_deg": 2.968,
+                        "dec_deg": -0.1755,
+                        "fov_deg": 0.0873,
+                        "sub_path": "test/lsm2.csv",
+                        "version": "latest",
+                    },
+                }
+            ],
+        ),
+    ]
+    assert mock_txn.mock_calls == [call.processing_block.get("pb-id")]
+    assert mock_watcher.mock_calls == [call.txn(), call.txn()]
+
+
 def test_save_lsm_with_metadata():
     """
     Test that we can save a sky model and metadata YAML file correctly.
@@ -957,3 +1070,126 @@ def test_save_lsm_with_metadata():
             assert lsm_dict["header"]["NUMBER_OF_COMPONENTS"] == num_rows
             assert metadata["execution_block"] == execution_block_id
             assert metadata["files"][i]["path"] == csv_file_name
+
+
+def test_lsm_to_csv_lines():
+    """Test that lsm_to_csv_lines yields lines in the standard SKA format."""
+    column_names = ["ra_deg", "dec_deg", "i_pol_jy"]
+    lsm = LocalSkyModel(column_names=column_names, num_rows=0)
+    lsm.set_header({"MY_KEY": "my_value", "COUNT": 42})
+
+    lines = list(lsm_to_csv_lines(lsm))
+
+    assert lines[0] == "# (ra_deg,dec_deg,i_pol_jy) = format\n"
+    assert lines[1] == "# NUMBER_OF_COMPONENTS=0\n"
+    assert "# MY_KEY=my_value\n" in lines
+    assert "# COUNT=42\n" in lines
+    data_lines = [line for line in lines if not line.startswith("#")]
+    assert data_lines == []
+
+
+def test_lsm_to_csv_lines_with_data():
+    """Test that lsm_to_csv_lines includes data rows when the model has components."""
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2026.0,
+        ra_deg=45.0,
+        dec_deg=-30.0,
+        i_pol_jy=1.5,
+        ref_freq_hz=300e6,
+        spec_idx=[0.8],
+    )
+    lsm = _build_local_sky_model({}, {"TEST001": component})
+
+    lines = list(lsm_to_csv_lines(lsm))
+    content = "".join(lines)
+
+    assert "# NUMBER_OF_COMPONENTS=1\n" in lines
+    data_lines = [line for line in lines if not line.startswith("#")]
+    assert len(data_lines) == 1
+    assert "45.0" in content or "45" in content
+    assert "-30.0" in content or "-30" in content
+
+
+def test_build_local_sky_model():
+    """Test that _build_local_sky_model builds a LocalSkyModel with correct metadata and rows."""
+    metadata = {
+        "catalogue_name": "test_cat",
+        "version": "1.0",
+        "author": "Tester",
+        "staging": False,
+        "upload_id": "abc123",
+        "id": 99,
+    }
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2026.0,
+        ra_deg=45.0,
+        dec_deg=-30.0,
+        i_pol_jy=1.0,
+        ref_freq_hz=100e6,
+        spec_idx=[0.5],
+    )
+    lsm = _build_local_sky_model(metadata, {"TEST001": component})
+
+    assert lsm.num_components == 1
+
+    # Catalogue metadata keys (uppercased) present in header
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME" in lsm.header
+    assert lsm.header["CATALOGUE_METADATA_CATALOGUE_NAME"] == "test_cat"
+    assert "CATALOGUE_METADATA_VERSION" in lsm.header
+    assert "CATALOGUE_METADATA_AUTHOR" in lsm.header
+
+    # Internal db columns are excluded
+    assert "CATALOGUE_METADATA_STAGING" not in lsm.header
+    assert "CATALOGUE_METADATA_UPLOAD_ID" not in lsm.header
+    assert "CATALOGUE_METADATA_ID" not in lsm.header
+
+
+def test_build_local_sky_model_with_query_parameters():
+    """Test that query parameters are embedded in the LocalSkyModel header."""
+    query_params = QueryParameters(
+        ra_deg=90.0,
+        dec_deg=2.0,
+        fov_deg=5.0,
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    lsm = _build_local_sky_model({}, {}, query_parameters=query_params)
+
+    assert "QUERY_RA_DEG" in lsm.header
+    assert lsm.header["QUERY_RA_DEG"] == 90.0
+    assert "QUERY_DEC_DEG" in lsm.header
+    assert "QUERY_FOV_DEG" in lsm.header
+
+
+def test_sky_components_to_csv_lines(db_session):  # noqa: F811
+    """Test that sky_components_to_csv_lines yields SKA-format CSV for matched catalogues."""
+    query_params = QueryParameters(
+        ra_deg=90,
+        dec_deg=2,
+        fov_deg=5,
+        version="0.1.0",
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    lines = list(sky_components_to_csv_lines(catalogues, query_params))
+    content = "".join(lines)
+
+    # SKA format header lines
+    assert "# (" in content
+    assert ") = format" in content
+    assert "# NUMBER_OF_COMPONENTS=" in content
+
+    # Catalogue metadata embedded in header
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME=catalogue1" in content
+
+    # Query parameters embedded in header
+    assert "QUERY_RA_DEG=90" in content
+
+    # Component data present
+    assert "W000010" in content
