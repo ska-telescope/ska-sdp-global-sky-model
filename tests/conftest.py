@@ -1,5 +1,6 @@
 """Conftest.py"""
 
+import datetime
 import logging
 import pathlib
 from unittest.mock import patch
@@ -56,6 +57,7 @@ def fake_gsm_metadata():
         version="1.0.0",
         catalogue_name="TEST",
         upload_id="test-upload-1",
+        uploaded_at=datetime.datetime(2025, 11, 2, 13, 42, 3),
     )
 
 
