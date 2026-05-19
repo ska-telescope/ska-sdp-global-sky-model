@@ -711,13 +711,13 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
                     metadata.version = catalogue_version
                     fetch_existing.version = catalogue_version
 
-                    logger.info("Attempting to set the version to %s", catalogue_version)
+                    logger.debug("Attempting to set the version to %s", catalogue_version)
 
                     db.commit()
 
                 break
             except IntegrityError:
-                logger.error("Version update failed to be set, trying again...")
+                logger.error("Version update failed, trying again...")
 
         logger.info(
             "Auto-assigned version %s to upload %s for catalogue '%s' (previous latest: %s)",

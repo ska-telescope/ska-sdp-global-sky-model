@@ -58,6 +58,7 @@ Some things to be aware of:
        the ``pvc_subpath``, and the metadata file will be in the directory specified by ``pvc_subpath``.
     3. ``version`` is not required to be set, but will default to ``version=latest``
        when it is not set.
+    4. ``catalogue_name`` is required when submitting a query via processing scripts.
 
 Processing data flow requests
 .............................
@@ -145,10 +146,23 @@ where:
      - No
 
 This can be downloaded as a CSV by adding the parameter ``format=csv``.
+Note that if the returned data match multiple catalogues/catalogue versions,
+then the downloaded CSV file will have all the data appended, with header
+items at the start of each catalogue data (i.e. header items will appear in between data items).
 
 To be able to view all components one can use:
 
-``GET /local-sky-model?ra_deg=0&dec_deg=0&fov_deg=180``
+.. code-block:: text
+
+    GET /local-sky-model?ra_deg=0&dec_deg=0&fov_deg=180
+
+Alternatively, the ``/components`` endpoint can also be used:
+
+.. code-block:: text
+
+    GET /components
+
+Note that this end point does not allow downloading the data.
 
 Filtering examples
 ^^^^^^^^^^^^^^^^^^

@@ -7,12 +7,12 @@ Development
 - [Changed] Local sky model endpoint updated.
   (`MR118 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/118>`__)
 
-  - CSV downloads by addding format=csv as query parameter.
+  - CSV downloads by adding format=csv as query parameter.
   - LSM table has pagination.
-- [Update] Catch issue when 2 versions are created for the same catalogue at the same time
+- [Update] Catch issue when multiple versions are created for the same catalogue at the same time
   (`MR117 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/117>`__)
-- [Change] Update LocalSkyModelQuery to do:
-  (`MR116 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/116>`__)
+- [Change] Update LocalSkyModelQuery to do
+  (`MR116 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/116>`__):
 
   - Allow HTTP endpoint to return multiple catalogues
   - Do not allow Flow based search to use multiple catalogues
