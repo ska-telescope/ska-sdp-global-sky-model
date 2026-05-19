@@ -19,6 +19,8 @@ Development
   - Make Flow based LSM be forced to query by ``catalogue_name``
   - Update HTML page to be clear when no components match the query
   - Upgrade fastapi+uvicorn
+- [Update] Delete metadata if ingest fails, or if upload is rejected
+  (`MR115 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/115>`__)
 - [New] new commands to cleanup catalogues
   (`MR106 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/106>`__)
 - [Update] Redirect from '/' to '/docs' Improve swagger example code.
