@@ -90,6 +90,16 @@ Output CSV file
 
 The output CSV file is described at :ref:`lsm_file`.
 
+Output metadata YAML file
+.........................
+
+The GSM service also writes an ``ska-data-product.yaml`` file to the root
+path given in the data flow object. This contains the ``sdm/lsm`` structure
+(Science Data Model / Local Sky Model) as given in the
+`SDP Dataproduct Metadata library <https://developer.skao.int/projects/ska-sdp-dataproduct-metadata/en/latest/contents-of-metadata.html>`_.
+The data stored are all the query parameters and the catalogue metadata, as present
+in the CSV header as well.
+
 
 .. _lsm_browser:
 
