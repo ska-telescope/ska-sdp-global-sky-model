@@ -4,6 +4,8 @@ CHANGELOG
 0.4.0
 -----
 
+- [Update] Use new metadata structure for LSM metadata yaml file
+  (`MR122 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/122>`__)
 - [Update] Dependencies, including
   (`MR120 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/120>`__,
   `MR122 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/122>`__):

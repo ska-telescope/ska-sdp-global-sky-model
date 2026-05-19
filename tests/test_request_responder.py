@@ -1062,7 +1062,7 @@ def test_save_lsm_with_metadata():
 
         # Check the entry for each file.
         for i, csv_file_name in enumerate(csv_file_names):
-            lsm_dict = metadata["local_sky_model"][i]
+            lsm_dict = metadata["sdm"]["lsm"][i]
             assert lsm_dict["columns"] == column_names
             assert lsm_dict["file_path"] == csv_file_name
             assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]

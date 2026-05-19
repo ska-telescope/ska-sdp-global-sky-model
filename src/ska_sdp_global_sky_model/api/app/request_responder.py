@@ -671,13 +671,8 @@ def _save_lsm_with_metadata(
     }
     header.update(lsm.header)
 
-    # Update the metadata contents.
-    root = "local_sky_model"
-    if root not in data:
-        data[root] = []  # Ensure we have a list under the root item.
-
     # Create entry for new file in the list.
-    data[root].append(
+    data["sdm"]["lsm"].append(
         {
             "header": header,
             "file_path": lsm_path,
