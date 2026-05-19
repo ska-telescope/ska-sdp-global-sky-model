@@ -617,7 +617,7 @@ def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
         assert comp.ref_freq_hz == 88e6
 
 
-def test_write_data_integration(tmp_path):
+def test_write_data_integration(tmp_path, gsm_metadata):
     """Integration test for _write_data with actual file writing"""
 
     # Create test components
@@ -656,7 +656,7 @@ def test_write_data_integration(tmp_path):
     )
     # Create GlobalSkyModel
     gsm = GlobalSkyModel(
-        metadata={},
+        metadata=gsm_metadata.columns_to_dict(),
         components={"TEST001": component1, "TEST002": component2},
     )
 
@@ -671,11 +671,7 @@ def test_write_data_integration(tmp_path):
 
     eb_id = "eb-test-20260108-1234"
 
-    # Mock the metadata writing to avoid validation issues
-    # (metadata validation is tested separately in local_sky_model tests)
-    with patch("ska_sdp_global_sky_model.api.app.request_responder.MetaData"):
-        # Write the data
-        _write_data(eb_id, query_parameters, output_dir, gsm)
+    _write_data(eb_id, query_parameters, output_dir, gsm)
 
     # Verify CSV file was created
     csv_file = output_dir / "test" / "lsm.csv"
@@ -1062,7 +1058,7 @@ def test_save_lsm_with_metadata():
 
         # Check the entry for each file.
         for i, csv_file_name in enumerate(csv_file_names):
-            lsm_dict = metadata["local_sky_model"][i]
+            lsm_dict = metadata["sdm"]["lsm"][i]
             assert lsm_dict["columns"] == column_names
             assert lsm_dict["file_path"] == csv_file_name
             assert lsm_dict["header"]["QUERY_PARAM_1"] == header["QUERY_PARAM_1"]

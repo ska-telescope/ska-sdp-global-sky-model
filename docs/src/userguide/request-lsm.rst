@@ -58,6 +58,7 @@ Some things to be aware of:
        the ``pvc_subpath``, and the metadata file will be in the directory specified by ``pvc_subpath``.
     3. ``version`` is not required to be set, but will default to ``version=latest``
        when it is not set.
+    4. ``catalogue_name`` is required when submitting a query via processing scripts.
 
 Processing data flow requests
 .............................
@@ -88,6 +89,16 @@ Output CSV file
 ...............
 
 The output CSV file is described at :ref:`lsm_file`.
+
+Output metadata YAML file
+.........................
+
+The GSM service also writes an ``ska-data-product.yaml`` file to the root
+path given in the data flow object. This contains the ``sdm/lsm`` structure
+(Science Data Model / Local Sky Model) as given in the
+`SDP Dataproduct Metadata library <https://developer.skao.int/projects/ska-sdp-dataproduct-metadata/en/latest/contents-of-metadata.html>`_.
+The data stored are all the query parameters and the catalogue metadata, as present
+in the CSV header as well.
 
 
 .. _lsm_browser:
@@ -145,10 +156,23 @@ where:
      - No
 
 This can be downloaded as a CSV by adding the parameter ``format=csv``.
+Note that if the returned data match multiple catalogues/catalogue versions,
+then the downloaded CSV file will have all the data appended, with header
+items at the start of each catalogue data (i.e. header items will appear in between data items).
 
 To be able to view all components one can use:
 
-``GET /local-sky-model?ra_deg=0&dec_deg=0&fov_deg=180``
+.. code-block:: text
+
+    GET /local-sky-model?ra_deg=0&dec_deg=0&fov_deg=180
+
+Alternatively, the ``/components`` endpoint can also be used:
+
+.. code-block:: text
+
+    GET /components
+
+Note that this end point does not allow downloading the data.
 
 Filtering examples
 ^^^^^^^^^^^^^^^^^^

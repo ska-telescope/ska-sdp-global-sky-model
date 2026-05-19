@@ -20,6 +20,7 @@ The states are updated as follows:
 - When failed: ``FAILED``, with a ``reason`` field
 """
 
+import datetime
 import logging
 import os
 import threading
@@ -671,13 +672,14 @@ def _save_lsm_with_metadata(
     }
     header.update(lsm.header)
 
-    # Update the metadata contents.
-    root = "local_sky_model"
-    if root not in data:
-        data[root] = []  # Ensure we have a list under the root item.
+    for key, value in header.items():
+        # e.g. "uploaded_at" is returned as a datetime object from the db;
+        # metadata valudation fails if it's not converted to str first
+        if isinstance(value, datetime.datetime):
+            header[key] = str(value)
 
     # Create entry for new file in the list.
-    data[root].append(
+    data["sdm"]["lsm"].append(
         {
             "header": header,
             "file_path": lsm_path,
@@ -685,17 +687,15 @@ def _save_lsm_with_metadata(
         }
     )
 
-    # Save the LSM file name in the metadata.
-    # An error will be raised during validation if the LSM file already
-    # exists. Ensure the LSM path given is unique.
-    metadata.new_file(
-        dp_path=lsm_path,
-        description="Local sky model CSV text file",
-    )
-
-    # Write to disk (automatically validates the metadata).
     try:
-        metadata.write()
+        # Save the LSM file name and metadata (metadata.new_file also writes the output data).
+        # An error will be raised during validation if the LSM file already
+        # exists. Ensure the LSM path given is unique.
+        metadata.new_file(
+            dp_path=lsm_path,
+            description="Local sky model CSV text file",
+        )
     except MetaData.ValidationError as err:
         logger.error("Validation failed with error(s): %s", err.errors)
+        logger.debug("Errors occurred writing the following metadata: %s", data)
         raise err

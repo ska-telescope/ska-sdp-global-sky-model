@@ -1,7 +1,7 @@
 [project]
 include = ["MANIFEST.skao.int"]
 name = "ska_sdp_global_sky_model"
-version = "0.3.0"
+version = "0.4.0"
 description = "SKA SDP Global Sky Model"
 authors = [
     {name = "Jacob Maresca", email =  "jacob.maresca@akkodis.com>"},
@@ -37,7 +37,7 @@ python-multipart = "^0.0.28"  # needed by fastapi for parsing
 alembic = "^1.18.4"
 ska-sdp-config = "^1.6.1"
 ska-sdp-datamodels = "^1.4.0"
-ska-sdp-dataproduct-metadata = "^1.2.0"
+ska-sdp-dataproduct-metadata = "^1.3.0"
 psycopg = {extras = ["binary", "pool"], version = "^3.3.4"}
 PyYAML = "^6.0.3"
 packaging = "^26.2"
