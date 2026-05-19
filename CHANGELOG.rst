@@ -1,14 +1,24 @@
 CHANGELOG
 =========
 
-Development
------------
+0.4.0
+-----
+
+- [Update] Dependencies, including
+  (`MR120 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/120>`__,
+  `MR122 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/122>`__):
+
+    - ska-sdp-config 1.6.1
+    - ska-sdp-datamodels 1.4.0
+    - ska-sdp-dataproduct-metadata 1.3.0
+    - alembic 1.18.4
 
 - [Changed] Local sky model endpoint updated.
   (`MR118 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/118>`__)
 
   - CSV downloads by adding format=csv as query parameter.
   - LSM table has pagination.
+
 - [Update] Catch issue when multiple versions are created for the same catalogue at the same time
   (`MR117 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/117>`__)
 - [Change] Update LocalSkyModelQuery to do
@@ -19,12 +29,14 @@ Development
   - Make Flow based LSM be forced to query by ``catalogue_name``
   - Update HTML page to be clear when no components match the query
   - Upgrade fastapi+uvicorn
+
 - [Update] Delete metadata if ingest fails, or if upload is rejected
   (`MR115 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/115>`__)
 - [New] new commands to cleanup catalogues
   (`MR106 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/106>`__)
 - [Update] Redirect from '/' to '/docs' Improve swagger example code.
-  (`MR112 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/112>`__)
+  (`MR112 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/112>`__,
+  `MR114 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/114>`__)
 - [BREAKING, Remove] Healpix related columns from schema and code
   (`MR105 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/105>`__)
 - [Remove] Unused dependencies from pyproject.toml
@@ -37,10 +49,14 @@ Development
   (`MR107 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/107>`__)
 - [Update] Allow for LSM queries based on any metadata field
   (`MR103 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/103>`__)
+- [Update] Process LSM flows with multiple sources requesting different LSM data
+  (`MR100 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/100>`__,
+  `MR109 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/109>`__,
+  `MR111 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/111>`__)
 - [Change] Location of the metadata file no longer relies on searching for ska_sdm directory
   (`MR98 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/98>`__)
 - [Update] Add all metadata to Local Sky Model and fix bug with resource management
-  (`MR99 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/99>`__`)
+  (`MR99 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/99>`__)
 - [Breaking change, Update] Update datamodels to latest
   (`MR96 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/96>`__)
 
@@ -48,6 +64,7 @@ Development
   - Remove redundant fields
   - Cleanup data files
   - Allow docs pages to work in a kubernetes cluster
+
 - [Update] Make the GSM aware of the Resource Management
   (`MR95 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/95>`__)
 - [Update] Added generic migration commands for developers
