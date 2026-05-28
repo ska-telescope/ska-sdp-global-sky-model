@@ -66,12 +66,12 @@ options:
     )
 
 
-@patch("ska_sdp_global_sky_model.cli.cleanup.UploadManager")
+@patch("ska_sdp_global_sky_model.cli.cleanup.run_db_cleanup")
 def test_cleanup_calls_function(mock_upload_manager):
     """Check that the default params are sent"""
     cleanup_main([])
 
-    assert mock_upload_manager.mock_calls == [call(), call().run_db_cleanup(ANY, False, 168)]
+    assert mock_upload_manager.mock_calls == [call(ANY, False, 168)]
 
 
 def test_cleanup_negative_age(capsys):
@@ -83,20 +83,20 @@ def test_cleanup_negative_age(capsys):
     assert "error: MAX_AGE must be positive" in capsys.readouterr().err
 
 
-@patch("ska_sdp_global_sky_model.cli.cleanup.UploadManager")
+@patch("ska_sdp_global_sky_model.cli.cleanup.run_db_cleanup")
 def test_cleanup_calls_function_with_delete(mock_upload_manager):
     """Check that the delete option is sent to the cleanup function"""
     cleanup_main(["--delete"])
 
-    assert mock_upload_manager.mock_calls == [call(), call().run_db_cleanup(ANY, True, 168)]
+    assert mock_upload_manager.mock_calls == [call(ANY, True, 168)]
 
 
-@patch("ska_sdp_global_sky_model.cli.cleanup.UploadManager")
+@patch("ska_sdp_global_sky_model.cli.cleanup.run_db_cleanup")
 def test_cleanup_calls_function_with_max_age(mock_upload_manager):
     """Check that the new age is sent to the cleanup function"""
     cleanup_main(["--max-age", "24"])
 
-    assert mock_upload_manager.mock_calls == [call(), call().run_db_cleanup(ANY, False, 24)]
+    assert mock_upload_manager.mock_calls == [call(ANY, False, 24)]
 
 
 def test_delete_fails_with_no_args(capsys):
