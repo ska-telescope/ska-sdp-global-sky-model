@@ -137,9 +137,9 @@ def test_update_status_no_message(upload_task):
     assert upload_task.task_status.last_update > datetime.now() - timedelta(seconds=1)
 
 
-def test_mark_completed(upload_task):
-    """Test that the correct fields are updated when marking an upload as complete"""
-    upload_task.mark_completed()
+def test_mark_released(upload_task):
+    """Test that the correct fields are updated when marking an upload as released"""
+    upload_task.mark_released()
 
     assert upload_task.task_status.status == "released"
     assert upload_task.task_status.last_update > datetime.now() - timedelta(seconds=1)

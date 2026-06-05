@@ -231,8 +231,8 @@ class UploadTask:
                 self.task_status.reason = f"{self.task_status.reason}, {message}"
         self.task_status.last_update = datetime.now()
 
-    def mark_completed(self):
-        """Mark this catalogue as completed"""
+    def mark_released(self):
+        """Mark this catalogue as released"""
         self.update_status(UploadState.RELEASED)
 
     def mark_uploading(self):

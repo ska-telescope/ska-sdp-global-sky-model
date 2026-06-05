@@ -716,7 +716,7 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         # Delete from staging
         db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()
 
-        task.mark_completed()
+        task.mark_released()
         db.commit()
 
         logger.info(
