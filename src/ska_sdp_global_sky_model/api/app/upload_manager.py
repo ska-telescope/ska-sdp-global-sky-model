@@ -256,7 +256,10 @@ def run_db_cleanup(
     This will remove only catalogues that are staging=True, or
     components in the SkyComponentStaging table without a catalogue.
 
-    There are also logs for partially migrated catalogues."""
+    There are also logs for partially migrated catalogues.
+
+    `override_cleanup` - when set the function will use that amount of hours
+    instead of the default of `CATALOGUE_CLEANUP_AGE`. This is in hours"""
 
     _cleanup_old_uploads(db, override_cleanup)
     _cleanup_partial_migrations_and_orphaned_staging_components(db)
