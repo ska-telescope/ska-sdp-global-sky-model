@@ -26,7 +26,7 @@ from fastapi.responses import (
     FileResponse,
     HTMLResponse,
     RedirectResponse,
-    StreamingResponse,
+    Response,
 )
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
@@ -228,13 +228,13 @@ async def get_local_sky_model_endpoint(
     catalogues = query_params.sky_components(db)
 
     if output_format == "csv":
-        return StreamingResponse(
+        return Response(
             content=sky_components_to_zip(catalogues, query_params, "csv", lsm_to_csv_lines),
             media_type="application/zip",
             headers={"Content-Disposition": 'attachment; filename="local_sky_model_csv.zip"'},
         )
     if output_format == "ecsv":
-        return StreamingResponse(
+        return Response(
             content=sky_components_to_zip(catalogues, query_params, "ecsv", lsm_to_ecsv_lines),
             media_type="application/zip",
             headers={"Content-Disposition": 'attachment; filename="local_sky_model_ecsv.zip"'},
