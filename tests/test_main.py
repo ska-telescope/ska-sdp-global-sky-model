@@ -463,7 +463,10 @@ def test_local_sky_model_pagination_pages_differ(myclient):
 
 
 def test_local_sky_model_csv_format(myclient):
-    """Test that format=csv returns text/csv with SKA-format header lines and component data."""
+    """Test that format=csv returns a ZIP containing a CSV file per catalogue."""
+    import io
+    import zipfile
+
     response = myclient.get(
         "/local-sky-model/",
         params={
@@ -476,15 +479,76 @@ def test_local_sky_model_csv_format(myclient):
         },
     )
     assert response.status_code == 200
-    assert "text/csv" in response.headers["content-type"]
+    assert "application/zip" in response.headers["content-type"]
+    assert response.headers["content-disposition"] == 'attachment; filename="local_sky_model_csv.zip"'
 
-    text = response.text
-    # SKA format: column spec comment
+    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        names = zf.namelist()
+        assert len(names) == 1
+        assert names[0].endswith(".csv")
+
+        text = zf.read(names[0]).decode()
+
+    # SKA format header lines present in the CSV file
     assert "# (" in text
     assert ") = format" in text
-    # SKA format: component count comment
     assert "# NUMBER_OF_COMPONENTS=" in text
-    # Catalogue metadata embedded in header
     assert "CATALOGUE_METADATA_CATALOGUE_NAME=catalogue1" in text
-    # Actual component data
     assert "W000010" in text
+
+
+def test_local_sky_model_ecsv_format(myclient):
+    """Test that format=ecsv returns a ZIP containing a valid ECSV file per catalogue."""
+    import io
+    import zipfile
+
+    response = myclient.get(
+        "/local-sky-model/",
+        params={
+            "ra_deg": 90,
+            "dec_deg": 2,
+            "fov_deg": 5,
+            "version": "0.1.0",
+            "catalogue_name": "catalogue1",
+            "format": "ecsv",
+        },
+    )
+    assert response.status_code == 200
+    assert "application/zip" in response.headers["content-type"]
+    assert response.headers["content-disposition"] == 'attachment; filename="local_sky_model_ecsv.zip"'
+
+    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        names = zf.namelist()
+        assert len(names) == 1
+        assert names[0].endswith(".ecsv")
+
+        text = zf.read(names[0]).decode()
+
+    assert text.startswith("# %ECSV 1.0\n")
+    assert "# delimiter: ','\n" in text
+    assert "# schema: astropy-2.0\n" in text
+    assert text.count("\n# ---\n") == 1
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME" in text
+    assert "catalogue1" in text
+    assert "W000010" in text
+
+
+def test_local_sky_model_csv_multiple_catalogues(myclient):
+    """Test that a multi-catalogue query produces one CSV per catalogue in the ZIP."""
+    import io
+    import zipfile
+
+    response = myclient.get(
+        "/local-sky-model/",
+        params={"ra_deg": 90, "dec_deg": 5, "fov_deg": 90, "format": "csv"},
+    )
+    assert response.status_code == 200
+
+    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        names = zf.namelist()
+
+    # The test DB has multiple catalogues — each should produce its own file
+    assert len(names) > 1
+    assert all(n.endswith(".csv") for n in names)
+    # File names encode catalogue name and version (no duplicates)
+    assert len(names) == len(set(names))
