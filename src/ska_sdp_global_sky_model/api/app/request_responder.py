@@ -471,9 +471,8 @@ def _ecsv_dtype(field_type: type) -> tuple[str, str | None]:
     """Return (ecsv_datatype, ecsv_subtype) for a Python type annotation."""
     args = get_args(field_type)
     if args and type(None) in args:
-        non_none = [
-            a for a in args if a is not type(None)
-        ]  # pylint: disable=unidiomatic-typecheck
+        # pylint: disable-next=unidiomatic-typecheck
+        non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1:
             inner = non_none[0]
             if inner is bool:
