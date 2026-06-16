@@ -22,7 +22,13 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -36,7 +42,9 @@ from ska_sdp_global_sky_model.api.app.models import (
 )
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
-    sky_components_to_csv_lines,
+    lsm_to_csv_lines,
+    lsm_to_ecsv_lines,
+    sky_components_to_zip,
     start_lsm_response_thread,
 )
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
@@ -183,7 +191,7 @@ async def get_local_sky_model_endpoint(
     page: int = Query(default=1, ge=1, description="Page number"),
     page_size: int = Query(default=50, ge=1, le=10000, description="Results per page"),
     output_format: str = Query(
-        default="html", alias="format", description="Output format: 'html' or 'csv'"
+        default="html", alias="format", description="Output format: 'html', 'csv', or 'ecsv'"
     ),
     db: Session = Depends(get_db),
 ):
@@ -197,7 +205,7 @@ async def get_local_sky_model_endpoint(
         fov_deg (float): Field of view of the telescope in degrees.
         page (int): Page number for pagination (1-indexed).
         page_size (int): Number of results per page.
-        output_format (str): Response format, 'html' (default) or 'csv'.
+        output_format (str): Response format, 'html' (default), 'csv', or 'ecsv'.
         db (Session): Database session object.
 
     Returns:
@@ -221,10 +229,16 @@ async def get_local_sky_model_endpoint(
     catalogues = query_params.sky_components(db)
 
     if output_format == "csv":
-        return StreamingResponse(
-            sky_components_to_csv_lines(catalogues, query_params),
-            media_type="text/csv",
-            headers={"Content-Disposition": 'attachment; filename="local_sky_model.csv"'},
+        return Response(
+            content=sky_components_to_zip(catalogues, query_params, "csv", lsm_to_csv_lines),
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="local_sky_model_csv.zip"'},
+        )
+    if output_format == "ecsv":
+        return Response(
+            content=sky_components_to_zip(catalogues, query_params, "ecsv", lsm_to_ecsv_lines),
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="local_sky_model_ecsv.zip"'},
         )
     all_rows = []
     for catalogue, components in catalogues:
