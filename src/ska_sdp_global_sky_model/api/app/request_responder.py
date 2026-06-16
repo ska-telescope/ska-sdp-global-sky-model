@@ -466,6 +466,7 @@ def lsm_to_csv_lines(lsm: LocalSkyModel) -> Generator[str, None, None]:
 _ECSV_UNIT_MAP = {"degrees": "deg", "degree": "deg"}
 
 
+# pylint: disable=too-many-return-statements
 def _ecsv_dtype(field_type: type) -> tuple[str, str | None]:
     """Return (ecsv_datatype, ecsv_subtype) for a Python type annotation."""
     args = get_args(field_type)
@@ -504,11 +505,12 @@ def _ecsv_yaml_value(value: Any) -> str:
 
 
 # pylint: disable=protected-access
+# pylint: disable-next=too-many-locals
 def lsm_to_ecsv_lines(lsm: LocalSkyModel) -> Generator[str, None, None]:
     """Yield ECSV lines from a LocalSkyModel.
 
     Produces an Enhanced CSV (ECSV 1.0) file with a YAML metadata header,
-    readable by astropy.table.Table.read(fmt='ascii.ecsv').
+    readable by astropy/Topcat.
 
     Args:
         lsm: Local Sky Model
@@ -648,6 +650,7 @@ def sky_components_to_csv_lines(
         yield from lsm_to_csv_lines(lsm)
 
 
+# pylint: disable-next=too-many-locals
 def sky_components_to_zip(
     catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
     query_parameters: "QueryParameters",

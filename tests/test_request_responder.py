@@ -3,8 +3,10 @@
 # pylint: disable=too-many-lines
 
 import copy
+import io
 import os
 import tempfile
+import zipfile
 from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
@@ -1207,7 +1209,7 @@ def _ecsv_yaml_block(lines):
     """
     comment_lines = [line[2:] for line in lines if line.startswith("# ")]
     # Drop the '%ECSV 1.0' format-declaration line (not part of the YAML doc)
-    yaml_lines = [l for l in comment_lines if not l.startswith("%ECSV")]
+    yaml_lines = [line for line in comment_lines if not line.startswith("%ECSV")]
     return yaml.safe_load("".join(yaml_lines))
 
 
@@ -1221,8 +1223,8 @@ def test_lsm_to_ecsv_lines_header_structure():
     assert lines[0] == "# %ECSV 1.0\n"
     assert lines[1] == "# ---\n"
 
-    comment_lines = [l for l in lines if l.startswith("# ")]
-    data_lines = [l for l in lines if not l.startswith("# ")]
+    comment_lines = [line for line in lines if line.startswith("# ")]
+    data_lines = [line for line in lines if not line.startswith("# ")]
 
     # Delimiter and schema declarations present
     assert "# delimiter: ','\n" in comment_lines
@@ -1230,8 +1232,8 @@ def test_lsm_to_ecsv_lines_header_structure():
 
     # Only ONE '---' line (the opening YAML document-start marker);
     # a second one would be parsed as a new YAML document by SnakeYAML.
-    assert sum(1 for l in comment_lines if l.strip() == "#") == 0
-    assert sum(1 for l in lines if l.rstrip("\n") == "# ---") == 1
+    assert sum(1 for line in comment_lines if line.strip() == "#") == 0
+    assert sum(1 for line in lines if line.rstrip("\n") == "# ---") == 1
 
     # First non-comment line is the comma-separated column names header
     assert data_lines[0] == "ra_deg,dec_deg\n"
@@ -1323,7 +1325,7 @@ def test_lsm_to_ecsv_lines_with_data():
     lsm = _build_local_sky_model({}, {"TEST001": component})
     lines = list(lsm_to_ecsv_lines(lsm))
 
-    data_lines = [l for l in lines if not l.startswith("# ")]
+    data_lines = [line for line in lines if not line.startswith("# ")]
     # First non-comment line: column names; second: the single data row
     assert len(data_lines) == 2
     header_row, data_row = data_lines
@@ -1380,8 +1382,6 @@ def test_sky_components_to_ecsv_lines(db_session):  # noqa: F811
 
 def test_sky_components_to_zip_csv_single_catalogue(db_session):  # noqa: F811
     """ZIP should contain a single CSV file for a single-catalogue query."""
-    import io
-    import zipfile
 
     query_params = QueryParameters(
         ra_deg=90,
@@ -1411,8 +1411,6 @@ def test_sky_components_to_zip_csv_single_catalogue(db_session):  # noqa: F811
 
 def test_sky_components_to_zip_ecsv_single_catalogue(db_session):  # noqa: F811
     """ZIP should contain a single ECSV file for a single-catalogue query."""
-    import io
-    import zipfile
 
     query_params = QueryParameters(
         ra_deg=90,
@@ -1440,8 +1438,6 @@ def test_sky_components_to_zip_ecsv_single_catalogue(db_session):  # noqa: F811
 
 def test_sky_components_to_zip_multiple_catalogues(db_session):  # noqa: F811
     """ZIP should contain one file per matched catalogue with no collisions."""
-    import io
-    import zipfile
 
     query_params = QueryParameters(
         ra_deg=0,
@@ -1464,8 +1460,6 @@ def test_sky_components_to_zip_multiple_catalogues(db_session):  # noqa: F811
 
 def test_sky_components_to_zip_filename_sanitisation(db_session):  # noqa: F811
     """Catalogue names and versions are sanitised to safe filesystem characters."""
-    import io
-    import zipfile
 
     query_params = QueryParameters(
         ra_deg=90,

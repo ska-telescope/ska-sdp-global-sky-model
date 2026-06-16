@@ -2,6 +2,8 @@
 Basic testing of the API
 """
 
+import io
+import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -464,8 +466,6 @@ def test_local_sky_model_pagination_pages_differ(myclient):
 
 def test_local_sky_model_csv_format(myclient):
     """Test that format=csv returns a ZIP containing a CSV file per catalogue."""
-    import io
-    import zipfile
 
     response = myclient.get(
         "/local-sky-model/",
@@ -480,7 +480,9 @@ def test_local_sky_model_csv_format(myclient):
     )
     assert response.status_code == 200
     assert "application/zip" in response.headers["content-type"]
-    assert response.headers["content-disposition"] == 'attachment; filename="local_sky_model_csv.zip"'
+    assert (
+        response.headers["content-disposition"] == 'attachment; filename="local_sky_model_csv.zip"'
+    )
 
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
         names = zf.namelist()
@@ -499,8 +501,6 @@ def test_local_sky_model_csv_format(myclient):
 
 def test_local_sky_model_ecsv_format(myclient):
     """Test that format=ecsv returns a ZIP containing a valid ECSV file per catalogue."""
-    import io
-    import zipfile
 
     response = myclient.get(
         "/local-sky-model/",
@@ -515,7 +515,10 @@ def test_local_sky_model_ecsv_format(myclient):
     )
     assert response.status_code == 200
     assert "application/zip" in response.headers["content-type"]
-    assert response.headers["content-disposition"] == 'attachment; filename="local_sky_model_ecsv.zip"'
+    assert (
+        response.headers["content-disposition"]
+        == 'attachment; filename="local_sky_model_ecsv.zip"'
+    )
 
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
         names = zf.namelist()
@@ -535,8 +538,6 @@ def test_local_sky_model_ecsv_format(myclient):
 
 def test_local_sky_model_csv_multiple_catalogues(myclient):
     """Test that a multi-catalogue query produces one CSV per catalogue in the ZIP."""
-    import io
-    import zipfile
 
     response = myclient.get(
         "/local-sky-model/",
