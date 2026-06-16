@@ -49,7 +49,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - database_volume:/var/lib/postgresql/data
+      - database_volume:/var/lib/postgresql
 
 volumes:
   database_volume:
