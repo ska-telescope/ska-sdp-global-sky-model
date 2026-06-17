@@ -694,7 +694,7 @@ def sky_components_to_single_file(
     Returns:
         Tuple of (filename, file_content_string).
     """
-    (catalogue, components) = catalogues[0]
+    catalogue, components = catalogues[0]
     return _catalogue_to_lsm_content(
         catalogue, components, query_parameters, file_extension, lsm_to_lines_fn
     )
