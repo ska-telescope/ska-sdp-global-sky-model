@@ -26,10 +26,10 @@ import io
 import logging
 import os
 import re
+import tarfile
 import threading
 import time
 import traceback
-import zipfile
 from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any, get_args, get_origin
@@ -651,14 +651,63 @@ def sky_components_to_csv_lines(
         yield from lsm_to_csv_lines(lsm)
 
 
+def _catalogue_to_lsm_content(
+    catalogue: "GlobalSkyModelMetadata",
+    components: list["SkyComponent"],
+    query_parameters: "QueryParameters",
+    file_extension: str,
+    lsm_to_lines_fn: Callable[[LocalSkyModel], Generator[str, None, None]],
+) -> tuple[str, str]:
+    """Build LSM file content for a single catalogue.
+
+    Returns:
+        Tuple of (filename, file_content_string).
+    """
+    meta = catalogue.columns_to_dict()
+    gsm_components = {}
+    for c in components:
+        c_dict = c.columns_to_dict()
+        del c_dict["id"]
+        del c_dict["gsm_id"]
+        gsm_components[c.id] = SkyComponentDataclass(**c_dict)
+    lsm = _build_local_sky_model(meta, gsm_components, query_parameters)
+    safe_name = re.sub(r"[^\w.\-]", "_", str(meta.get("catalogue_name", "catalogue")))
+    safe_version = re.sub(r"[^\w.\-]", "_", str(meta.get("version", "unknown")))
+    filename = f"{safe_name}_{safe_version}.{file_extension}"
+    return filename, "".join(lsm_to_lines_fn(lsm))
+
+
+def sky_components_to_single_file(
+    catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
+    query_parameters: "QueryParameters",
+    file_extension: str,
+    lsm_to_lines_fn: Callable[[LocalSkyModel], Generator[str, None, None]],
+) -> tuple[str, str]:
+    """Build LSM file content for a single catalogue.
+
+    Args:
+        catalogues: A one-item list of catalogue and sky components.
+        query_parameters: The query parameters provided.
+        file_extension: Extension for the file ('csv' or 'ecsv').
+        lsm_to_lines_fn: Callable that converts a LocalSkyModel to text lines.
+
+    Returns:
+        Tuple of (filename, file_content_string).
+    """
+    (catalogue, components) = catalogues[0]
+    return _catalogue_to_lsm_content(
+        catalogue, components, query_parameters, file_extension, lsm_to_lines_fn
+    )
+
+
 # pylint: disable-next=too-many-locals
-def sky_components_to_zip(
+def sky_components_to_tar(
     catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
     query_parameters: "QueryParameters",
     file_extension: str,
     lsm_to_lines_fn: Callable[[LocalSkyModel], Generator[str, None, None]],
 ) -> bytes:
-    """Build a ZIP archive containing one file per catalogue/version.
+    """Build a TAR archive containing one file per catalogue/version.
 
     Each file is named ``<catalogue_name>_<version>.<file_extension>`` and
     contains the output of ``lsm_to_lines_fn`` for that catalogue.
@@ -670,23 +719,18 @@ def sky_components_to_zip(
         lsm_to_lines_fn: Callable that converts a LocalSkyModel to text lines.
 
     Returns:
-        ZIP file contents as bytes.
+        TAR file contents as bytes.
     """
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+    with tarfile.open(fileobj=buffer, mode="w") as tf:
         for catalogue, components in catalogues:
-            meta = catalogue.columns_to_dict()
-            gsm_components = {}
-            for c in components:
-                c_dict = c.columns_to_dict()
-                del c_dict["id"]
-                del c_dict["gsm_id"]
-                gsm_components[c.id] = SkyComponentDataclass(**c_dict)
-            lsm = _build_local_sky_model(meta, gsm_components, query_parameters)
-            safe_name = re.sub(r"[^\w.\-]", "_", str(meta.get("catalogue_name", "catalogue")))
-            safe_version = re.sub(r"[^\w.\-]", "_", str(meta.get("version", "unknown")))
-            filename = f"{safe_name}_{safe_version}.{file_extension}"
-            zf.writestr(filename, "".join(lsm_to_lines_fn(lsm)))
+            filename, content = _catalogue_to_lsm_content(
+                catalogue, components, query_parameters, file_extension, lsm_to_lines_fn
+            )
+            encoded = content.encode()
+            info = tarfile.TarInfo(name=filename)
+            info.size = len(encoded)
+            tf.addfile(info, io.BytesIO(encoded))
     buffer.seek(0)
     return buffer.read()
 

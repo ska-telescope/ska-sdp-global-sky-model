@@ -43,7 +43,8 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
     lsm_to_csv_lines,
     lsm_to_ecsv_lines,
-    sky_components_to_zip,
+    sky_components_to_single_file,
+    sky_components_to_tar,
     start_lsm_response_thread,
 )
 from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
@@ -228,16 +229,34 @@ async def get_local_sky_model_endpoint(
     catalogues = query_params.sky_components(db)
 
     if output_format == "csv":
+        if len(catalogues) == 1:
+            filename, content = sky_components_to_single_file(
+                catalogues, query_params, "csv", lsm_to_csv_lines
+            )
+            return Response(
+                content=content,
+                media_type="text/csv",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
         return Response(
-            content=sky_components_to_zip(catalogues, query_params, "csv", lsm_to_csv_lines),
-            media_type="application/zip",
-            headers={"Content-Disposition": 'attachment; filename="local_sky_model_csv.zip"'},
+            content=sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines),
+            media_type="application/x-tar",
+            headers={"Content-Disposition": 'attachment; filename="local_sky_model_csv.tar"'},
         )
     if output_format == "ecsv":
+        if len(catalogues) == 1:
+            filename, content = sky_components_to_single_file(
+                catalogues, query_params, "ecsv", lsm_to_ecsv_lines
+            )
+            return Response(
+                content=content,
+                media_type="text/plain",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
         return Response(
-            content=sky_components_to_zip(catalogues, query_params, "ecsv", lsm_to_ecsv_lines),
-            media_type="application/zip",
-            headers={"Content-Disposition": 'attachment; filename="local_sky_model_ecsv.zip"'},
+            content=sky_components_to_tar(catalogues, query_params, "ecsv", lsm_to_ecsv_lines),
+            media_type="application/x-tar",
+            headers={"Content-Disposition": 'attachment; filename="local_sky_model_ecsv.tar"'},
         )
     all_rows = []
     for catalogue, components in catalogues:
