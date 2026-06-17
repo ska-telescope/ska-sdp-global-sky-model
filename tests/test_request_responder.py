@@ -5,8 +5,8 @@
 import copy
 import io
 import os
+import tarfile
 import tempfile
-import zipfile
 from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
@@ -35,7 +35,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     lsm_to_ecsv_lines,
     sky_components_to_csv_lines,
     sky_components_to_ecsv_lines,
-    sky_components_to_zip,
+    sky_components_to_tar,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
 from tests.utils import clean_all_tables, set_up_db
@@ -1376,12 +1376,12 @@ def test_sky_components_to_ecsv_lines(db_session):  # noqa: F811
 
 
 # ---------------------------------------------------------------------------
-# sky_components_to_zip tests
+# sky_components_to_tar tests
 # ---------------------------------------------------------------------------
 
 
-def test_sky_components_to_zip_csv_single_catalogue(db_session):  # noqa: F811
-    """ZIP should contain a single CSV file for a single-catalogue query."""
+def test_sky_components_to_tar_csv_single_catalogue(db_session):  # noqa: F811
+    """TAR should contain a single CSV file for a single-catalogue query."""
 
     query_params = QueryParameters(
         ra_deg=90,
@@ -1393,24 +1393,24 @@ def test_sky_components_to_zip_csv_single_catalogue(db_session):  # noqa: F811
     )
     catalogues = query_params.sky_components(db_session)
 
-    raw = sky_components_to_zip(catalogues, query_params, "csv", lsm_to_csv_lines)
+    raw = sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines)
 
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        names = zf.namelist()
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        names = tf.getnames()
         assert len(names) == 1
         assert names[0].endswith(".csv")
         assert "catalogue1" in names[0]
         assert "0.1.0" in names[0]
 
-        content = zf.read(names[0]).decode()
+        content = tf.extractfile(names[0]).read().decode()
 
     assert "# NUMBER_OF_COMPONENTS=" in content
     assert "CATALOGUE_METADATA_CATALOGUE_NAME=catalogue1" in content
     assert "W000010" in content
 
 
-def test_sky_components_to_zip_ecsv_single_catalogue(db_session):  # noqa: F811
-    """ZIP should contain a single ECSV file for a single-catalogue query."""
+def test_sky_components_to_tar_ecsv_single_catalogue(db_session):  # noqa: F811
+    """TAR should contain a single ECSV file for a single-catalogue query."""
 
     query_params = QueryParameters(
         ra_deg=90,
@@ -1422,22 +1422,22 @@ def test_sky_components_to_zip_ecsv_single_catalogue(db_session):  # noqa: F811
     )
     catalogues = query_params.sky_components(db_session)
 
-    raw = sky_components_to_zip(catalogues, query_params, "ecsv", lsm_to_ecsv_lines)
+    raw = sky_components_to_tar(catalogues, query_params, "ecsv", lsm_to_ecsv_lines)
 
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        names = zf.namelist()
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        names = tf.getnames()
         assert len(names) == 1
         assert names[0].endswith(".ecsv")
 
-        content = zf.read(names[0]).decode()
+        content = tf.extractfile(names[0]).read().decode()
 
     assert content.startswith("# %ECSV 1.0\n")
     assert "# schema: astropy-2.0" in content
     assert "W000010" in content
 
 
-def test_sky_components_to_zip_multiple_catalogues(db_session):  # noqa: F811
-    """ZIP should contain one file per matched catalogue with no collisions."""
+def test_sky_components_to_tar_multiple_catalogues(db_session):  # noqa: F811
+    """TAR should contain one file per matched catalogue with no collisions."""
 
     query_params = QueryParameters(
         ra_deg=0,
@@ -1447,10 +1447,10 @@ def test_sky_components_to_zip_multiple_catalogues(db_session):  # noqa: F811
     )
     catalogues = query_params.sky_components(db_session)
 
-    raw = sky_components_to_zip(catalogues, query_params, "csv", lsm_to_csv_lines)
+    raw = sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines)
 
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        names = zf.namelist()
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        names = tf.getnames()
 
     assert len(names) > 1
     # Filenames must be unique (catalogue name + version encoded)
@@ -1458,7 +1458,7 @@ def test_sky_components_to_zip_multiple_catalogues(db_session):  # noqa: F811
     assert all(n.endswith(".csv") for n in names)
 
 
-def test_sky_components_to_zip_filename_sanitisation(db_session):  # noqa: F811
+def test_sky_components_to_tar_filename_sanitisation(db_session):  # noqa: F811
     """Catalogue names and versions are sanitised to safe filesystem characters."""
 
     query_params = QueryParameters(
@@ -1471,10 +1471,10 @@ def test_sky_components_to_zip_filename_sanitisation(db_session):  # noqa: F811
     )
     catalogues = query_params.sky_components(db_session)
 
-    raw = sky_components_to_zip(catalogues, query_params, "csv", lsm_to_csv_lines)
+    raw = sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines)
 
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        for name in zf.namelist():
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        for name in tf.getnames():
             # No characters that would be unsafe in a filename
             assert "/" not in name
             assert "\\" not in name

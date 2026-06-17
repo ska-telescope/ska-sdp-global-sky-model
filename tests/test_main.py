@@ -3,7 +3,7 @@ Basic testing of the API
 """
 
 import io
-import zipfile
+import tarfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -465,7 +465,7 @@ def test_local_sky_model_pagination_pages_differ(myclient):
 
 
 def test_local_sky_model_csv_format(myclient):
-    """Test that format=csv returns a ZIP containing a CSV file per catalogue."""
+    """Test that format=csv with a single catalogue returns the CSV file directly."""
 
     response = myclient.get(
         "/local-sky-model/",
@@ -479,17 +479,11 @@ def test_local_sky_model_csv_format(myclient):
         },
     )
     assert response.status_code == 200
-    assert "application/zip" in response.headers["content-type"]
-    assert (
-        response.headers["content-disposition"] == 'attachment; filename="local_sky_model_csv.zip"'
-    )
+    assert "text/csv" in response.headers["content-type"]
+    assert response.headers["content-disposition"].startswith("attachment; filename=")
+    assert response.headers["content-disposition"].endswith('.csv"')
 
-    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        names = zf.namelist()
-        assert len(names) == 1
-        assert names[0].endswith(".csv")
-
-        text = zf.read(names[0]).decode()
+    text = response.text
 
     # SKA format header lines present in the CSV file
     assert "# (" in text
@@ -500,7 +494,7 @@ def test_local_sky_model_csv_format(myclient):
 
 
 def test_local_sky_model_ecsv_format(myclient):
-    """Test that format=ecsv returns a ZIP containing a valid ECSV file per catalogue."""
+    """Test that format=ecsv with a single catalogue returns the ECSV file directly."""
 
     response = myclient.get(
         "/local-sky-model/",
@@ -514,18 +508,11 @@ def test_local_sky_model_ecsv_format(myclient):
         },
     )
     assert response.status_code == 200
-    assert "application/zip" in response.headers["content-type"]
-    assert (
-        response.headers["content-disposition"]
-        == 'attachment; filename="local_sky_model_ecsv.zip"'
-    )
+    assert "text/plain" in response.headers["content-type"]
+    assert response.headers["content-disposition"].startswith("attachment; filename=")
+    assert response.headers["content-disposition"].endswith('.ecsv"')
 
-    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        names = zf.namelist()
-        assert len(names) == 1
-        assert names[0].endswith(".ecsv")
-
-        text = zf.read(names[0]).decode()
+    text = response.text
 
     assert text.startswith("# %ECSV 1.0\n")
     assert "# delimiter: ','\n" in text
@@ -537,16 +524,17 @@ def test_local_sky_model_ecsv_format(myclient):
 
 
 def test_local_sky_model_csv_multiple_catalogues(myclient):
-    """Test that a multi-catalogue query produces one CSV per catalogue in the ZIP."""
+    """Test that a multi-catalogue query produces one CSV per catalogue in the TAR."""
 
     response = myclient.get(
         "/local-sky-model/",
         params={"ra_deg": 90, "dec_deg": 5, "fov_deg": 90, "format": "csv"},
     )
     assert response.status_code == 200
+    assert "application/x-tar" in response.headers["content-type"]
 
-    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        names = zf.namelist()
+    with tarfile.open(fileobj=io.BytesIO(response.content), mode="r") as tf:
+        names = tf.getnames()
 
     # The test DB has multiple catalogues — each should produce its own file
     assert len(names) > 1
