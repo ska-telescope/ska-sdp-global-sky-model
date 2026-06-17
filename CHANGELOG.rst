@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+Development
+-----------
+
+- [Update] Added ECSV output format for use with TOPCAT
+  (`MR125 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/125>`__)
+
 0.4.0
 -----
 
