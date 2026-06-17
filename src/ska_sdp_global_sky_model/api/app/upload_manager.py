@@ -46,8 +46,8 @@ class UploadTask:
         self.task_status = task_status
         self.files = []
 
-    @staticmethod
-    def fetch_from_db(db: Session, upload_id: str) -> "UploadTask":
+    @classmethod
+    def fetch_from_db(cls, db: Session, upload_id: str) -> "UploadTask":
         """Attempt to fetch the task from the database"""
 
         task_status = db.scalars(
@@ -63,8 +63,9 @@ class UploadTask:
 
         return UploadTask.create(db, catalogue_metadata, task_status, set_upload_id=False)
 
-    @staticmethod
+    @classmethod
     def create(
+        cls,
         db: Session,
         catalogue_metadata: GlobalSkyModelMetadata | None,
         task_status: UploadTaskState | None = None,
@@ -249,7 +250,7 @@ class UploadTask:
 
 
 def run_db_cleanup(
-    db: sqlalchemy.orm.Session, do_delete: bool = False, override_cleanup: int | None = None
+    db: sqlalchemy.orm.Session, do_delete: bool = False, override_cleanup_age: int | None = None
 ):
     """Do a cleanup of old data in the DB, and attempt to cleanup this manager.
 
@@ -258,10 +259,10 @@ def run_db_cleanup(
 
     There are also logs for partially migrated catalogues.
 
-    `override_cleanup` - when set the function will use that amount of hours
+    `override_cleanup_age` - when set the function will use that number of hours
     instead of the default of `CATALOGUE_CLEANUP_AGE`. This is in hours"""
 
-    _cleanup_old_uploads(db, override_cleanup)
+    _cleanup_old_uploads(db, override_cleanup_age)
     _cleanup_partial_migrations_and_orphaned_staging_components(db)
     if do_delete:
         logger.info("Committing any changes")
@@ -271,12 +272,10 @@ def run_db_cleanup(
         db.rollback()
 
 
-def _cleanup_old_uploads(db: sqlalchemy.orm.Session, override_cleanup: int | None = None):
+def _cleanup_old_uploads(db: sqlalchemy.orm.Session, override_cleanup_age: int | None = None):
     """Remove catalogues and their components if they are still in staging
     and if the upload time is more than CATALOGUE_CLEANUP_AGE hours ago."""
-    hours = override_cleanup
-    if hours is None:
-        hours = CATALOGUE_CLEANUP_AGE
+    hours = override_cleanup_age or CATALOGUE_CLEANUP_AGE
     catalogues = db.scalars(
         select(GlobalSkyModelMetadata)
         .where(GlobalSkyModelMetadata.uploaded_at < datetime.now() - timedelta(hours=hours))

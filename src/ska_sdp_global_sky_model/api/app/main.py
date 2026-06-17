@@ -55,8 +55,6 @@ from ska_sdp_global_sky_model.utilities.version_utils import (
 
 logger = logging.getLogger(__name__)
 
-# Initialize upload manager
-
 
 def wait_for_db():
     """Await DB connection."""
@@ -916,7 +914,7 @@ def get_catalogue_metadata_by_id(
 
 @app.get("/uploads", summary="Get list of current uploads")
 def list_uploads(request: Request, db: Session = Depends(get_db)):
-    """List all the currently available uploads"""
+    """List all uploads done, and their state"""
     # SQLAlchemy's outerjoin is always a left outer join
     stmt = select(UploadTaskState, GlobalSkyModelMetadata).join(
         GlobalSkyModelMetadata,
