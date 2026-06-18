@@ -33,9 +33,9 @@ class UploadState(str, Enum):
 
     PENDING = "pending"
     UPLOADING = "uploading"
-    COMPLETED = "completed"
+    STAGED = "staged"
     FAILED = "failed"
-    RELEASED = "released"
+    COMPLETED = "completed"
 
 
 class UploadTask:
@@ -79,7 +79,9 @@ class UploadTask:
                 task_status = UploadTaskState(
                     upload_id=catalogue_metadata.upload_id,
                     status=(
-                        UploadState.PENDING if catalogue_metadata.staging else UploadState.RELEASED
+                        UploadState.PENDING
+                        if catalogue_metadata.staging
+                        else UploadState.COMPLETED
                     ),
                 )
                 db.add(task_status)
@@ -104,7 +106,7 @@ class UploadTask:
     @property
     def is_uploaded(self) -> bool:
         """Check if the status is completely uploaded"""
-        return self.task_status.status == UploadState.COMPLETED.value
+        return self.task_status.status == UploadState.STAGED.value
 
     def to_dict(self) -> dict:
         """Return this object as a dictionary"""
@@ -234,7 +236,7 @@ class UploadTask:
 
     def mark_released(self):
         """Mark this catalogue as released"""
-        self.update_status(UploadState.RELEASED)
+        self.update_status(UploadState.COMPLETED)
 
     def mark_uploading(self):
         """Mark this catalogue as uploading"""
@@ -242,7 +244,7 @@ class UploadTask:
 
     def mark_uploaded(self):
         """Mark this catalogue as uploaded"""
-        self.update_status(UploadState.COMPLETED)
+        self.update_status(UploadState.STAGED)
 
     def mark_failed(self, error_message: str):
         """Mark this catalogue as failed"""

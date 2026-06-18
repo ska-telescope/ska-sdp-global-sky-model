@@ -141,7 +141,7 @@ def test_mark_released(upload_task):
     """Test that the correct fields are updated when marking an upload as released"""
     upload_task.mark_released()
 
-    assert upload_task.task_status.status == "released"
+    assert upload_task.task_status.status == "completed"
     assert upload_task.task_status.last_update > datetime.now() - timedelta(seconds=1)
 
 
@@ -157,7 +157,7 @@ def test_mark_uploaded(upload_task):
     """Test that the correct fields are updated when marking an upload as uploaded"""
     upload_task.mark_uploaded()
 
-    assert upload_task.task_status.status == "completed"
+    assert upload_task.task_status.status == "staged"
     assert upload_task.task_status.last_update > datetime.now() - timedelta(seconds=1)
 
 
