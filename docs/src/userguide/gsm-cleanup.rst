@@ -21,19 +21,19 @@ or staging catalogues.
 
    $ gsm-delete 1
 
-   1|2026-05-05T08:39:46.611Z|INFO|MainThread|main|catalogue_delete.py#53||Catalogue: 'TEST_CATALOGUE_1' (uploaded @ '2026-05-05 08:39:29.751168') (Staging:no)
-   1|2026-05-05T08:39:46.616Z|INFO|MainThread|main|catalogue_delete.py#63||Found 200 components
-   1|2026-05-05T08:39:46.619Z|INFO|MainThread|main|catalogue_delete.py#69||Found 0 components in staging table
+   1|2026-05-05T08:39:46.611Z|INFO|...|Catalogue: 'TEST_CATALOGUE_1' (uploaded @ '2026-05-05 08:39:29.751168') (Staging:no)
+   1|2026-05-05T08:39:46.616Z|INFO|...|Found 200 components
+   1|2026-05-05T08:39:46.619Z|INFO|...|Found 0 components in staging table
 
 .. code-block:: bash
    :caption: Delete a catalogue
 
    $ gsm-delete --delete 1
 
-   1|2026-05-05T08:40:38.866Z|INFO|MainThread|main|catalogue_delete.py#53||Catalogue: 'TEST_CATALOGUE_1' (uploaded @ '2026-05-05 08:39:29.751168') (Staging:no)
-   1|2026-05-05T08:40:38.872Z|INFO|MainThread|main|catalogue_delete.py#63||Found 200 components
-   1|2026-05-05T08:40:38.874Z|INFO|MainThread|main|catalogue_delete.py#69||Found 0 components in staging table
-   1|2026-05-05T08:40:38.874Z|WARNING|MainThread|main|catalogue_delete.py#72||Deleting catalogue...
+   1|2026-05-05T08:40:38.866Z|INFO|...|Catalogue: 'TEST_CATALOGUE_1' (uploaded @ '2026-05-05 08:39:29.751168') (Staging:no)
+   1|2026-05-05T08:40:38.872Z|INFO|...|Found 200 components
+   1|2026-05-05T08:40:38.874Z|INFO|...|Found 0 components in staging table
+   1|2026-05-05T08:40:38.874Z|WARNING|...|Deleting catalogue...
 
 
 Clean old Staging Catalogues
@@ -52,21 +52,21 @@ This command allows you to cleanup old catalogue data from the staging table.
 
     $ gsm-cleanup
 
-    1|2026-05-05T11:30:05.329Z|INFO|MainThread|_cleanup_old_uploads|upload_manager.py#318||Found 0 catalogues to clean
-    1|2026-05-05T11:30:05.331Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#339||Found 0 unique catalogue(s) in staging
-    1|2026-05-05T11:30:05.331Z|INFO|MainThread|run_db_cleanup|upload_manager.py#298||Rolling back any changes
+    1|2026-05-05T11:30:05.329Z|INFO|...|Found 0 catalogues to clean
+    1|2026-05-05T11:30:05.331Z|INFO|...|Found 0 unique catalogue(s) in staging
+    1|2026-05-05T11:30:05.331Z|INFO|...|Rolling back any changes
 
 
 .. code-block:: bash
     :caption: When there are staging catalogues, but nothing to remove
 
     $ gsm-cleanup --delete
-    1|2026-05-05T11:27:58.205Z|INFO|MainThread|_cleanup_old_uploads|upload_manager.py#313||Found 0 catalogues to clean
-    1|2026-05-05T11:27:58.206Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#334||Found 1 unique catalogue(s) in staging
-    1|2026-05-05T11:27:58.206Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#337||Checking upload ID: '8ccbdcbb-5e24-44f3-974f-63ece8f35425'
-    1|2026-05-05T11:27:58.207Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#351|| -> Has an existing catalogue
-    1|2026-05-05T11:27:58.207Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#353|| -> Catalogue: 4:'TEST_CATALOGUE_1' (uploaded @ '2026-05-05 11:27:31.001711') (Staging:yes)
-    1|2026-05-05T11:27:58.211Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#369|| -> there are no partially transferred components (can be ignored for now)
+    1|2026-05-05T11:27:58.205Z|INFO|...|Found 0 catalogues to clean
+    1|2026-05-05T11:27:58.206Z|INFO|...|Found 1 unique catalogue(s) in staging
+    1|2026-05-05T11:27:58.206Z|INFO|...|Checking upload ID: '8ccbdcbb-5e24-44f3-974f-63ece8f35425'
+    1|2026-05-05T11:27:58.207Z|INFO|...| -> Has an existing catalogue
+    1|2026-05-05T11:27:58.207Z|INFO|...| -> Catalogue: 4:'TEST_CATALOGUE_1' (uploaded @ '2026-05-05 11:27:31.001711') (Staging:yes)
+    1|2026-05-05T11:27:58.211Z|INFO|...| -> there are no partially transferred components (can be ignored for now)
 
 
 
@@ -74,8 +74,8 @@ This command allows you to cleanup old catalogue data from the staging table.
     :caption: Cleaning 1 catalogue
 
     $ gsm-cleanup --delete
-    1|2026-05-05T11:30:01.288Z|INFO|MainThread|_cleanup_old_uploads|upload_manager.py#318||Found 1 catalogues to clean
-    1|2026-05-05T11:30:01.288Z|INFO|MainThread|_cleanup_old_uploads|upload_manager.py#320||Remove old catalogue: '8ccbdcbb-5e24-44f3-974f-63ece8f35425/TEST_CATALOGUE_1' (uploaded @ '2026-05-05 11:27:31.001711')
-    1|2026-05-05T11:30:01.290Z|INFO|MainThread|_cleanup_partial_migrations_and_orphaned_staging_components|upload_manager.py#339||Found 0 unique catalogue(s) in staging
-    1|2026-05-05T11:30:01.291Z|INFO|MainThread|run_db_cleanup|upload_manager.py#295||Commiting any changes
+    1|2026-05-05T11:30:01.288Z|INFO|...|Found 1 catalogues to clean
+    1|2026-05-05T11:30:01.288Z|INFO|...|Remove old catalogue: '8ccbdcbb-5e24-44f3-974f-63ece8f35425/TEST_CATALOGUE_1' (uploaded @ '2026-05-05 11:27:31.001711')
+    1|2026-05-05T11:30:01.290Z|INFO|...|Found 0 unique catalogue(s) in staging
+    1|2026-05-05T11:30:01.291Z|INFO|...|Commiting any changes
 

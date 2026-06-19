@@ -117,6 +117,25 @@ def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
             setattr(model_class, col, db_type)
 
 
+class UploadTaskState(Base):
+    """Status information for current upload tasks"""
+
+    __table_name__ = "global_sky_model_upload_task"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    upload_id = Column(String, nullable=False, unique=True, index=True)
+    status = Column(String, nullable=False, default="no_state")
+    reason = Column(String, nullable=True, default=None)
+    files_uploaded = Column(Integer, nullable=False, default=0)
+    # pylint: disable=not-callable
+    last_update = Column(DateTime, nullable=False, server_default=func.now())
+
+    def columns_to_dict(self):
+        """Return a dictionary representation of a row."""
+        return {key: getattr(self, key) for key in self.__mapper__.c.keys()}
+
+
 class GlobalSkyModelMetadata(Base):
     """Metadata describing a GSM catalogue instance."""
 
@@ -153,6 +172,7 @@ class SkyComponent(Base):
     """
 
     __tablename__ = "sky_component"
+    __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -180,6 +200,7 @@ class SkyComponentStaging(Base):
     """
 
     __tablename__ = "sky_component_staging"
+    __table_args__ = {"schema": DB_SCHEMA}
 
     # Hardcoded primary key
     id = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)

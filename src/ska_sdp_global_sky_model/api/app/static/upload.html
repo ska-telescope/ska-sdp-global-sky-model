@@ -333,7 +333,7 @@
 
         let selectedFiles = [];
         let currentUploadId = null;
-        
+
         function apiUrl(endpoint) {
             const basePath = window.location.pathname.replace(/\/upload\/?$/, '/');
             return `${basePath}${endpoint}`;
@@ -427,7 +427,7 @@
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Uploading...';
             reviewSection.style.display = 'none';
-            
+
             try {
                 const response = await fetch(apiUrl('upload-sky-survey-batch'), {
                     method: 'POST',
@@ -456,7 +456,7 @@
             statusDiv.style.display = 'block';
             let retryCount = 0;
             const maxRetries = 30; // 30 retries = 60 seconds
-            
+
             const check = async () => {
                 try {
                     const response = await fetch(apiUrl(`upload-sky-survey-status/${uploadId}`));
@@ -466,7 +466,7 @@
                     retryCount = 0;
 
                     const stateBadge = `<span class="status-badge ${status.state.toLowerCase()}">${status.state.toUpperCase()}</span>`;
-                    
+
                     statusDiv.innerHTML = `
                         <div class="status-item">
                             <span class="status-label">Upload ID:</span>
@@ -509,7 +509,7 @@
                 } catch (error) {
                     retryCount++;
                     console.error(`Failed to fetch upload status (attempt ${retryCount}/${maxRetries}):`, error);
-                    
+
                     if (retryCount >= maxRetries) {
                         showAlert('error', 'Lost connection to server. Please refresh and check upload status manually.');
                         uploadBtn.disabled = false;

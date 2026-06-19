@@ -9,13 +9,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ska_sdp_global_sky_model.api.app.main import upload_manager
 from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
     SkyComponent,
     SkyComponentStaging,
 )
-from ska_sdp_global_sky_model.api.app.upload_manager import UploadStatus
+from ska_sdp_global_sky_model.api.app.upload_manager import UploadTask
 from tests.utils import clean_all_tables
 
 
@@ -302,12 +301,14 @@ def test_review_upload_success(myclient, gsm_metadata, db_session):
             gsm_id=gsm_metadata.id,
         )
         db_session.add(component)
+    catalogue = GlobalSkyModelMetadata(upload_id=upload_id, catalogue_name="cat-name")
+    db_session.add(catalogue)
     db_session.commit()
 
     # Create upload status
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploaded()
+    db_session.commit()
 
     # Review the upload
     review_response = myclient.get(f"/review-upload/{upload_id}")
@@ -322,13 +323,18 @@ def test_review_upload_success(myclient, gsm_metadata, db_session):
     assert "TEST" in review_data["sample"][0]["component_id"]
 
 
-def test_review_upload_not_completed(myclient):
+def test_review_upload_not_completed(myclient, db_session):
     """Test review of upload that hasn't completed yet."""
     # Create upload in non-completed state
     upload_id = "test-upload-not-completed-123"
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
-    upload_status.state = "uploading"  # Not completed
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    catalogue = GlobalSkyModelMetadata(upload_id=upload_id, catalogue_name="cat-name")
+    db_session.add(catalogue)
+    db_session.commit()
+
+    # Create upload status
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploading()
+    db_session.commit()
 
     # Review before completion
     review_response = myclient.get(f"/review-upload/{upload_id}")
@@ -354,19 +360,11 @@ def test_commit_upload_success(myclient, gsm_metadata, db_session):
             gsm_id=gsm_metadata.id,
         )
         db_session.add(component)
-    db_session.commit()
 
     # Create and attach metadata with no version (auto-assigned at commit time)
-    metadata = GlobalSkyModelMetadata(
-        version=None,
-        catalogue_name=gsm_metadata.catalogue_name,
-        description=gsm_metadata.description,
-        upload_id=upload_id,
-        staging=True,
-    )
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=metadata)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploaded()
+    db_session.commit()
 
     # Commit the upload
     commit_response = myclient.post(f"/commit-upload/{upload_id}")
@@ -417,16 +415,9 @@ def test_commit_upload_increments_version(myclient, gsm_metadata, db_session):
     db_session.commit()
 
     # Metadata with no version - commit endpoint auto-assigns the next version
-    metadata = GlobalSkyModelMetadata(
-        version=None,
-        catalogue_name=gsm_metadata.catalogue_name,
-        description=gsm_metadata.description,
-        upload_id=upload_id,
-        staging=True,
-    )
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=metadata)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploaded()
+    db_session.commit()
 
     commit_response = myclient.post(f"/commit-upload/{upload_id}")
     assert commit_response.status_code == 200
@@ -477,9 +468,9 @@ def test_commit_upload_per_catalogue_versioning(myclient, db_session):
     db_session.add(component)
     db_session.commit()
 
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=metadata)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploaded()
+    db_session.commit()
 
     commit_response = myclient.post(f"/commit-upload/{upload_id}")
     assert commit_response.status_code == 200
@@ -487,20 +478,23 @@ def test_commit_upload_per_catalogue_versioning(myclient, db_session):
     assert commit_response.json()["version"] == "0.1.0"
 
 
-def test_commit_upload_not_completed(myclient):
+def test_commit_upload_not_completed(myclient, gsm_metadata, db_session):
     """Test commit fails if upload not completed."""
     # Create upload in non-completed state
     upload_id = "test-upload-commit-not-done-123"
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
-    upload_status.state = "uploading"  # Not completed
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    gsm_metadata.upload_id = upload_id
+    db_session.add(gsm_metadata)
+    db_session.commit()
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploading()
+    db_session.commit()
 
     commit_response = myclient.post(f"/commit-upload/{upload_id}")
     assert commit_response.status_code == 400
     assert "not ready for commit" in commit_response.json()["detail"].lower()
 
 
-def test_reject_upload_success(myclient, db_session):
+def test_reject_upload_success(myclient, db_session, gsm_metadata):
     """Test successful rejection of staged upload."""
     # Directly insert staging records
     upload_id = "test-upload-reject-123"
@@ -514,12 +508,15 @@ def test_reject_upload_success(myclient, db_session):
             gsm_id=None,
         )
         db_session.add(component)
+
+    gsm_metadata.upload_id = upload_id
+    db_session.add(gsm_metadata)
     db_session.commit()
 
     # Create completed upload status
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
-    upload_status.state = "completed"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploaded()
+    db_session.commit()
 
     # Reject the upload
     reject_response = myclient.delete(f"/reject-upload/{upload_id}")
@@ -543,13 +540,16 @@ def test_reject_upload_success(myclient, db_session):
     assert len(metadata_records) == 0
 
 
-def test_reject_upload_not_completed(myclient):
+def test_reject_upload_not_completed(myclient, gsm_metadata, db_session):
     """Test reject fails if upload not completed."""
     # Create incomplete upload status
     upload_id = "test-upload-reject-incomplete-456"
-    upload_status = UploadStatus(upload_id=upload_id, total_csv_files=1, metadata=None)
-    upload_status.state = "uploading"
-    upload_manager._uploads[upload_id] = upload_status  # pylint: disable=protected-access
+    gsm_metadata.upload_id = upload_id
+    db_session.add(gsm_metadata)
+    db_session.commit()
+    task = UploadTask.fetch_from_db(db_session, upload_id)
+    task.mark_uploading()
+    db_session.commit()
 
     # Reject before completion
     reject_response = myclient.delete(f"/reject-upload/{upload_id}")
