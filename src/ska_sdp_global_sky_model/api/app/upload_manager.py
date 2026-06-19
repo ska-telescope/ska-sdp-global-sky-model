@@ -8,18 +8,20 @@ including file validation, in-memory storage, metadata parsing, and upload state
 import csv
 import io
 import logging
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from uuid import uuid4
 
 import sqlalchemy
 from fastapi import HTTPException, UploadFile
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
     SkyComponent,
     SkyComponentStaging,
+    UploadTaskState,
 )
 from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
 
@@ -31,98 +33,101 @@ class UploadState(str, Enum):
 
     PENDING = "pending"
     UPLOADING = "uploading"
-    COMPLETED = "completed"
+    STAGED = "staged"
     FAILED = "failed"
+    COMPLETED = "completed"
 
 
-@dataclass
-class UploadStatus:
-    """Track the status of a batch upload."""
+class UploadTask:
+    """A wrapper for some of the objects that are required for an upload"""
 
-    upload_id: str
-    total_csv_files: int
-    metadata: GlobalSkyModelMetadata
-    uploaded_csv_files: int = 0
-    state: UploadState = UploadState.PENDING
-    errors: list[str] = field(default_factory=list)
-    csv_files: list[tuple[str, str]] = field(default_factory=list)  # (filename, content as str)
+    def __init__(self, catalogue_metadata: GlobalSkyModelMetadata, task_status: UploadTaskState):
+        self.catalogue_metadata = catalogue_metadata
+        self.task_status = task_status
+        self.files = []
 
-    def to_dict(self) -> dict:
-        """Convert status to dictionary."""
-        return {
-            "upload_id": self.upload_id,
-            "state": self.state.value,
-            "total_csv_files": self.total_csv_files,
-            "uploaded_csv_files": self.uploaded_csv_files,
-            "remaining_csv_files": self.total_csv_files - self.uploaded_csv_files,
-            "errors": self.errors,
-            "has_metadata": self.metadata is not None,
-            "metadata": self.metadata,
-        }
+    @classmethod
+    def fetch_from_db(cls, db: Session, upload_id: str) -> "UploadTask":
+        """Attempt to fetch the task from the database"""
 
+        task_status = db.scalars(
+            select(UploadTaskState).where(UploadTaskState.upload_id == upload_id)
+        ).first()
 
-class UploadManager:
-    """Manages batch uploads of sky survey files."""
+        catalogue_metadata = db.scalars(
+            select(GlobalSkyModelMetadata).where(GlobalSkyModelMetadata.upload_id == upload_id)
+        ).first()
 
-    def __init__(self):
-        """Initialize the upload manager."""
-        self._uploads: dict[str, UploadStatus] = {}
-
-    def create_upload(self, csv_file_count: int, metadata: GlobalSkyModelMetadata) -> UploadStatus:
-        """
-        Create a new upload tracking entry.
-
-        Parameters
-        ----------
-        csv_file_count : int
-            Number of CSV files in the batch
-        metadata : GlobalSkyModelMetadata
-            Metadata for the upload
-
-        Returns
-        -------
-        UploadStatus
-            The created upload status object
-        """
-        upload_id = str(uuid4())
-
-        status = UploadStatus(
-            upload_id=upload_id,
-            total_csv_files=csv_file_count,
-            state=UploadState.UPLOADING,
-            metadata=metadata,
-        )
-
-        self._uploads[upload_id] = status
-        logger.info("Created upload %s for %d CSV files", upload_id, csv_file_count)
-
-        return status
-
-    def get_status(self, upload_id: str) -> UploadStatus:
-        """
-        Retrieve the status of an upload.
-
-        Parameters
-        ----------
-        upload_id : str
-            Unique identifier of the upload
-
-        Returns
-        -------
-        UploadStatus
-            The upload status object
-
-        Raises
-        ------
-        HTTPException
-            If the upload ID does not exist
-        """
-        if upload_id not in self._uploads:
+        if task_status is None and catalogue_metadata is None:
             raise HTTPException(status_code=404, detail="Upload ID not found")
 
-        return self._uploads[upload_id]
+        return UploadTask.create(db, catalogue_metadata, task_status, set_upload_id=False)
 
-    async def save_csv_file(self, file: UploadFile, upload_status: UploadStatus) -> None:
+    @classmethod
+    def create(
+        cls,
+        db: Session,
+        catalogue_metadata: GlobalSkyModelMetadata | None,
+        task_status: UploadTaskState | None = None,
+        set_upload_id: bool = True,
+    ) -> "UploadTask":
+        """Create the helper object instance"""
+        if catalogue_metadata is not None:
+            if set_upload_id:
+                catalogue_metadata.upload_id = str(uuid4())
+            if task_status is None:
+                task_status = UploadTaskState(
+                    upload_id=catalogue_metadata.upload_id,
+                    status=(
+                        UploadState.PENDING
+                        if catalogue_metadata.staging
+                        else UploadState.COMPLETED
+                    ),
+                )
+                db.add(task_status)
+
+        return UploadTask(catalogue_metadata, task_status)
+
+    @property
+    def upload_id(self):
+        """Get the upload ID of the task"""
+        return self.task_status.upload_id
+
+    @property
+    def name(self):
+        """Get the catalogue name"""
+        return self.catalogue_metadata.catalogue_name
+
+    @property
+    def status(self) -> tuple[str, str | None]:
+        """Get the current status of the upload"""
+        return self.task_status.status
+
+    @property
+    def is_uploaded(self) -> bool:
+        """Check if the status is completely uploaded"""
+        return self.task_status.status == UploadState.STAGED.value
+
+    def to_dict(self) -> dict:
+        """Return this object as a dictionary"""
+        file_count = self.task_status.files_uploaded or 0
+        return {
+            "upload_id": self.upload_id,
+            "state": self.task_status.status,
+            "errors": (self.task_status.reason or "").split(","),
+            "total_csv_files": file_count,
+            "uploaded_csv_files": 0,
+            "remaining_csv_files": file_count,
+            "has_metadata": True,
+            "metadata": (
+                self.catalogue_metadata.columns_to_dict()
+                if self.catalogue_metadata is not None
+                else None
+            ),
+            "last_update": self.task_status.last_update,
+        }
+
+    async def add_file(self, file: UploadFile):
         """
         Save a CSV file to memory after validating structure.
 
@@ -130,8 +135,6 @@ class UploadManager:
         ----------
         file : UploadFile
             CSV file to save
-        upload_status : UploadStatus
-            Upload status tracking object
 
         Raises
         ------
@@ -209,8 +212,10 @@ class UploadManager:
                 f"at line {line_num}: {error_msg}. Check closing quotes.",
             ) from e
 
-        upload_status.csv_files.append((file.filename, text_content))
-        upload_status.uploaded_csv_files += 1
+        self.files.append((file.filename, text_content))
+        if self.task_status.files_uploaded is None:
+            self.task_status.files_uploaded = 0
+        self.task_status.files_uploaded += 1
 
         logger.info(
             "Validated and stored CSV file %s (%d bytes, %d rows) in memory",
@@ -219,156 +224,115 @@ class UploadManager:
             len(rows),
         )
 
-    def mark_completed(self, upload_id: str) -> None:
-        """
-        Mark an upload as completed.
-
-        Parameters
-        ----------
-        upload_id : str
-            Upload identifier
-        """
-        status = self.get_status(upload_id)
-        status.state = UploadState.COMPLETED
-        logger.info("Upload %s completed successfully", upload_id)
-
-    def mark_failed(self, upload_id: str, error: str) -> None:
-        """
-        Mark an upload as failed and record the error.
-
-        Parameters
-        ----------
-        upload_id : str
-            Upload identifier
-        error : str
-            Error message
-        """
-        status = self.get_status(upload_id)
-        status.state = UploadState.FAILED
-        status.errors.append(error)
-        logger.error("Upload %s failed: %s", upload_id, error)
-
-    def cleanup(self, upload_id: str) -> None:
-        """
-        Clean up memory and remove upload tracking.
-
-        Parameters
-        ----------
-        upload_id : str
-            Upload identifier
-        """
-        if upload_id in self._uploads:
-            # Clear file contents from memory
-            self._uploads[upload_id].csv_files.clear()
-            logger.info("Cleaned up upload %s from memory", upload_id)
-
-    def get_files(self, upload_id: str) -> list[tuple[str, str]]:
-        """
-        Get all CSV files for an upload.
-
-        Parameters
-        ----------
-        upload_id : str
-            Upload identifier
-
-        Returns
-        -------
-        list[tuple[str, str]]
-            List of (filename, content) tuples where content is string
-        """
-        status = self.get_status(upload_id)
-        return status.csv_files
-
-    def run_db_cleanup(
-        self, db: sqlalchemy.orm.Session, delete: bool = False, override_cleanup: int | None = None
-    ):
-        """Do a cleanup of old data in the DB, and attempt to cleanup this manager.
-
-        This will remove only catalogues that are staging=True, or
-        components in the SkyComponentStaging table without a catalogue.
-
-        There are also logs for partially migrated catalogues."""
-
-        self._cleanup_old_uploads(db, override_cleanup)
-        self._cleanup_partial_migrations_and_orphaned_staging_components(db)
-        if delete:
-            logger.info("Committing any changes")
-            db.commit()
-        else:
-            logger.info("Rolling back any changes")
-            db.rollback()
-
-    def _cleanup_old_uploads(
-        self, db: sqlalchemy.orm.Session, override_cleanup: int | None = None
-    ):
-        """Remove catalogues and their components if they are still in staging
-        and if the upload time is more than CATALOGUE_CLEANUP_AGE hours ago."""
-        hours = override_cleanup
-        if hours is None:
-            hours = CATALOGUE_CLEANUP_AGE
-        catalogues = (
-            db.query(GlobalSkyModelMetadata)
-            .filter(GlobalSkyModelMetadata.uploaded_at < datetime.now() - timedelta(hours=hours))
-            .filter(GlobalSkyModelMetadata.staging.is_(True))
-            .all()
-        )
-        logger.info("Found %d catalogues to clean", len(catalogues))
-        for catalogue in catalogues:
-            logger.info(
-                "Remove old catalogue: '%s/%s' (uploaded @ '%s')",
-                catalogue.upload_id,
-                catalogue.catalogue_name,
-                catalogue.uploaded_at,
-            )
-            self.cleanup(catalogue.upload_id)
-            db.query(SkyComponentStaging).filter(
-                SkyComponentStaging.gsm_id == catalogue.id
-            ).delete()
-            db.delete(catalogue)
-
-    def _cleanup_partial_migrations_and_orphaned_staging_components(
-        self, db: sqlalchemy.orm.Session
-    ):
-        """Cleanup components in staging that are orphaned, and log
-        partial migrations."""
-        # Get all unique catalogues from staging
-        upload_ids = db.query(SkyComponentStaging.upload_id).distinct().all()
-        logger.info("Found %d unique catalogue(s) in staging", len(upload_ids))
-        for upload_id_row in upload_ids:
-            upload_id = upload_id_row[0]
-            logger.info("Checking upload ID: '%s'", upload_id)
-            catalogues = (
-                db.query(GlobalSkyModelMetadata)
-                .filter(GlobalSkyModelMetadata.upload_id == upload_id)
-                .all()
-            )
-            if len(catalogues) == 0:
-                # -> if it doesn't exist in catalogue, delete it
-                logger.info(" -> Has no catalogue (removing)")
-                self.cleanup(upload_id)
-                db.query(SkyComponentStaging).filter(
-                    SkyComponentStaging.upload_id == upload_id
-                ).delete()
+    def update_status(self, status, message: str | None = None):
+        """Update task status and time"""
+        self.task_status.status = status
+        if message is not None:
+            if self.task_status.reason is None or len(self.task_status.reason) < 2:
+                self.task_status.reason = message
             else:
-                logger.info(" -> Has an existing catalogue")
-                for catalogue in catalogues:
+                self.task_status.reason = f"{self.task_status.reason}, {message}"
+        self.task_status.last_update = datetime.now()
+
+    def mark_released(self):
+        """Mark this catalogue as released"""
+        self.update_status(UploadState.COMPLETED)
+
+    def mark_uploading(self):
+        """Mark this catalogue as uploading"""
+        self.update_status(UploadState.UPLOADING)
+
+    def mark_uploaded(self):
+        """Mark this catalogue as uploaded"""
+        self.update_status(UploadState.STAGED)
+
+    def mark_failed(self, error_message: str):
+        """Mark this catalogue as failed"""
+        self.update_status(UploadState.FAILED, error_message)
+
+
+def run_db_cleanup(
+    db: sqlalchemy.orm.Session, do_delete: bool = False, override_cleanup_age: int | None = None
+):
+    """Do a cleanup of old data in the DB, and attempt to cleanup this manager.
+
+    This will remove only catalogues that are staging=True, or
+    components in the SkyComponentStaging table without a catalogue.
+
+    There are also logs for partially migrated catalogues.
+
+    `override_cleanup_age` - when set the function will use that number of hours
+    instead of the default of `CATALOGUE_CLEANUP_AGE`. This is in hours"""
+
+    _cleanup_old_uploads(db, override_cleanup_age)
+    _cleanup_partial_migrations_and_orphaned_staging_components(db)
+    if do_delete:
+        logger.info("Committing any changes")
+        db.commit()
+    else:
+        logger.info("Rolling back any changes")
+        db.rollback()
+
+
+def _cleanup_old_uploads(db: sqlalchemy.orm.Session, override_cleanup_age: int | None = None):
+    """Remove catalogues and their components if they are still in staging
+    and if the upload time is more than CATALOGUE_CLEANUP_AGE hours ago."""
+    hours = override_cleanup_age or CATALOGUE_CLEANUP_AGE
+    catalogues = db.scalars(
+        select(GlobalSkyModelMetadata)
+        .where(GlobalSkyModelMetadata.uploaded_at < datetime.now() - timedelta(hours=hours))
+        .where(GlobalSkyModelMetadata.staging.is_(True))
+    ).all()
+    logger.info("Found %d catalogues to clean", len(catalogues))
+    for catalogue in catalogues:
+        logger.info(
+            "Remove old catalogue: '%s/%s' (uploaded @ '%s')",
+            catalogue.upload_id,
+            catalogue.catalogue_name,
+            catalogue.uploaded_at,
+        )
+        db.query(SkyComponentStaging).filter(SkyComponentStaging.gsm_id == catalogue.id).delete()
+        db.delete(catalogue)
+
+
+def _cleanup_partial_migrations_and_orphaned_staging_components(db: sqlalchemy.orm.Session):
+    """Cleanup components in staging that are orphaned, and log
+    partial migrations."""
+    # Get all unique catalogues from staging
+    upload_ids = db.scalars(select(SkyComponentStaging.upload_id).distinct()).all()
+    logger.info("Found %d unique catalogue(s) in staging", len(upload_ids))
+    for upload_id in upload_ids:
+        logger.info("Checking upload ID: '%s'", upload_id)
+        catalogues = db.scalars(
+            select(GlobalSkyModelMetadata).filter(GlobalSkyModelMetadata.upload_id == upload_id)
+        ).all()
+        if len(catalogues) == 0:
+            # -> if it doesn't exist in catalogue, delete it
+            logger.info(" -> Has no catalogue (removing)")
+            db.execute(
+                delete(SkyComponentStaging).where(SkyComponentStaging.upload_id == upload_id)
+            )
+        else:
+            logger.info(" -> Has an existing catalogue")
+            for catalogue in catalogues:
+                logger.info(
+                    " -> Catalogue: %d:'%s' (uploaded @ '%s') (Staging:%s)",
+                    catalogue.id,
+                    catalogue.catalogue_name,
+                    catalogue.uploaded_at,
+                    "yes" if catalogue.staging else "no",
+                )
+                component_count = db.scalars(
+                    # pylint: disable-next=not-callable
+                    select(func.count(SkyComponent.id)).where(SkyComponent.gsm_id == catalogue.id)
+                ).first()
+                if component_count > 0:
+                    if catalogue.staging:
+                        logger.warning(" -> Partial migration of incomplete upload")
+                    elif not catalogue.staging:
+                        logger.warning(" -> Partial migration has left over data")
+                else:
                     logger.info(
-                        " -> Catalogue: %d:'%s' (uploaded @ '%s') (Staging:%s)",
-                        catalogue.id,
-                        catalogue.catalogue_name,
-                        catalogue.uploaded_at,
-                        "yes" if catalogue.staging else "no",
+                        " -> there are no partially transferred components "
+                        "(can be ignored for now)"
                     )
-                    component_count = (
-                        db.query(SkyComponent).filter(SkyComponent.gsm_id == catalogue.id).count()
-                    )
-                    if component_count > 0:
-                        if catalogue.staging:
-                            logger.warning(" -> Partial migration of incomplete upload")
-                        elif not catalogue.staging:
-                            logger.warning(" -> Partial migration has left over data")
-                    else:
-                        logger.info(
-                            " -> there are no partially transferred components "
-                            "(can be ignored for now)"
-                        )

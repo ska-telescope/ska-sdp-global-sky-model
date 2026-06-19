@@ -29,6 +29,8 @@ from fastapi.responses import (
     Response,
 )
 from sqlalchemy import func, text
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
@@ -38,6 +40,7 @@ from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
     SkyComponent,
     SkyComponentStaging,
+    UploadTaskState,
 )
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
@@ -47,7 +50,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     sky_components_to_tar,
     start_lsm_response_thread,
 )
-from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
+from ska_sdp_global_sky_model.api.app.upload_manager import UploadTask
 from ska_sdp_global_sky_model.configuration.config import (
     API_URL,
     engine,
@@ -61,9 +64,6 @@ from ska_sdp_global_sky_model.utilities.version_utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Initialize upload manager
-upload_manager = UploadManager()
 
 
 def wait_for_db():
@@ -286,9 +286,7 @@ async def get_local_sky_model_endpoint(
     )
 
 
-def _run_ingestion_task(
-    upload_id: str, catalogue_metadata: GlobalSkyModelMetadata, db: Session = None
-):
+def _run_ingestion_task(upload_task: UploadTask, db: Session = None):
     """
     Run ingestion task in background to staging table.
 
@@ -303,31 +301,29 @@ def _run_ingestion_task(
     catalogue_metadata : GlobalSkyModelMetadata
         Catalogue metadata for ingestion
     """
+    upload_id = upload_task.upload_id
     try:
-        catalogue_metadata.staging = True
-        db.add(catalogue_metadata)
+        upload_task.catalogue_metadata.staging = True
+        upload_task.mark_uploading()
+        db.add(upload_task.catalogue_metadata)
         db.commit()
 
         # Get files from memory
-        files_data = upload_manager.get_files(upload_id)
+        files_data = upload_task.files
 
         # Ingest all files from memory to staging table
-        for filename, content in files_data:
+        for file, content in files_data:
+            logger.info("Processing file: '%s'", file)
             # Deep copy to avoid modifying shared metadata
             # Pass content directly
             catalogue_content_files = {"ingest": {"file_location": [{"content": content}]}}
             # Set staging flag and upload_id for tracking
 
-            logger.info(
-                "Ingesting file to staging: %s, catalogue_version=%s",
-                filename,
-                catalogue_metadata.version,
-            )
-            if not ingest_catalogue(db, catalogue_metadata, catalogue_content_files):
-                raise RuntimeError(f"Ingest failed for {filename}")
+            if not ingest_catalogue(db, upload_task.catalogue_metadata, catalogue_content_files):
+                raise RuntimeError(f"Ingest failed for {file}")
 
         # Mark as completed
-        upload_manager.mark_completed(upload_id)
+        upload_task.mark_uploaded()
         logger.info("Background ingestion to staging completed for upload %s", upload_id)
 
     except Exception as e:
@@ -344,7 +340,6 @@ def _run_ingestion_task(
                 db.query(GlobalSkyModelMetadata).filter(
                     GlobalSkyModelMetadata.upload_id == upload_id
                 ).delete()
-                db.commit()
                 logger.info("Cleared staged records for failed upload %s", upload_id)
             except Exception as cleanup_error:
                 db.rollback()
@@ -353,14 +348,11 @@ def _run_ingestion_task(
                     upload_id,
                     cleanup_error,
                 )
-
-        upload_manager.mark_failed(upload_id, error_msg)
+            upload_task.mark_failed(error_msg)
 
     finally:
-        # Cleanup memory
-        upload_manager.cleanup(upload_id)
-
         if db:
+            db.commit()
             db.close()
 
 
@@ -467,8 +459,7 @@ async def upload_sky_survey_batch(
     )
 
     # Create upload tracking
-    upload_status = upload_manager.create_upload(len(csv_files), catalogue_metadata)
-    catalogue_metadata.upload_id = upload_status.upload_id
+    upload_task = UploadTask.create(db, catalogue_metadata)
 
     try:
         logger.info(
@@ -479,12 +470,10 @@ async def upload_sky_survey_batch(
 
         # Validate and save CSV files
         for file in csv_files:
-            await upload_manager.save_csv_file(file, upload_status)
+            await upload_task.add_file(file)
 
         # Schedule ingestion to run in background
-        background_tasks.add_task(
-            _run_ingestion_task, catalogue_metadata.upload_id, catalogue_metadata, db
-        )
+        background_tasks.add_task(_run_ingestion_task, upload_task, db)
 
         logger.info(
             "Upload %s: metadata and %d CSV files saved, ingestion scheduled",
@@ -505,14 +494,12 @@ async def upload_sky_survey_batch(
         }
 
     except HTTPException as exc:
-        upload_manager.mark_failed(catalogue_metadata.upload_id, str(exc.detail))
-        upload_manager.cleanup(catalogue_metadata.upload_id)
+        upload_task.mark_failed(str(exc.detail))
         raise
 
     except Exception as e:
         error_msg = str(e)
-        upload_manager.mark_failed(catalogue_metadata.upload_id, error_msg)
-        upload_manager.cleanup(catalogue_metadata.upload_id)
+        upload_task.mark_failed(error_msg)
         raise HTTPException(
             status_code=500,
             detail=f"Sky survey upload failed: {error_msg}",
@@ -540,7 +527,7 @@ async def upload_sky_survey_batch(
         }
     },
 )
-def upload_sky_survey_status(upload_id: str):
+def upload_sky_survey_status(upload_id: str, db: Session = Depends(get_db)):
     """
     Retrieve the current status of a sky survey upload.
 
@@ -559,7 +546,7 @@ def upload_sky_survey_status(upload_id: str):
     dict
         Upload progress, completion state, and error information.
     """
-    status = upload_manager.get_status(upload_id)
+    status = UploadTask.fetch_from_db(db, upload_id)
     return status.to_dict()
 
 
@@ -601,11 +588,11 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
     dict
         Sample of staged data and statistics
     """
-    status = upload_manager.get_status(upload_id)
+    task = UploadTask.fetch_from_db(db, upload_id)
 
-    if status.state != "completed":
+    if not task.is_uploaded:
         raise HTTPException(
-            status_code=400, detail=f"Upload not ready for review. Current state: {status.state}"
+            status_code=400, detail=f"Upload not ready for review. Current state: {task.status}"
         )
 
     # Get count and sample of staged data
@@ -644,8 +631,7 @@ def review_upload(upload_id: str, db: Session = Depends(get_db)):
         "next_action": "commit",
     }
     # Add metadata details if available
-    if status.metadata:
-        response["metadata"] = status.metadata
+    response["metadata"] = task.catalogue_metadata
     return response
 
 
@@ -693,18 +679,11 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
     HTTPException
         If upload not ready, no metadata, or commit fails
     """
-    status = upload_manager.get_status(upload_id)
-    fetch_existing = None
+    task = UploadTask.fetch_from_db(db, upload_id)
 
-    if status.state != "completed":
+    if not task.is_uploaded:
         raise HTTPException(
-            status_code=400, detail=f"Upload not ready for commit. Current state: {status.state}"
-        )
-
-    if not status.metadata:
-        raise HTTPException(
-            status_code=400,
-            detail="No metadata found for this upload. Cannot commit without catalogue metadata.",
+            status_code=400, detail=f"Upload not ready for commit. Current state: {task.status}"
         )
 
     try:
@@ -716,15 +695,8 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         if not staged_records:
             raise HTTPException(status_code=404, detail="No staged data found")
 
-        metadata = status.metadata
-        catalogue_name = metadata.catalogue_name
-        fetch_existing = (
-            db.query(GlobalSkyModelMetadata)
-            .filter(GlobalSkyModelMetadata.upload_id == upload_id)
-            .all()[0]
-        )
-
         # Commit any possible changes, so that we can start a new transaction
+        task.update_status("finalising")
 
         db.commit()
         # Auto-compute the next version for this catalogue by incrementing the minor version
@@ -737,14 +709,13 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
                     existing_versions = [
                         versions[0]
                         for versions in db.query(GlobalSkyModelMetadata.version)
-                        .filter(GlobalSkyModelMetadata.catalogue_name == catalogue_name)
+                        .filter(GlobalSkyModelMetadata.catalogue_name == task.name)
                         .filter(GlobalSkyModelMetadata.version.isnot(None))
                         .all()
                     ]
                     latest_version = get_latest_version(existing_versions)
                     catalogue_version = increment_minor_version(latest_version)
-                    metadata.version = catalogue_version
-                    fetch_existing.version = catalogue_version
+                    task.catalogue_metadata.version = catalogue_version
 
                     logger.debug("Attempting to set the version to %s", catalogue_version)
 
@@ -758,11 +729,9 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             "Auto-assigned version %s to upload %s for catalogue '%s' (previous latest: %s)",
             catalogue_version,
             upload_id,
-            catalogue_name,
+            task.name,
             latest_version or "none",
         )
-
-        fetch_existing.staging = False
 
         # Copy from staging to main table with catalogue version
         for staged in staged_records:
@@ -775,13 +744,12 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
             main_record = SkyComponent(**record_data)
             db.add(main_record)
 
+        task.catalogue_metadata.staging = False
         # Delete from staging
         db.query(SkyComponentStaging).filter(SkyComponentStaging.upload_id == upload_id).delete()
 
+        task.mark_released()
         db.commit()
-
-        # Cleanup temp files
-        upload_manager.cleanup(upload_id)
 
         logger.info(
             "Successfully committed upload %s: %d components with version %s",
@@ -793,22 +761,21 @@ def commit_upload(upload_id: str, db: Session = Depends(get_db)):
         return {
             "status": "success",
             "message": (
-                f"Committed {len(staged_records)} components from catalogue '{catalogue_name}'"
+                f"Committed {len(staged_records)} components from catalogue '{task.name}'"
             ),
             "records_committed": len(staged_records),
             "version": catalogue_version,
-            "catalogue_name": catalogue_name,
+            "catalogue_name": task.name,
         }
 
     except Exception as e:
         db.rollback()
         # we need to rollback the version manually:
-        if fetch_existing is not None:
-            try:
-                fetch_existing.version = None
-                db.commit()
-            except Exception:
-                pass
+        try:
+            task.catalogue_metadata.version = None
+            db.commit()
+        except Exception:
+            pass
         logger.error("Failed to commit upload %s: %s", upload_id, e)
         logger.exception(e)
         raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}") from e
@@ -846,12 +813,12 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
     dict
         Result of reject operation
     """
-    status = upload_manager.get_status(upload_id)
+    task = UploadTask.fetch_from_db(db, upload_id)
 
-    if status.state != "completed":
+    if not task.is_uploaded:
         raise HTTPException(
             status_code=400,
-            detail=f"Upload not ready for rejection. Current state: {status.state}",
+            detail=f"Upload not ready for rejection. Current state: {task.status}",
         )
 
     try:
@@ -868,13 +835,9 @@ def reject_upload(upload_id: str, db: Session = Depends(get_db)):
             GlobalSkyModelMetadata.upload_id == upload_id
         ).delete()
 
-        db.commit()
-
         # Mark upload as failed
-        upload_manager.mark_failed(upload_id, "Rejected by user")
-
-        # Cleanup temp files
-        upload_manager.cleanup(upload_id)
+        task.mark_failed("Rejected by user")
+        db.commit()
 
         logger.info("Rejected and deleted %d staged records for upload %s", count, upload_id)
 
@@ -981,3 +944,47 @@ def get_catalogue_metadata_by_id(
         raise HTTPException(status_code=404, detail=f"catalogue with ID {catalogue_id} not found")
 
     return catalogue.to_dict()
+
+
+@app.get("/uploads", summary="Get list of current uploads")
+def list_uploads(request: Request, db: Session = Depends(get_db)):
+    """List all uploads done, and their state"""
+    # SQLAlchemy's outerjoin is always a left outer join
+    stmt = select(UploadTaskState, GlobalSkyModelMetadata).join(
+        GlobalSkyModelMetadata,
+        UploadTaskState.upload_id == GlobalSkyModelMetadata.upload_id,
+        full=True,
+    )
+
+    results = db.execute(stmt).all()
+    output = []
+    for result in results:
+        task = {}
+        metadata = {}
+
+        if result[0] is None:
+            # pylint: disable-next=no-member
+            task = {key: None for key in UploadTaskState.__table__.columns.keys()}
+            task["status"] = "unknown"
+            task["reason"] = "Didn't use the upload API"
+        else:
+            task = result[0].columns_to_dict()
+
+        if result[1] is None:
+            # pylint: disable-next=no-member
+            metadata = {key: None for key in GlobalSkyModelMetadata.__table__.columns.keys()}
+
+            # Pop to remove bad None
+            metadata.pop("upload_id")
+        else:
+            metadata = result[1].columns_to_dict()
+
+        ids = {"task_id": task.pop("id"), "catalogue_id": metadata.pop("id")}
+
+        output.append(ids | task | metadata)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="table.html",
+        context={"items": list(output), "title": "Upload list"},
+    )

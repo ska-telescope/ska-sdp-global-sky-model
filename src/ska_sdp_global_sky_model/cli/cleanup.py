@@ -5,7 +5,7 @@ from importlib.metadata import version
 
 import ska_ser_logging
 
-from ska_sdp_global_sky_model.api.app.upload_manager import UploadManager
+from ska_sdp_global_sky_model.api.app.upload_manager import run_db_cleanup
 from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE, get_db
 
 ska_ser_logging.configure_logging(level="INFO")
@@ -30,8 +30,7 @@ def main(arg_list: list[str] | None = None):
         parser.error("MAX_AGE must be positive")
 
     db = next(get_db())
-    upload_manager = UploadManager()
-    upload_manager.run_db_cleanup(db, args.delete, args.max_age)
+    run_db_cleanup(db, args.delete, args.max_age)
 
 
 if __name__ == "__main__":  # pragma: no cover
