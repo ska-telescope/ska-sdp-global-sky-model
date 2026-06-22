@@ -4,6 +4,8 @@ CHANGELOG
 Development
 -----------
 
+- [Update] Added ECSV output format for use with TOPCAT
+  (`MR125 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/125>`__)
 - [Update] Move all in-memory state to the DB. And allow listing of previous upload information.
   (`MR124 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/124>`__)
 

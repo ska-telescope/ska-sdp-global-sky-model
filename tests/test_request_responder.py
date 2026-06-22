@@ -3,7 +3,9 @@
 # pylint: disable=too-many-lines
 
 import copy
+import io
 import os
+import tarfile
 import tempfile
 from unittest.mock import ANY, MagicMock, call, patch
 
@@ -30,7 +32,10 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     _watcher_process_flow,
     _write_data,
     lsm_to_csv_lines,
+    lsm_to_ecsv_lines,
     sky_components_to_csv_lines,
+    sky_components_to_ecsv_lines,
+    sky_components_to_tar,
 )
 from ska_sdp_global_sky_model.configuration.config import SHARED_VOLUME_MOUNT, resource_toggle
 from tests.utils import clean_all_tables, set_up_db
@@ -1189,3 +1194,288 @@ def test_sky_components_to_csv_lines(db_session):  # noqa: F811
 
     # Component data present
     assert "W000010" in content
+
+
+# ---------------------------------------------------------------------------
+# lsm_to_ecsv_lines tests
+# ---------------------------------------------------------------------------
+
+
+def _ecsv_yaml_block(lines):
+    """Extract and parse the YAML block from a list of ECSV output lines.
+
+    Strips the '# ' prefix from comment lines, skips the '%ECSV 1.0'
+    format declaration, and parses the remaining YAML as a single document.
+    """
+    comment_lines = [line[2:] for line in lines if line.startswith("# ")]
+    # Drop the '%ECSV 1.0' format-declaration line (not part of the YAML doc)
+    yaml_lines = [line for line in comment_lines if not line.startswith("%ECSV")]
+    return yaml.safe_load("".join(yaml_lines))
+
+
+def test_lsm_to_ecsv_lines_header_structure():
+    """ECSV output must have the correct framing lines and no closing '---'."""
+    lsm = LocalSkyModel(column_names=["ra_deg", "dec_deg"], num_rows=0)
+    lsm.set_header({"MY_KEY": "my_value"})
+
+    lines = list(lsm_to_ecsv_lines(lsm))
+
+    assert lines[0] == "# %ECSV 1.0\n"
+    assert lines[1] == "# ---\n"
+
+    comment_lines = [line for line in lines if line.startswith("# ")]
+    data_lines = [line for line in lines if not line.startswith("# ")]
+
+    # Delimiter and schema declarations present
+    assert "# delimiter: ','\n" in comment_lines
+    assert "# schema: astropy-2.0\n" in comment_lines
+
+    # Only ONE '---' line (the opening YAML document-start marker);
+    # a second one would be parsed as a new YAML document by SnakeYAML.
+    assert sum(1 for line in comment_lines if line.strip() == "#") == 0
+    assert sum(1 for line in lines if line.rstrip("\n") == "# ---") == 1
+
+    # First non-comment line is the comma-separated column names header
+    assert data_lines[0] == "ra_deg,dec_deg\n"
+
+
+def test_lsm_to_ecsv_lines_column_descriptors():
+    """Column descriptors must carry correct datatypes, subtypes, and units."""
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2000.0,
+        ra_deg=10.0,
+        dec_deg=5.0,
+        i_pol_jy=1.0,
+        ref_freq_hz=150e6,
+        spec_idx=[0.7],
+    )
+    lsm = _build_local_sky_model({}, {"TEST001": component})
+    lines = list(lsm_to_ecsv_lines(lsm))
+    content = "".join(lines)
+
+    # Floating-point scalar columns
+    assert "name: ra_deg, datatype: float64" in content
+    assert "name: dec_deg, datatype: float64" in content
+    assert "name: i_pol_jy, datatype: float64" in content
+
+    # Units normalised: 'degrees' → 'deg'
+    assert "name: ra_deg, datatype: float64, unit: deg" in content
+    assert "name: i_pol_jy, datatype: float64, unit: Jy" in content
+    assert "name: ref_freq_hz, datatype: float64, unit: Hz" in content
+    assert "name: a_arcsec, datatype: float64, unit: arcsec" in content
+
+    # Vector column gets string datatype with float64[5] subtype
+    assert "name: spec_idx, datatype: string, subtype: 'float64[5]'" in content
+
+    # Nullable bool is represented as string (ECSV bool has no null)
+    assert "name: log_spec_idx, datatype: string" in content
+
+    # String columns
+    assert "name: component_id, datatype: string" in content
+
+
+def test_lsm_to_ecsv_lines_yaml_is_valid():
+    """The YAML block in the ECSV header must parse as a single valid document."""
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2000.0,
+        ra_deg=10.0,
+        dec_deg=5.0,
+        i_pol_jy=1.0,
+        ref_freq_hz=150e6,
+        spec_idx=[0.7],
+    )
+    # Use a header value that contains a colon to exercise YAML quoting
+    lsm = _build_local_sky_model(
+        {"catalogue_name": "my:catalogue", "version": "1.0.0"},
+        {"TEST001": component},
+    )
+    lines = list(lsm_to_ecsv_lines(lsm))
+
+    parsed = _ecsv_yaml_block(lines)
+
+    assert isinstance(parsed, dict)
+    assert "datatype" in parsed
+    assert parsed["schema"] == "astropy-2.0"
+    assert parsed["delimiter"] == ","
+
+    col_names = [c["name"] for c in parsed["datatype"]]
+    assert "ra_deg" in col_names
+    assert "spec_idx" in col_names
+
+    # Colon-containing value must have been quoted and round-trips correctly
+    assert parsed["meta"]["CATALOGUE_METADATA_CATALOGUE_NAME"] == "my:catalogue"
+
+
+def test_lsm_to_ecsv_lines_with_data():
+    """Data rows must be comma-separated, and vector columns serialised as JSON arrays."""
+    component = SkyComponentDataclass(
+        component_id="TEST001",
+        source_id="S1",
+        epoch=2000.0,
+        ra_deg=45.0,
+        dec_deg=-30.0,
+        i_pol_jy=1.5,
+        ref_freq_hz=300e6,
+        spec_idx=[0.8, 0.1, None, None, None],
+    )
+    lsm = _build_local_sky_model({}, {"TEST001": component})
+    lines = list(lsm_to_ecsv_lines(lsm))
+
+    data_lines = [line for line in lines if not line.startswith("# ")]
+    # First non-comment line: column names; second: the single data row
+    assert len(data_lines) == 2
+    header_row, data_row = data_lines
+
+    assert header_row == ",".join(SkyComponentDataclass.__annotations__.keys()) + "\n"
+
+    # Known scalar values appear
+    assert "TEST001" in data_row
+    assert "45" in data_row
+    assert "-30" in data_row
+
+    # spec_idx serialised as a JSON array with nulls for missing terms
+    assert "[0.8,0.1,null,null,null]" in data_row
+
+
+def test_sky_components_to_ecsv_lines(db_session):  # noqa: F811
+    """sky_components_to_ecsv_lines must yield valid ECSV for matched catalogues."""
+    query_params = QueryParameters(
+        ra_deg=90,
+        dec_deg=2,
+        fov_deg=5,
+        version="0.1.0",
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    lines = list(sky_components_to_ecsv_lines(catalogues, query_params))
+    content = "".join(lines)
+
+    # ECSV framing
+    assert "# %ECSV 1.0" in content
+    assert "# delimiter: ','" in content
+    assert "# schema: astropy-2.0" in content
+
+    # Only one YAML document-start marker
+    assert content.count("\n# ---\n") == 1
+
+    # Catalogue metadata embedded in YAML meta block
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME" in content
+    assert "catalogue1" in content
+
+    # Query parameters in meta block
+    assert "QUERY_RA_DEG" in content
+
+    # Component data after the header
+    assert "W000010" in content
+
+
+# ---------------------------------------------------------------------------
+# sky_components_to_tar tests
+# ---------------------------------------------------------------------------
+
+
+def test_sky_components_to_tar_csv_single_catalogue(db_session):  # noqa: F811
+    """TAR should contain a single CSV file for a single-catalogue query."""
+
+    query_params = QueryParameters(
+        ra_deg=90,
+        dec_deg=2,
+        fov_deg=5,
+        version="0.1.0",
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    raw = sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines)
+
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        names = tf.getnames()
+        assert len(names) == 1
+        assert names[0].endswith(".csv")
+        assert "catalogue1" in names[0]
+        assert "0.1.0" in names[0]
+
+        content = tf.extractfile(names[0]).read().decode()
+
+    assert "# NUMBER_OF_COMPONENTS=" in content
+    assert "CATALOGUE_METADATA_CATALOGUE_NAME=catalogue1" in content
+    assert "W000010" in content
+
+
+def test_sky_components_to_tar_ecsv_single_catalogue(db_session):  # noqa: F811
+    """TAR should contain a single ECSV file for a single-catalogue query."""
+
+    query_params = QueryParameters(
+        ra_deg=90,
+        dec_deg=2,
+        fov_deg=5,
+        version="0.1.0",
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    raw = sky_components_to_tar(catalogues, query_params, "ecsv", lsm_to_ecsv_lines)
+
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        names = tf.getnames()
+        assert len(names) == 1
+        assert names[0].endswith(".ecsv")
+
+        content = tf.extractfile(names[0]).read().decode()
+
+    assert content.startswith("# %ECSV 1.0\n")
+    assert "# schema: astropy-2.0" in content
+    assert "W000010" in content
+
+
+def test_sky_components_to_tar_multiple_catalogues(db_session):  # noqa: F811
+    """TAR should contain one file per matched catalogue with no collisions."""
+
+    query_params = QueryParameters(
+        ra_deg=0,
+        dec_deg=0,
+        fov_deg=180,
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    raw = sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines)
+
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        names = tf.getnames()
+
+    assert len(names) > 1
+    # Filenames must be unique (catalogue name + version encoded)
+    assert len(names) == len(set(names))
+    assert all(n.endswith(".csv") for n in names)
+
+
+def test_sky_components_to_tar_filename_sanitisation(db_session):  # noqa: F811
+    """Catalogue names and versions are sanitised to safe filesystem characters."""
+
+    query_params = QueryParameters(
+        ra_deg=90,
+        dec_deg=2,
+        fov_deg=5,
+        version="0.1.0",
+        catalogue_name="catalogue1",
+        sub_path="test/lsm.csv",
+    )
+    catalogues = query_params.sky_components(db_session)
+
+    raw = sky_components_to_tar(catalogues, query_params, "csv", lsm_to_csv_lines)
+
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r") as tf:
+        for name in tf.getnames():
+            # No characters that would be unsafe in a filename
+            assert "/" not in name
+            assert "\\" not in name
+            assert " " not in name

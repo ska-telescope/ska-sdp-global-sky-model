@@ -155,10 +155,18 @@ where:
      - int
      - No
 
-This can be downloaded as a CSV by adding the parameter ``format=csv``.
-Note that if the returned data match multiple catalogues/catalogue versions,
-then the downloaded CSV file will have all the data appended, with header
-items at the start of each catalogue data (i.e. header items will appear in between data items).
+The data can be downloaded by adding a ``format`` parameter:
+
+* ``format=csv`` — downloads in SKA CSV format.
+* ``format=ecsv`` — downloads in `Enhanced CSV (ECSV) <https://docs.astropy.org/en/stable/io/ascii/ecsv.html>`_ format, for ease of use with TOPCAT.
+
+If the query matches a **single catalogue**, the file is returned directly
+(``Content-Type: text/csv`` or ``text/plain``) with a filename of
+``<catalogue_name>_<version>.<ext>``.
+
+If the query matches **multiple catalogues**, a TAR archive is returned
+(``Content-Type: application/x-tar``) containing one file per catalogue,
+each named ``<catalogue_name>_<version>.<ext>``.
 
 To be able to view all components one can use:
 

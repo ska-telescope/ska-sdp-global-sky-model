@@ -20,15 +20,19 @@ The states are updated as follows:
 - When failed: ``FAILED``, with a ``reason`` field
 """
 
+import dataclasses
 import datetime
+import io
 import logging
 import os
+import re
+import tarfile
 import threading
 import time
 import traceback
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args, get_origin
 
 import numpy
 import ska_sdp_config
@@ -459,6 +463,127 @@ def lsm_to_csv_lines(lsm: LocalSkyModel) -> Generator[str, None, None]:
         yield ",".join(row) + "\n"
 
 
+_ECSV_UNIT_MAP = {"degrees": "deg", "degree": "deg"}
+
+
+# pylint: disable=too-many-return-statements
+def _ecsv_dtype(field_type: type) -> tuple[str, str | None]:
+    """Return (ecsv_datatype, ecsv_subtype) for a Python type annotation."""
+    args = get_args(field_type)
+    if args and type(None) in args:
+        # pylint: disable-next=unidiomatic-typecheck
+        non_none = [a for a in args if a is not type(None)]
+        if len(non_none) == 1:
+            inner = non_none[0]
+            if inner is bool:
+                return "string", None  # nullable bool: ECSV bool has no null representation
+            return _ecsv_dtype(inner)
+    if get_origin(field_type) is list:
+        return "string", "float64[5]"
+    if field_type is str:
+        return "string", None
+    if field_type is float:
+        return "float64", None
+    if field_type is int:
+        return "int64", None
+    if field_type is bool:
+        return "bool", None
+    return "string", None
+
+
+def _ecsv_yaml_value(value: Any) -> str:
+    """Format a value as an inline YAML scalar, quoting strings when necessary."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    s = str(value)
+    if not s:
+        return "''"
+    if any(c in s for c in ":#{}[],&*?|>'\"`!@") or s[0] == "-":
+        return "'" + s.replace("'", "''") + "'"
+    return s
+
+
+# pylint: disable=protected-access
+# pylint: disable-next=too-many-locals
+def lsm_to_ecsv_lines(lsm: LocalSkyModel) -> Generator[str, None, None]:
+    """Yield ECSV lines from a LocalSkyModel.
+
+    Produces an Enhanced CSV (ECSV 1.0) file with a YAML metadata header,
+    readable by astropy/Topcat.
+
+    Args:
+        lsm: Local Sky Model
+    """
+    field_map = {f.name: f for f in dataclasses.fields(SkyComponentDataclass)}
+
+    yield "# %ECSV 1.0\n"
+    yield "# ---\n"
+    yield "# datatype:\n"
+    for name in lsm._column_names:
+        f = field_map[name]
+        dtype, subtype = _ecsv_dtype(f.type)
+        parts = [f"name: {name}", f"datatype: {dtype}"]
+        if subtype:
+            parts.append(f"subtype: '{subtype}'")
+        unit = f.metadata.get("units") or f.metadata.get("unit")
+        if unit:
+            parts.append(f"unit: {_ECSV_UNIT_MAP.get(unit, unit)}")
+        description = f.metadata.get("description", "").strip()
+        if description:
+            parts.append(f"description: {_ecsv_yaml_value(description)}")
+        yield f"# - {{{', '.join(parts)}}}\n"
+    yield "# delimiter: ','\n"
+    yield "# meta:\n"
+    yield f"#   NUMBER_OF_COMPONENTS: {lsm._num_rows}\n"
+    for key, value in lsm.header.items():
+        yield f"#   {key}: {_ecsv_yaml_value(value)}\n"
+    yield "# schema: astropy-2.0\n"
+    yield ",".join(lsm._column_names) + "\n"
+
+    vector_cols = {
+        name
+        for name in lsm._column_names
+        if name in field_map and get_origin(field_map[name].type) is list
+    }
+
+    for row_index in range(lsm._num_rows):
+        row = []
+        for name in lsm._column_names:
+            if name in vector_cols:
+                vec = lsm._cols[name][row_index]
+                parts = []
+                for i in range(lsm._max_vector_len):
+                    val = float(vec[i])
+                    parts.append("null" if numpy.isnan(val) else f"{val:g}")
+                row.append('"[' + ",".join(parts) + ']"')
+            else:
+                row.append(lsm.get_value_str(name, row_index))
+        yield ",".join(row) + "\n"
+
+
+def sky_components_to_ecsv_lines(
+    catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
+    query_parameters: "QueryParameters",
+) -> Generator[str, None, None]:
+    """Yield LSM ECSV lines for all matching catalogues.
+
+    Args:
+        catalogues: The catalogs and skycomponents to be written out.
+        query_parameters: The query parameters provided.
+    """
+    for catalogue, components in catalogues:
+        gsm_components = {}
+        for c in components:
+            c_dict = c.columns_to_dict()
+            del c_dict["id"]
+            del c_dict["gsm_id"]
+            gsm_components[c.id] = SkyComponentDataclass(**c_dict)
+        lsm = _build_local_sky_model(catalogue.columns_to_dict(), gsm_components, query_parameters)
+        yield from lsm_to_ecsv_lines(lsm)
+
+
 def _build_local_sky_model(
     metadata_dict: Any,
     components: Any,
@@ -524,6 +649,90 @@ def sky_components_to_csv_lines(
             gsm_components[c.id] = SkyComponentDataclass(**c_dict)
         lsm = _build_local_sky_model(catalogue.columns_to_dict(), gsm_components, query_parameters)
         yield from lsm_to_csv_lines(lsm)
+
+
+def _catalogue_to_lsm_content(
+    catalogue: "GlobalSkyModelMetadata",
+    components: list["SkyComponent"],
+    query_parameters: "QueryParameters",
+    file_extension: str,
+    lsm_to_lines_fn: Callable[[LocalSkyModel], Generator[str, None, None]],
+) -> tuple[str, str]:
+    """Build LSM file content for a single catalogue.
+
+    Returns:
+        Tuple of (filename, file_content_string).
+    """
+    meta = catalogue.columns_to_dict()
+    gsm_components = {}
+    for c in components:
+        c_dict = c.columns_to_dict()
+        del c_dict["id"]
+        del c_dict["gsm_id"]
+        gsm_components[c.id] = SkyComponentDataclass(**c_dict)
+    lsm = _build_local_sky_model(meta, gsm_components, query_parameters)
+    safe_name = re.sub(r"[^\w.\-]", "_", str(meta.get("catalogue_name", "catalogue")))
+    safe_version = re.sub(r"[^\w.\-]", "_", str(meta.get("version", "unknown")))
+    filename = f"{safe_name}_{safe_version}.{file_extension}"
+    return filename, "".join(lsm_to_lines_fn(lsm))
+
+
+def sky_components_to_single_file(
+    catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
+    query_parameters: "QueryParameters",
+    file_extension: str,
+    lsm_to_lines_fn: Callable[[LocalSkyModel], Generator[str, None, None]],
+) -> tuple[str, str]:
+    """Build LSM file content for a single catalogue.
+
+    Args:
+        catalogues: A one-item list of catalogue and sky components.
+        query_parameters: The query parameters provided.
+        file_extension: Extension for the file ('csv' or 'ecsv').
+        lsm_to_lines_fn: Callable that converts a LocalSkyModel to text lines.
+
+    Returns:
+        Tuple of (filename, file_content_string).
+    """
+    catalogue, components = catalogues[0]
+    return _catalogue_to_lsm_content(
+        catalogue, components, query_parameters, file_extension, lsm_to_lines_fn
+    )
+
+
+# pylint: disable-next=too-many-locals
+def sky_components_to_tar(
+    catalogues: list[tuple["GlobalSkyModelMetadata", list["SkyComponent"]]],
+    query_parameters: "QueryParameters",
+    file_extension: str,
+    lsm_to_lines_fn: Callable[[LocalSkyModel], Generator[str, None, None]],
+) -> bytes:
+    """Build a TAR archive containing one file per catalogue/version.
+
+    Each file is named ``<catalogue_name>_<version>.<file_extension>`` and
+    contains the output of ``lsm_to_lines_fn`` for that catalogue.
+
+    Args:
+        catalogues: The catalogs and skycomponents to be written out.
+        query_parameters: The query parameters provided.
+        file_extension: Extension for each member file ('csv' or 'ecsv').
+        lsm_to_lines_fn: Callable that converts a LocalSkyModel to text lines.
+
+    Returns:
+        TAR file contents as bytes.
+    """
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as tf:
+        for catalogue, components in catalogues:
+            filename, content = _catalogue_to_lsm_content(
+                catalogue, components, query_parameters, file_extension, lsm_to_lines_fn
+            )
+            encoded = content.encode()
+            info = tarfile.TarInfo(name=filename)
+            info.size = len(encoded)
+            tf.addfile(info, io.BytesIO(encoded))
+    buffer.seek(0)
+    return buffer.read()
 
 
 def _update_state(
