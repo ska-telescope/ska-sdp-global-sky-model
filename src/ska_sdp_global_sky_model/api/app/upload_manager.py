@@ -298,16 +298,21 @@ async def load_metadata_from_json(metadata_file: UploadFile) -> GlobalSkyModelMe
             detail=f"Metadata file {metadata_file.filename} is not valid JSON: {exc}",
         ) from exc
 
+    freq_min_hz = metadata.get("freq_min_hz")
+    freq_max_hz = metadata.get("freq_max_hz")
+
     # Version is not accepted from metadata - it is auto-assigned per catalogue at commit time.
     catalogue_metadata = GlobalSkyModelMetadata(
         version=None,
         catalogue_name=metadata.get("catalogue_name", "UPLOAD").strip(),
-        description=metadata.get("description", ""),
+        description=metadata.get("description", "").strip(),
         upload_id="upload_id_placeholder",  # Will be set after creating upload status
-        author=metadata.get("author"),
-        reference=metadata.get("reference"),
-        notes=metadata.get("notes"),
+        author=metadata.get("author", "").strip(),
+        reference=metadata.get("reference", "").strip(),
+        notes=metadata.get("notes", "").strip(),
         staging=True,
+        freq_min_hz=float(freq_min_hz) if freq_min_hz else None,
+        freq_max_hz=float(freq_max_hz) if freq_max_hz else None,
     )
     return catalogue_metadata
 

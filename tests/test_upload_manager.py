@@ -314,6 +314,7 @@ async def test_load_metadata_from_json_defaults():
     assert result.version is None
     assert result.staging is True
     assert result.author is None
+    assert result.freq_min_hz is None
 
 
 @pytest.mark.asyncio
@@ -348,3 +349,25 @@ async def test_load_metadata_from_json_incorrect_encoding():
         await load_metadata_from_json(met_file)
 
     assert "Metadata file metadata_test.json is not valid UTF-8 text" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_load_metadata_from_json_freq_data():
+    """
+    Function correctly loads supplied frequency information.
+    """
+    metadata = {
+        "freq_min_hz": "1000.0",
+        "freq_max_hz": "5000.0",
+    }
+    metadata_f = BytesIO(json.dumps(metadata).encode("utf-8"))
+    met_file = UploadFile(
+        filename="metadata_test.json",
+        file=metadata_f,
+        headers={"content-type": "application/json"},
+    )
+
+    result = await load_metadata_from_json(met_file)
+
+    assert result.freq_min_hz == 1000.0
+    assert result.freq_max_hz == 5000.0
