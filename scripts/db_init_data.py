@@ -78,7 +78,7 @@ def main():
         # Create catalogue metadata entry
         global_sky_model_metadata = GlobalSkyModelMetadata(
             version=catalogue_version,
-            catalogue_name=catalogue_name,
+            catalogue_name=catalogue_name.strip(),
             description=metadata_json.get(
                 "description", f"Import of {metadata_json['catalogue_name']}"
             ),
