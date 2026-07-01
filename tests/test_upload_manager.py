@@ -313,7 +313,7 @@ async def test_load_metadata_from_json_defaults():
     assert result.catalogue_name == "UPLOAD"
     assert result.version is None
     assert result.staging is True
-    assert result.author is None
+    assert result.author == ""
     assert result.freq_min_hz is None
 
 
@@ -357,7 +357,7 @@ async def test_load_metadata_from_json_freq_data():
     Function correctly loads supplied frequency information.
     """
     metadata = {
-        "freq_min_hz": "1000.0",
+        "freq_min_hz": "1.e3",
         "freq_max_hz": "5000.0",
     }
     metadata_f = BytesIO(json.dumps(metadata).encode("utf-8"))

@@ -99,7 +99,7 @@ upload is committed (see :ref:`commit_upload_ep`).
       - Required
     * - ``metadata_file``
       - JSON file with catalogue metadata (``catalogue_name``, ``description``, ``epoch``,
-        ``author``, ``reference``, ``notes``).
+        ``author``, ``reference``, ``notes``, ``freq_min_hz``, ``freq_max_hz``).
       - File (JSON)
       - Yes
     * - ``csv_files``
@@ -284,9 +284,11 @@ Returns total record count and the last 10 staged records to confirm all data lo
             "upload_id": "550e8400-e29b-41d4-a716-446655440000",
             "epoch": "J2000",
             "author": "SKA SDP Team",
-            "reference": null,
+            "reference": "",
             "notes": "Sample test data for ska-sdp-global-sky-model",
-            "staging": true
+            "staging": true,
+            "freq_min_hz": null,
+            "freq_max_hz": null
         }
     }
 

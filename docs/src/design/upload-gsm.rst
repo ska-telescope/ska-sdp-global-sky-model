@@ -58,7 +58,9 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
       "epoch": "J2000",
       "author": "GLEAM Team",
       "reference": "https://doi.org/10.1093/mnras/stw2337",
-      "notes": "170 MHz continuum survey"
+      "notes": "170 MHz continuum survey",
+      "freq_min_hz": "10.e8",
+      "freq_min_hz": "10.e9"
     }
 
 **Required Fields**:
@@ -70,6 +72,8 @@ from `ska_sdp_datamodels package <https://gitlab.com/ska-telescope/sdp/ska-sdp-d
     - ``author``: Author or team name
     - ``reference``: DOI, URL, or citation
     - ``notes``: Additional information
+    - ``freq_min_hz``: Minimum frequency covered by the catalogue, in Hz
+    - ``freq_max_hz``: Maximum frequency covered by the catalogue, in Hz
 
 Files uploaded in a new session (new ``upload_id``) will create a new catalogue version with its minor version number incremented from the last version of that catalogue in the database.
 
