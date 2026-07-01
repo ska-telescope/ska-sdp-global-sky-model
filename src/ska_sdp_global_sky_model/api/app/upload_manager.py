@@ -7,6 +7,7 @@ including file validation, in-memory storage, metadata parsing, and upload state
 
 import csv
 import io
+import json
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
@@ -249,6 +250,71 @@ class UploadTask:
     def mark_failed(self, error_message: str):
         """Mark this catalogue as failed"""
         self.update_status(UploadState.FAILED, error_message)
+
+
+async def load_metadata_from_json(metadata_file: UploadFile) -> GlobalSkyModelMetadata:
+    """
+    Validate the provided metadata JSON file and
+    load content into the GlobalSkyModelMetadata object.
+
+    The following are hardcode in this function, becasue they
+    are updated later in other parts of the code:
+
+    staging=True
+    upload_id="upload_id_placeholder"
+    version=None
+
+    Parameters
+    ----------
+    metadata_file: single UploadFile-type object with metadata content
+        expecetd: JSON format, utf-8 encoding
+
+    Returns
+    -------
+    catalogue_metadat: GlobalSkyModelMetadata object with metadata
+        loaded from input file
+    """
+
+    try:
+        metadata_content = await metadata_file.read()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to read metadata file {metadata_file.filename}: {exc}",
+        ) from exc
+
+    try:
+        metadata = json.loads(metadata_content.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        logger.error("Metadata file %s is not valid UTF-8 text: %s", metadata_file.filename, exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Metadata file {metadata_file.filename} is not valid UTF-8 text: {exc}",
+        ) from exc
+    except json.JSONDecodeError as exc:
+        logger.error("Metadata file %s is not valid JSON: %s", metadata_file.filename, exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Metadata file {metadata_file.filename} is not valid JSON: {exc}",
+        ) from exc
+
+    freq_min_hz = metadata.get("freq_min_hz")
+    freq_max_hz = metadata.get("freq_max_hz")
+
+    # Version is not accepted from metadata - it is auto-assigned per catalogue at commit time.
+    catalogue_metadata = GlobalSkyModelMetadata(
+        version=None,
+        catalogue_name=metadata.get("catalogue_name", "UPLOAD").strip(),
+        description=metadata.get("description", "").strip(),
+        upload_id="upload_id_placeholder",  # Will be set after creating upload status
+        author=metadata.get("author", "").strip(),
+        reference=metadata.get("reference", "").strip(),
+        notes=metadata.get("notes", "").strip(),
+        staging=True,
+        freq_min_hz=float(freq_min_hz) if freq_min_hz else None,
+        freq_max_hz=float(freq_max_hz) if freq_max_hz else None,
+    )
+    return catalogue_metadata
 
 
 def run_db_cleanup(

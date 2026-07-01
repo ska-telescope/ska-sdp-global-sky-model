@@ -5,7 +5,6 @@ model from it.
 
 # pylint: disable=broad-exception-caught
 
-import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -48,7 +47,7 @@ from ska_sdp_global_sky_model.api.app.request_responder import (
     sky_components_to_tar,
     start_lsm_response_thread,
 )
-from ska_sdp_global_sky_model.api.app.upload_manager import UploadTask
+from ska_sdp_global_sky_model.api.app.upload_manager import UploadTask, load_metadata_from_json
 from ska_sdp_global_sky_model.configuration.config import (
     API_URL,
     engine,
@@ -420,41 +419,7 @@ async def upload_sky_survey_batch(
             detail="There must be one metadata JSON file",
         )
 
-    try:
-        metadata_file_contents = await metadata_file[0].read()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to read metadata file {metadata_file[0].filename}: {exc}",
-        ) from exc
-
-    # Validate CSV structure
-    try:
-        metadata = json.loads(metadata_file_contents.decode("utf-8"))
-    except UnicodeDecodeError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File {metadata_file[0].filename} is not valid UTF-8 text. "
-            f"CSV files must be text-based.",
-        ) from exc
-    except json.JSONDecodeError as exc:
-        logger.error("Metadata file %s is not valid JSON: %s", metadata_file[0].filename, exc)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Metadata file {metadata_file[0].filename} is not valid JSON: {exc}",
-        ) from exc
-
-    # Version is not accepted from metadata - it is auto-assigned per catalogue at commit time.
-    catalogue_metadata = GlobalSkyModelMetadata(
-        version=None,
-        catalogue_name=metadata.get("catalogue_name", "UPLOAD"),
-        description=metadata.get("description", ""),
-        upload_id="upload_id_placeholder",  # Will be set after creating upload status
-        author=metadata.get("author"),
-        reference=metadata.get("reference"),
-        notes=metadata.get("notes"),
-        staging=True,
-    )
+    catalogue_metadata = await load_metadata_from_json(metadata_file[0])
 
     # Create upload tracking
     upload_task = UploadTask.create(db, catalogue_metadata)

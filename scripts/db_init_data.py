@@ -75,18 +75,23 @@ def main():
             get_latest_version(existing_versions) or "none",
         )
 
+        freq_min_hz = metadata_json.get("freq_min_hz")
+        freq_max_hz = metadata_json.get("freq_max_hz")
+
         # Create catalogue metadata entry
         global_sky_model_metadata = GlobalSkyModelMetadata(
             version=catalogue_version,
-            catalogue_name=catalogue_name,
+            catalogue_name=catalogue_name.strip(),
             description=metadata_json.get(
                 "description", f"Import of {metadata_json['catalogue_name']}"
-            ),
+            ).strip(),
             upload_id=upload_id,
-            author=metadata_json.get("author"),
-            reference=metadata_json.get("reference"),
-            notes=metadata_json.get("notes"),
+            author=metadata_json.get("author", "").strip(),
+            reference=metadata_json.get("reference", "").strip(),
+            notes=metadata_json.get("notes", "").strip(),
             staging=False,
+            freq_min_hz=float(freq_min_hz) if freq_min_hz else None,
+            freq_max_hz=float(freq_max_hz) if freq_max_hz else None,
         )
         db.add(global_sky_model_metadata)
         db.commit()

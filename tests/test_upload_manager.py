@@ -5,18 +5,24 @@ This module tests the UploadManager class including CSV validation,
 file handling, and upload state tracking.
 """
 
+import json
 from datetime import datetime, timedelta
+from io import BytesIO
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
 from ska_sdp_global_sky_model.api.app.models import (
     GlobalSkyModelMetadata,
     SkyComponentStaging,
     UploadTaskState,
 )
-from ska_sdp_global_sky_model.api.app.upload_manager import UploadTask, run_db_cleanup
+from ska_sdp_global_sky_model.api.app.upload_manager import (
+    UploadTask,
+    load_metadata_from_json,
+    run_db_cleanup,
+)
 from ska_sdp_global_sky_model.configuration.config import CATALOGUE_CLEANUP_AGE
 from tests.utils import clean_all_tables
 
@@ -255,3 +261,113 @@ def test_cleanup_component_without_catalogues(db_session, delete: bool):
     run_db_cleanup(db_session, do_delete=delete)
 
     assert db_session.query(SkyComponentStaging).count() == (0 if delete else 1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "name_input, expected_name",
+    [
+        ("TEST_CAT", "TEST_CAT"),
+        (" TEST_CAT", "TEST_CAT"),
+        ("TEST_CAT ", "TEST_CAT"),
+        (" TEST_CAT ", "TEST_CAT"),
+    ],
+)
+async def test_load_metadata_from_json_correct_cat_name(name_input, expected_name):
+    """
+    Function correctly strips white spaces around catalogue_name.
+    """
+    metadata = {
+        "catalogue_name": name_input,
+    }
+    metadata_f = BytesIO(json.dumps(metadata).encode("utf-8"))
+    met_file = UploadFile(
+        filename="metadata_test.json",
+        file=metadata_f,
+        headers={"content-type": "application/json"},
+    )
+
+    result = await load_metadata_from_json(met_file)
+
+    assert result.catalogue_name == expected_name
+
+
+@pytest.mark.asyncio
+async def test_load_metadata_from_json_defaults():
+    """
+    Test the default metadata that is loaded.
+
+    From the ones tested below "version" and "staging"
+    are always the same, they cannot be modified via the function.
+    """
+    metadata = {}
+    metadata_f = BytesIO(json.dumps(metadata).encode("utf-8"))
+    met_file = UploadFile(
+        filename="metadata_test.json",
+        file=metadata_f,
+        headers={"content-type": "application/json"},
+    )
+
+    result = await load_metadata_from_json(met_file)
+
+    assert result.catalogue_name == "UPLOAD"
+    assert result.version is None
+    assert result.staging is True
+    assert result.author == ""
+    assert result.freq_min_hz is None
+
+
+@pytest.mark.asyncio
+async def test_load_metadata_from_json_incorrect_json():
+    """Raise error when data cannot be loaded as JSON."""
+    metadata = "not a json".encode("utf-8")
+    metadata_f = BytesIO(metadata)
+    met_file = UploadFile(
+        filename="metadata_test.json",
+        file=metadata_f,
+        headers={"content-type": "application/json"},
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await load_metadata_from_json(met_file)
+
+    assert "Metadata file metadata_test.json is not valid JSON" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_load_metadata_from_json_incorrect_encoding():
+    """Raise error when encoding is not utf-8."""
+    metadata = "not a json".encode("utf-16")
+    metadata_f = BytesIO(metadata)
+    met_file = UploadFile(
+        filename="metadata_test.json",
+        file=metadata_f,
+        headers={"content-type": "application/json"},
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await load_metadata_from_json(met_file)
+
+    assert "Metadata file metadata_test.json is not valid UTF-8 text" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_load_metadata_from_json_freq_data():
+    """
+    Function correctly loads supplied frequency information.
+    """
+    metadata = {
+        "freq_min_hz": "1.e3",
+        "freq_max_hz": "5000.0",
+    }
+    metadata_f = BytesIO(json.dumps(metadata).encode("utf-8"))
+    met_file = UploadFile(
+        filename="metadata_test.json",
+        file=metadata_f,
+        headers={"content-type": "application/json"},
+    )
+
+    result = await load_metadata_from_json(met_file)
+
+    assert result.freq_min_hz == 1000.0
+    assert result.freq_max_hz == 5000.0
