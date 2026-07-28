@@ -51,3 +51,10 @@ container_scanning:
 # Override docs-build-rtd to fail pipeline if documentation build fails
 docs-build-rtd:
   allow_failure: false
+
+# Override oci-image-build to build muti-architecture images
+oci-image-build:
+  tags:
+    - ska-buildx
+  variables:
+    OCI_TARGET_PLATFORMS: --platform linux/amd64,linux/arm64
