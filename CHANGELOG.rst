@@ -12,6 +12,8 @@ Development
   (`MR125 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/125>`__)
 - [Update] Move all in-memory state to the DB. And allow listing of previous upload information
   (`MR124 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/124>`__)
+- [Update] Upgrade ska-sdp-config to 1.6.4
+  (`MR129 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/129>`__)
 
 0.4.0
 -----
