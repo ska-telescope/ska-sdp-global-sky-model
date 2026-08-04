@@ -14,6 +14,9 @@ Development
   (`MR124 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/124>`__)
 - [Update] Upgrade ska-sdp-config to 1.6.4
   (`MR129 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/129>`__)
+- [Update] Upgrade ska-sdp-datamodels to 3.0.0. This versions renames and moves the SkyComponent and SkyModel
+  classes and their use is updated throughout the GSM.
+  (`MR130 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/130>`__)
 
 0.4.0
 -----

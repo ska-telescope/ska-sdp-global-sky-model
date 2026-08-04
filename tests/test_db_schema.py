@@ -11,12 +11,10 @@ results of which are tested here.
 """
 
 import pytest
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModelMetadata as GSMMetadataDataclass,
-)
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
+from ska_sdp_datamodels.sky_model import (
     SkyComponent,
 )
+from ska_sdp_datamodels.sky_model import SkyModelMetadata as GSMMetadataDataclass
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 

@@ -666,6 +666,23 @@ files = [
 ]
 
 [[package]]
+name = "docstring-parser"
+version = "0.18.0"
+description = "Parse Python docstrings in reST, Google and Numpydoc format"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "docstring_parser-0.18.0-py3-none-any.whl", hash = "sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b"},
+    {file = "docstring_parser-0.18.0.tar.gz", hash = "sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015"},
+]
+
+[package.extras]
+dev = ["pre-commit (>=2.16.0) ; python_version >= \"3.9\"", "pydoctor (>=25.4.0)", "pytest"]
+docs = ["pydoctor (>=25.4.0)"]
+test = ["pytest"]
+
+[[package]]
 name = "docutils"
 version = "0.21.2"
 description = "Docutils -- Python Documentation Utilities"
@@ -2770,29 +2787,30 @@ reference = "skao"
 
 [[package]]
 name = "ska-sdp-datamodels"
-version = "1.4.0"
+version = "3.0.0"
 description = "SKA SDP Python-based Data Models"
 optional = false
-python-versions = ">=3.10,<3.14"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "ska_sdp_datamodels-1.4.0-py3-none-any.whl", hash = "sha256:6040b2444989267e4e74eabd47954db9578c4843e23aadd61fb9c9baa3e156c0"},
-    {file = "ska_sdp_datamodels-1.4.0.tar.gz", hash = "sha256:ce758838d13d35d7db9bf45fc232035bae7bcc856a16edd2832ef4a6a824052d"},
+    {file = "ska_sdp_datamodels-3.0.0-py3-none-any.whl", hash = "sha256:0478e6dd55c8226147b4d2e2693eca567aeb7c1e37f72513a3e75ac908bde6c9"},
+    {file = "ska_sdp_datamodels-3.0.0.tar.gz", hash = "sha256:6a02e901ed64913e24d2ac4f13a893002349e7d4db27a7249804ec8b33001821"},
 ]
 
 [package.dependencies]
-astroplan = ">=0.10,<0.11"
-astropy = ">=6.1,<7.0"
-h5py = ">=3.12,<4.0"
-msgpack = ">=1.1,<2.0"
-msgpack-numpy = ">=0.4.8,<0.5.0"
+astroplan = ">=0.10"
+astropy = ">=6.1"
+docstring_parser = ">=0.18.0"
+h5py = ">=3.12"
+msgpack = ">=1.1"
+msgpack-numpy = ">=0.4.8"
 numpy = ">=1.26"
-pandas = ">=2.2,<3.0"
-ska-telmodel = ">=1.19,<2.0"
+pandas = ">=2.2"
+ska-telmodel-client = {version = ">=1.30.2", markers = "python_version >= \"3.10\" and python_version < \"4.0\""}
 xarray = ">=2024.9"
 
 [package.extras]
-python-casacore = ["python-casacore (>=3.6,<4.0)"]
+python-casacore = ["python-casacore (>=3.6)"]
 
 [package.source]
 type = "legacy"
@@ -2860,45 +2878,15 @@ url = "https://artefact.skao.int/repository/pypi-internal/simple"
 reference = "skao"
 
 [[package]]
-name = "ska-telmodel"
-version = "1.33.0"
-description = "SKA telescope model library"
-optional = false
-python-versions = ">=3.10,<4.0"
-groups = ["main"]
-files = [
-    {file = "ska_telmodel-1.33.0-py3-none-any.whl", hash = "sha256:9db24d2edc0bd5b450e50321283bc92cc752781a41235e5fffab947cfe84e932"},
-    {file = "ska_telmodel-1.33.0.tar.gz", hash = "sha256:c9dc501c8b7042ef0953442091f0484f3bd5886a517b9b0d2fa21ef15b0cb88b"},
-]
-
-[package.dependencies]
-appdirs = ">=1.4.4,<2.0.0"
-filelock = ">=3.20.3,<4.0.0"
-gitpython = ">=3.1.46,<4.0.0"
-jsonschema = ">=4.26.0,<5.0.0"
-overrides = ">=7.7.0,<8.0.0"
-prettytable = ">=3.17.0,<4.0.0"
-python-gitlab = ">=8.0.0,<9.0.0"
-pyyaml = ">=6.0.3,<7.0.0"
-schema = ">=0.7.8,<0.8.0"
-tomli = ">=2.4.0,<3.0.0"
-toolz = ">=1.1.0,<2.0.0"
-
-[package.source]
-type = "legacy"
-url = "https://artefact.skao.int/repository/pypi-internal/simple"
-reference = "skao"
-
-[[package]]
 name = "ska-telmodel-client"
-version = "1.30.1"
+version = "1.30.2"
 description = "SKA Telescope Model Client"
 optional = false
 python-versions = ">=3.10,<4.0"
 groups = ["main"]
 files = [
-    {file = "ska_telmodel_client-1.30.1-py3-none-any.whl", hash = "sha256:a79c6d977917bdab89948d2664d38fed3e44409692984fe056ff189c994a3198"},
-    {file = "ska_telmodel_client-1.30.1.tar.gz", hash = "sha256:8208a9c31cde62ea6c5c97d002c3335ec9c05375e5c92a2300fa50633ea66010"},
+    {file = "ska_telmodel_client-1.30.2-py3-none-any.whl", hash = "sha256:807873a96e4ca0dcaf8415931b4f63a777dedf99eb364005a5426e1c5cae2097"},
+    {file = "ska_telmodel_client-1.30.2.tar.gz", hash = "sha256:8b302f7a7f465deaf2eb2118c57a44071f3a1011b54e430ed6f948a9bd8027b6"},
 ]
 
 [package.dependencies]
@@ -3639,4 +3627,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "3d957e2973535d58a9a438720fb25a032052dff4762993860dc847c93f40de95"
+content-hash = "2bc17985f32daedde427e52acad8bc2b1324a30c768d40e38056b1674fba3265"

@@ -12,12 +12,12 @@ from unittest.mock import ANY, MagicMock, call, patch
 import pytest
 import yaml
 from ska_sdp_config.entity.flow import FlowSource
-from ska_sdp_datamodels.global_sky_model import LocalSkyModel
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModel,
+from ska_sdp_datamodels.sky_model import (
+    LocalSkyModel,
 )
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkyComponent as SkyComponentDataclass,
+from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
+from ska_sdp_datamodels.sky_model import (
+    SkyModel,
 )
 
 from ska_sdp_global_sky_model.api.app.request_responder import (
@@ -91,7 +91,7 @@ def test_happy_path(
     mock_txn.processing_block.get.return_value = mock_processing_block
 
     # Create a mock GlobalSkyModel object
-    mock_gsm = GlobalSkyModel(components={}, metadata={})
+    mock_gsm = SkyModel(components={}, metadata={})
     mock_filter_function.return_value = mock_gsm
 
     _watcher_process(mock_config)
@@ -491,7 +491,7 @@ def test_query_gsm_for_lsm_with_sources(db_session):  # noqa: F811
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
-    assert isinstance(result, GlobalSkyModel)
+    assert isinstance(result, SkyModel)
     assert len(result.components) == 1
     sky_source = result.components[26]  # 26th element in the db matches these criteria
     assert isinstance(sky_source, SkyComponentDataclass)
@@ -543,7 +543,7 @@ def test_query_gsm_for_lsm_multiple_sources(db_session):  # noqa: F811
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
-    assert isinstance(result, GlobalSkyModel)
+    assert isinstance(result, SkyModel)
     assert len(result.components) == 3
     for i in [25, 26, 27]:  # components that match criteria are under these ids in db
         assert isinstance(result.components[i], SkyComponentDataclass)
@@ -564,7 +564,7 @@ def test_query_gsm_for_lsm_multiple_sources_extra_limit(db_session):  # noqa: F8
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
-    assert isinstance(result, GlobalSkyModel)
+    assert isinstance(result, SkyModel)
     assert len(result.components) == 2
 
     # components that match criteria are under these ids in db
@@ -585,7 +585,7 @@ def test_query_gsm_for_lsm_by_author(db_session):  # noqa: F811
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
-    assert isinstance(result, GlobalSkyModel)
+    assert isinstance(result, SkyModel)
     assert result.metadata["catalogue_name"] == "catalogue3"
     assert result.metadata["author"] == "SKA SDP Team"
     assert result.metadata["freq_min_hz"] == 50e6
@@ -609,7 +609,7 @@ def test_query_gsm_for_lsm_by_freq_min(db_session):  # noqa: F811
     result = _query_gsm_for_lsm(query_params, db_session)
 
     # Verify results
-    assert isinstance(result, GlobalSkyModel)
+    assert isinstance(result, SkyModel)
     assert result.metadata["catalogue_name"] == "catalogue1"
     assert result.metadata["author"] == "Alice"
     assert result.metadata["freq_min_hz"] == 76e6
@@ -659,8 +659,8 @@ def test_write_data_integration(tmp_path, gsm_metadata):
         catalogue_name="catalogue",
         sub_path="test/lsm.csv",
     )
-    # Create GlobalSkyModel
-    gsm = GlobalSkyModel(
+    # Create SkyModel
+    gsm = SkyModel(
         metadata=gsm_metadata.columns_to_dict(),
         components={"TEST001": component1, "TEST002": component2},
     )
@@ -694,10 +694,10 @@ def test_write_data_integration(tmp_path, gsm_metadata):
 
 
 def test_write_data_empty_components(tmp_path):
-    """Test _write_data with empty GlobalSkyModel"""
+    """Test _write_data with empty SkyModel"""
 
-    # Create empty GlobalSkyModel
-    gsm = GlobalSkyModel(metadata={}, components={})
+    # Create empty SkyModel
+    gsm = SkyModel(metadata={}, components={})
 
     # Create output directory
     output_dir = (
@@ -862,7 +862,7 @@ def test_watcher_process_multiple_sources(
     mock_processing_block.eb_id = "eb-test-20260108-1234"
     mock_txn.processing_block.get.return_value = mock_processing_block
 
-    mock_gsm = GlobalSkyModel(components={}, metadata={})
+    mock_gsm = SkyModel(components={}, metadata={})
     mock_query.return_value = mock_gsm
 
     _watcher_process(mock_config)

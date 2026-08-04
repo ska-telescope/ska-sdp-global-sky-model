@@ -39,13 +39,13 @@ import ska_sdp_config
 from fastapi import Depends
 from packaging.version import Version
 from ska_sdp_config.entity.flow import Flow, FlowSource
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModel,
+from ska_sdp_datamodels.sky_model import (
+    LocalSkyModel,
 )
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkyComponent as SkyComponentDataclass,
+from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
+from ska_sdp_datamodels.sky_model import (
+    SkyModel,
 )
-from ska_sdp_datamodels.global_sky_model.local_sky_model import LocalSkyModel
 from ska_sdp_dataproduct_metadata import MetaData
 from sqlalchemy import Boolean
 from sqlalchemy.orm import Session
@@ -388,7 +388,7 @@ def _process_flow(
 def _query_gsm_for_lsm(
     query_parameters: QueryParameters,
     db: Session = Depends(get_db),
-) -> "GlobalSkyModel":
+) -> "SkyModel":
     """
     Query the Global Sky Model database for components within the specified field of view.
 
@@ -438,9 +438,7 @@ def _query_gsm_for_lsm(
             del sky_component_dict["gsm_id"]
             sky_components_dict[sky_component.id] = SkyComponentDataclass(**sky_component_dict)
 
-        return GlobalSkyModel(
-            metadata=metadata_record.columns_to_dict(), components=sky_components_dict
-        )
+        return SkyModel(metadata=metadata_record.columns_to_dict(), components=sky_components_dict)
 
     except Exception as e:
         logger.exception("Error querying GSM database: %s", e)
@@ -761,7 +759,7 @@ def _update_state(
 
 
 def _write_data(
-    eb_id: str, query_parameters: QueryParameters, output: Path, data: "GlobalSkyModel"
+    eb_id: str, query_parameters: QueryParameters, output: Path, data: "SkyModel"
 ):  # pylint: disable=too-many-locals, too-many-branches
     """
     Write the LSM to disk as a CSV file.
