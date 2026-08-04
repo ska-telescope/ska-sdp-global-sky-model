@@ -18,12 +18,8 @@ import logging
 import typing
 from typing import get_args, get_origin
 
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    GlobalSkyModelMetadata as GSMMetadataDataclass,
-)
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkyComponent as SkyComponentDataclass,
-)
+from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
+from ska_sdp_datamodels.sky_model import SkyModelMetadata as GSMMetadataDataclass
 from sqlalchemy import (
     Boolean,
     Column,

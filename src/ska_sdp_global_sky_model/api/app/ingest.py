@@ -11,9 +11,7 @@ import logging
 from itertools import zip_longest
 from typing import get_args, get_origin
 
-from ska_sdp_datamodels.global_sky_model.global_sky_model import (
-    SkyComponent as SkyComponentDataclass,
-)
+from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
 from sqlalchemy.orm import Session
 
 from ska_sdp_global_sky_model.api.app.models import (
