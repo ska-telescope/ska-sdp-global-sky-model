@@ -4,6 +4,9 @@ CHANGELOG
 Development
 -----------
 
+0.5.0
+-----
+
 - [Fix] Load ``freq_min_hz`` and ``freq_max_hz`` values from metadata
   (`MR126 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/126>`__)
 - [Fix] Strip whitespaces from beginning and end of ``catalogue_name`` before loading to database
@@ -17,6 +20,8 @@ Development
 - [Update] Upgrade ska-sdp-datamodels to 3.0.0. This versions renames and moves the SkyComponent and SkyModel
   classes and their use is updated throughout the GSM.
   (`MR130 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/130>`__)
+- [Update] Upgrade ska-sdp-config to 1.6.4
+  (`MR131 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/131>`__)
 
 0.4.0
 -----
