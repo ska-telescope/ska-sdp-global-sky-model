@@ -4,6 +4,12 @@ CHANGELOG
 Development
 -----------
 
+0.5.1
+-----
+
+- [Bugfix] Remove extra model field from queries
+  (`MR133 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/133>`__)
+
 0.5.0
 -----
 

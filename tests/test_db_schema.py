@@ -525,7 +525,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
                 break
 
         # Check that all dataclass fields are in the model
-        missing_fields = dataclass_fields - model_columns
+        missing_fields = dataclass_fields - model_columns - {"query_parameters"}
         assert (
             not missing_fields
         ), f"Fields from GSMMetadataDataclass missing in model: {missing_fields}"
@@ -567,7 +567,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + all database-specific fields
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 3
+        expected_count = len(GSMMetadataDataclass.__annotations__) + 2
 
         # Get actual count
         inspector = inspect(engine)
