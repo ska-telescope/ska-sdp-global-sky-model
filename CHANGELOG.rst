@@ -8,7 +8,7 @@ Development
 -----
 
 - [Bugfix] Remove extra model field from queries
-  (`MR132 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/132>`__)
+  (`MR133 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/133>`__)
 
 0.5.0
 -----
