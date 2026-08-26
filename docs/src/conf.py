@@ -9,8 +9,8 @@
 project = "SDP Global Sky Model"
 copyright = "2019-2025 SKA SDP Developers"
 author = "SKA SDP Developers"
-version = "0.5.0"
-release = "0.5.0"
+version = "0.5.1"
+release = "0.5.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
