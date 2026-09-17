@@ -10,7 +10,6 @@ The engine is used in conftest.py to generate the database with the right tables
 results of which are tested here.
 """
 
-import inspect
 from inspect import get_annotations
 
 import pytest
