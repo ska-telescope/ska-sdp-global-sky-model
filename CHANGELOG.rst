@@ -4,6 +4,12 @@ CHANGELOG
 Development
 -----------
 
+- [Updates] (`MR134 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/134>`__):
+
+  - Move to python 3.14
+  - Update all dependencies
+  - Move build process to venv, and move to ubuntu26
+
 0.5.1
 -----
 
@@ -133,7 +139,7 @@ Development
   (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
 - [Removed] Unused ``/optimise-json`` API endpoint
   (`MR69 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/69>`__)
-- [Removed]Remove the dependencie on a running PostgreSQL instance for tests
+- [Removed]Remove the dependencies on a running PostgreSQL instance for tests
   (`MR59 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/59>`__)
 - [Removed] Helm chart
   (`MR58 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/58>`__)

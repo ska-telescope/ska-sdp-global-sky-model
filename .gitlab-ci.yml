@@ -1,9 +1,9 @@
 default:
   image: $SKA_K8S_TOOLS_BUILD_DEPLOY
-  tags:
-    - ${SKA_DEFAULT_RUNNER}
 
 variables:
+  PYTHON_VERSION: python3.14
+  POETRY_CONFIG_VIRTUALENVS_CREATE: "true"
   GIT_SUBMODULE_STRATEGY: recursive
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   OCI_IMAGE_BUILD_CONTEXT: $(PWD)
@@ -47,6 +47,34 @@ container_scanning:
     matrix:
       - CS_IMAGE: "$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME-api:$CI_COMMIT_SHORT_SHA"
       - CS_IMAGE: "$CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME-db:$CI_COMMIT_SHORT_SHA"
+
+docs-build:
+  before_script:
+    - poetry config virtualenvs.in-project true
+    - poetry config virtualenvs.create $POETRY_CONFIG_VIRTUALENVS_CREATE
+    - poetry env use ${PYTHON_VERSION}
+    - poetry sync --no-root --only docs
+  script:
+    - poetry run make docs-build $CI_SPHINX_BUILDERS
+
+python-lint:
+  before_script:
+    - poetry config virtualenvs.in-project true
+    - poetry config virtualenvs.create $POETRY_CONFIG_VIRTUALENVS_CREATE
+    - poetry env use ${PYTHON_VERSION}
+    - time poetry install
+  script:
+    - poetry run make python-lint
+
+python-test:
+  before_script:
+    - poetry config virtualenvs.in-project true
+    - poetry config virtualenvs.create $POETRY_CONFIG_VIRTUALENVS_CREATE
+    - poetry env use ${PYTHON_VERSION}
+    - time poetry install
+  script:
+    - poetry run make python-test
+
 
 # Override docs-build-rtd to fail pipeline if documentation build fails
 docs-build-rtd:
