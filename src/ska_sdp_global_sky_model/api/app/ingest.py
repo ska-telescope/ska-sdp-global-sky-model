@@ -93,7 +93,7 @@ def to_float(val):
     """
     try:
         return float(val)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 

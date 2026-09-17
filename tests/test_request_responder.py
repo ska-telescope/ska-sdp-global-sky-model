@@ -16,9 +16,7 @@ from ska_sdp_datamodels.sky_model import (
     LocalSkyModel,
 )
 from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
-from ska_sdp_datamodels.sky_model import (
-    SkyModel,
-)
+from ska_sdp_datamodels.sky_model import SkyModel
 
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,

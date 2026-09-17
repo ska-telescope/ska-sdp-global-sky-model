@@ -43,9 +43,7 @@ from ska_sdp_datamodels.sky_model import (
     LocalSkyModel,
 )
 from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
-from ska_sdp_datamodels.sky_model import (
-    SkyModel,
-)
+from ska_sdp_datamodels.sky_model import SkyModel
 from ska_sdp_dataproduct_metadata import MetaData
 from sqlalchemy import Boolean
 from sqlalchemy.orm import Session
