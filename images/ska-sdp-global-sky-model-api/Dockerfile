@@ -12,7 +12,7 @@ RUN poetry install --no-root --only main
 
 COPY src ./
 
-RUN poetry install --only main
+RUN poetry install --only-root
 
 FROM artefact.skao.int/ska-python-ubuntu26:1.0.1 AS runner
 

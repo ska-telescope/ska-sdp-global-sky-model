@@ -22,6 +22,7 @@ The states are updated as follows:
 
 import dataclasses
 import datetime
+import inspect
 import io
 import logging
 import os
@@ -592,11 +593,12 @@ def _build_local_sky_model(
         components: The components of the sky model.
         query_parametrs: The query parameters provided.
     """
-    column_names = (
-        list(next(iter(components.values())).__annotations__.keys())
-        if components
-        else list(SkyComponentDataclass.__annotations__.keys())
-    )
+    if components:
+        column_names = [
+            field.name for field in dataclasses.fields(next(iter(components.values())))
+        ]
+    else:
+        column_names = list(inspect.get_annotations(SkyComponentDataclass).keys())
     local_model = LocalSkyModel(
         column_names=column_names,
         num_rows=len(components),
