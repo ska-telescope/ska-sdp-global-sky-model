@@ -3,30 +3,26 @@ include = ["MANIFEST.skao.int"]
 name = "ska_sdp_global_sky_model"
 version = "0.5.1"
 description = "SKA SDP Global Sky Model"
-authors = [
-    {name = "Jacob Maresca", email =  "jacob.maresca@akkodis.com>"},
-    {name = "Christian Christelis", email =  "cchristelis@ska.ac.za"},
-    {name = "Dominic Schaff", email =  "dominic@vivosa.co.za"}
-]
+authors = [{name="SKA SDP Developers"}]
 readme = "README.rst"
 packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 requires-python = ">=3.14,<4.0"
 license-files = ["LICENSE"]
 dependencies = [
-    "fastapi >=0.141.1,<0.142.0",
-    "sqlalchemy >=2.0.54,<3.0.0",
-    "uvicorn[standard] >=0.53.0,<0.54.0",
-    "httpx >=0.28.1,<0.29.0",
-    "ska-ser-logging >=0.4.3.post0,<0.5.0",
-    "python-multipart >=0.0.32,<0.0.33",  # needed by fastapi for parsing
-    "alembic >=1.20.0,<2.0.0",
-    "ska-sdp-config ==1.6.5+dev.c7cd2591f",
-    "ska-sdp-datamodels >=3.0.0,<4.0.0",
-    "ska-sdp-dataproduct-metadata >=1.4.0,<2.0.0",
-    "psycopg[binary,pool] >=3.3.5,<4.0.0",
-    "pyyaml >=6.0.3,<7.0.0",
-    "packaging >=26.3,<27.0",
-    "jinja2 >=3.1.6,<4.0.0",
+    "fastapi >=0.141.1",
+    "sqlalchemy >=2.0.54",
+    "uvicorn[standard] >=0.53.0",
+    "httpx >=0.28.1",
+    "ska-ser-logging >=0.4.3.post0",
+    "python-multipart >=0.0.32",  # needed by fastapi for parsing
+    "alembic >=1.20.0",
+    "ska-sdp-config >=1.6.6",
+    "ska-sdp-datamodels >=3.0.0",
+    "ska-sdp-dataproduct-metadata >=1.4.0",
+    "psycopg[binary,pool] >=3.3.5",
+    "pyyaml >=6.0.3",
+    "packaging >=26.3",
+    "jinja2 >=3.1.6",
 ]
 
 [project.urls]
@@ -40,22 +36,22 @@ gsm-delete = "ska_sdp_global_sky_model.cli.catalogue_delete:main"
 
 [dependency-groups]
 dev = [
-    "isort >=9.0.1,<10.0.0",
-    "black >=26.5.1,<27.0.0",
-    "flake8 >=7.3.0,<8.0.0",
-    "pylint >=4.0.8,<5.0.0",
-    "pylint-junit >=0.3.5,<0.4.0",
-    "pytest >=9.1.1,<10.0.0",
-    "pytest-cov >=7.1.0,<8.0.0",
-    "pytest-asyncio >=1.4.0,<2.0.0",
-    "build >=1.6.1,<2.0.0",
+    "isort >=9.0.1",
+    "black >=26.5.1",
+    "flake8 >=7.3.0",
+    "pylint >=4.0.8",
+    "pylint-junit >=0.3.5",
+    "pytest >=9.1.1",
+    "pytest-cov >=7.1.0",
+    "pytest-asyncio >=1.4.0",
+    "build >=1.6.1",
 ]
 docs = [
-    "sphinx >=9.1.0,<10.0.0",
-    "sphinx-copybutton >=0.5.2,<0.6.0",
-    "ska-ser-sphinx-theme >=0.2.1,<0.3.0",
-    "sphinx-new-tab-link >=0.8.2,<0.9.0",
-    "sphinxcontrib-programoutput >=0.20,<0.21",
+    "sphinx >=9.1.0",
+    "sphinx-copybutton >=0.5.2",
+    "ska-ser-sphinx-theme >=0.2.1",
+    "sphinx-new-tab-link >=0.8.2",
+    "sphinxcontrib-programoutput >=0.20",
 ]
 
 [[tool.poetry.source]]
@@ -66,14 +62,6 @@ priority = "supplemental"
 name = "skao"
 url = "https://artefact.skao.int/repository/pypi-internal/simple"
 priority = "primary"
-
-[[tool.poetry.source]]
-name = "gitlab-ska-sdp-config"
-url = "https://gitlab.com/api/v4/projects/21141282/packages/pypi/simple"
-priority = "explicit"
-
-[tool.poetry.dependencies]
-ska-sdp-config = { source = "gitlab-ska-sdp-config" }
 
 [tool.isort]
 # auto generated files.

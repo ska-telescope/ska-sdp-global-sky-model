@@ -25,19 +25,12 @@ stages:
 include:
   - project: "ska-telescope/templates-repository"
     file:
-      # Python
       - "gitlab-ci/includes/python.gitlab-ci.yml"
-      # .post step finalisers eg: badges
       - "gitlab-ci/includes/finaliser.gitlab-ci.yml"
-      # OCI
       - "gitlab-ci/includes/oci-image.gitlab-ci.yml"
-      # Release management
       - 'gitlab-ci/includes/release.gitlab-ci.yml'
-      # Documentation
       - 'gitlab-ci/includes/docs.gitlab-ci.yml'
-      # SonarQube scan
       - 'gitlab-ci/includes/sonar-scan.gitlab-ci.yml'
-      # GitLab security templates (includes container scanning)
       - 'gitlab-ci/includes/gitlab-templates.gitlab-ci.yml'
 
 # Override container_scanning to scan both API and DB images
