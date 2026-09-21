@@ -23,12 +23,13 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-ENV PYTHONPATH="/src/"
+ENV PYTHONPATH="/app/"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV TZ=Etc/UTC
 
-USER 1000
+# we cannot run as any other user, because of the disk requirements
+# USER 1000
 
 WORKDIR /app
 
@@ -42,4 +43,4 @@ COPY --chmod=0755 scripts/db_init_data.py /db_init_data.py
 COPY tests/data/*.csv /sample_data/
 COPY tests/data/metadata_test.json /sample_data/metadata_test.json
 
-CMD ["uvicorn", "ska_sdp_global_sky_model.api.app.main:app", "--host", "0.0.0.0", "--port", "80", "--app-dir", "/usr/src"]
+CMD ["uvicorn", "ska_sdp_global_sky_model.api.app.main:app", "--host", "0.0.0.0", "--port", "80"]

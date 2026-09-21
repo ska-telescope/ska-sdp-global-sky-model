@@ -156,9 +156,9 @@ class QueryParameters:
                     q3c_radial_query(
                         SkyComponent.ra_deg,
                         SkyComponent.dec_deg,
-                        self.ra_deg,
-                        self.dec_deg,
-                        self.fov_deg,
+                        float(self.ra_deg),
+                        float(self.dec_deg),
+                        float(self.fov_deg),
                     )
                 )
                 .where(SkyComponent.gsm_id == metadata_record.id)
@@ -268,8 +268,11 @@ def _watcher_process_flow(watcher, flow, sources):
             if "catalogue_name" not in params:
                 raise ValueError("'catalogue_name' is a required search parameter")
 
+            params["ra_deg"] = float(params["ra_deg"])
+            params["dec_deg"] = float(params["dec_deg"])
+            params["fov_deg"] = float(params["fov_deg"])
             query_params = QueryParameters(**params)
-        except (TypeError, ValueError) as err:
+        except (TypeError, ValueError, KeyError) as err:
             logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
             errors.append(
                 {
