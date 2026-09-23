@@ -10,6 +10,8 @@ The engine is used in conftest.py to generate the database with the right tables
 results of which are tested here.
 """
 
+from inspect import get_annotations
+
 import pytest
 from ska_sdp_datamodels.sky_model import (
     SkyComponent,
@@ -450,7 +452,7 @@ class TestSkyComponentModelDataclassSync:
     def test_all_dataclass_fields_present_in_model(self):
         """Test that all fields from SkyComponent are present in SkyComponentModel."""
         # Get all field names from the dataclass
-        dataclass_fields = set(SkyComponent.__annotations__.keys())
+        dataclass_fields = set(get_annotations(SkyComponent).keys())
 
         # Get all column names from the SkyComponent model
         inspector = inspect(engine)
@@ -471,7 +473,7 @@ class TestSkyComponentModelDataclassSync:
     def test_model_has_only_expected_columns(self):
         """Test that SkyComponentModel doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
-        expected_columns = set(SkyComponent.__annotations__.keys())
+        expected_columns = set(get_annotations(SkyComponent).keys())
         expected_columns.update(["id", "gsm_id"])
 
         # Get actual model columns
@@ -491,7 +493,7 @@ class TestSkyComponentModelDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + 2 database-specific
-        expected_count = len(SkyComponent.__annotations__) + 2
+        expected_count = len(get_annotations(SkyComponent)) + 2
 
         # Get actual count
         inspector = inspect(engine)
@@ -513,7 +515,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_all_dataclass_fields_present_in_model(self):
         """Test that all fields from GSMMetadataDataclass are present in model."""
         # Get all field names from the dataclass
-        dataclass_fields = set(GSMMetadataDataclass.__annotations__.keys())
+        dataclass_fields = set(get_annotations(GSMMetadataDataclass).keys())
 
         # Get all column names from the GlobalSkyModelMetadata model
         inspector = inspect(engine)
@@ -533,7 +535,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_model_has_only_expected_columns(self):
         """Test that GlobalSkyModelMetadata model doesn't have unexpected columns."""
         # Expected columns: dataclass fields + database-specific fields
-        expected_columns = set(GSMMetadataDataclass.__annotations__.keys())
+        expected_columns = set(get_annotations(GSMMetadataDataclass).keys())
         expected_columns.update(
             {
                 "id",
@@ -567,7 +569,7 @@ class TestGlobalSkyModelMetadataDataclassSync:
     def test_field_count_matches(self):
         """Test that the number of fields matches expectations."""
         # Expected: all dataclass fields + all database-specific fields
-        expected_count = len(GSMMetadataDataclass.__annotations__) + 2
+        expected_count = len(get_annotations(GSMMetadataDataclass)) + 2
 
         # Get actual count
         inspector = inspect(engine)

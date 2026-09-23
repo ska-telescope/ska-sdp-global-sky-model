@@ -2,11 +2,13 @@
 
 # pylint: disable=too-many-lines
 
+
 import copy
 import io
 import os
 import tarfile
 import tempfile
+from inspect import get_annotations
 from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
@@ -16,9 +18,7 @@ from ska_sdp_datamodels.sky_model import (
     LocalSkyModel,
 )
 from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
-from ska_sdp_datamodels.sky_model import (
-    SkyModel,
-)
+from ska_sdp_datamodels.sky_model import SkyModel
 
 from ska_sdp_global_sky_model.api.app.request_responder import (
     QueryParameters,
@@ -1330,7 +1330,7 @@ def test_lsm_to_ecsv_lines_with_data():
     assert len(data_lines) == 2
     header_row, data_row = data_lines
 
-    assert header_row == ",".join(SkyComponentDataclass.__annotations__.keys()) + "\n"
+    assert header_row == ",".join(get_annotations(SkyComponentDataclass).keys()) + "\n"
 
     # Known scalar values appear
     assert "TEST001" in data_row

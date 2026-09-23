@@ -22,6 +22,7 @@ The states are updated as follows:
 
 import dataclasses
 import datetime
+import inspect
 import io
 import logging
 import os
@@ -43,9 +44,7 @@ from ska_sdp_datamodels.sky_model import (
     LocalSkyModel,
 )
 from ska_sdp_datamodels.sky_model import SkyComponent as SkyComponentDataclass
-from ska_sdp_datamodels.sky_model import (
-    SkyModel,
-)
+from ska_sdp_datamodels.sky_model import SkyModel
 from ska_sdp_dataproduct_metadata import MetaData
 from sqlalchemy import Boolean
 from sqlalchemy.orm import Session
@@ -157,9 +156,9 @@ class QueryParameters:
                     q3c_radial_query(
                         SkyComponent.ra_deg,
                         SkyComponent.dec_deg,
-                        self.ra_deg,
-                        self.dec_deg,
-                        self.fov_deg,
+                        float(self.ra_deg),
+                        float(self.dec_deg),
+                        float(self.fov_deg),
                     )
                 )
                 .where(SkyComponent.gsm_id == metadata_record.id)
@@ -269,8 +268,11 @@ def _watcher_process_flow(watcher, flow, sources):
             if "catalogue_name" not in params:
                 raise ValueError("'catalogue_name' is a required search parameter")
 
+            params["ra_deg"] = float(params["ra_deg"])
+            params["dec_deg"] = float(params["dec_deg"])
+            params["fov_deg"] = float(params["fov_deg"])
             query_params = QueryParameters(**params)
-        except (TypeError, ValueError) as err:
+        except (TypeError, ValueError, KeyError) as err:
             logger.error("%s -> Used invalid query parameters: %s", flow.key, source.parameters)
             errors.append(
                 {
@@ -594,11 +596,12 @@ def _build_local_sky_model(
         components: The components of the sky model.
         query_parametrs: The query parameters provided.
     """
-    column_names = (
-        list(next(iter(components.values())).__annotations__.keys())
-        if components
-        else list(SkyComponentDataclass.__annotations__.keys())
-    )
+    if components:
+        column_names = [
+            field.name for field in dataclasses.fields(next(iter(components.values())))
+        ]
+    else:
+        column_names = list(inspect.get_annotations(SkyComponentDataclass).keys())
     local_model = LocalSkyModel(
         column_names=column_names,
         num_rows=len(components),

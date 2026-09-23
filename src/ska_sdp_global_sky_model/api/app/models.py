@@ -14,6 +14,7 @@ over database-specific concerns like indexing and JSON serialization.
 # pylint: disable=too-few-public-methods
 # pylint: disable=no-member
 
+import inspect
 import logging
 import typing
 from typing import get_args, get_origin
@@ -100,7 +101,7 @@ def _add_dynamic_columns_to_model(model_class, dataclass, skip_columns=None):
     if skip_columns is None:
         skip_columns = set()
 
-    for col, dtype in dataclass.__annotations__.items():
+    for col, dtype in inspect.get_annotations(dataclass).items():
         if col in skip_columns:
             continue  # Skip columns already defined in the model
 

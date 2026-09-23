@@ -291,3 +291,5 @@ output.log.*
 
 # End of .gitignore
 unit-tests.xml
+
+output/**

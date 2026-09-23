@@ -6,6 +6,7 @@ Catalogue ingest
 
 import csv
 import dataclasses
+import inspect
 import io
 import logging
 from itertools import zip_longest
@@ -93,7 +94,7 @@ def to_float(val):
     """
     try:
         return float(val)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -114,7 +115,7 @@ def _get_dataclass_fields() -> dict[str, type]:
     Returns:
         Dictionary mapping field names to their types
     """
-    return dict(SkyComponentDataclass.__annotations__.items())
+    return dict(inspect.get_annotations(SkyComponentDataclass).items())
 
 
 # pylint: disable-next=too-many-return-statements

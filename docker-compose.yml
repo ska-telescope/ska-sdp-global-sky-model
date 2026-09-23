@@ -30,6 +30,7 @@ services:
       - etcd:etcd
     volumes:
       - ./src/ska_sdp_global_sky_model:/usr/src/ska_sdp_global_sky_model
+      - ./output:/mnt/data
     environment:
       API_VERBOSE: 'true'
       SDP_CONFIG_HOST: 'etcd'
@@ -48,9 +49,3 @@ services:
       POSTGRES_DB:  'postgres'
     ports:
       - "5432:5432"
-    volumes:
-      - database_volume:/var/lib/postgresql
-
-volumes:
-  database_volume:
-    name: database_volume

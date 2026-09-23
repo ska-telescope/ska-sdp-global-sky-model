@@ -3,7 +3,7 @@
 set -e # exit on failure
 
 if [[ -z ${BASE_DIRECTORY+x} ]]; then
-  BASE_DIRECTORY="/usr/local/lib/python3.10/dist-packages/ska_sdp_global_sky_model"
+  BASE_DIRECTORY="/app/ska_sdp_global_sky_model"
 fi
 
 if [[ ! -d "$BASE_DIRECTORY" ]]; then
