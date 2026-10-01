@@ -4,6 +4,9 @@ CHANGELOG
 Development
 -----------
 
+0.6.0
+-----
+
 - [Updates] (`MR134 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/134>`__):
 
   - Move to python 3.14
