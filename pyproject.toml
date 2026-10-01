@@ -9,9 +9,9 @@ packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 requires-python = ">=3.14,<4.0"
 license-files = ["LICENSE"]
 dependencies = [
-    "fastapi >=0.141.1",
-    "sqlalchemy >=2.0.54",
-    "uvicorn[standard] >=0.53.0",
+    "fastapi >=0.142.2",
+    "sqlalchemy >=2.1.1",
+    "uvicorn[standard] >=0.54.0",
     "httpx >=0.28.1",
     "ska-ser-logging >=0.4.3.post0",
     "python-multipart >=0.0.32",  # needed by fastapi for parsing
@@ -19,7 +19,7 @@ dependencies = [
     "ska-sdp-config >=1.6.6",
     "ska-sdp-datamodels >=3.0.0",
     "ska-sdp-dataproduct-metadata >=1.4.0",
-    "psycopg[binary,pool] >=3.3.5",
+    "psycopg[binary,pool] >=3.3.6",
     "pyyaml >=6.0.3",
     "packaging >=26.3",
     "jinja2 >=3.1.6",
@@ -37,10 +37,10 @@ gsm-delete = "ska_sdp_global_sky_model.cli.catalogue_delete:main"
 
 [dependency-groups]
 dev = [
-    "isort >=9.0.1",
+    "isort >=9.0.2",
     "black >=26.5.1",
-    "flake8 >=7.3.0",
-    "pylint >=4.0.8",
+    "flake8 >=7.4.1",
+    "pylint >=4.1.1",
     "pylint-junit >=0.3.5",
     "pytest >=9.1.1",
     "pytest-cov >=7.1.0",
