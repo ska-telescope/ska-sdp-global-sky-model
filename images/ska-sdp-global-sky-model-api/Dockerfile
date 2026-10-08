@@ -1,4 +1,4 @@
-FROM artefact.skao.int/ska-build-python-ubuntu26:1.0.1 AS builder
+FROM artefact.skao.int/ska-build-python-ubuntu26:1.1.1 AS builder
 
 ENV POETRY_NO_INTERACTION=1
 ENV POETRY_VIRTUALENVS_IN_PROJECT=1
@@ -14,7 +14,7 @@ COPY src ./
 
 RUN poetry install --only-root
 
-FROM artefact.skao.int/ska-python-ubuntu26:1.0.1 AS runner
+FROM artefact.skao.int/ska-python-ubuntu26:1.1.1 AS runner
 
 EXPOSE 80
 
