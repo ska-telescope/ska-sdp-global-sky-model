@@ -9,21 +9,21 @@ packages = [{include = "ska_sdp_global_sky_model", from = "src" }]
 requires-python = ">=3.14,<4.0"
 license-files = ["LICENSE"]
 dependencies = [
-    "fastapi >=0.142.2",
-    "sqlalchemy >=2.1.1",
+    "fastapi >=0.162.0",
+    "sqlalchemy >=2.1.6",
     "uvicorn[standard] >=0.54.0",
     "httpx >=0.28.1",
     "ska-ser-logging >=0.4.3.post0",
     "python-multipart >=0.0.32",  # needed by fastapi for parsing
-    "alembic >=1.20.0",
-    "ska-sdp-config >=1.6.6",
-    "ska-sdp-datamodels >=3.0.0",
+    "alembic >=1.20.1",
+    "ska-sdp-config >=1.6.7",
+    "ska-sdp-datamodels >=3.1.0",
     "ska-sdp-dataproduct-metadata >=1.4.0",
     "psycopg[binary,pool] >=3.3.6",
     "pyyaml >=6.0.3",
     "packaging >=26.3",
     "jinja2 >=3.1.6",
-    "numpy >=2.5.3",
+    "numpy >=2.5.4",
 ]
 
 [project.urls]
@@ -38,17 +38,17 @@ gsm-delete = "ska_sdp_global_sky_model.cli.catalogue_delete:main"
 [dependency-groups]
 dev = [
     "isort >=9.0.2",
-    "black >=26.5.1",
+    "black >=26.10.1",
     "flake8 >=7.4.1",
-    "pylint >=4.1.1",
+    "pylint >=4.1.3",
     "pylint-junit >=0.3.5",
     "pytest >=9.1.1",
     "pytest-cov >=7.1.0",
-    "pytest-asyncio >=1.4.0",
+    "pytest-asyncio >=1.4.1",
     "build >=1.6.1",
 ]
 docs = [
-    "sphinx >=9.1.0",
+    "sphinx >=9.2.0",
     "sphinx-copybutton >=0.5.2",
     "ska-ser-sphinx-theme >=0.2.1",
     "sphinx-new-tab-link >=0.8.2",
