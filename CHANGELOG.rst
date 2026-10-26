@@ -1,8 +1,13 @@
-CHANGELOG
+Changelog
 =========
 
-Development
------------
+0.6.1
+-----
+
+- [Fix] (`MR136 <https://gitlab.com/ska-telescope/sdp/ska-sdp-global-sky-model/-/merge_requests/136>`__):
+
+  - Upgrade base images to 1.1.4 to resolve vulnerabilities
+  - Upgrade Python dependencies to resolve vulnerabilities
 
 0.6.0
 -----
